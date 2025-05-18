@@ -1,5 +1,5 @@
 """
-teacher_densenet.py
+models/teacher_densenet.py
 
 - DenseNet (e.g., densenet121) Teacher
 - CIFAR-100에 맞춰 마지막 classifier 교체
