@@ -1,5 +1,5 @@
 """
-teacher_resnet.py
+models/teacher_resnet.py
 
 - ResNet101를 CIFAR-100에 맞게 불러오는 함수
 - TeacherResNetWrapper: forward 시 중간 feat, logit, CE loss 반환
