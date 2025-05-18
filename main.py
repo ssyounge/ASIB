@@ -1,90 +1,154 @@
-# main.py
+#!/usr/bin/env python3
+"""
+main.py
+
+Example flow:
+ 1) Parse args & load config
+ 2) Setup logger, device
+ 3) Create or load Teacher #1, #2, partial freeze them
+ 4) Optionally measure disagreement rate
+ 5) Teacher adaptive update (with reg_lambda)
+ 6) Student distillation
+ 7) Evaluate final student => log results
+"""
 
 import argparse
 import torch
+import copy
+
 from utils.logger import ExperimentLogger
+from modules.partial_freeze import partial_freeze_teacher, partial_freeze_student
+from modules.disagreement import compute_disagreement_rate
+from modules.trainer_teacher import teacher_adaptive_update
+from modules.trainer_student import student_distillation_update
+
+# (예시) teacher / student wrapper
+from models.teacher_resnet import TeacherResNetWrapper
+from models.student_resnet_adapter import StudentResNetAdapter
+from data.cifar100 import get_cifar100_loaders
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    # 아래는 예시. 본인 프로젝트 옵션에 맞게 추가/수정
+    # 실험 핵심 파라미터
     parser.add_argument("--method", type=str, default="asmb")
-    parser.add_argument("--teacher1", type=str, default="resnet50")
-    parser.add_argument("--teacher2", type=str, default="efficientnet_b2")
-    parser.add_argument("--alpha", type=float, default=0.5)
-    parser.add_argument("--stage", type=int, default=2)
+    parser.add_argument("--teacher1_ckpt", type=str, default="./ckpt/teacher1.pth")
+    parser.add_argument("--teacher2_ckpt", type=str, default="./ckpt/teacher2.pth")
+    parser.add_argument("--student_ckpt", type=str, default=None)
     parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--mbm_lr_factor", type=float, default=1.0)
+    parser.add_argument("--teacher_weight_decay", type=float, default=1e-4)
+    parser.add_argument("--reg_lambda", type=float, default=1e-5, 
+                        help="teacher init-based reg")
+    parser.add_argument("--mbm_reg_lambda", type=float, default=0.0,
+                        help="MBM extra L2")
+    parser.add_argument("--synergy_ce_alpha", type=float, default=0.3)
+    parser.add_argument("--teacher_adapt_alpha_kd", type=float, default=0.2)
+    parser.add_argument("--temperature", type=float, default=4.0)
+    parser.add_argument("--epochs_teacher", type=int, default=5,
+                        help="teacher_adaptive_epochs")
+    parser.add_argument("--epochs_student", type=int, default=10,
+                        help="student distill epochs")
     parser.add_argument("--batch_size", type=int, default=128)
-    parser.add_argument("--epochs", type=int, default=10)
-    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--results_dir", type=str, default="results")
+    parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
     return args
 
-
-def train_one_epoch(model, train_loader, optimizer, device="cuda"):
-    model.train()
-    # 예시: 그냥 로스만 대충 계산
-    total_loss = 0.0
-    for x, y in train_loader:
-        x, y = x.to(device), y.to(device)
-        out = model(x)  # (feat, logit, None) 같은 식
-        # ...
-        loss = torch.randn(1).item()  # 임의로 더미 loss
-        total_loss += loss
-        # optimizer.step() ...
-    return total_loss / len(train_loader)
-
-
-def eval_model(model, test_loader, device="cuda"):
-    model.eval()
-    correct, total = 0, 0
-    # ...
-    acc = 80.0 + torch.randn(1).abs().item()  # 임의로 80% 근처로 가정
-    return acc
-
-
 def main():
     args = parse_args()
+    # dict 형태로 logger에 넘길 수 있게
+    cfg = vars(args)
 
-    # 1) ExperimentLogger 초기화
-    logger = ExperimentLogger(args)
-    # => 내부에서 exp_id를 만들고, args를 dict로 변환
+    # 1) Logger
+    logger = ExperimentLogger(cfg)  # => auto exp_id
+    device = cfg["device"]
 
-    # 2) 환경 준비 (seed 등)
-    torch.manual_seed(args.seed)
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    # 2) Seed, device
+    torch.manual_seed(cfg["seed"])
+    if device == "cuda" and not torch.cuda.is_available():
+        print("Warning: CUDA not available, fallback to CPU.")
+        cfg["device"] = "cpu"
 
-    # 3) 데이터 로더 (예시)
-    train_loader = None  # load train data
-    test_loader = None   # load test data
+    # 3) Data loaders
+    train_loader, test_loader = get_cifar100_loaders(batch_size=cfg["batch_size"])
 
-    # 4) 모델 생성 (Teacher, Student... 여기서는 간단히 student만 예시)
-    student_model = torch.nn.Linear(128, 100).to(device)
-    optimizer = torch.optim.Adam(student_model.parameters(), lr=args.lr)
+    # 4) Load Teacher models
+    # (예시) TeacherResNetWrapper -> partial freeze backbone
+    teacher1 = TeacherResNetWrapper(pretrained=True)
+    teacher2 = TeacherResNetWrapper(pretrained=True)
+    # ckpt load
+    if args.teacher1_ckpt:
+        teacher1.load_state_dict(torch.load(args.teacher1_ckpt))
+    if args.teacher2_ckpt:
+        teacher2.load_state_dict(torch.load(args.teacher2_ckpt))
+    teacher1.to(device)
+    teacher2.to(device)
+    # partial freeze (백본 등)
+    partial_freeze_teacher(teacher1)
+    partial_freeze_teacher(teacher2)
 
-    # 5) 학습 루프
-    best_acc = 0.0
-    for epoch in range(args.epochs):
-        train_loss = train_one_epoch(student_model, train_loader, optimizer, device)
-        test_acc = eval_model(student_model, test_loader, device)
+    # 5) Create Student
+    student = StudentResNetAdapter(pretrained=True)  # user-defined model
+    if args.student_ckpt is not None:
+        student.load_state_dict(torch.load(args.student_ckpt))
+    student.to(device)
+    # partial freeze student lower layers
+    partial_freeze_student(student)
 
-        print(f"Epoch {epoch}: loss={train_loss:.3f}, test_acc={test_acc:.2f}")
+    # 6) MBM, synergy head
+    from models.mbm import ManifoldBridgingModule, SynergyHead
+    mbm = ManifoldBridgingModule(in_dim=4096, hidden_dim=1024, out_dim=2048).to(device)
+    synergy_head = SynergyHead(in_dim=2048, num_classes=100).to(device)
 
-        # 필요하면 logger에도 중간 결과 기록할 수 있음
-        # logger.update_metric(f"epoch_{epoch}_loss", train_loss)
-        # logger.update_metric(f"epoch_{epoch}_acc", test_acc)
+    # 7) (Optional) measure teacher disagreement
+    dis_rate = compute_disagreement_rate(teacher1, teacher2, test_loader, device=device)
+    logger.update_metric("disagreement_rate", dis_rate)
+    print(f"[main] Teacher1 & Teacher2 cross-error rate= {dis_rate:.2f}%")
 
-        if test_acc > best_acc:
-            best_acc = test_acc
+    # 8) Teacher adaptive update
+    teacher_wrappers = [teacher1, teacher2]
+    # teacher init states (for reg) => optional
+    teacher1_init = copy.deepcopy(teacher1.state_dict())
+    teacher2_init = copy.deepcopy(teacher2.state_dict())
 
-    # 6) 최종 결과를 logger에 기록
-    logger.update_metric("best_acc", best_acc)
-    logger.update_metric("final_loss", train_loss)
+    # set trainer config
+    cfg["teacher_adapt_epochs"] = cfg["epochs_teacher"]
+    # e.g. teacher_init_state, teacher_init_state_2 to handle L2 distance
+    teacher_adaptive_update(
+        teacher_wrappers=teacher_wrappers,
+        mbm=mbm,
+        synergy_head=synergy_head,
+        student_model=student,   # student is fixed during teacher adaptive
+        trainloader=train_loader,
+        cfg=cfg,
+        logger=logger,
+        teacher_init_state=teacher1_init,
+        teacher_init_state_2=teacher2_init
+    )
 
-    # 7) logger.finalize()로 JSON & summary.csv 저장
+    # 9) Student distillation
+    cfg["student_epochs_per_stage"] = cfg["epochs_student"]
+    final_acc = student_distillation_update(
+        teacher_wrappers=teacher_wrappers,
+        mbm=mbm,
+        synergy_head=synergy_head,
+        student_model=student,
+        trainloader=train_loader,
+        testloader=test_loader,
+        cfg=cfg,
+        logger=logger
+    )
+
+    logger.update_metric("final_student_acc", final_acc)
+
+    # 10) Save final student
+    torch.save(student.state_dict(), f"{logger.exp_id}_student.pth")
+    logger.update_metric("final_student_ckpt", f"{logger.exp_id}_student.pth")
+
+    # finalize
     logger.finalize()
-    print("[Main] Experiment finished.")
-
+    print("[main] Distillation done. Results saved.")
 
 if __name__ == "__main__":
     main()
