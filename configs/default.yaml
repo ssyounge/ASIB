@@ -1,1 +1,64 @@
+# configs/default.yaml
 
+# ------------------------------------------------------
+# 1) 기본 환경 설정
+# ------------------------------------------------------
+device: "cuda"
+seed: 42
+dataset_name: "cifar100"
+data_root: "./data"
+batch_size: 128
+
+# ------------------------------------------------------
+# 2) Teacher 설정
+# ------------------------------------------------------
+teacher1_type: "resnet101"
+teacher2_type: "efficientnet_b2"
+teacher_lr: 1e-4
+teacher_weight_decay: 3e-4
+teacher_adapt_epochs: 5
+mbm_lr_factor: 5.0
+
+# synergy CE
+synergy_ce_alpha: 0.3
+teacher_adapt_alpha_kd: 0.2   # Teacher Update 시 KL 비중
+
+# ------------------------------------------------------
+# 3) Student 설정
+# ------------------------------------------------------
+student_type: "resnet_adapter"
+student_lr: 1e-2
+student_weight_decay: 5e-4
+student_epochs_per_stage: 15
+
+# ------------------------------------------------------
+# 4) Distillation (KD) 
+# ------------------------------------------------------
+ce_alpha: 0.5   
+kd_alpha: 0.5   
+temperature: 4.0
+
+# ------------------------------------------------------
+# 5) Multi-Stage Self-Training
+# ------------------------------------------------------
+num_stages: 2
+teacher_iters: 10
+student_iters: 20
+
+# ------------------------------------------------------
+# 6) Partial Freeze & Reg
+# ------------------------------------------------------
+use_partial_freeze: true
+reg_lambda: 1e-5   
+
+# ------------------------------------------------------
+# 7) Logging / Save
+# ------------------------------------------------------
+log_filename: "train.log"
+save_checkpoint: true
+ckpt_dir: "./checkpoints"
+
+# ------------------------------------------------------
+# 8) CutMix or etc.
+# ------------------------------------------------------
+cutmix_alpha: 1.0
