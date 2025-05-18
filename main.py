@@ -34,6 +34,11 @@ def parse_args():
     parser.add_argument("--teacher1_ckpt", type=str, default="./ckpt/teacher1.pth")
     parser.add_argument("--teacher2_ckpt", type=str, default="./ckpt/teacher2.pth")
     parser.add_argument("--student_ckpt", type=str, default=None)
+
+    # [추가] logger.csv에 기록할 'student' 모델명
+    parser.add_argument("--student", type=str, default="resnet_adapter",
+                        help="Name of the student model (for logging). E.g. 'resnet_adapter'.")
+
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--mbm_lr_factor", type=float, default=1.0)
     parser.add_argument("--teacher_weight_decay", type=float, default=1e-4)
@@ -74,27 +79,29 @@ def main():
     train_loader, test_loader = get_cifar100_loaders(batch_size=cfg["batch_size"])
 
     # 4) Load Teacher models
-    # (예시) TeacherResNetWrapper -> partial freeze backbone
     teacher1 = TeacherResNetWrapper(pretrained=True)
     teacher2 = TeacherResNetWrapper(pretrained=True)
-    # ckpt load
     if args.teacher1_ckpt:
         teacher1.load_state_dict(torch.load(args.teacher1_ckpt))
     if args.teacher2_ckpt:
         teacher2.load_state_dict(torch.load(args.teacher2_ckpt))
     teacher1.to(device)
     teacher2.to(device)
-    # partial freeze (백본 등)
     partial_freeze_teacher(teacher1)
     partial_freeze_teacher(teacher2)
 
     # 5) Create Student
-    student = StudentResNetAdapter(pretrained=True)  # user-defined model
+    # 예: 명령줄로 --student mobilenet_adapter => if else 등
+    # 여기서는 그냥 StudentResNetAdapter를 사용
+    student_model = StudentResNetAdapter(pretrained=True)
     if args.student_ckpt is not None:
-        student.load_state_dict(torch.load(args.student_ckpt))
-    student.to(device)
-    # partial freeze student lower layers
-    partial_freeze_student(student)
+        student_model.load_state_dict(torch.load(args.student_ckpt))
+    student_model.to(device)
+    partial_freeze_student(student_model)
+
+    # [주의] logger에서 "student" 키를 사용 => 이미 cfg["student"] = args.student
+    # 이걸 모델 이름으로 기록 (위 argparse default="resnet_adapter")
+    # cf) 정말로 'student'라는 키를 CSV에 넣으려면 logger 안 fieldnames에도 "student"가 있어야 함.
 
     # 6) MBM, synergy head
     from models.mbm import ManifoldBridgingModule, SynergyHead
@@ -108,18 +115,17 @@ def main():
 
     # 8) Teacher adaptive update
     teacher_wrappers = [teacher1, teacher2]
-    # teacher init states (for reg) => optional
     teacher1_init = copy.deepcopy(teacher1.state_dict())
     teacher2_init = copy.deepcopy(teacher2.state_dict())
 
     # set trainer config
     cfg["teacher_adapt_epochs"] = cfg["epochs_teacher"]
-    # e.g. teacher_init_state, teacher_init_state_2 to handle L2 distance
+
     teacher_adaptive_update(
         teacher_wrappers=teacher_wrappers,
         mbm=mbm,
         synergy_head=synergy_head,
-        student_model=student,   # student is fixed during teacher adaptive
+        student_model=student_model,   # student is fixed during teacher adaptive
         trainloader=train_loader,
         cfg=cfg,
         logger=logger,
@@ -133,7 +139,7 @@ def main():
         teacher_wrappers=teacher_wrappers,
         mbm=mbm,
         synergy_head=synergy_head,
-        student_model=student,
+        student_model=student_model,
         trainloader=train_loader,
         testloader=test_loader,
         cfg=cfg,
@@ -143,8 +149,9 @@ def main():
     logger.update_metric("final_student_acc", final_acc)
 
     # 10) Save final student
-    torch.save(student.state_dict(), f"{logger.exp_id}_student.pth")
-    logger.update_metric("final_student_ckpt", f"{logger.exp_id}_student.pth")
+    student_ckpt_path = f"{logger.exp_id}_student.pth"
+    torch.save(student_model.state_dict(), student_ckpt_path)
+    logger.update_metric("final_student_ckpt", student_ckpt_path)
 
     # finalize
     logger.finalize()
