@@ -1,5 +1,5 @@
 """
-teacher_swin.py
+models/teacher_swin.py
 
 - Swin Transformer (Tiny, Small, etc.)를 Teacher로 사용
 - CIFAR-100에 맞춰 마지막 head를 교체하고,
