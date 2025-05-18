@@ -1,5 +1,5 @@
 """
-teacher_mobilenet.py
+models/teacher_mobilenet.py
 
 - MobileNetV2 or V3를 Teacher로 사용
 - CIFAR-100에 맞춰 마지막 classifier를 교체
