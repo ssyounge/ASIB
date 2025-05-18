@@ -116,6 +116,11 @@ class ExperimentLogger:
             "student",
             "alpha",
             "stage",
+            "disagreement_rate",
+            "reg_lambda",
+            "mbm_reg_lambda",
+            "synergy_ce_alpha",
+            "teacher_adapt_alpha_kd"
             "top1",
             "top5",
             "final_loss",
