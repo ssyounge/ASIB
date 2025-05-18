@@ -1,5 +1,5 @@
 """
-student_efficientnet_adapter.py
+models/student_efficientnet_adapter.py
 
 - EfficientNet을 Student로 사용하되, Adapter 모듈 삽입
 - ExtendedAdapterEffNetB2: 
