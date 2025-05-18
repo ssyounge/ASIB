@@ -1,5 +1,5 @@
 """
-teacher_vit.py
+models/teacher_vit.py
 
 - Vision Transformer(ViT-B/16 등) Teacher
 - CIFAR-100에 맞춰 마지막 head 교체
