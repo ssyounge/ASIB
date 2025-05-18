@@ -1,1 +1,14 @@
+# partial_freeze.yaml
 
+# 원하는 값만 override
+use_partial_freeze: true
+
+# freeze config
+teacher_freeze_scope: "layer4_fc"    # or "bn_fc_only", etc. 
+student_freeze_scope: "adapter_only" # partial_freeze.py에서 if-문으로 분기 가능
+
+# reg_lambda를 키워서 teacher가 init과 멀어지지 않게
+reg_lambda: 1e-4  
+
+# 만약 teacher lr도 조금 바꾸고 싶다면:
+teacher_lr: 2e-4
