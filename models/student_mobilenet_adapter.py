@@ -1,5 +1,5 @@
 """
-student_mobilenet_adapter.py
+models/student_mobilenet_adapter.py
 
 - MobileNetV2를 Student로 쓰면서, Adapter 모듈 삽입
 - ExtendedAdapterMobileNetV2
