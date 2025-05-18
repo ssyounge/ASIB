@@ -1,9 +1,9 @@
 """
 teacher_vit.py
 
-- Vision Transformer(ViT-B/16 등)를 Teacher로 사용
-- CIFAR-100에 맞게 마지막 head 교체
-- TeacherViTWrapper에서 (feat, logit, ce_loss) 반환
+- Vision Transformer(ViT-B/16 등) Teacher
+- CIFAR-100에 맞춰 마지막 head 교체
+- TeacherViTWrapper: (feat, logit, ce_loss) tuple 반환
 """
 
 import torch
@@ -11,11 +11,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models import vit_b_16, ViT_B_16_Weights
 
-
 class TeacherViTWrapper(nn.Module):
     """
-    ViT Teacher Wrapper
-    - forward_features(x)로 중간 feat
+    Teacher 모델(ViT) 래퍼
+    - model.forward_features(x) -> (N,768) or (N,seq_len,768) ...
     - model.head(feat) -> logit
     """
     def __init__(self, backbone: nn.Module):
@@ -24,17 +23,19 @@ class TeacherViTWrapper(nn.Module):
         self.criterion_ce = nn.CrossEntropyLoss()
 
     def forward(self, x, y=None):
+        # ViT forward_features => 토큰 시퀀스 반환할 수 있음
         with torch.no_grad():
-            feat = self.backbone.forward_features(x)  # [N, hidden_dim=768, ...]
-            # torchvision의 ViT는 forward_features가 (N,768), (or [N,768,14,14]형태)
-            # if 2D, avgpool or flatten
-            if feat.dim() == 3:  # e.g. (N, seq_len, hidden_dim)
-                # cls token만 쓰거나 mean pool 등 필요
-                # 여기서는 cls token만 가져온다고 가정
-                feat = feat[:, 0]  # shape: [N, hidden_dim]
-            elif feat.dim() == 4:
-                # (N,768,H,W)
-                feat = F.adaptive_avg_pool2d(feat, (1,1)).flatten(1)
+            feat_out = self.backbone.forward_features(x)
+            # torchvision의 ViT: forward_features(x)-> (N,768,14,14) 혹은 (N,seq,dim)
+            if feat_out.dim() == 4:
+                # (N, hidden_dim, H, W)
+                feat = F.adaptive_avg_pool2d(feat_out, (1,1)).flatten(1)
+            elif feat_out.dim() == 3:
+                # (N, seq_len, hidden_dim), 보통 cls token = feat_out[:,0]
+                feat = feat_out[:,0]
+            else:
+                # 혹시 모르는 case
+                feat = feat_out
 
         logit = self.backbone.head(feat)
         ce_loss = None
@@ -43,4 +44,17 @@ class TeacherViTWrapper(nn.Module):
         return feat, logit, ce_loss
 
 
-def create_vit
+def create_vit_b16_for_cifar100(pretrained=True):
+    """
+    Vision Transformer (ViT-B/16) 모델 불러온 뒤, CIFAR-100 용으로 head 교체
+    """
+    if pretrained:
+        # PyTorch>=2.0 예시: ViT_B_16_Weights.IMAGENET1K_V1
+        model = vit_b_16(weights=ViT_B_16_Weights.IMAGENET1K_V1)
+    else:
+        model = vit_b_16(weights=None)
+
+    # head.in_features => 100
+    in_ch = model.head.in_features
+    model.head = nn.Linear(in_ch, 100)
+    return model
