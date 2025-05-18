@@ -1,6 +1,5 @@
-
 """
-teacher_efficientnet.py
+models/teacher_efficientnet.py
 
 - EfficientNet-B2를 CIFAR-100에 맞게 가져오는 함수
 - TeacherEfficientNetWrapper: (feat, logit, ce_loss) 반환
