@@ -41,7 +41,7 @@ def main():
     # -------------------------------------------
     train_loader, test_loader = get_cifar100_loaders(
         batch_size=cfg["batch_size"], 
-        root=cfg["data_root", "./data"]
+        root=cfg.get("data_root", "./data")
     )
 
     # -------------------------------------------
@@ -65,8 +65,9 @@ def main():
     # -------------------------------------------
     # 3) 테스트 정확도 측정
     # -------------------------------------------
+    train_acc = eval_student(model, train_loader, device)
     test_acc = eval_student(model, test_loader, device)
-    print(f"[Eval] Test Accuracy= {test_acc:.2f}%")
+    print(f"[Eval] Train={train_acc:.2f}%, Test={test_acc:.2f}%")
 
 if __name__ == "__main__":
     main()
