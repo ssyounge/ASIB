@@ -132,6 +132,9 @@ def main():
         teacher_init_state=teacher1_init,
         teacher_init_state_2=teacher2_init
     )
+    dis_rate_after = compute_disagreement_rate(teacher1, teacher2, test_loader, device=device)
+    logger.update_metric("disagreement_after_adapt", dis_rate_after)
+    print(f"[main] After teacher update: cross-error rate= {dis_rate_after:.2f}%")
 
     # 9) Student distillation
     cfg["student_epochs_per_stage"] = cfg["epochs_student"]
