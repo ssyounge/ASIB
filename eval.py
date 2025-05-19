@@ -41,7 +41,7 @@ def main():
     # -------------------------------------------
     train_loader, test_loader = get_cifar100_loaders(
         batch_size=cfg["batch_size"], 
-        root=cfg["data_root"]
+        root=cfg["data_root", "./data"]
     )
 
     # -------------------------------------------
