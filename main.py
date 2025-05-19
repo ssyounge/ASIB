@@ -29,13 +29,15 @@ from data.cifar100 import get_cifar100_loaders
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    # 실험 핵심 파라미터
+    # ----------------------
+    # Teacher & overall
+    # ----------------------
     parser.add_argument("--method", type=str, default="asmb")
     parser.add_argument("--teacher1_ckpt", type=str, default="./ckpt/teacher1.pth")
     parser.add_argument("--teacher2_ckpt", type=str, default="./ckpt/teacher2.pth")
     parser.add_argument("--student_ckpt", type=str, default=None)
 
-    # [추가] logger.csv에 기록할 'student' 모델명
+    # logger.csv에 기록할 'student' 모델명
     parser.add_argument("--student", type=str, default="resnet_adapter",
                         help="Name of the student model (for logging). E.g. 'resnet_adapter'.")
 
@@ -51,22 +53,39 @@ def parse_args():
     parser.add_argument("--temperature", type=float, default=4.0)
     parser.add_argument("--epochs_teacher", type=int, default=5,
                         help="teacher_adaptive_epochs")
+    parser.add_argument("--batch_size", type=int, default=128)
+
+    # ----------------------
+    # Student Distillation
+    # ----------------------
+    # e.g. trainer_student.py expects these
+    parser.add_argument("--student_lr", type=float, default=1e-2,
+                        help="Student distillation learning rate")
+    parser.add_argument("--student_weight_decay", type=float, default=5e-4,
+                        help="Student distillation weight decay")
+    parser.add_argument("--ce_alpha", type=float, default=0.5,
+                        help="Weight for CE in student distillation")
+    parser.add_argument("--kd_alpha", type=float, default=0.5,
+                        help="Weight for KD in student distillation")
     parser.add_argument("--epochs_student", type=int, default=10,
                         help="student distill epochs")
-    parser.add_argument("--batch_size", type=int, default=128)
+
+    # ----------------------
+    # Device, results, seed
+    # ----------------------
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--results_dir", type=str, default="results")
     parser.add_argument("--seed", type=int, default=42)
+
     args = parser.parse_args()
     return args
 
 def main():
     args = parse_args()
-    # dict 형태로 logger에 넘길 수 있게
     cfg = vars(args)
 
     # 1) Logger
-    logger = ExperimentLogger(cfg)  # => auto exp_id
+    logger = ExperimentLogger(cfg)
     device = cfg["device"]
 
     # 2) Seed, device
@@ -91,24 +110,18 @@ def main():
     partial_freeze_teacher(teacher2)
 
     # 5) Create Student
-    # 예: 명령줄로 --student mobilenet_adapter => if else 등
-    # 여기서는 그냥 StudentResNetAdapter를 사용
     student_model = StudentResNetAdapter(pretrained=True)
     if args.student_ckpt is not None:
         student_model.load_state_dict(torch.load(args.student_ckpt))
     student_model.to(device)
     partial_freeze_student(student_model)
 
-    # [주의] logger에서 "student" 키를 사용 => 이미 cfg["student"] = args.student
-    # 이걸 모델 이름으로 기록 (위 argparse default="resnet_adapter")
-    # cf) 정말로 'student'라는 키를 CSV에 넣으려면 logger 안 fieldnames에도 "student"가 있어야 함.
-
     # 6) MBM, synergy head
     from models.mbm import ManifoldBridgingModule, SynergyHead
     mbm = ManifoldBridgingModule(in_dim=4096, hidden_dim=1024, out_dim=2048).to(device)
     synergy_head = SynergyHead(in_dim=2048, num_classes=100).to(device)
 
-    # 7) (Optional) measure teacher disagreement
+    # 7) measure teacher disagreement
     dis_rate = compute_disagreement_rate(teacher1, teacher2, test_loader, device=device)
     logger.update_metric("disagreement_rate", dis_rate)
     print(f"[main] Teacher1 & Teacher2 cross-error rate= {dis_rate:.2f}%")
@@ -118,20 +131,19 @@ def main():
     teacher1_init = copy.deepcopy(teacher1.state_dict())
     teacher2_init = copy.deepcopy(teacher2.state_dict())
 
-    # set trainer config
     cfg["teacher_adapt_epochs"] = cfg["epochs_teacher"]
-
     teacher_adaptive_update(
         teacher_wrappers=teacher_wrappers,
         mbm=mbm,
         synergy_head=synergy_head,
-        student_model=student_model,   # student is fixed during teacher adaptive
+        student_model=student_model,
         trainloader=train_loader,
         cfg=cfg,
         logger=logger,
         teacher_init_state=teacher1_init,
         teacher_init_state_2=teacher2_init
     )
+    # measure again
     dis_rate_after = compute_disagreement_rate(teacher1, teacher2, test_loader, device=device)
     logger.update_metric("disagreement_after_adapt", dis_rate_after)
     print(f"[main] After teacher update: cross-error rate= {dis_rate_after:.2f}%")
@@ -148,7 +160,6 @@ def main():
         cfg=cfg,
         logger=logger
     )
-
     logger.update_metric("final_student_acc", final_acc)
 
     # 10) Save final student
