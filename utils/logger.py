@@ -117,6 +117,7 @@ class ExperimentLogger:
             "alpha",
             "stage",
             "disagreement_rate",
+            "disagreement_after_adapt",
             "reg_lambda",
             "mbm_reg_lambda",
             "synergy_ce_alpha",
