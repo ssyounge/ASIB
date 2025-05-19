@@ -138,6 +138,7 @@ def main():
         synergy_head=synergy_head,
         student_model=student_model,
         trainloader=train_loader,
+        testloader=test_loader,
         cfg=cfg,
         logger=logger,
         teacher_init_state=teacher1_init,
