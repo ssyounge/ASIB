@@ -27,7 +27,7 @@ class TeacherResNetWrapper(nn.Module):
         x = self.backbone.layer4(x)
 
         # Global pool
-        x = self.backbone.avgpool(x)
+        x = self.backbone.avgpool(x) # shape: (N, 2048, 1, 1)
         feat = torch.flatten(x, 1)  # shape: (N, 2048)
 
         # FC => logit
