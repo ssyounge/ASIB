@@ -1,5 +1,5 @@
 """
-models/student_densenet_adapter.py
+models/students/student_densenet_adapter.py
 
 - DenseNet-121 Student + Adapter
 """
