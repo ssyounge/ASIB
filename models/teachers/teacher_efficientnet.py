@@ -22,8 +22,8 @@ class TeacherEfficientNetWrapper(nn.Module):
         # 중간 feat
         with torch.no_grad():
             fx = self.backbone.features(x)  # shape: [N, 1408, H', W']
-            fx = F.adaptive_avg_pool2d(fx, (1,1))
-            feat = fx.flatten(1)           # shape: (N, 1408)
+            fx = F.adaptive_avg_pool2d(fx, (1,1)) # shape: [N, 1408, 1, 1]
+            feat = fx.flatten(1)           # shape: [N, 1408]
 
         ce_loss = None
         if y is not None:
