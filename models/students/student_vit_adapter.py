@@ -1,5 +1,5 @@
 """
-models/student_vit_adapter.py
+models/students/student_vit_adapter.py
 
 Student model: Vision Transformer (ViT) with partial freeze + Adapter layer.
 Using timm or torchvision if available, or a custom huggingface model, etc.
