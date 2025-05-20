@@ -7,6 +7,7 @@ def get_tinyimagenet_loaders(root="./data/tinyimagenet", batch_size=128, num_wor
     """
     Returns:
         train_loader, test_loader
+        TinyImageNet size (64×64)
     """
     transform_train = T.Compose([
         T.Resize((64,64)),
