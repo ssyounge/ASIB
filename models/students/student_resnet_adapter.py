@@ -1,5 +1,5 @@
 """
-models/student_resnet_adapter.py
+models/students/student_resnet_adapter.py
 
 - Student로 사용할 ResNet101 + Adapter 구조를 정의
 - create_resnet101_with_extended_adapter 함수로 모델 생성
