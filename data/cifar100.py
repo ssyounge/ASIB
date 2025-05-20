@@ -8,6 +8,7 @@ def get_cifar100_loaders(root="./data", batch_size=128, num_workers=2):
     """
     Returns:
         train_loader, test_loader
+        CIFAR-100 size = (32x32)
     """
     transform_train = T.Compose([
         T.ToTensor(),
