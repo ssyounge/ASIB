@@ -4,7 +4,7 @@ models/students/student_efficientnet_adapter.py
 - EfficientNet을 Student로 사용하되, Adapter 모듈 삽입
 - ExtendedAdapterEffNetB2: 
    - self.backbone.features(x) -> 중간 레이어 뒤에 adapter
-   - self.backbone.classifier => 최종 (100-d)
+   - self.backbone.classifier => 최종 (100 dimensions)
 """
 
 import torch
@@ -26,28 +26,21 @@ class ExtendedAdapterEffNetB2(nn.Module):
         # 간단 구현: features 전부 끝까지 호출 후, adapterConv -> classifier
         # (원한다면 중간 stage 사이에 adapter를 삽입하는 게 더 바람직)
         
-        # 예시로 adapter 레이어(Conv+GN+Conv...)를 만들고 features 출력에 추가
         self.adapter_conv1 = nn.Conv2d(1408, 512, kernel_size=1, bias=False)
         self.adapter_gn1   = nn.GroupNorm(32, 512)
         self.adapter_conv2 = nn.Conv2d(512, 1408, kernel_size=1, bias=False)
         self.adapter_gn2   = nn.GroupNorm(32, 1408)
         self.adapter_relu  = nn.ReLU(inplace=True)
 
-        # classifier는 base_model.classifier 사용
-        # (마지막 Linear(1408->100))
-
     def forward(self, x):
-        # 1) EfficientNet features
         fx = self.backbone.features(x)  # shape: (N,1408,H',W')
 
-        # 2) Adapter
         xa = self.adapter_conv1(fx)
         xa = self.adapter_gn1(xa)
         xa = self.adapter_relu(xa)
         xa = self.adapter_conv2(xa)
         xa = self.adapter_gn2(xa)
 
-        # skip connection
         fx = fx + xa
         fx = self.adapter_relu(fx)
 
@@ -58,12 +51,10 @@ class ExtendedAdapterEffNetB2(nn.Module):
         #  - flatten
         #  - classifier(...)
 
-        # 여기서는 수동으로 해보기
         out = F.adaptive_avg_pool2d(fx, (1,1))
         out = out.flatten(1)
         out = self.backbone.classifier(out)  # shape: (N,100)
         return out
-
 
 def create_efficientnet_b2_with_adapter(pretrained=True):
     """
