@@ -5,13 +5,6 @@ import torchvision.transforms as T
 
 def get_tinyimagenet_loaders(root="./data/tinyimagenet", batch_size=128, num_workers=2):
     """
-    root/
-      train/
-        class_0/ ...
-        ...
-      val/ 
-        class_0/ ...
-        ...
     Returns:
         train_loader, test_loader
     """
