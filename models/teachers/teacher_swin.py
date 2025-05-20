@@ -14,11 +14,9 @@ class TeacherSwinWrapper(nn.Module):
         self.criterion_ce = nn.CrossEntropyLoss()
 
     def forward(self, x, y=None):
-        # 1) forward_features => feat_map (N, C, H, W)
         with torch.no_grad():
-            feat_map = self.backbone.forward_features(x)
-            # 2) global avgpool => (N, C)
-            feat = F.adaptive_avg_pool2d(feat_map, (1,1)).flatten(1)
+            feat_map = self.backbone.forward_features(x) # feat_map = (N, C, H, W)
+            feat = F.adaptive_avg_pool2d(feat_map, (1,1)).flatten(1) # shape = (N, C)
 
         # 3) head => logit
         logit = self.backbone.head(feat)
