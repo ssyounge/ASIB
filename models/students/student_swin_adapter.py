@@ -1,5 +1,5 @@
 """
-models/student_swin_adapter.py
+models/students/student_swin_adapter.py
 
 Student model: Swin Transformer with partial freeze + Adapter layer.
 Using timm or huggingface. Minimal example with partial freeze.
