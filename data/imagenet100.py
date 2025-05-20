@@ -4,9 +4,8 @@ import torchvision
 import torchvision.transforms as T
 
 def get_imagenet100_loaders(root="./data/imagenet100", batch_size=128, num_workers=4):
-    """
-    Assuming root has 'train' and 'val' subfolders, each with 100 class subdirs.
-    
+    """    
+    ImageNet100 size = (224×224)
     Returns:
         train_loader, test_loader
     """
