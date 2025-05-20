@@ -1,14 +1,14 @@
-# data/imagenet100.py
-
 import os
 import torch
 import torchvision
 import torchvision.transforms as T
 
-def get_imagenet100_loaders(root, batch_size=128, num_workers=4):
+def get_imagenet100_loaders(root="./data/imagenet100", batch_size=128, num_workers=4):
     """
-    Assuming root has subfolders for the 100 classes,
-    e.g. root/train/<class_x>/..., root/val/<class_x>/...
+    Assuming root has 'train' and 'val' subfolders, each with 100 class subdirs.
+    
+    Returns:
+        train_loader, test_loader
     """
     transform_train = T.Compose([
         T.RandomResizedCrop(224),
@@ -17,7 +17,7 @@ def get_imagenet100_loaders(root, batch_size=128, num_workers=4):
         T.Normalize(mean=[0.485, 0.456, 0.406],
                     std=[0.229, 0.224, 0.225])
     ])
-    transform_val = T.Compose([
+    transform_test = T.Compose([
         T.Resize(256),
         T.CenterCrop(224),
         T.ToTensor(),
@@ -26,15 +26,15 @@ def get_imagenet100_loaders(root, batch_size=128, num_workers=4):
     ])
 
     train_dir = os.path.join(root, "train")
-    val_dir   = os.path.join(root, "val")
+    test_dir  = os.path.join(root, "val")  # originally val, rename to test
 
     train_dataset = torchvision.datasets.ImageFolder(
         train_dir,
         transform=transform_train
     )
-    val_dataset = torchvision.datasets.ImageFolder(
-        val_dir,
-        transform=transform_val
+    test_dataset = torchvision.datasets.ImageFolder(
+        test_dir,
+        transform=transform_test
     )
 
     train_loader = torch.utils.data.DataLoader(
@@ -44,11 +44,11 @@ def get_imagenet100_loaders(root, batch_size=128, num_workers=4):
         num_workers=num_workers,
         pin_memory=True
     )
-    val_loader = torch.utils.data.DataLoader(
-        val_dataset,
+    test_loader = torch.utils.data.DataLoader(
+        test_dataset,
         batch_size=batch_size,
         shuffle=False,
         num_workers=num_workers,
         pin_memory=True
     )
-    return train_loader, val_loader
+    return train_loader, test_loader
