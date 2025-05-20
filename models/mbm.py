@@ -20,7 +20,9 @@ class ManifoldBridgingModule(nn.Module):
         super().__init__()
         self.mlp = nn.Sequential(
             nn.Linear(in_dim, hidden_dim),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
             nn.Linear(hidden_dim, out_dim)
         )
 
