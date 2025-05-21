@@ -99,18 +99,30 @@ def partial_freeze_teacher_swin(model: nn.Module, freeze_bn=True, freeze_ln=True
 
 ###########################################################
 # (B) Student partial-freeze: 상부 레이어(later stage + fc)만 학습
+#     + adapter 레이어
 ###########################################################
 
-def partial_freeze_student_resnet(model: nn.Module, freeze_bn=True):
+def partial_freeze_student_resnet(
+    model: nn.Module,
+    freeze_bn: bool = True,
+    use_adapter: bool = False
+):
     """
     Student (ResNet101):
-      - 논문 예시: layer4 + fc 등 상위 레이어만 학습,
-        하위 레이어 동결.
+      - 논문 예시: layer4 + fc 등 상위 레이어만 학습, 하위 레이어 동결.
+      - use_adapter=True면 "adapter_"라는 이름을 가진 파라미터도 함께 unfreeze.
     """
     freeze_all_params(model)
     for name, param in model.named_parameters():
-        # layer4, fc 파라미터만 unfreeze
-        if "layer4." in name or "fc." in name:
+        # 기본은 layer4, fc
+        condition = ("layer4." in name or "fc." in name)
+
+        # adapter도 열고 싶다면
+        if use_adapter:
+            if "adapter_" in name:
+                condition = True
+
+        if condition:
             param.requires_grad = True
 
     if not freeze_bn:
@@ -121,15 +133,26 @@ def partial_freeze_student_resnet(model: nn.Module, freeze_bn=True):
                     p.requires_grad = True
 
 
-def partial_freeze_student_efficientnet(model: nn.Module, freeze_bn=True):
+def partial_freeze_student_efficientnet(
+    model: nn.Module,
+    freeze_bn: bool = True,
+    use_adapter: bool = False
+):
     """
     Student (EfficientNet-B2):
-      - 여기서는 백본(features) 동결,
-        classifier 등 상부만 학습한다고 가정
+      - 백본(features) 동결, classifier 등 상부만 학습
+      - use_adapter=True면 adapter 레이어("adapter_")도 함께 학습
     """
     freeze_all_params(model)
     for name, param in model.named_parameters():
-        if "classifier." in name:
+        # 기본은 "classifier."
+        condition = ("classifier." in name)
+
+        if use_adapter:
+            if "adapter_" in name:
+                condition = True
+
+        if condition:
             param.requires_grad = True
 
     if not freeze_bn:
@@ -139,14 +162,28 @@ def partial_freeze_student_efficientnet(model: nn.Module, freeze_bn=True):
                     p.requires_grad = True
 
 
-def partial_freeze_student_swin(model: nn.Module, freeze_bn=True, freeze_ln=True):
+def partial_freeze_student_swin(
+    model: nn.Module,
+    freeze_bn: bool = True,
+    freeze_ln: bool = True,
+    use_adapter: bool = False
+):
     """
     Student (Swin Tiny):
-      - 논문 예시에 맞춰 '마지막 stage + head'만 학습 예시 => "layers.3." & "head."
+      - 논문 예시에 맞춰 '마지막 stage + head' => "layers.3." & "head."
+      - use_adapter=True면 "adapter_" 파라미터도 함께 학습
     """
     freeze_all_params(model)
     for name, param in model.named_parameters():
-        if "layers.3." in name or "head." in name:
+        # 기본: "layers.3." or "head."
+        condition = ("layers.3." in name or "head." in name)
+
+        # 어댑터 추가
+        if use_adapter:
+            if "adapter_" in name:
+                condition = True
+
+        if condition:
             param.requires_grad = True
 
     if not freeze_bn:
