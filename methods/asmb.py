@@ -1,135 +1,324 @@
-"""
-methods/asmb.py
+# methods/asmb.py
 
-Core logic for Adaptive Synergy Manifold Bridging (ASMB).
- - Multi-Stage Self-Training
- - Partial Freeze (Teacher & Student)
- - MBM-based synergy manifold
-"""
-
-import torch
 import copy
-from modules.trainer_teacher import teacher_adaptive_update
-from modules.trainer_student import student_distillation_update
-from modules.partial_freeze import freeze_teacher_params, freeze_student_params
-from models.mbm import ManifoldBridgingModule
-# 필요시 kd_loss, logger import
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
 
-def run_asmb_training(
-    teacher1_wrapper,  # e.g. TeacherResNetWrapper
-    teacher2_wrapper,  # e.g. TeacherEfficientNetWrapper
-    student_model,
-    mbm: ManifoldBridgingModule,
-    synergy_head,
-    trainloader1,
-    trainloader2,
-    testloader,
-    cfg,
-    logger
-):
+# 예: losses.py (kd_loss_fn, ce_loss_fn 등) 불러오기
+from distillers.losses import kd_loss_fn, ce_loss_fn
+
+class ASMBDistiller(nn.Module):
     """
-    Conduct ASMB multi-stage training:
-      Stage s=1..S
-       (A) teacher_adaptive_update => update teacher BN/Head + MBM
-       (B) student_distillation_update => update student top layers
-    Args:
-      teacher1_wrapper, teacher2_wrapper: teacher net wrappers (with partial freeze applied)
-      student_model: partial-frozen student model
-      mbm: ManifoldBridgingModule instance
-      synergy_head: small head to produce synergy logit from MBM
-      trainloader1, trainloader2: for teacher1 / teacher2 updates
-      testloader: evaluation
-      cfg: dictionary with hyperparams (teacher_lr, synergy_ce_alpha, etc.)
-      logger: logging
-    Returns:
-      best_student_acc, best_student_state
+    Adaptive Synergy Manifold Bridging (ASMB) Distiller
+    - Teacher가 2명(teacher1, teacher2)
+    - Student
+    - MBM(Manifold Bridging Module), synergy_head
+    - 여러 stage에 걸쳐 (A) teacher update, (B) student distillation
+    - 최종적으로 student의 Acc를 높이는 KD 프레임워크
     """
 
-    # 0) partial freeze
-    #    (이미 partial_freeze.py에서 freeze_teacher_params, freeze_student_params 썼다면, 여기서 호출 가능)
-    freeze_teacher_params(teacher1_wrapper, freeze_bn=True)
-    freeze_teacher_params(teacher2_wrapper, freeze_bn=True)
-    freeze_student_params(student_model, freeze_bn=True)
+    def __init__(
+        self,
+        teacher1,
+        teacher2,
+        student,
+        mbm, 
+        synergy_head,
+        alpha=0.5,               # student CE vs. KL 비율
+        synergy_ce_alpha=0.3,    # teacher 시너지 CE 비중
+        temperature=4.0,
+        reg_lambda=1e-4,
+        mbm_reg_lambda=1e-4,
+        num_stages=2,
+        device="cuda"
+    ):
+        super().__init__()
+        self.teacher1 = teacher1
+        self.teacher2 = teacher2
+        self.student  = student
+        self.mbm = mbm
+        self.synergy_head = synergy_head
 
-    # 1) multi-stage loop
-    num_stages = cfg.get("num_stages", 2)
-    best_acc = 0.0
-    best_state = copy.deepcopy(student_model.state_dict())
+        # 하이퍼파라미터
+        self.alpha = alpha
+        self.synergy_ce_alpha = synergy_ce_alpha
+        self.T = temperature
+        self.reg_lambda = reg_lambda
+        self.mbm_reg_lambda = mbm_reg_lambda
+        self.num_stages = num_stages
+        self.device = device
 
-    for stage_idx in range(1, num_stages + 1):
-        logger.info(f"\n=== [ASMB] Stage {stage_idx}/{num_stages} ===")
+        # 기본 Loss
+        self.ce_loss_fn = nn.CrossEntropyLoss()
 
-        # (A) Teacher Adaptive Update
-        teacher1_init = copy.deepcopy(teacher1_wrapper.state_dict())
-        teacher2_init = copy.deepcopy(teacher2_wrapper.state_dict())
+    def forward(self, x, y=None):
+        """
+        (단발성 forward) => Student Loss만 계산 (Teacher는 이미 학습됐다고 가정)
+        - MBM 통해 synergy logit 얻고 => KL with student
+        - + CE(student, y)
+        => total_loss, student_logit
+        """
+        # 1) teacher feats
+        with torch.no_grad():
+            f1, _, _ = self.teacher1(x)
+            f2, _, _ = self.teacher2(x)
 
-        teacher_adaptive_update(
-            teacher_wrappers=[teacher1_wrapper, teacher2_wrapper],
-            mbm=mbm,
-            synergy_head=synergy_head,
-            student_model=student_model,    # fixed student
-            trainloader=(trainloader1, trainloader2),
-            cfg=cfg,
-            logger=logger,
-            teacher_init_state=teacher1_init,
-            teacher_init_state_2=teacher2_init
-        )
+        # 2) mbm => synergy
+        fsyn = self.mbm(f1, f2)
+        zsyn = self.synergy_head(fsyn)
 
-        # Optional: Evaluate synergy after teacher update
-        synergy_acc = eval_synergy_acc(
-            [teacher1_wrapper, teacher2_wrapper],
-            mbm, synergy_head, testloader, cfg["device"]
-        )
-        logger.info(f"[Stage {stage_idx}] synergy_acc= {synergy_acc:.2f}")
+        # 3) student
+        s_feat, s_logit, _ = self.student(x)
 
-        # (B) Student Distillation
-        acc = student_distillation_update(
-            teacher_wrappers=[teacher1_wrapper, teacher2_wrapper],
-            mbm=mbm,
-            synergy_head=synergy_head,
-            student_model=student_model,
-            trainloader=trainloader1,  # or combine loader1+loader2
-            testloader=testloader,
-            cfg=cfg,
-            logger=logger
-        )
-        logger.info(f"[Stage {stage_idx}] Student Acc= {acc:.2f}")
+        # CE
+        ce_val = 0.0
+        if y is not None:
+            ce_val = self.ce_loss_fn(s_logit, y)
 
-        if acc > best_acc:
-            best_acc = acc
-            best_state = copy.deepcopy(student_model.state_dict())
+        # KL
+        kd_val = kd_loss_fn(s_logit, zsyn, T=self.T, reduction="batchmean")
+        total_loss = self.alpha*ce_val + (1-self.alpha)*kd_val
 
-    # end for stage
-    logger.info(f"[ASMB] Done => best student Acc= {best_acc:.2f}")
-    return best_acc, best_state
+        return total_loss, s_logit
 
+    def train_distillation(
+        self,
+        train_loader,
+        test_loader=None,
+        teacher_lr=1e-4,
+        student_lr=5e-4,
+        weight_decay=1e-4,
+        epochs_per_stage=5,
+        logger=None
+    ):
+        """
+        ASMB Multi-Stage Self-Training:
+          for s in [1..num_stages]:
+            (A) Teacher Update (adaptive + MBM)
+            (B) Student Distillation
+        """
+        # GPU로 이동
+        self.to(self.device)
+        self.teacher1.to(self.device)
+        self.teacher2.to(self.device)
+        self.mbm.to(self.device)
+        self.synergy_head.to(self.device)
+        self.student.to(self.device)
 
-@torch.no_grad()
-def eval_synergy_acc(teacher_wrappers, mbm, synergy_head, loader, device="cuda"):
-    """
-    Evaluate synergy manifold's accuracy:
-      z_syn = synergy_head( mbm( teacher1_feat, teacher2_feat ) )
-    """
-    for tw in teacher_wrappers:
-        tw.eval()
-    mbm.eval()
-    synergy_head.eval()
+        best_acc = 0.0
+        best_student_state = copy.deepcopy(self.student.state_dict())
 
-    correct = 0
-    total = 0
-    for x, y in loader:
-        x, y = x.to(device), y.to(device)
-        feats = []
-        for tw in teacher_wrappers:
-            f, _, _ = tw(x)  # (feat, logit, ce_loss)
-            feats.append(f)
-        if len(feats) == 1:
-            fsyn = feats[0]
-        else:
-            fsyn = mbm(*feats)  # assume mbm is multi-input
-        zsyn = synergy_head(fsyn)
-        pred = zsyn.argmax(dim=1)
-        correct += (pred == y).sum().item()
-        total += y.size(0)
+        for stage in range(1, self.num_stages+1):
+            if logger:
+                logger.info(f"\n[ASMB] Stage {stage}/{self.num_stages} 시작.")
 
-    return 100.0 * correct / total
+            # (A) Teacher Update
+            self._teacher_adaptive_update(
+                train_loader,
+                teacher_lr=teacher_lr,
+                weight_decay=weight_decay,
+                epochs=epochs_per_stage,
+                logger=logger
+            )
+            # (optional) synergy eval
+
+            # (B) Student Distillation
+            acc = self._student_distill_update(
+                train_loader,
+                test_loader=test_loader,
+                student_lr=student_lr,
+                weight_decay=weight_decay,
+                epochs=epochs_per_stage,
+                logger=logger
+            )
+            if acc > best_acc:
+                best_acc = acc
+                best_student_state = copy.deepcopy(self.student.state_dict())
+
+        # 마지막에 best 복원
+        self.student.load_state_dict(best_student_state)
+        if logger:
+            logger.info(f"[ASMB] Done. best student acc= {best_acc:.2f}")
+        return best_acc
+
+    def _teacher_adaptive_update(
+        self,
+        train_loader,
+        teacher_lr,
+        weight_decay,
+        epochs,
+        logger=None
+    ):
+        """
+        Teacher adaptive update (BN/Head + MBM).
+        - Student는 고정, Teacher만 업데이트
+        - synergy 로짓 vs. Student 로짓 => KL
+        - synergy 로짓 vs. GT => synergy_ce_alpha * CE
+        - L2 정규화(reg_lambda)
+        """
+        # 1) Teacher/MBM 파라미터만 requires_grad=True 여야 함
+        #    (partial freeze는 이미 외부에서 했다고 가정, 또는 여기서 처리)
+        params = []
+        # teacher1
+        for p in self.teacher1.parameters():
+            if p.requires_grad:
+                params.append(p)
+        # teacher2
+        for p in self.teacher2.parameters():
+            if p.requires_grad:
+                params.append(p)
+        # mbm, synergy_head
+        for p in self.mbm.parameters():
+            if p.requires_grad:
+                params.append(p)
+        for p in self.synergy_head.parameters():
+            if p.requires_grad:
+                params.append(p)
+
+        optimizer = optim.Adam(params, lr=teacher_lr, weight_decay=weight_decay)
+
+        self.teacher1.train()
+        self.teacher2.train()
+        self.mbm.train()
+        self.synergy_head.train()
+        self.student.eval()   # Student 고정
+
+        for ep in range(1, epochs+1):
+            total_loss, total_num = 0.0, 0
+            for x, y in train_loader:
+                x, y = x.to(self.device), y.to(self.device)
+
+                with torch.no_grad():
+                    # student logit
+                    _, s_logit, _ = self.student(x)
+                    # teacher feats
+                    f1, _, _ = self.teacher1(x)  # but teacher backbones are partial freeze
+                    f2, _, _ = self.teacher2(x)
+
+                # synergy
+                fsyn = self.mbm(f1, f2)
+                zsyn = self.synergy_head(fsyn)
+
+                # (i) -KL(s_logit, zsyn)
+                kl_val = kd_loss_fn(zsyn, s_logit, T=self.T)  # 여기선 sign 주의
+                # (ii) synergy CE
+                ce_val = ce_loss_fn(zsyn, y)
+                synergy_ce = self.synergy_ce_alpha * ce_val
+
+                # 정규화
+                # (단순 L2) => MBM + teacher head ... 
+                reg_loss = 0.0
+                for p in params:
+                    reg_loss += (p**2).sum()
+
+                loss = (-1.0)*kl_val + synergy_ce + self.reg_lambda*reg_loss
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+                bs = x.size(0)
+                total_loss += loss.item()*bs
+                total_num  += bs
+
+            avg_loss = total_loss / total_num
+            if logger:
+                logger.info(f"[TeacherUpdate] ep={ep} => loss={avg_loss:.4f}")
+
+    def _student_distill_update(
+        self,
+        train_loader,
+        test_loader,
+        student_lr,
+        weight_decay,
+        epochs,
+        logger=None
+    ):
+        """
+        Student Distillation:
+         - Freeze teacher + MBM
+         - Student upper layers만 업데이트
+         - CE + KL(student vs synergy)
+        """
+        # freeze teacher
+        self.teacher1.eval()
+        self.teacher2.eval()
+        for p in self.teacher1.parameters():
+            p.requires_grad = False
+        for p in self.teacher2.parameters():
+            p.requires_grad = False
+
+        self.mbm.eval()
+        self.synergy_head.eval()
+        for p in self.mbm.parameters():
+            p.requires_grad = False
+        for p in self.synergy_head.parameters():
+            p.requires_grad = False
+
+        # student params
+        student_params = [p for p in self.student.parameters() if p.requires_grad]
+        optimizer = optim.SGD(student_params, lr=student_lr, momentum=0.9, weight_decay=weight_decay)
+        best_acc = 0.0
+        best_state = copy.deepcopy(self.student.state_dict())
+
+        for ep in range(1, epochs+1):
+            self.student.train()
+            total_loss, total_num = 0.0, 0
+            for x, y in train_loader:
+                x, y = x.to(self.device), y.to(self.device)
+
+                with torch.no_grad():
+                    # teacher feats
+                    f1, _, _ = self.teacher1(x)
+                    f2, _, _ = self.teacher2(x)
+                    fsyn = self.mbm(f1, f2)
+                    zsyn = self.synergy_head(fsyn)
+
+                # student forward
+                _, s_logit, _ = self.student(x)
+
+                # CE
+                ce_val = ce_loss_fn(s_logit, y)
+                # KL
+                kd_val = kd_loss_fn(s_logit, zsyn, T=self.T)
+
+                loss = self.alpha*ce_val + (1-self.alpha)*kd_val
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+                bs = x.size(0)
+                total_loss += loss.item()*bs
+                total_num  += bs
+
+            avg_loss = total_loss / total_num
+            # eval
+            acc = 0.0
+            if test_loader is not None:
+                acc = self.evaluate(test_loader)
+
+            if logger:
+                logger.info(f"[StudentDistill] ep={ep} => loss={avg_loss:.4f}, acc={acc:.2f}")
+
+            if acc > best_acc:
+                best_acc = acc
+                best_state = copy.deepcopy(self.student.state_dict())
+
+        # restore
+        self.student.load_state_dict(best_state)
+        return best_acc
+
+    @torch.no_grad()
+    def evaluate(self, loader):
+        self.student.eval()
+        correct, total = 0, 0
+        for x, y in loader:
+            x, y = x.to(self.device), y.to(self.device)
+            _, s_logit, _ = self.student(x)
+            pred = s_logit.argmax(dim=1)
+            correct += (pred==y).sum().item()
+            total   += y.size(0)
+        return 100.0*correct / total
