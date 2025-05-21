@@ -44,4 +44,5 @@ def create_efficientnet_b2(num_classes=100, pretrained=True):
     in_feats = model.classifier[1].in_features
     model.classifier[1] = nn.Linear(in_feats, num_classes)
 
-    return model
+    teacher_model = TeacherEfficientNetWrapper(model)
+    return teacher_model
