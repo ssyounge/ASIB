@@ -53,4 +53,6 @@ def create_resnet101(num_classes=100, pretrained=True):
 
     in_feats = model.fc.in_features
     model.fc = nn.Linear(in_feats, num_classes)
+
+    teacher_model = TeacherResNetWrapper(model)
     return model
