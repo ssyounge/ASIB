@@ -4,12 +4,14 @@ import torch
 import torch.nn as nn
 
 def freeze_all_params(model: nn.Module):
+    """모델 내 모든 파라미터를 학습 불가능(requires_grad=False)하게 만든다."""
     for param in model.parameters():
         param.requires_grad = False
 
 def freeze_bn_params(module: nn.Module):
     """
-    BatchNorm 계열 모듈에 대해 gamma/beta조차 학습 안 하도록 동결
+    BatchNorm 계열 모듈(gamma/beta)도 학습하지 않도록 동결한다.
+    model.apply(freeze_bn_params) 형태로 호출.
     """
     if isinstance(module, (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)):
         for p in module.parameters():
@@ -17,7 +19,8 @@ def freeze_bn_params(module: nn.Module):
 
 def freeze_ln_params(module: nn.Module):
     """
-    LayerNorm 계열 모듈 (예: Swin, ViT 등)에 대해 gamma/beta 동결
+    LayerNorm 계열 모듈에서 gamma/beta도 동결한다.
+    (Swin/ViT 등에서 사용)
     """
     if isinstance(module, nn.LayerNorm):
         for p in module.parameters():
@@ -25,103 +28,128 @@ def freeze_ln_params(module: nn.Module):
 
 
 ###########################################################
-# (A) Teacher partial-freeze
+# (A) Teacher partial-freeze: 백본 동결 + BN/Head/MBM 업데이트
 ###########################################################
 
 def partial_freeze_teacher_resnet(model: nn.Module, freeze_bn=True):
     """
-    ResNet101 Teacher:
-    - layer4, fc만 학습 => 나머지 requires_grad=False
+    Teacher (ResNet101):
+      - 백본(하위 레이어) 동결
+      - BN/Head/MBM만 업데이트하는 논문 설정을 가정.
+      - 여기서는 'fc' (헤드)와 'mbm.'(있다면)만 unfreeze,
+        BN을 업데이트하려면 freeze_bn=False로 호출.
     """
     freeze_all_params(model)
+
+    # 1) fc(헤드) & mbm(있다면)만 열기
     for name, param in model.named_parameters():
-        # TeacherResNetWrapper안에 self.backbone이 있을 수 있으므로
-        # backbone. 접두사를 뺀 다음 검사하거나, 그대로 문자열 매칭
-        if ("layer4." in name) or ("fc." in name):
+        # 예: backbone.fc -> "fc."
+        #     MBM 파라미터 -> "mbm." (가령 Teacher 래퍼 안에 있다면)
+        if "fc." in name or "mbm." in name:
             param.requires_grad = True
 
-    if freeze_bn:
-        model.apply(freeze_bn_params)
+    # 2) BN 업데이트 여부
+    if not freeze_bn:
+        # BN 레이어를 다시 unfreeze
+        for m in model.modules():
+            if isinstance(m, (nn.BatchNorm2d, nn.BatchNorm1d)):
+                for p in m.parameters():
+                    p.requires_grad = True
+
 
 def partial_freeze_teacher_efficientnet(model: nn.Module, freeze_bn=True):
     """
-    EfficientNet-B2 Teacher:
-    - classifier.* 만 학습 => 나머지 requires_grad=False
+    Teacher (EfficientNet-B2):
+      - 백본(features) 동결
+      - BN/Head/MBM만 업데이트.
+      - 여기서는 'classifier.'(헤드) + 'mbm.'(있다면)만 unfreeze
     """
     freeze_all_params(model)
     for name, param in model.named_parameters():
-        # TeacherEfficientNetWrapper의 self.backbone.classifier?
-        # 효율을 위해 'classifier.' substring 매칭
-        if "classifier." in name:
+        if "classifier." in name or "mbm." in name:
             param.requires_grad = True
 
-    if freeze_bn:
-        model.apply(freeze_bn_params)
+    if not freeze_bn:
+        for m in model.modules():
+            if isinstance(m, (nn.BatchNorm2d, nn.BatchNorm1d)):
+                for p in m.parameters():
+                    p.requires_grad = True
+
 
 def partial_freeze_teacher_swin(model: nn.Module, freeze_bn=True, freeze_ln=True):
     """
-    Swin Tiny Teacher:
-    - 마지막 stage (layers.3.) + head 만 학습, 예시
+    Teacher (Swin Tiny):
+      - 백본 동결
+      - BN/Head/MBM 업데이트 (논문 설정)
+      - 여기서는 'head.'(헤드), 'mbm.'(있다면)만 열고,
+        BN/LN 업데이트는 옵션
     """
     freeze_all_params(model)
     for name, param in model.named_parameters():
-        # layers.3 -> 마지막 stage, head. -> 최종 헤드
-        if ("layers.3." in name) or ("head." in name):
+        if "head." in name or "mbm." in name:
             param.requires_grad = True
 
-    if freeze_bn:
+    # Swin에서 BN/LN 동결 옵션
+    if not freeze_bn:
         model.apply(freeze_bn_params)
-    # Swin은 주로 LayerNorm -> freeze_ln도 옵션화
-    if freeze_ln:
+        # Swin은 보통 LayerNorm 쓰므로, BN이 있을지 여부는 모델 구조에 따라.
+    if not freeze_ln:
         model.apply(freeze_ln_params)
 
 
 ###########################################################
-# (B) Student partial-freeze
+# (B) Student partial-freeze: 상부 레이어(later stage + fc)만 학습
 ###########################################################
 
-def partial_freeze_student_resnet_adapter(model: nn.Module, freeze_bn=True):
+def partial_freeze_student_resnet(model: nn.Module, freeze_bn=True):
     """
-    ResNet101 Student w/ Adapter:
-    - adapter_* + layer3, layer4, fc 등을 학습 
+    Student (ResNet101):
+      - 논문 예시: layer4 + fc 등 상위 레이어만 학습,
+        하위 레이어 동결.
     """
     freeze_all_params(model)
     for name, param in model.named_parameters():
-        if any(tag in name for tag in ["adapter_", "layer3.", "layer4.", "fc."]):
+        # layer4, fc 파라미터만 unfreeze
+        if "layer4." in name or "fc." in name:
             param.requires_grad = True
 
-    if freeze_bn:
+    if not freeze_bn:
+        # BN도 업데이트하려면 다시 열기
+        for m in model.modules():
+            if isinstance(m, (nn.BatchNorm2d, nn.BatchNorm1d)):
+                for p in m.parameters():
+                    p.requires_grad = True
+
+
+def partial_freeze_student_efficientnet(model: nn.Module, freeze_bn=True):
+    """
+    Student (EfficientNet-B2):
+      - 여기서는 백본(features) 동결,
+        classifier 등 상부만 학습한다고 가정
+    """
+    freeze_all_params(model)
+    for name, param in model.named_parameters():
+        if "classifier." in name:
+            param.requires_grad = True
+
+    if not freeze_bn:
+        for m in model.modules():
+            if isinstance(m, (nn.BatchNorm2d, nn.BatchNorm1d)):
+                for p in m.parameters():
+                    p.requires_grad = True
+
+
+def partial_freeze_student_swin(model: nn.Module, freeze_bn=True, freeze_ln=True):
+    """
+    Student (Swin Tiny):
+      - 논문 예시에 맞춰 '마지막 stage + head'만 학습 예시 => "layers.3." & "head."
+    """
+    freeze_all_params(model)
+    for name, param in model.named_parameters():
+        if "layers.3." in name or "head." in name:
+            param.requires_grad = True
+
+    if not freeze_bn:
         model.apply(freeze_bn_params)
-
-def partial_freeze_student_effnet_adapter(model: nn.Module, freeze_bn=True):
-    """
-    EfficientNet-B2 Student w/ Adapter
-    - adapter_* + classifier
-    """
-    freeze_all_params(model)
-    for name, param in model.named_parameters():
-        # adapter_*, classifier => unfreeze
-        if any(tag in name for tag in ["adapter_", "classifier"]):
-            param.requires_grad = True
-
-    if freeze_bn:
-        model.apply(freeze_bn_params)
-
-def partial_freeze_student_swin_adapter(
-    model: nn.Module,
-    freeze_ln=True
-):
-    """
-    Swin Student w/ Adapter:
-    - 예) adapter + head + 일부 block만 학습
-    (실제 구현 예시는 프로젝트 따라 맞추면 됨)
-    """
-    freeze_all_params(model)
-    for name, param in model.named_parameters():
-        # 여기서는 단순하게 adapter_, head. 만 unfreeze
-        if ("adapter" in name) or ("head." in name):
-            param.requires_grad = True
-
-    # LayerNorm 동결 여부
-    if freeze_ln:
+    if not freeze_ln:
         model.apply(freeze_ln_params)
