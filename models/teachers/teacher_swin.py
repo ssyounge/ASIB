@@ -42,4 +42,5 @@ def create_swin_t(num_classes=100, pretrained=True):
     in_ch = model.head.in_features
     model.head = nn.Linear(in_ch, num_classes)
 
-    return model
+    teacher_model = TeacherSwinWrapper(model)
+    return teacher_model
