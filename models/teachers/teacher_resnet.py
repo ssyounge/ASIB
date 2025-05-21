@@ -55,4 +55,4 @@ def create_resnet101(num_classes=100, pretrained=True):
     model.fc = nn.Linear(in_feats, num_classes)
 
     teacher_model = TeacherResNetWrapper(model)
-    return model
+    return teacher_model
