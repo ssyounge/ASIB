@@ -1,5 +1,3 @@
-# modules/partial_freeze.py
-
 import torch
 import torch.nn as nn
 
@@ -27,10 +25,7 @@ def freeze_ln_params(module: nn.Module):
             p.requires_grad = False
 
 
-###########################################################
 # (A) Teacher partial-freeze: 백본 동결 + BN/Head/MBM 업데이트
-###########################################################
-
 def partial_freeze_teacher_resnet(model: nn.Module, freeze_bn=True):
     """
     Teacher (ResNet101):
@@ -97,11 +92,7 @@ def partial_freeze_teacher_swin(model: nn.Module, freeze_bn=True, freeze_ln=True
         model.apply(freeze_ln_params)
 
 
-###########################################################
-# (B) Student partial-freeze: 상부 레이어(later stage + fc)만 학습
-#     + adapter 레이어
-###########################################################
-
+# (B) Student partial-freeze: 상부 레이어(later stage + fc)만 학습 + adapter 레이어
 def partial_freeze_student_resnet(
     model: nn.Module,
     freeze_bn: bool = True,
