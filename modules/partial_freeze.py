@@ -74,10 +74,8 @@ def partial_freeze_teacher_efficientnet(model: nn.Module, freeze_bn=True):
 def partial_freeze_teacher_swin(model: nn.Module, freeze_ln=True):
     """
     Teacher (Swin Tiny):
-      - 백본 동결
-      - BN/Head/MBM 업데이트 (논문 설정)
-      - 여기서는 'head.'(헤드), 'mbm.'(있다면)만 열고,
-        LN 업데이트는 옵션
+      - 백본 동결, head + MBM만 업데이트
+      - freeze_ln=True => LN 동결
     """
     freeze_all_params(model)
     for name, param in model.named_parameters():
@@ -159,6 +157,7 @@ def partial_freeze_student_swin(
     Student (Swin Tiny):
       - 논문 예시에 맞춰 '마지막 stage + head' => "layers.3." & "head."
       - use_adapter=True면 "adapter_" 파라미터도 함께 학습
+      - freeze_ln=True => LN 파라미터 동결
     """
     freeze_all_params(model)
     for name, param in model.named_parameters():
