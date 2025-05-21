@@ -71,23 +71,20 @@ def partial_freeze_teacher_efficientnet(model: nn.Module, freeze_bn=True):
                     p.requires_grad = True
 
 
-def partial_freeze_teacher_swin(model: nn.Module, freeze_bn=True, freeze_ln=True):
+def partial_freeze_teacher_swin(model: nn.Module, freeze_ln=True):
     """
     Teacher (Swin Tiny):
       - 백본 동결
       - BN/Head/MBM 업데이트 (논문 설정)
       - 여기서는 'head.'(헤드), 'mbm.'(있다면)만 열고,
-        BN/LN 업데이트는 옵션
+        LN 업데이트는 옵션
     """
     freeze_all_params(model)
     for name, param in model.named_parameters():
         if "head." in name or "mbm." in name:
             param.requires_grad = True
 
-    # Swin에서 BN/LN 동결 옵션
-    if not freeze_bn:
-        model.apply(freeze_bn_params)
-        # Swin은 보통 LayerNorm 쓰므로, BN이 있을지 여부는 모델 구조에 따라.
+    # Swin에서 LN 동결 옵션
     if not freeze_ln:
         model.apply(freeze_ln_params)
 
@@ -155,7 +152,6 @@ def partial_freeze_student_efficientnet(
 
 def partial_freeze_student_swin(
     model: nn.Module,
-    freeze_bn: bool = True,
     freeze_ln: bool = True,
     use_adapter: bool = False
 ):
@@ -177,7 +173,5 @@ def partial_freeze_student_swin(
         if condition:
             param.requires_grad = True
 
-    if not freeze_bn:
-        model.apply(freeze_bn_params)
     if not freeze_ln:
         model.apply(freeze_ln_params)
