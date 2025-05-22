@@ -7,8 +7,13 @@ from torchvision.models import swin_t, Swin_T_Weights
 
 class TeacherSwinWrapper(nn.Module):
     """
-    Teacher 모델(Swin Tiny) forward 래퍼.
-    => (feat, logit, ce_loss) 반환
+    Teacher 모델(Swin Tiny) forward:
+     => (feature_dict, logit, ce_loss) 반환
+    feature_dict 예시:
+      {
+        "feat_4d": [N, C, H, W],  # backbone.forward_features(x)
+        "feat_2d": [N, C],       # global pooled
+      }
     """
     def __init__(self, backbone: nn.Module):
         super().__init__()
@@ -16,31 +21,38 @@ class TeacherSwinWrapper(nn.Module):
         self.criterion_ce = nn.CrossEntropyLoss()
 
     def forward(self, x, y=None):
+        # 1) Swin forward_features => [N, C, H, W]
         with torch.no_grad():
-            feat_map = self.backbone.forward_features(x) # feat_map = (N, C, H, W)
-            feat = F.adaptive_avg_pool2d(feat_map, (1,1)).flatten(1) # shape = (N, C)
+            f4d = self.backbone.forward_features(x)  # [N, C, H, W]
+
+        # 2) global pool => 2D
+        f2d = F.adaptive_avg_pool2d(f4d, (1,1)).flatten(1)  # [N, C]
 
         # 3) head => logit
-        logit = self.backbone.head(feat)
+        logit = self.backbone.head(f2d)
 
+        # (optional) CE loss
         ce_loss = None
         if y is not None:
             ce_loss = self.criterion_ce(logit, y)
 
-        return feat, logit, ce_loss
+        # Dict
+        feature_dict = {
+            "feat_4d": f4d,  # [N, C, H, W]
+            "feat_2d": f2d,  # [N, C]
+        }
+        return feature_dict, logit, ce_loss
 
 def create_swin_t(num_classes=100, pretrained=True):
     """
-    Creates Swin Tiny model with `num_classes` out_features in the head.
-    e.g. CIFAR-100 => num_classes=100
-         ImageNet100 => num_classes=100
+    Swin Tiny 로드 후, head 교체 => TeacherSwinWrapper
+    => (feature_dict, logit, ce_loss)
     """
     if pretrained:
         model = swin_t(weights=Swin_T_Weights.IMAGENET1K_V1)
     else:
         model = swin_t(weights=None)
 
-    # Replace final head
     in_ch = model.head.in_features
     model.head = nn.Linear(in_ch, num_classes)
 
