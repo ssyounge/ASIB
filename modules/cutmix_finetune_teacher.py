@@ -1,4 +1,4 @@
-# cutmix_finetune_teacher.py
+# modules/cutmix_finetune_teacher.py
 
 import os
 import copy
