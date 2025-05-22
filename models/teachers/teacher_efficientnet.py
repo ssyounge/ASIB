@@ -7,8 +7,13 @@ from torchvision.models import efficientnet_b2, EfficientNet_B2_Weights
 
 class TeacherEfficientNetWrapper(nn.Module):
     """
-    Teacher 모델(EfficientNet-B2) forward 래퍼
-    => (feat, logit, ce_loss) 반환
+    Teacher 모델(EfficientNet-B2) forward:
+     => (feature_dict, logit, ce_loss) 반환
+    feature_dict 예시:
+      {
+        "feat_4d": [N, 1408, H, W],   # backbone.features(x)
+        "feat_2d": [N, 1408],         # global pooled
+      }
     """
     def __init__(self, backbone):
         super().__init__()
@@ -16,27 +21,32 @@ class TeacherEfficientNetWrapper(nn.Module):
         self.criterion_ce = nn.CrossEntropyLoss()
 
     def forward(self, x, y=None):
-        # 최종 로짓
+        # 1) 4D feature from backbone.features
+        with torch.no_grad():
+            f4d = self.backbone.features(x)  # shape: [N, 1408, h, w]
+
+        # 2) 최종 로짓(이미지 x 그대로 -> self.backbone(x))
         logit = self.backbone(x)
 
-        # 중간 feat
-        with torch.no_grad():
-            fx = self.backbone.features(x)  # shape: [N, 1408, H', W']
-            fx = F.adaptive_avg_pool2d(fx, (1,1)) # shape: [N, 1408, 1, 1]
-            feat = fx.flatten(1)           # shape: [N, 1408]
+        # 3) feat_2d: f4d를 adaptive pooling => flatten
+        fpool = F.adaptive_avg_pool2d(f4d, (1,1)).flatten(1)  # [N, 1408]
 
+        # (optional) CE loss
         ce_loss = None
         if y is not None:
             ce_loss = self.criterion_ce(logit, y)
 
-        return feat, logit, ce_loss
-
+        # Dict로 묶어서 반환
+        feature_dict = {
+            "feat_4d": f4d,       # [N, 1408, h, w]
+            "feat_2d": fpool,     # [N, 1408]
+        }
+        return feature_dict, logit, ce_loss
 
 def create_efficientnet_b2(num_classes=100, pretrained=True):
     """
-    Loads EfficientNet-B2, optionally pretrained on ImageNet1K.
-    => Replaces final classifier with (in_feats -> num_classes).
-    => Suitable for CIFAR-100 or ImageNet100 (both 100 classes).
+    EfficientNet-B2를 로드한 뒤, (in_feats->num_classes) 교체
+    => TeacherEfficientNetWrapper로 감싸서 반환
     """
     if pretrained:
         model = efficientnet_b2(weights=EfficientNet_B2_Weights.IMAGENET1K_V1)
