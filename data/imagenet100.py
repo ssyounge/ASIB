@@ -1,3 +1,5 @@
+# data/imagenet100.py
+
 import os
 import torch
 import torchvision
