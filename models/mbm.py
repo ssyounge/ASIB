@@ -11,11 +11,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class ManifoldBridgingModule(nn.Module):
-    """
-    Example MBM that fuses teacher1_feat + teacher2_feat by simple MLP.
-    in_dim = feat1_dim + feat2_dim
-    hidden_dim, out_dim: user-chosen
-    """
     def __init__(self, in_dim, hidden_dim, out_dim):
         super().__init__()
         self.mlp = nn.Sequential(
@@ -23,33 +18,29 @@ class ManifoldBridgingModule(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
-            nn.Linear(hidden_dim, out_dim)
+            nn.Linear(hidden_dim, out_dim)  # synergy embedding
         )
 
     def forward(self, feat1, feat2):
-        """
-        feat1, feat2: shape [N, d]
-        We'll concat them channel-wise => shape [N, d1 + d2]
-        Then pass through MLP => synergy embedding [N, out_dim]
-        """
-        x = torch.cat([feat1, feat2], dim=1)  # [N, in_dim]
-        out = self.mlp(x)
-        return out
+        # feat1, feat2: [N, d]  -> concat -> [N, d1+d2]
+        x = torch.cat([feat1, feat2], dim=1)
+        synergy_emb = self.mlp(x)  # [N, out_dim]
+
+        # 'dict' 형태로 반환
+        #  - synergy_emb만 저장 (필요하면 여기에 'logit' 등도 가능)
+        synergy_dict = {
+            "feat_2d": synergy_emb
+        }
+        return synergy_dict
 
 
 class SynergyHead(nn.Module):
-    """
-    Optional synergy head to map synergy embedding -> final logit.
-    If we want to produce logits for classification from MBM output,
-    we can attach a small linear layer here.
-    """
     def __init__(self, in_dim, num_classes=100):
         super().__init__()
         self.fc = nn.Linear(in_dim, num_classes)
 
-    def forward(self, x):
-        """
-        x: synergy embedding [N, in_dim]
-        Returns: [N, num_classes]
-        """
-        return self.fc(x)
+    def forward(self, synergy_emb):
+        # synergy_emb: [N, in_dim]
+        logit = self.fc(synergy_emb)
+        # dict로 반환할 수도, 바로 tensor로 반환해도 됨
+        return logit
