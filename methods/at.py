@@ -1,60 +1,76 @@
 # methods/at.py
+
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import torch.nn.functional as F
+import torch.optim as optim
 
-from distillers.losses import ce_loss_fn
-
-def at_loss(teacher_feat, student_feat, p=2):
+############################################
+# AT loss function
+############################################
+def single_layer_at_loss(f_s, f_t, p=2):
     """
-    Attention Transfer (AT) loss:
-     - teacher_feat, student_feat: [N, C, H, W]
-     - p=2 (L2 norm)로 채널별 norm => attention map => MSE
+    f_s, f_t: [N, C, H, W]
+    => (abs().pow(p).mean(dim=1)) -> flatten -> normalize -> MSE
     """
-    # 1) teacher attention
-    t_atten = teacher_feat.abs().pow(p).sum(dim=1)  # [N, H, W]
-    t_atten = t_atten.pow(1.0/p)
+    if f_s.shape[2:] != f_t.shape[2:]:
+        # 크기 불일치 시 adaptive pooling
+        f_s = F.adaptive_avg_pool2d(f_s, (f_t.shape[2], f_t.shape[3]))
 
-    # 2) student attention
-    s_atten = student_feat.abs().pow(p).sum(dim=1)
-    s_atten = s_atten.pow(1.0/p)
+    # (1) channel-wise pow(p).mean => [N,H,W]
+    sA = f_s.abs().pow(p).mean(dim=1)
+    tA = f_t.abs().pow(p).mean(dim=1)
 
-    # 3) 채널 제외한 [H,W] flatten => normalize
-    t_norm = F.normalize(t_atten.view(t_atten.size(0), -1), dim=1)
-    s_norm = F.normalize(s_atten.view(s_atten.size(0), -1), dim=1)
+    # (2) flatten -> normalize
+    sA = F.normalize(sA.view(sA.size(0), -1), dim=1)
+    tA = F.normalize(tA.view(tA.size(0), -1), dim=1)
 
-    # 4) MSE
-    return F.mse_loss(s_norm, t_norm)
+    return F.mse_loss(sA, tA)
 
+
+def at_loss_dict(teacher_dict, student_dict, layer_key="feat_4d_layer3", p=2):
+    """
+    teacher_dict["feat_4d_layer3"], student_dict["feat_4d_layer3"] 사용
+    => single_layer_at_loss 계산
+    """
+    f_t = teacher_dict[layer_key]  # 4D
+    f_s = student_dict[layer_key]  # 4D
+    return single_layer_at_loss(f_s, f_t, p=p)
+
+
+############################################
+# Distiller class
+############################################
 class ATDistiller(nn.Module):
     """
-    Distiller for Attention Transfer (Zagoruyko & Komodakis, ICLR2017).
-    total_loss = alpha * AT_loss + CE
+    Example of AT Distiller using the dict-based teacher/student outputs.
+    1) teacher(x)->(t_dict, t_logits)
+    2) student(x)->(s_dict, s_logits)
+    3) at_loss_dict(...) => single_layer_at_loss
+    4) total_loss = CE + alpha*AT
     """
-    def __init__(self, teacher_model, student_model, alpha=1.0, p=2):
+    def __init__(self, teacher_model, student_model, alpha=1.0, p=2, layer_key="feat_4d_layer3"):
         super().__init__()
         self.teacher = teacher_model
         self.student = student_model
         self.alpha = alpha
         self.p = p
+        self.layer_key = layer_key
+        self.criterion_ce = nn.CrossEntropyLoss()
 
     def forward(self, x, y):
-        """
-        1) teacher => (feat, logit, ...)
-        2) student => (feat, logit, ...)
-        3) AT_loss( teacher_feat, student_feat ) + CE(student_logit, y)
-        """
+        # 1) teacher
         with torch.no_grad():
-            t_feat, t_logit, _ = self.teacher(x)
+            t_dict, t_logit = self.teacher(x)
+        # 2) student
+        s_dict, s_logit = self.student(x)
 
-        s_feat, s_logit, _ = self.student(x)
+        # 3) at_loss
+        loss_at = at_loss_dict(t_dict, s_dict, layer_key=self.layer_key, p=self.p)
+        # 4) CE
+        loss_ce = self.criterion_ce(s_logit, y)
+        total_loss = loss_ce + self.alpha * loss_at
 
-        # AT loss
-        loss_at = at_loss(t_feat, s_feat, p=self.p)
-        # CE
-        ce_val = ce_loss_fn(s_logit, y)
-        total_loss = self.alpha * loss_at + ce_val
         return total_loss, s_logit
 
     def train_distillation(
@@ -67,13 +83,14 @@ class ATDistiller(nn.Module):
         device="cuda"
     ):
         self.to(device)
-        # Student 파라미터만 업데이트 (Teacher는 고정)
+        # student만 업데이트
         optimizer = optim.SGD(
             self.student.parameters(),
             lr=lr,
             momentum=0.9,
             weight_decay=weight_decay
         )
+
         best_acc = 0.0
         best_state = None
 
@@ -93,6 +110,7 @@ class ATDistiller(nn.Module):
 
             avg_loss = total_loss / total_num
 
+            # evaluate
             if test_loader is not None:
                 acc = self.evaluate(test_loader, device)
                 print(f"[Epoch {epoch}] AT => loss={avg_loss:.4f}, testAcc={acc:.2f}")
@@ -113,8 +131,7 @@ class ATDistiller(nn.Module):
         correct, total = 0, 0
         for x, y in loader:
             x, y = x.to(device), y.to(device)
-            # forward student
-            _, s_logit, _ = self.student(x)
+            _, s_logit = self.student(x)
             pred = s_logit.argmax(dim=1)
             correct += (pred==y).sum().item()
             total   += y.size(0)
