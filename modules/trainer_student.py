@@ -1,5 +1,5 @@
 """
-trainer_student.py
+modules/trainer_student.py
 
 - Student Distillation Update
 - Teacher(+MBM)는 고정, Student만 학습 (CE + KD)
