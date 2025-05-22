@@ -1,40 +1,36 @@
-"""
-models/students/student_efficientnet_adapter.py
-
-- EfficientNet을 Student로 사용하되, Adapter 모듈 삽입
-- ExtendedAdapterEffNetB2: 
-   - self.backbone.features(x) -> 중간 레이어 뒤에 adapter
-   - self.backbone.classifier => 최종 (100 dimensions)
-"""
+# models/students/student_efficientnet_adapter.py
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision
 from torchvision.models import efficientnet_b2, EfficientNet_B2_Weights
 
 class ExtendedAdapterEffNetB2(nn.Module):
     """
     EfficientNet-B2 + Adapter
-    - features[...somewhere...] 뒤에 adapter를 삽입하는 예시
+    1) self.backbone.features(x) => 4D
+    2) adapter => (4D -> 4D)
+    3) global pool => flatten => classifier => logit
+    => 최종 (feature_dict, logit, ce_loss) 반환
     """
-    def __init__(self, base_model):
+    def __init__(self, base_model, num_classes=100):
         super().__init__()
         self.backbone = base_model
+        self.num_classes = num_classes
+        self.criterion_ce = nn.CrossEntropyLoss()
 
-        # base_model.features => Stage별로 나뉘어 있음
-        # 간단 구현: features 전부 끝까지 호출 후, adapterConv -> classifier
-        # (원한다면 중간 stage 사이에 adapter를 삽입하는 게 더 바람직)
-        
+        # adapter
         self.adapter_conv1 = nn.Conv2d(1408, 512, kernel_size=1, bias=False)
         self.adapter_gn1   = nn.GroupNorm(32, 512)
         self.adapter_conv2 = nn.Conv2d(512, 1408, kernel_size=1, bias=False)
         self.adapter_gn2   = nn.GroupNorm(32, 1408)
         self.adapter_relu  = nn.ReLU(inplace=True)
 
-    def forward(self, x):
-        fx = self.backbone.features(x)  # shape: (N,1408,H',W')
+    def forward(self, x, y=None):
+        # 1) backbone 4D feature
+        fx = self.backbone.features(x)  # shape: (N,1408,H,W)
 
+        # 2) adapter
         xa = self.adapter_conv1(fx)
         xa = self.adapter_gn1(xa)
         xa = self.adapter_relu(xa)
@@ -42,35 +38,38 @@ class ExtendedAdapterEffNetB2(nn.Module):
         xa = self.adapter_gn2(xa)
 
         fx = fx + xa
-        fx = self.adapter_relu(fx)
+        fx = self.adapter_relu(fx)  # shape: [N,1408,H,W]
 
-        # 3) Pool + classifier
-        # EfficientNet: self.backbone.avgpool 생략 -> torch.no_grad()?
-        # 보통 efficientnet_b2는 self.backbone.forward()가 다음을 실행:
-        #  - adaptiveavgpool
-        #  - flatten
-        #  - classifier(...)
+        # 3) global pool => flatten => classifier => logit
+        feat_2d = F.adaptive_avg_pool2d(fx, (1,1)).flatten(1)  # [N,1408]
+        logit = self.backbone.classifier(feat_2d)              # [N,num_classes]
 
-        out = F.adaptive_avg_pool2d(fx, (1,1))
-        out = out.flatten(1)
-        out = self.backbone.classifier(out)  # shape: (N,100)
-        return out
+        # optional CE loss
+        ce_loss = None
+        if y is not None:
+            ce_loss = self.criterion_ce(logit, y)
+
+        # feature dict
+        feature_dict = {
+            "feat_4d": fx,        # [N,1408,H,W]  (adapter 후)
+            "feat_2d": feat_2d,   # [N,1408]
+        }
+        return feature_dict, logit, ce_loss
+
 
 def create_efficientnet_b2_with_adapter(pretrained=True):
     """
-    (1) efficientnet_b2 불러오기
-    (2) last classifier -> CIFAR-100
-    (3) ExtendedAdapterEffNetB2(base_model) 래핑
+    1) efficientnet_b2 로드
+    2) classifier => (1408->100)
+    3) ExtendedAdapterEffNetB2 래핑 => (feature_dict, logit, ce_loss) 반환
     """
     if pretrained:
         model = efficientnet_b2(weights=EfficientNet_B2_Weights.IMAGENET1K_V1)
     else:
         model = efficientnet_b2(weights=None)
 
-    # 마지막 classifier Linear(1408->100)
-    in_feats = model.classifier[1].in_features
+    in_feats = model.classifier[1].in_features  # 1408
     model.classifier[1] = nn.Linear(in_feats, 100)
 
-    # 어댑터 삽입
-    student_model = ExtendedAdapterEffNetB2(model)
+    student_model = ExtendedAdapterEffNetB2(model, num_classes=100)
     return student_model
