@@ -61,9 +61,9 @@ class ATDistiller(nn.Module):
     def forward(self, x, y):
         # 1) teacher
         with torch.no_grad():
-            t_dict, t_logit = self.teacher(x)
+            t_dict, t_logit, _ = self.teacher(x)
         # 2) student
-        s_dict, s_logit = self.student(x)
+        s_dict, s_logit, _ = self.student(x)
 
         # 3) at_loss
         loss_at = at_loss_dict(t_dict, s_dict, layer_key=self.layer_key, p=self.p)
