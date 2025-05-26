@@ -12,6 +12,7 @@ import copy
 from tqdm import tqdm
 
 from modules.kd_loss import kd_loss_fn, ce_loss_fn
+from torch.optim.lr_scheduler import StepLR
 
 def student_distillation_update(
     teacher_wrappers,
@@ -37,7 +38,20 @@ def student_distillation_update(
 
     # 2) Student Optim
     params_s = [p for p in student_model.parameters() if p.requires_grad]
-    optimizer_s = optim.Adam(params_s,lr=cfg["student_lr"],weight_decay=cfg["student_weight_decay"],betas=(0.9, 0.999),eps=1e-8)
+    optimizer_s = optim.Adam(
+        params_s,
+        lr=cfg["student_lr"],
+        weight_decay=cfg["student_weight_decay"],
+        betas=(0.9, 0.999),
+        eps=1e-8
+    )
+
+    # 2-1) StepLR 스케줄러 생성 (예시)
+    scheduler_s = StepLR(
+        optimizer_s,
+        step_size=cfg.get("student_step_size", 10),  # 디폴트 10
+        gamma=cfg.get("student_gamma", 0.1)          # 디폴트 0.1
+    )
     
     best_acc = 0.0
     best_state = copy.deepcopy(student_model.state_dict())
@@ -50,6 +64,7 @@ def student_distillation_update(
         for x, y in tqdm(trainloader, desc=f"[StudentDistill ep={ep+1}]"):
             x, y = x.to(cfg["device"]), y.to(cfg["device"])
 
+            # (A) Teacher synergy logit
             with torch.no_grad():
                 feats = []
                 for tw in teacher_wrappers:
@@ -61,13 +76,11 @@ def student_distillation_update(
                     fsyn = mbm(*feats)
                 zsyn = synergy_head(fsyn)  # synergy logit
 
+            # (B) Student forward
             s_out = student_model(x)
-            # CE
             ce_loss_val = ce_loss_fn(s_out, y)
-            # KD
             kd_loss_val = kd_loss_fn(s_out, zsyn, T=cfg.get("temperature",4.0))
-            # total
-            loss = cfg["ce_alpha"]*ce_loss_val + cfg["kd_alpha"]*kd_loss_val
+            loss = cfg["ce_alpha"] * ce_loss_val + cfg["kd_alpha"] * kd_loss_val
 
             optimizer_s.zero_grad()
             loss.backward()
@@ -79,11 +92,15 @@ def student_distillation_update(
 
         ep_loss = distill_loss_sum / cnt
 
-        # validate student on testloader
+        # (C) validate
         test_acc = eval_student(student_model, testloader, cfg["device"])
 
         logger.info(f"[StudentDistill ep={ep+1}] loss={ep_loss:.4f}, testAcc={test_acc:.2f}, best={best_acc:.2f}")
 
+        # (D) StepLR 스케줄
+        scheduler_s.step()
+
+        # (E) best snapshot
         if test_acc > best_acc:
             best_acc = test_acc
             best_state = copy.deepcopy(student_model.state_dict())
