@@ -18,14 +18,6 @@ teacher2_type: "efficientnet_b2"
 teacher1_pretrained: true
 teacher2_pretrained: true
 
-# 2-1) Teacher Fine-tune (단순 파인튜닝용?)
-t1_finetune_epochs: 40
-t2_finetune_epochs: 40
-t1_lr: 0.001
-t1_weight_decay: 0.0005
-t2_lr: 0.001
-t2_weight_decay: 0.0005
-
 # 2-2) Teacher Adaptive (ASMB) 관련
 teacher_lr: 0.0001           # 통합 Teacher 학습률
 teacher_weight_decay: 0.0003
