@@ -1,4 +1,4 @@
-# fine_tuning.py
+# scripts/fine_tuning.py
 """
 Example: Fine-tuning Teacher (ResNet/EfficientNet/Swin) on either CIFAR-100 or ImageNet100
 using optional CutMix or standard CE training.
