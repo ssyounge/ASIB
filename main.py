@@ -6,38 +6,41 @@ Implements a multi-stage distillation flow using:
  (A) Teacher adaptive update (Teacher/MBM partial freeze)
  (B) Student distillation
 Repeated for 'num_stages' times, as in ASMB multi-stage self-training.
-
-Example usage:
-  python main.py --config configs/partial_freeze.yaml --num_stages 2 --device cuda
 """
 
 import argparse
 import copy
 import torch
 
-# Example modules (adjust imports to match your structure):
 from utils.logger import ExperimentLogger
 from modules.partial_freeze import partial_freeze_teacher, partial_freeze_student
 from modules.disagreement import compute_disagreement_rate
 from modules.trainer_teacher import teacher_adaptive_update
 from modules.trainer_student import student_distillation_update
 from data.cifar100 import get_cifar100_loaders  # or imagenet100
-# Teacher/Student wrappers (adjust to your actual classes)
-from models.teachers.teacher_resnet import TeacherResNetWrapper
-from models.student_resnet_adapter import StudentResNetAdapter
+
+# 실제 Teacher/Student 생성 함수를 import
+# (기존에 TeacherResNetWrapper(pretrained=True)로 직접 new하는 대신, 
+#  create_resnet101, create_efficientnet_b2 등 factory 함수를 쓰거나,
+#  혹은 TeacherResNetWrapper에 get_feat_dim()을 추가해둔 버전을 사용)
+from models.teachers.teacher_resnet import create_resnet101
+from models.teachers.teacher_efficientnet import create_efficientnet_b2
+
+# Student
+from models.students.student_resnet_adapter import StudentResNetAdapter
+
+# MBM
 from models.mbm import ManifoldBridgingModule, SynergyHead
 
 def parse_args():
     parser = argparse.ArgumentParser()
     # Basic config or partial-freeze, kd hyperparams
-    parser.add_argument("--config", type=str, default=None, help="(Optional) Not used in this example, but can be loaded via YAML")
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--seed", type=int, default=42)
 
     # Multi-stage count
-    parser.add_argument("--num_stages", type=int, default=2,
-                        help="Number of Teacher/Student update cycles")
+    parser.add_argument("--num_stages", type=int, default=2)
 
     # Teacher adaptive settings
     parser.add_argument("--teacher_lr", type=float, default=1e-4)
@@ -62,7 +65,6 @@ def parse_args():
     parser.add_argument("--teacher2_ckpt", type=str, default=None)
     parser.add_argument("--student_ckpt", type=str, default=None)
 
-    # Output dir
     parser.add_argument("--results_dir", type=str, default="results")
 
     args = parser.parse_args()
@@ -72,61 +74,71 @@ def main():
     args = parse_args()
     cfg = vars(args)
 
-    # 1) Logger (simple example)
     logger = ExperimentLogger(cfg, exp_name="asmb_experiment")
     device = cfg["device"]
 
-    # 2) Seed
+    # 1) set seed
     torch.manual_seed(cfg["seed"])
     if device == "cuda" and not torch.cuda.is_available():
-        print("Warning: CUDA not available, switching to CPU.")
+        print("Warning: no CUDA available, fallback to CPU.")
         cfg["device"] = "cpu"
 
-    # 3) Data
+    # 2) Data
     train_loader, test_loader = get_cifar100_loaders(batch_size=cfg["batch_size"])
 
-    # 4) Create Teacher #1, #2
-    teacher1 = TeacherResNetWrapper(pretrained=True)
-    teacher2 = TeacherResNetWrapper(pretrained=True)
+    # 3) Create Teacher #1, #2
+    #    - 예시: Teacher1=ResNet101, Teacher2=EffNet-B2
+    teacher1 = create_resnet101(num_classes=100, pretrained=True)
+    teacher2 = create_efficientnet_b2(num_classes=100, pretrained=True)
+
     if cfg["teacher1_ckpt"]:
-        teacher1.load_state_dict(torch.load(cfg["teacher1_ckpt"], map_location=cfg["device"]))
+        teacher1.load_state_dict(torch.load(cfg["teacher1_ckpt"], map_location=device))
     if cfg["teacher2_ckpt"]:
-        teacher2.load_state_dict(torch.load(cfg["teacher2_ckpt"], map_location=cfg["device"]))
+        teacher2.load_state_dict(torch.load(cfg["teacher2_ckpt"], map_location=device))
 
     teacher1.to(device)
     teacher2.to(device)
-    # partial freeze teacher backbones
+
+    # partial freeze teacher
     partial_freeze_teacher(teacher1)
     partial_freeze_teacher(teacher2)
 
-    # 5) Create Student
+    # 4) Create Student
     student_model = StudentResNetAdapter(pretrained=True)
     if cfg["student_ckpt"]:
-        student_model.load_state_dict(torch.load(cfg["student_ckpt"], map_location=cfg["device"]))
+        student_model.load_state_dict(torch.load(cfg["student_ckpt"], map_location=device))
     student_model.to(device)
-    # partial freeze student lower layers
     partial_freeze_student(student_model)
 
-    # 6) Create MBM + synergy head
-    # Adjust in_dim/out_dim as needed
-    mbm = ManifoldBridgingModule(in_dim=2048+2048, hidden_dim=512, out_dim=512).to(device)
+    # 5) Create MBM + synergy head
+    # **수정 포인트**: Teacher1, Teacher2의 feat_dim 합산
+    t1_dim = teacher1.get_feat_dim()  # 예: 2048
+    t2_dim = teacher2.get_feat_dim()  # 예: 1408
+    mbm_in_dim = t1_dim + t2_dim      # 3456
+
+    mbm = ManifoldBridgingModule(
+        in_dim=mbm_in_dim,
+        hidden_dim=512,
+        out_dim=512
+    ).to(device)
     synergy_head = SynergyHead(in_dim=512, num_classes=100).to(device)
 
-    # 7) Multi-Stage Distillation
+    # 6) Multi-Stage Distillation
     teacher_wrappers = [teacher1, teacher2]
-    for stage_id in range(1, cfg["num_stages"]+1):
+    for stage_id in range(1, cfg["num_stages"] + 1):
         print(f"\n=== Stage {stage_id}/{cfg['num_stages']} ===")
 
         # (A) Teacher adaptive update
         teacher_init1 = copy.deepcopy(teacher1.state_dict())
         teacher_init2 = copy.deepcopy(teacher2.state_dict())
+
         teacher_adaptive_update(
             teacher_wrappers=teacher_wrappers,
             mbm=mbm,
             synergy_head=synergy_head,
             student_model=student_model,
             trainloader=train_loader,
-            testloader=test_loader,  # optional synergy eval
+            testloader=test_loader,
             cfg=cfg,
             logger=logger,
             teacher_init_state=teacher_init1,
@@ -134,7 +146,7 @@ def main():
         )
 
         # measure teacher disagreement
-        dis_rate = compute_disagreement_rate(teacher1, teacher2, test_loader, device=cfg["device"])
+        dis_rate = compute_disagreement_rate(teacher1, teacher2, test_loader, device=device)
         logger.update_metric(f"stage{stage_id}_disagreement_rate", dis_rate)
         print(f"[Stage {stage_id}] Teacher disagreement rate= {dis_rate:.2f}%")
 
@@ -152,10 +164,10 @@ def main():
         print(f"[Stage {stage_id}] Student final acc= {final_acc:.2f}%")
         logger.update_metric(f"stage{stage_id}_student_acc", final_acc)
 
-    # 8) Save final Student checkpoint
+    # 7) Save final Student
     student_ckpt_path = f"{cfg['results_dir']}/final_student_asmb.pth"
     torch.save(student_model.state_dict(), student_ckpt_path)
-    print(f"[main] Multi-stage distillation completed. Student saved at {student_ckpt_path}")
+    print(f"[main] Distillation done. Student ckpt => {student_ckpt_path}")
 
     logger.update_metric("final_student_ckpt", student_ckpt_path)
     logger.finalize()
