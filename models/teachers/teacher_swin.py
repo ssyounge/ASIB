@@ -20,6 +20,11 @@ class TeacherSwinWrapper(nn.Module):
         self.backbone = backbone
         self.criterion_ce = nn.CrossEntropyLoss()
 
+        # Swin Tiny의 head.in_features => 768 (기본)
+        #   (모델마다 다를 수 있음)
+        self.feat_dim = self.backbone.head.in_features
+
+    
     def forward(self, x, y=None):
         # 1) Swin forward_features => [N, C, H, W]
         with torch.no_grad():
@@ -42,6 +47,12 @@ class TeacherSwinWrapper(nn.Module):
             "feat_2d": f2d,  # [N, C]
         }
         return feature_dict, logit, ce_loss
+        
+    def get_feat_dim(self):
+        """
+        Swin Tiny => usually 768
+        """
+        return self.feat_dim
 
 def create_swin_t(num_classes=100, pretrained=True):
     """
