@@ -13,25 +13,22 @@ def save_json(exp_dict, save_path):
     with open(save_path, 'w') as f:
         json.dump(exp_dict, f, indent=4)
 
-def save_csv_row(exp_dict, csv_path, fieldnames):
+def save_csv_row(exp_dict, csv_path, fieldnames, write_header_if_new=True):
     """
-    Append one row (exp_dict) to a CSV file.
-    If the file doesn't exist, write header first.
+    Write a single row from `exp_dict` into a CSV file at `csv_path`.
+    If `write_header_if_new` and the file doesn't exist, write the header first.
     """
     file_exists = os.path.exists(csv_path)
 
     with open(csv_path, 'a', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
-        if not file_exists:
+        if write_header_if_new and not file_exists:
             writer.writeheader()
 
-        # Gather row data from exp_dict
         row_data = {}
         for fn in fieldnames:
-            # convert to string or fallback to ""
             val = exp_dict.get(fn, "")
             if isinstance(val, float):
-                # format float => '%.2f'
                 row_data[fn] = f"{val:.2f}"
             else:
                 row_data[fn] = str(val)
@@ -40,14 +37,21 @@ def save_csv_row(exp_dict, csv_path, fieldnames):
 class ExperimentLogger:
     """
     Handles experiment configuration + result metrics in a single dict (self.config).
-    - final JSON dump
-    - summary.csv appending
+    1) Create a unique exp_id for each run
+    2) Save to JSON (entire config) 
+    3) Save to a unique CSV file (subset of fields), 
+       and also store that csv_filename in the JSON.
     """
+
     def __init__(self, args, exp_name="exp"):
         """
         args can be an argparse.Namespace or a dict.
-        We store it in self.config, plus generate an exp_id with timestamp.
+        We store it in self.config, plus generate an exp_id with a timestamp.
+
+        :param args: namespace or dict of config
+        :param exp_name: prefix for experiment id
         """
+        # Convert to dict if argparse.Namespace
         if hasattr(args, "__dict__"):
             self.config = vars(args)
         elif isinstance(args, dict):
@@ -55,59 +59,70 @@ class ExperimentLogger:
         else:
             raise ValueError("args must be Namespace or dict")
 
-        # set experiment name
         self.exp_name = exp_name
 
-        # generate experiment id
+        # Generate exp_id (e.g. "eval_experiment_single_20240805_153210")
         self.exp_id = self._generate_exp_id()
         self.config["exp_id"] = self.exp_id
 
-        # results directory
+        # Where to save results
         self.results_dir = self.config.get("results_dir", "results")
         os.makedirs(self.results_dir, exist_ok=True)
 
+        # For timing
         self.start_time = time.time()
 
     def _generate_exp_id(self):
         """
-        Creates an experiment ID, e.g. 'exp_eval_single_20240509_1300'
-        using self.exp_name + self.config keys + timestamp
+        Creates an experiment ID like 'eval_experiment_synergy_20240805_153210'
+        using exp_name, eval_mode, and timestamp
         """
-        # you can pick relevant keys or keep it simpler
         eval_mode = self.config.get("eval_mode", "noeval")
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         return f"{self.exp_name}_{eval_mode}_{ts}"
 
     def update_metric(self, key, value):
         """
-        Save a metric (string, float, etc.) into self.config
+        Save any metric (accuracy, loss, hyperparams, etc.) into self.config
+        so it can be written out on finalize().
         """
         self.config[key] = value
 
     def finalize(self):
         """
-        At the end: saves JSON + appends summary.csv
+        1) Calculates total_time_sec
+        2) Saves a full JSON file with self.config
+        3) Saves a unique CSV for this experiment, with essential columns only
+        4) Also store 'csv_filename' in self.config for cross-reference
         """
+        # 1) total time
         total_time = time.time() - self.start_time
         self.config["total_time_sec"] = total_time
 
-        # 1) Save JSON
+        # 2) JSON file path
         json_path = os.path.join(self.results_dir, f"{self.exp_id}.json")
+
+        # 3) CSV file path (unique for each experiment)
+        csv_filename = f"{self.exp_id}.csv"
+        self.config["csv_filename"] = csv_filename  # store in JSON as well
+        csv_path = os.path.join(self.results_dir, csv_filename)
+
+        # Save the JSON (all info)
         save_json(self.config, json_path)
         print(f"[ExperimentLogger] JSON saved => {json_path}")
 
-        # 2) summary.csv append
-        # define fieldnames as you see fit
+        # 4) Write CSV (only some fields)
+        # You can define any columns you want. 
         fieldnames = [
             "exp_id",
+            "csv_filename",
             "eval_mode",
             "train_acc",
             "test_acc",
             "batch_size",
             "config",
             "total_time_sec",
-            # add more if you want: teacher1_ckpt, synergy, etc.
+            # plus more keys if you want: teacher1_ckpt, synergy params, etc.
         ]
-        summary_csv = os.path.join(self.results_dir, "summary.csv")
-        save_csv_row(self.config, summary_csv, fieldnames)
-        print(f"[ExperimentLogger] CSV appended => {summary_csv}")
+        save_csv_row(self.config, csv_path, fieldnames, write_header_if_new=True)
+        print(f"[ExperimentLogger] CSV saved => {csv_path}")
