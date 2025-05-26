@@ -20,6 +20,9 @@ class TeacherResNetWrapper(nn.Module):
         self.backbone = backbone
         self.criterion_ce = nn.CrossEntropyLoss()
 
+        # 추가: ResNet101의 글로벌 피처 차원 (기본 2048)
+        self.feat_dim = 2048  
+    
     def forward(self, x, y=None):
         # 1) stem
         x = self.backbone.conv1(x)
@@ -51,6 +54,13 @@ class TeacherResNetWrapper(nn.Module):
             "feat_2d": feat_2d,  # [N, 2048]
         }
         return feature_dict, logit, ce_loss
+
+    def get_feat_dim(self):
+        """
+        Returns the dimension of the 2D feature (feat_2d).
+        ResNet101 => 2048
+        """
+        return self.feat_dim
 
 def create_resnet101(num_classes=100, pretrained=True):
     """
