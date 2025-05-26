@@ -1,0 +1,9 @@
+device: "cuda"
+dataset_name: "cifar100"
+teacher_name: "resnet101"
+fine_tune_partial_freeze: false
+t1_finetune_epochs: 40
+t1_lr: 0.001
+t1_weight_decay: 0.0005
+use_cutmix: true
+cutmix_alpha: 1.0
