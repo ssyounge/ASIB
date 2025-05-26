@@ -1,4 +1,4 @@
-# partial_freeze.yaml
+# configs/partial_freeze.yaml
 
 # 원하는 값만 override
 use_partial_freeze: true
