@@ -8,7 +8,7 @@ Implements a multi-stage distillation flow using:
 Repeated for 'num_stages' times, as in ASMB multi-stage self-training.
 
 Now we load config (default.yaml), read teacher1_type, teacher2_type, 
-create teacher accordingly, and apply partial_freeze dynamically.
+create teacher accordingly, and apply partial_freeze dynamically (with freeze_scope).
 """
 
 import argparse
@@ -27,14 +27,18 @@ from data.cifar100 import get_cifar100_loaders  # or imagenet100
 from modules.partial_freeze import (
     partial_freeze_teacher_resnet,
     partial_freeze_teacher_efficientnet,
-    partial_freeze_student
+    partial_freeze_teacher_swin,      # if you have a Swin teacher
+    partial_freeze_student_resnet,
+    partial_freeze_student_efficientnet,
+    partial_freeze_student_swin
 )
 
 # Teacher creation (factory):
 from models.teachers.teacher_resnet import create_resnet101
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
+from models.teachers.teacher_swin import create_swin_t  # if you have a Swin teacher
 
-# Student
+# Student (example)
 from models.students.student_resnet_adapter import StudentResNetAdapter
 
 # MBM
@@ -53,19 +57,54 @@ def create_teacher_by_name(teacher_name, num_classes=100, pretrained=True):
         return create_resnet101(num_classes=num_classes, pretrained=pretrained)
     elif teacher_name == "efficientnet_b2":
         return create_efficientnet_b2(num_classes=num_classes, pretrained=pretrained)
+    elif teacher_name == "swin_tiny":
+        return create_swin_t(num_classes=num_classes, pretrained=pretrained)
     else:
         raise ValueError(f"[create_teacher_by_name] Unknown teacher_name={teacher_name}")
 
-def partial_freeze_teacher_auto(model, teacher_name, freeze_bn=True):
+def partial_freeze_teacher_auto(
+    model, 
+    teacher_name, 
+    freeze_bn=True, 
+    freeze_ln=True, 
+    freeze_scope=None
+):
     """
     Calls the appropriate partial_freeze_* function based on `teacher_name`.
+    Also passes freeze_scope, freeze_bn/ln for more flexible control.
     """
     if teacher_name == "resnet101":
-        partial_freeze_teacher_resnet(model, freeze_bn=freeze_bn)
+        # partial_freeze_teacher_resnet(model, freeze_bn=?, freeze_scope=?)
+        partial_freeze_teacher_resnet(model, freeze_bn=freeze_bn, freeze_scope=freeze_scope)
     elif teacher_name == "efficientnet_b2":
-        partial_freeze_teacher_efficientnet(model, freeze_bn=freeze_bn)
+        partial_freeze_teacher_efficientnet(model, freeze_bn=freeze_bn, freeze_scope=freeze_scope)
+    elif teacher_name == "swin_tiny":
+        # for Swin teacher
+        partial_freeze_teacher_swin(model, freeze_ln=freeze_ln, freeze_scope=freeze_scope)
     else:
         raise ValueError(f"[partial_freeze_teacher_auto] Unknown teacher_name={teacher_name}")
+
+
+def partial_freeze_student_auto(
+    model,
+    student_name="resnet_adapter", 
+    freeze_bn=True, 
+    freeze_ln=True,
+    use_adapter=False,
+    freeze_scope=None
+):
+    """
+    If you have multiple student types (resnet_adapter, effnet_adapter, etc.)
+    """
+    if student_name == "resnet_adapter":
+        partial_freeze_student_resnet(model, freeze_bn=freeze_bn, use_adapter=use_adapter, freeze_scope=freeze_scope)
+    elif student_name == "efficientnet_adapter":
+        partial_freeze_student_efficientnet(model, freeze_bn=freeze_bn, use_adapter=use_adapter, freeze_scope=freeze_scope)
+    elif student_name == "swin_adapter":
+        partial_freeze_student_swin(model, freeze_ln=freeze_ln, use_adapter=use_adapter, freeze_scope=freeze_scope)
+    else:
+        # default or raise error
+        partial_freeze_student_resnet(model, freeze_bn=freeze_bn, freeze_scope=freeze_scope)
 
 
 ###############################################################################
@@ -113,10 +152,9 @@ def main():
     train_loader, test_loader = get_cifar100_loaders(batch_size=cfg.get("batch_size", 128))
 
     # 4) Read teacher1_type, teacher2_type from config
-    teacher1_type = cfg.get("teacher1_type", "resnet101")   # ex: "resnet101"
+    teacher1_type = cfg.get("teacher1_type", "resnet101")
     teacher2_type = cfg.get("teacher2_type", "efficientnet_b2")
 
-    # create teacher1
     teacher1 = create_teacher_by_name(
         teacher_name=teacher1_type,
         num_classes=100,
@@ -127,11 +165,17 @@ def main():
     if cfg.get("teacher1_ckpt"):
         teacher1.load_state_dict(torch.load(cfg["teacher1_ckpt"], map_location=device))
 
-    # partial freeze teacher1
     if cfg.get("use_partial_freeze", True):
-        partial_freeze_teacher_auto(teacher1, teacher1_type, freeze_bn=True)
+        # e.g. read from YAML: teacher1_freeze_bn, teacher1_freeze_scope
+        t1_freeze_bn = cfg.get("teacher1_freeze_bn", True)
+        t1_freeze_scope = cfg.get("teacher1_freeze_scope", None)
+        partial_freeze_teacher_auto(
+            teacher1, 
+            teacher1_type, 
+            freeze_bn=t1_freeze_bn,
+            freeze_scope=t1_freeze_scope
+        )
 
-    # create teacher2
     teacher2 = create_teacher_by_name(
         teacher_name=teacher2_type,
         num_classes=100,
@@ -142,15 +186,33 @@ def main():
         teacher2.load_state_dict(torch.load(cfg["teacher2_ckpt"], map_location=device))
 
     if cfg.get("use_partial_freeze", True):
-        partial_freeze_teacher_auto(teacher2, teacher2_type, freeze_bn=True)
+        t2_freeze_bn = cfg.get("teacher2_freeze_bn", True)
+        t2_freeze_scope = cfg.get("teacher2_freeze_scope", None)
+        partial_freeze_teacher_auto(
+            teacher2, 
+            teacher2_type, 
+            freeze_bn=t2_freeze_bn,
+            freeze_scope=t2_freeze_scope
+        )
 
     # 5) Student creation
-    #   (if you want to handle multiple types of student, do similarly)
+    student_name = cfg.get("student_type", "resnet_adapter")
+    # e.g. if you have create_student_by_name, do it; else just do ResNet
     student_model = StudentResNetAdapter(pretrained=True).to(device)
     if cfg.get("student_ckpt"):
         student_model.load_state_dict(torch.load(cfg["student_ckpt"], map_location=device))
 
-    partial_freeze_student(student_model)  # if needed
+    if cfg.get("use_partial_freeze", True):
+        # e.g. student_freeze_bn, student_freeze_scope, etc.
+        s_freeze_bn = cfg.get("student_freeze_bn", True)
+        s_freeze_scope = cfg.get("student_freeze_scope", None)
+        partial_freeze_student_auto(
+            student_model, 
+            student_name=student_name,
+            freeze_bn=s_freeze_bn,
+            freeze_scope=s_freeze_scope,
+            use_adapter=cfg.get("student_use_adapter", False)
+        )
 
     # 6) MBM => dimension from teacher1.get_feat_dim() + teacher2.get_feat_dim()
     t1_dim = teacher1.get_feat_dim()
