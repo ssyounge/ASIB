@@ -37,7 +37,7 @@ def student_distillation_update(
 
     # 2) Student Optim
     params_s = [p for p in student_model.parameters() if p.requires_grad]
-    optimizer_s = optim.SGD(params_s, lr=cfg["student_lr"], momentum=0.9, weight_decay=cfg["student_weight_decay"])
+    optimizer_s = optim.Adam(params_s,lr=cfg["student_lr"],weight_decay=cfg["student_weight_decay"],betas=(0.9, 0.999),eps=1e-8)
     
     best_acc = 0.0
     best_state = copy.deepcopy(student_model.state_dict())
