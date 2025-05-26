@@ -1,3 +1,5 @@
+# configs/fine_tune.yaml
+
 device: "cuda"
 dataset_name: "cifar100"
 teacher_name: "resnet101"
