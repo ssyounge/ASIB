@@ -113,7 +113,7 @@ Folder Structure
 
 	•	analysis/: Scripts or notebooks for comparing experiments (compare_ablation.py, plot_results.ipynb)
 	•	configs/: YAML config files for partial-freeze settings, hyperparameters
-	•	methods/: KD implementations (ASMB, FitNet, CRD, etc.)
+	•	methods/: KD implementations (ASMB, FitNet, CRD, DKD, etc.)
 	•	modules/: Partial freeze utility, trainers, custom losses
 	•	results/: CSV logs, outputs from training/evaluation
 	•	scripts/: Shell scripts for multiple or batch experiments
@@ -135,8 +135,7 @@ MIT License
 
 Copyright (c) 2024 Suyoung Yang
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-...
+Permission is hereby granted, free of charge, ...
 
 
 ⸻
@@ -157,5 +156,5 @@ If you use this framework, please cite:
 
 Contact
 
-For questions or issues, please open a GitHub issue or email suyoung425@yonsei.ac.kr
+For questions or issues, please open a GitHub issue or email suyoung425@yonsei.ac.kr.
 
