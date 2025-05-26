@@ -1,64 +1,91 @@
 # configs/default.yaml
 
 # ------------------------------------------------------
-# 1) 기본 환경 설정
+# (1) 기본 환경 / 데이터
 # ------------------------------------------------------
-device: "cuda"
+device: "cuda"          # "cuda" or "cpu"
 seed: 42
 dataset_name: "cifar100"
 data_root: "./data"
 batch_size: 128
 
 # ------------------------------------------------------
-# 2) Teacher 설정
+# (2) Teacher 모델 설정
 # ------------------------------------------------------
 teacher1_type: "resnet101"
 teacher2_type: "efficientnet_b2"
-teacher_lr: 1e-4
-teacher_weight_decay: 3e-4
-teacher_adapt_epochs: 5
-mbm_lr_factor: 5.0
 
-# synergy CE
+teacher1_pretrained: true
+teacher2_pretrained: true
+
+# 2-1) Teacher Fine-tune (단순 파인튜닝용?)
+t1_finetune_epochs: 40
+t2_finetune_epochs: 40
+t1_lr: 0.001
+t1_weight_decay: 0.0005
+t2_lr: 0.001
+t2_weight_decay: 0.0005
+
+# 2-2) Teacher Adaptive (ASMB) 관련
+teacher_lr: 0.0001           # 통합 Teacher 학습률
+teacher_weight_decay: 0.0003
+teacher_adapt_epochs: 5      # Teacher Adaptive Update epochs
+mbm_lr_factor: 5.0           # MBM/Head LR 배수
+
+# synergy CE / kd
 synergy_ce_alpha: 0.3
-teacher_adapt_alpha_kd: 0.2   # Teacher Update 시 KL 비중
+teacher_adapt_alpha_kd: 0.2  # Teacher adaptive 시 KL 비중
+teacher_adapt_alpha_ce: 0.5  # (추가) 만약 Teacher adaptive에서 CE 비중이 따로 필요하다면
+
+reg_lambda: 1e-5   # Teacher param reg
 
 # ------------------------------------------------------
-# 3) Student 설정
+# (3) Student 설정
 # ------------------------------------------------------
 student_type: "resnet_adapter"
-student_lr: 1e-2
-student_weight_decay: 5e-4
-student_epochs_per_stage: 15
+student_lr: 0.01
+student_weight_decay: 0.0005
+student_epochs_per_stage: 15  # Student distill epochs per stage
 
-# ------------------------------------------------------
-# 4) Distillation (KD) 
-# ------------------------------------------------------
-ce_alpha: 0.5   
-kd_alpha: 0.5   
+# distillation(KD) 파라미터
+ce_alpha: 0.5     # CE 비중
+kd_alpha: 0.5     # KL 비중
 temperature: 4.0
 
 # ------------------------------------------------------
-# 5) Multi-Stage Self-Training
+# (4) Multi-Stage Self-Training
 # ------------------------------------------------------
 num_stages: 2
+
+# 추가로 teacher_iters, student_iters 를 명시적으로 둘 수도 있음
 teacher_iters: 10
 student_iters: 20
 
 # ------------------------------------------------------
-# 6) Partial Freeze & Reg
+# (5) Partial Freeze & 기타
 # ------------------------------------------------------
 use_partial_freeze: true
-reg_lambda: 1e-5   
 
 # ------------------------------------------------------
-# 7) Logging / Save
+# (6) MBM Dimension (Teacher feat concat)
+# ------------------------------------------------------
+mbm_in_dim: 3456
+mbm_hidden_dim: 1024
+mbm_out_dim: 2048
+
+# ------------------------------------------------------
+# (7) CutMix 등 추가 증강
+# ------------------------------------------------------
+cutmix_alpha: 1.0
+
+# ------------------------------------------------------
+# (8) Logging & Checkpoint
 # ------------------------------------------------------
 log_filename: "train.log"
 save_checkpoint: true
 ckpt_dir: "./checkpoints"
 
 # ------------------------------------------------------
-# 8) CutMix or etc.
+# (9) 기타
 # ------------------------------------------------------
-cutmix_alpha: 1.0
+# 필요하면 더 추가
