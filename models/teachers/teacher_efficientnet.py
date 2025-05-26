@@ -20,6 +20,9 @@ class TeacherEfficientNetWrapper(nn.Module):
         self.backbone = backbone
         self.criterion_ce = nn.CrossEntropyLoss()
 
+        # 추가: EffNet-B2의 글로벌 피처 차원(1408)
+        self.feat_dim = 1408
+    
     def forward(self, x, y=None):
         # 1) 4D feature from backbone.features
         with torch.no_grad():
@@ -42,6 +45,13 @@ class TeacherEfficientNetWrapper(nn.Module):
             "feat_2d": fpool,     # [N, 1408]
         }
         return feature_dict, logit, ce_loss
+
+    def get_feat_dim(self):
+        """
+        Returns the dimension of the 2D feature (feat_2d).
+        EffNet-B2 => 1408
+        """
+        return self.feat_dim
 
 def create_efficientnet_b2(num_classes=100, pretrained=True):
     """
