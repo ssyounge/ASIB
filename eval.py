@@ -1,5 +1,5 @@
 # eval.py
-
+"""
 Evaluates either a single model or a synergy model (Teacher1+2 + MBM + synergy head),
 and logs the results (train_acc, test_acc, etc.) using ExperimentLogger.
 """
