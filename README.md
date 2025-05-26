@@ -7,7 +7,7 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 ## Features
 
 - **Multi-Stage Distillation**: Teacher ↔ Student updates in a phased (block-wise) manner  
-- **ASMB** (Adaptive Synergy Manifold Bridging): Uses a Manifold Bridging Module (MBM) to fuse two Teacher features into synergy logits  
+- **ASMB** (Adaptive Synergy Manifold Bridging): Uses a Manifold Bridging Module (MBM) to fuse two Teacher feature maps into synergy logits  
 - **Partial Freeze**: Freeze backbone parameters, adapt BN/Heads/MBM for efficiency  
 - **Multiple KD Methods**: FitNet, CRD, AT, DKD, VanillaKD, plus custom `asmb.py`  
 - **CIFAR-100 / ImageNet100** dataset support
