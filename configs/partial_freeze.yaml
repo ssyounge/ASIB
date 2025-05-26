@@ -1,14 +1,24 @@
 # configs/partial_freeze.yaml
 
-# 원하는 값만 override
+# 1) 공통 설정
 use_partial_freeze: true
+reg_lambda: 1e-4      # (예) teacher adaptive regularization
+teacher_lr: 2e-4      # (예) teacher 학습률 override
 
-# freeze config
-teacher_freeze_scope: "layer4_fc"    # or "bn_fc_only", etc. 
-student_freeze_scope: "adapter_only" # partial_freeze.py에서 if-문으로 분기 가능
+# 2) Teacher1 관련
+teacher1_type: "resnet101"          # 혹은 "swin_tiny", "efficientnet_b2"
+teacher1_pretrained: true
+teacher1_freeze_bn: false           # BN을 unfreeze (즉 BN도 학습)
+teacher1_freeze_scope: "layer4_fc"  # partial_freeze_teacher_resnet에서 layer4. + fc. 만 unfreeze
 
-# reg_lambda를 키워서 teacher가 init과 멀어지지 않게
-reg_lambda: 1e-4  
+# 3) Teacher2 관련
+teacher2_type: "efficientnet_b2"
+teacher2_pretrained: true
+teacher2_freeze_bn: true            # BN까지 동결
+teacher2_freeze_scope: "classifier_only"
 
-# 만약 teacher lr도 조금 바꾸고 싶다면:
-teacher_lr: 2e-4
+# 4) Student 관련
+student_type: "resnet_adapter"
+student_freeze_bn: false            # BN unfreeze
+student_freeze_scope: "fc_only"
+student_use_adapter: false          # adapter_ 파라미터 해제 여부
