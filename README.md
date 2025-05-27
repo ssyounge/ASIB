@@ -89,19 +89,19 @@ Folder Structure
 │   ├── vanilla_kd.py
 │   └── __init__.py
 
-├──  models/
+├── models
 │   ├── __init__.py
 │   ├── mbm.py
-│   ├── students/
-│      ├── __init__.py
-│      ├── student_efficientnet_adapter.py
-│      ├── student_resnet_adapter.py
-│      └── student_swin_adapter.py
-└── teachers/
-│      ├── __init__.py
-│      ├── teacher_efficientnet.py
-│      ├── teacher_resnet.py
-│      └── teacher_swin.py
+│   ├── students
+│   │   ├── __init__.py
+│   │   ├── student_efficientnet_adapter.py
+│   │   ├── student_resnet_adapter.py
+│   │   └── student_swin_adapter.py
+│   └── teachers
+│       ├── __init__.py
+│       ├── teacher_efficientnet.py
+│       ├── teacher_resnet.py
+│       └── teacher_swin.py
 
 ├── modules
 │   ├── trainer_student.py
