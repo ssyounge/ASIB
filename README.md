@@ -55,7 +55,7 @@ python eval.py --eval_mode synergy \
 	•	Prints Train/Test accuracy, optionally logs to CSV if configured.
 
 ⸻
-
+```plaintext
 Folder Structure
 
 (Repo Root)
@@ -124,6 +124,7 @@ Folder Structure
 	•	results/: CSV logs, outputs from training/evaluation
 	•	scripts/: Shell scripts for multiple or batch experiments
 
+```
 ⸻
 
 Results
