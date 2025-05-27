@@ -9,9 +9,6 @@ import torch.nn.functional as F
 import torch.optim as optim
 from tqdm import tqdm
 
-########################################
-# CutMix utilities
-########################################
 def cutmix_data(inputs, targets, alpha=1.0):
     """
     inputs: [N, C, H, W]
@@ -58,9 +55,6 @@ def cutmix_criterion(criterion, pred, y_a, y_b, lam):
     return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
 
 
-########################################
-# 1 Epoch training with CutMix
-########################################
 def train_one_epoch_cutmix(teacher_model, loader, optimizer, alpha=1.0, device="cuda"):
     """
     teacher_model: forward(x, y=None)-> (dict, logit, ce_loss)
@@ -103,10 +97,6 @@ def train_one_epoch_cutmix(teacher_model, loader, optimizer, alpha=1.0, device="
     epoch_acc  = 100.0 * correct / total
     return epoch_loss, epoch_acc
 
-
-########################################
-# Evaluate teacher (standard CE)
-########################################
 @torch.no_grad()
 def eval_teacher(teacher_model, loader, device="cuda"):
     teacher_model.eval()
@@ -119,10 +109,6 @@ def eval_teacher(teacher_model, loader, device="cuda"):
         total   += y.size(0)
     return 100.0 * correct / total
 
-
-########################################
-# Fine-tune teacher with CutMix
-########################################
 def finetune_teacher_cutmix(
     teacher_model,
     train_loader,
