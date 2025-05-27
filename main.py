@@ -49,10 +49,6 @@ from models.students.student_resnet_adapter import StudentResNetAdapter
 # MBM
 from models.mbm import ManifoldBridgingModule, SynergyHead
 
-
-###############################################################################
-# Factory-like helpers
-###############################################################################
 def create_teacher_by_name(teacher_name, num_classes=100, pretrained=True):
     """
     Creates a teacher model based on `teacher_name` string.
@@ -108,10 +104,6 @@ def partial_freeze_student_auto(
     else:
         partial_freeze_student_resnet(model, freeze_bn=freeze_bn, freeze_scope=freeze_scope)
 
-
-###############################################################################
-# parse_args, load_config
-###############################################################################
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, default="configs/default.yaml",
@@ -125,10 +117,6 @@ def load_config(cfg_path):
             return yaml.safe_load(f)
     return {}
 
-
-###############################################################################
-# main
-###############################################################################
 def main():
     # 1) parse args
     args = parse_args()
