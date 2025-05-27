@@ -71,6 +71,7 @@ Folder Structure
 
 ├── configs
 │   ├── default.yaml
+│   ├── fine_tune.yaml
 │   └── partial_freeze.yaml
 
 ├── data
@@ -83,6 +84,8 @@ Folder Structure
 │   ├── fitnet.py
 │   ├── crd.py
 │   ├── dkd.py
+│   ├── at.py
+│   ├── continual_asmb.py
 │   ├── vanilla_kd.py
 │   └── __init__.py
 
@@ -95,6 +98,8 @@ Folder Structure
 ├── modules
 │   ├── trainer_student.py
 │   ├── trainer_teacher.py
+│   ├── cutmix_finetune_teacher.py
+│   ├── disagreement.py
 │   ├── partial_freeze.py
 │   ├── losses.py
 │   └── __init__.py
@@ -104,6 +109,7 @@ Folder Structure
 │   └── summary.csv
 
 ├── scripts
+│   ├── fine_tuning.py
 │   ├── run_many.sh
 │   └── run_sweep.sh
 
