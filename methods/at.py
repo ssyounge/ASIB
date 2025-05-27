@@ -5,9 +5,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-############################################
-# AT loss function
-############################################
 def single_layer_at_loss(f_s, f_t, p=2):
     """
     f_s, f_t: [N, C, H, W]
@@ -38,9 +35,6 @@ def at_loss_dict(teacher_dict, student_dict, layer_key="feat_4d_layer3", p=2):
     return single_layer_at_loss(f_s, f_t, p=p)
 
 
-############################################
-# Distiller class
-############################################
 class ATDistiller(nn.Module):
     """
     Example of AT Distiller using the dict-based teacher/student outputs.
