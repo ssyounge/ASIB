@@ -3,9 +3,6 @@
 import torch
 import torch.nn as nn
 
-###############################################################################
-# 0) Common helper functions
-###############################################################################
 def freeze_all_params(model: nn.Module):
     """모델 내 모든 파라미터를 학습 불가능(requires_grad=False)하게 만든다."""
     for param in model.parameters():
@@ -29,13 +26,6 @@ def freeze_ln_params(module: nn.Module):
         for p in module.parameters():
             p.requires_grad = False
 
-
-###############################################################################
-# (A) Teacher partial-freeze
-#     - ResNet, EfficientNet, Swin
-#     - freeze_scope: layer4_fc, fc_only 등으로 레이어 범위 지정
-#     - freeze_bn or freeze_ln 등으로 BN/LN 업데이트 여부 지정
-###############################################################################
 def partial_freeze_teacher_resnet(
     model: nn.Module,
     freeze_bn: bool = True,
@@ -113,7 +103,6 @@ def partial_freeze_teacher_efficientnet(
                 for p in m.parameters():
                     p.requires_grad = True
 
-
 def partial_freeze_teacher_swin(
     model: nn.Module,
     freeze_ln: bool = True,
@@ -141,13 +130,6 @@ def partial_freeze_teacher_swin(
         # LN unfreeze
         model.apply(freeze_ln_params)
 
-
-###############################################################################
-# (B) Student partial-freeze
-#     - ResNet, EfficientNet, Swin
-#     - freeze_scope: layer4_fc, fc_only 등
-#     - freeze_bn or freeze_ln, and use_adapter
-###############################################################################
 def partial_freeze_student_resnet(
     model: nn.Module,
     freeze_bn: bool = True,
@@ -220,7 +202,6 @@ def partial_freeze_student_efficientnet(
             if isinstance(m, (nn.BatchNorm2d, nn.BatchNorm1d)):
                 for p in m.parameters():
                     p.requires_grad = True
-
 
 def partial_freeze_student_swin(
     model: nn.Module,
