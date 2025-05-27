@@ -33,9 +33,6 @@ from modules.partial_freeze import (
 # cutmix finetune
 from modules.cutmix_finetune_teacher import finetune_teacher_cutmix, eval_teacher
 
-###############################################################################
-# 1) parse_args, load_config
-###############################################################################
 def parse_args():
     parser = argparse.ArgumentParser(description="Teacher Fine-tuning Script")
     parser.add_argument("--config", type=str, default="configs/fine_tune.yaml",
@@ -48,9 +45,6 @@ def load_config(cfg_path):
             return yaml.safe_load(f)
     return {}
 
-###############################################################################
-# 2) Data & Teacher creation
-###############################################################################
 def get_data_loaders(dataset_name, batch_size=128):
     """
     Returns train_loader, test_loader based on dataset_name.
@@ -88,9 +82,6 @@ def partial_freeze_teacher_auto(model, teacher_name, freeze_bn=True, freeze_ln=T
     else:
         raise ValueError(f"Unknown teacher_name={teacher_name}")
 
-###############################################################################
-# 3) main fine-tuning logic
-###############################################################################
 def main():
     args = parse_args()
     base_cfg = load_config(args.config)   # e.g. configs/fine_tune.yaml
