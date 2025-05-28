@@ -10,43 +10,27 @@ from modules.kd_loss import kd_loss_fn, ce_loss_fn
 from torch.optim.lr_scheduler import StepLR
 
 @torch.no_grad()
-def eval_synergy(teacher_wrappers, mbm, synergy_head, loader, device="cuda"):
-    """
-    Evaluate synergy model's accuracy on the given loader:
-    1) For each batch, collect teacher features
-    2) Pass them through MBM -> synergy_head
-    3) Compare synergy logit with labels
-    4) Return final accuracy (%)
-    """
-    correct = 0
-    total = 0
-
+def eval_synergy(teacher_wrappers, mbm, synergy_head, loader, device="cuda", feat_key="feat_2d"):
+    correct, total = 0, 0
     for x, y in loader:
         x, y = x.to(device), y.to(device)
 
-        # 1) Teacher features
         t1_dict, _, _ = teacher_wrappers[0](x)
         t2_dict, _, _ = teacher_wrappers[1](x)
 
-        # Decide which feat_key to use
-        feat_key = "feat_2d"  # or "feat_4d", depending on your usage
-        f1 = t1_dict[feat_key]
+        f1 = t1_dict[feat_key]  # "feat_2d" or "feat_4d"
         f2 = t2_dict[feat_key]
 
-        # 2) MBM => synergy
-        fsyn = mbm(f1, f2)  # returns a tensor
-        # If 4D => global pool
+        fsyn = mbm(f1, f2)  # => 2D/4D 텐서
         if fsyn.dim() == 4:
             fsyn = torch.nn.functional.adaptive_avg_pool2d(fsyn, (1,1)).flatten(1)
+        zsyn = synergy_head(fsyn)
 
-        # 3) synergy_head => synergy logit
-        zsyn = synergy_head(fsyn)  # shape [N, num_classes]
-        preds = zsyn.argmax(dim=1)
+        pred = zsyn.argmax(dim=1)
+        correct += (pred == y).sum().item()
+        total   += y.size(0)
 
-        correct += (preds == y).sum().item()
-        total += y.size(0)
-
-    acc = 100.0 * correct / total if total > 0 else 0.0
+    acc = 100.0 * correct / total if total>0 else 0
     return acc
 
 def teacher_adaptive_update(
@@ -160,7 +144,8 @@ def teacher_adaptive_update(
             synergy_test_acc = eval_synergy(
                 teacher_wrappers, mbm, synergy_head,
                 loader=cfg["testloader"],
-                device=cfg["device"]
+                device=cfg["device"],
+                feat_key=cfg.get("feat_key", "feat_2d")  # 예: "feat_4d"
             )
         else:
             synergy_test_acc = -1
