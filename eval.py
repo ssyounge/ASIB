@@ -15,7 +15,7 @@ from models.mbm import ManifoldBridgingModule, SynergyHead
 from utils.logger import ExperimentLogger
 from utils.misc import set_random_seed
 
-# ============== Teacher Factory ==============
+# Teacher Factory
 # Import the three teacher creation functions:
 from models.teachers.teacher_resnet import create_resnet101
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
@@ -32,7 +32,7 @@ def create_teacher_by_name(teacher_name, num_classes=100, pretrained=False):
     else:
         raise ValueError(f"[eval.py] Unknown teacher_name={teacher_name}")
 
-# ============== Argparse, YAML ==============
+# Argparse, YAML
 def parse_args():
     parser = argparse.ArgumentParser(description="Evaluation script (Train/Test Acc) with ExperimentLogger")
 
@@ -77,7 +77,7 @@ def evaluate_acc(model, loader, device="cuda"):
         total   += y.size(0)
     return 100.0 * correct / total
 
-# ============== Synergy Ensemble ==============
+# Synergy Ensemble
 class SynergyEnsemble(nn.Module):
     def __init__(self, teacher1, teacher2, mbm, synergy_head):
         super().__init__()
