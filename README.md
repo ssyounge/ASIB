@@ -125,12 +125,12 @@ Folder Structure
     ├── logger.py
     └── misc.py
 
-	•	analysis/: Scripts or notebooks for comparing experiments (compare_ablation.py, plot_results.ipynb)
-	•	configs/: YAML config files for partial-freeze settings, hyperparameters
-	•	methods/: KD implementations (ASMB, FitNet, CRD, DKD, etc.)
-	•	modules/: Partial freeze utility, trainers, custom losses
-	•	results/: CSV logs, outputs from training/evaluation
-	•	scripts/: Shell scripts for multiple or batch experiments
+	• analysis/: Scripts or notebooks for comparing experiments (compare_ablation.py, plot_results.ipynb)
+	• configs/: YAML config files for partial-freeze settings, hyperparameters
+	• methods/: KD implementations (ASMB, FitNet, CRD, DKD, etc.)
+	• modules/: Partial freeze utility, trainers, custom losses
+	• results/: CSV logs, outputs from training/evaluation
+	• scripts/: Shell scripts for multiple or batch experiments
 
 ```
 ⸻
