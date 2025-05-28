@@ -7,7 +7,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 # 예: losses.py (kd_loss_fn, ce_loss_fn 등) 불러오기
-from distillers.losses import kd_loss_fn, ce_loss_fn
+from modules.losses import kd_loss_fn, ce_loss_fn
 
 class ASMBDistiller(nn.Module):
     """
