@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
-from distillers.losses import ce_loss_fn
+from modules.losses import kd_loss_fn, ce_loss_fn
 
 class CRDLoss(nn.Module):
     """
