@@ -63,17 +63,24 @@ def student_distillation_update(
 
             # (A) Teacher synergy logit
             with torch.no_grad():
-                feats = []
-                for tw in teacher_wrappers:
-                    t_dict, _, _ = tw(x)   # teacher => (feat_dict, logit, _)
-                    f = t_dict[feat_key]  # 2D or 4D
-                    feats.append(f)
+                # Teacher #1
+                t1_dict, _, _ = teacher_wrappers[0](x)
+                f1 = t1_dict[feat_key]  # 2D or 4D
+                # Teacher #2
+                t2_dict, _, _ = teacher_wrappers[1](x)
+                f2 = t2_dict[feat_key]
 
-                if len(feats) == 1:
-                    fsyn = feats[0]
+                # MBM => 텐서 반환
+                fsyn = mbm(f1, f2)  # returns a tensor (2D or 4D)
+
+                # synergy_head가 2D를 기대한다고 가정
+                if fsyn.dim() == 4:
+                    # global pooling => 2D
+                    fsyn_2d = torch.nn.functional.adaptive_avg_pool2d(fsyn, (1,1)).flatten(1)
+                    zsyn = synergy_head(fsyn_2d)  # (N, num_classes)
                 else:
-                    fsyn = mbm(*feats)
-                zsyn = synergy_head(fsyn)  # synergy logit
+                    # 2D 바로
+                    zsyn = synergy_head(fsyn)
 
             # (B) Student forward
             s_out = student_model(x)   # (만약 student도 dict 반환하면 logit만 꺼내야 함)
