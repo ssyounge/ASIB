@@ -24,7 +24,7 @@ class ManifoldBridgingModule(nn.Module):
     ):
         super().__init__()
 
-        # ----- (A) 2D용 MLP 구성 -----
+        # (A) 2D용 MLP 구성
         self.use_mlp = False
         if (in_dim_2d is not None) and (hidden_dim_2d is not None) and (out_dim_2d is not None):
             self.use_mlp = True
@@ -36,7 +36,7 @@ class ManifoldBridgingModule(nn.Module):
                 nn.Linear(hidden_dim_2d, out_dim_2d)  # synergy embedding
             )
 
-        # ----- (B) 4D용 Conv 구성 -----
+        # (B) 4D용 Conv 구성
         self.use_conv = False
         if (c1_4d is not None) and (c2_4d is not None) and (out_channels_4d is not None):
             self.use_conv = True
@@ -67,7 +67,7 @@ class ManifoldBridgingModule(nn.Module):
 
         # 2) 이제 feat1, feat2는 모두 텐서여야 한다.
         if feat1.dim() == 2 and feat2.dim() == 2:
-            # ============ 2D path ============
+            # 2D path
             if not self.use_mlp:
                 raise ValueError("MBM: 2D input detected but MLP is not configured!")
             x = torch.cat([feat1, feat2], dim=1)  # [N, d1+d2]
@@ -75,7 +75,7 @@ class ManifoldBridgingModule(nn.Module):
             return {"feat_2d": synergy_emb}
 
         elif feat1.dim() == 4 and feat2.dim() == 4:
-            # ============ 4D path ============
+            # 4D path
             if not self.use_conv:
                 raise ValueError("MBM: 4D input detected but Conv is not configured!")
             x = torch.cat([feat1, feat2], dim=1)  # => [N, c1+c2, H, W]
