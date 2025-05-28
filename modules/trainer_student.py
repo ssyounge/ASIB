@@ -1,5 +1,3 @@
-# modules/trainer_student.py
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -41,15 +39,17 @@ def student_distillation_update(
         eps=1e-8
     )
 
-    # 2-1) StepLR 스케줄러 생성 (예시)
     scheduler_s = StepLR(
         optimizer_s,
-        step_size=cfg.get("student_step_size", 10),  # 디폴트 10
-        gamma=cfg.get("student_gamma", 0.1)          # 디폴트 0.1
+        step_size=cfg.get("student_step_size", 10),
+        gamma=cfg.get("student_gamma", 0.1)
     )
     
     best_acc = 0.0
     best_state = copy.deepcopy(student_model.state_dict())
+
+    # 여기도 feat_key 가져옴
+    feat_key = cfg.get("feat_key", "feat_2d")
 
     for ep in range(cfg["student_epochs_per_stage"]):
         distill_loss_sum = 0.0
@@ -63,8 +63,10 @@ def student_distillation_update(
             with torch.no_grad():
                 feats = []
                 for tw in teacher_wrappers:
-                    f, _, _ = tw(x)
+                    t_dict, _, _ = tw(x)   # teacher => (feat_dict, logit, _)
+                    f = t_dict[feat_key]  # 2D or 4D
                     feats.append(f)
+
                 if len(feats) == 1:
                     fsyn = feats[0]
                 else:
@@ -72,9 +74,11 @@ def student_distillation_update(
                 zsyn = synergy_head(fsyn)  # synergy logit
 
             # (B) Student forward
-            s_out = student_model(x)
+            s_out = student_model(x)   # (만약 student도 dict 반환하면 logit만 꺼내야 함)
+
+            # CE + KD
             ce_loss_val = ce_loss_fn(s_out, y)
-            kd_loss_val = kd_loss_fn(s_out, zsyn, T=cfg.get("temperature",4.0))
+            kd_loss_val = kd_loss_fn(s_out, zsyn, T=cfg.get("temperature", 4.0))
             loss = cfg["ce_alpha"] * ce_loss_val + cfg["kd_alpha"] * kd_loss_val
 
             optimizer_s.zero_grad()
@@ -92,7 +96,6 @@ def student_distillation_update(
 
         logger.info(f"[StudentDistill ep={ep+1}] loss={ep_loss:.4f}, testAcc={test_acc:.2f}, best={best_acc:.2f}")
 
-        # (D) StepLR 스케줄
         scheduler_s.step()
 
         # (E) best snapshot
@@ -110,7 +113,7 @@ def eval_student(model, loader, device):
     correct, total = 0, 0
     for x, y in loader:
         x, y = x.to(device), y.to(device)
-        out = model(x)
+        out = model(x)  # or (feat,logit,_) => out=logit
         pred = out.argmax(dim=1)
         correct += (pred==y).sum().item()
         total += y.size(0)
