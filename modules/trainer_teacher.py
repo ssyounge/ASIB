@@ -1,5 +1,3 @@
-# modules/trainer_teacher.py
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -25,18 +23,9 @@ def teacher_adaptive_update(
     teacher_init_state_2=None
 ):
     """
-    - teacher_wrappers: [teacher1, teacher2] (requires_grad=True 부분만 학습)
-    - mbm, synergy_head도 학습
-    - student_model 고정 (KD용)
-    - cfg:
-       {
-         "teacher_lr": 1e-4,
-         "mbm_lr_factor": 5.0,
-         "teacher_weight_decay": 3e-4,
-         "teacher_step_size": 10,
-         "teacher_gamma": 0.1,
-         ...
-       }
+    - teacher_wrappers: [teacher1, teacher2]
+    - mbm, synergy_head: partial freeze 포함
+    - student_model: 고정 (KD용)
     """
     teacher_params = []
     for tw in teacher_wrappers:
@@ -46,14 +35,12 @@ def teacher_adaptive_update(
     mbm_params = [p for p in mbm.parameters() if p.requires_grad]
     syn_params = [p for p in synergy_head.parameters() if p.requires_grad]
 
-    # Optim
     optimizer = optim.Adam([
         {"params": teacher_params, "lr": cfg["teacher_lr"]},
         {"params": mbm_params,     "lr": cfg["teacher_lr"] * cfg.get("mbm_lr_factor", 1.0)},
         {"params": syn_params,     "lr": cfg["teacher_lr"] * cfg.get("mbm_lr_factor", 1.0)},
     ], weight_decay=cfg["teacher_weight_decay"])
 
-    # StepLR
     scheduler_t = StepLR(
         optimizer,
         step_size=cfg.get("teacher_step_size", 10),
@@ -67,6 +54,9 @@ def teacher_adaptive_update(
         "syn_head": copy.deepcopy(synergy_head.state_dict())
     }
 
+    # 여기! feat_key 설정
+    feat_key = cfg.get("feat_key", "feat_2d")  # 디폴트 "feat_2d"
+
     for ep in range(cfg["teacher_adapt_epochs"]):
         teacher_loss_sum = 0.0
         count = 0
@@ -75,39 +65,42 @@ def teacher_adaptive_update(
             x, y = batch
             x, y = x.to(cfg["device"]), y.to(cfg["device"])
 
-            # (A) Student 로짓 (고정)
+            # (A) Student logit (고정)
             with torch.no_grad():
-                s_out = student_model(x)
+                _, s_logit, _ = student_model(x)
 
-            # (B) Teacher => feats
+            # (B) Teacher => feat_dict -> f = feat_dict[feat_key]
             feats = []
             for tw in teacher_wrappers:
-                f, _, _ = tw(x)
+                t_dict, _, _ = tw(x)             # t_dict는 {"feat_4d":..., "feat_2d":...}
+                f = t_dict[feat_key]             # 여기서 2D or 4D 텐서를 선택
                 feats.append(f)
 
-            # (C) MBM => synergy head
+            # (C) MBM + synergy_head
             if len(feats) == 1:
-                fsyn = feats[0]
+                fsyn = feats[0]                 # Teacher가 1명이라면 그냥 feats[0]
             else:
-                fsyn = mbm(*feats)
+                fsyn = mbm(*feats)              # Teacher가 2명이면 mbm(feat1, feat2)
             zsyn = synergy_head(fsyn)
 
-            # (D) Loss 계산
-            loss_kd = kd_loss_fn(zsyn, s_out, T=cfg.get("temperature", 4.0))
+            # (D) loss 계산 (KL + synergyCE)
+            loss_kd = kd_loss_fn(zsyn, s_logit, T=cfg.get("temperature", 4.0))
             loss_ce = ce_loss_fn(zsyn, y)
             synergy_ce_loss = cfg["synergy_ce_alpha"] * loss_ce
             total_loss = cfg["teacher_adapt_alpha_kd"] * loss_kd + synergy_ce_loss
 
-            # L2 reg (Teacher init state)
+            # (Optional) teacher_init_state 정규화
             reg_loss = 0.0
             if teacher_init_state is not None:
-                ...
+                # ...
+                pass
             if teacher_init_state_2 is not None and len(teacher_wrappers) > 1:
-                ...
+                # ...
+                pass
 
             total_loss += cfg.get("reg_lambda", 0.0) * reg_loss
 
-            # MBM & synergy_head 정규화
+            # MBM, synergy_head 정규화
             mbm_reg_loss = 0.0
             for p in mbm_params:
                 mbm_reg_loss += p.pow(2).sum()
@@ -124,7 +117,7 @@ def teacher_adaptive_update(
 
         ep_loss = teacher_loss_sum / count
 
-        # synergy eval
+        # synergy_eval
         if "testloader" in cfg and cfg["testloader"] is not None:
             synergy_test_acc = eval_synergy(
                 teacher_wrappers, mbm, synergy_head,
@@ -136,7 +129,6 @@ def teacher_adaptive_update(
 
         logger.info(f"[TeacherAdaptive ep={ep+1}] loss={ep_loss:.4f}, synergy={synergy_test_acc:.2f}")
 
-        # StepLR step
         scheduler_t.step()
 
         # best snapshot
@@ -146,7 +138,7 @@ def teacher_adaptive_update(
             best_state["mbm"] = copy.deepcopy(mbm.state_dict())
             best_state["syn_head"] = copy.deepcopy(synergy_head.state_dict())
 
-    # restore
+    # restore best
     for i, tw in enumerate(teacher_wrappers):
         tw.load_state_dict(best_state["teacher_wraps"][i])
     mbm.load_state_dict(best_state["mbm"])
