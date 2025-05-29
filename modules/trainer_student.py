@@ -126,8 +126,8 @@ def eval_student(model, loader, device):
     correct, total = 0, 0
     for x, y in loader:
         x, y = x.to(device), y.to(device)
-        out = model(x)  # or (feat,logit,_) => out=logit
-        pred = out.argmax(dim=1)
+        feat_dict, s_logit, _ = model(x)
+        pred = s_logit.argmax(dim=1)
         correct += (pred==y).sum().item()
         total += y.size(0)
     return 100.*correct/total
