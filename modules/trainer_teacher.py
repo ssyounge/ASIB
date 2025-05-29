@@ -6,7 +6,7 @@ import torch.optim as optim
 import copy
 from tqdm import tqdm
 
-from modules.kd_loss import kd_loss_fn, ce_loss_fn
+from modules.losses import kd_loss_fn, ce_loss_fn
 from torch.optim.lr_scheduler import StepLR
 
 @torch.no_grad()
