@@ -1,6 +1,5 @@
 # scripts/run_sweep.sh
 
-# scripts/run_sweep.sh
 # Example: sweep teacher_lr & synergy_ce_alpha
 
 for teacher_lr in 0.0001 0.0002 0.0005
