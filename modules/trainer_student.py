@@ -87,11 +87,11 @@ def student_distillation_update(
                     zsyn = synergy_head(fsyn)
 
             # (B) Student forward
-            s_out = student_model(x)   # (만약 student도 dict 반환하면 logit만 꺼내야 함)
+            feat_dict, s_logit, _ = student_model(x)   # (만약 student도 dict 반환하면 logit만 꺼내야 함)
 
             # CE + KD
-            ce_loss_val = ce_loss_fn(s_out, y)
-            kd_loss_val = kd_loss_fn(s_out, zsyn, T=cfg.get("temperature", 4.0))
+            ce_loss_val = ce_loss_fn(s_logit, y)
+            kd_loss_val = kd_loss_fn(s_logit, zsyn, T=cfg.get("temperature", 4.0))
             loss = cfg["ce_alpha"] * ce_loss_val + cfg["kd_alpha"] * kd_loss_val
 
             optimizer_s.zero_grad()
