@@ -1,4 +1,4 @@
-#scripts/run_many.sh
+# scripts/run_many.sh
 
 # run_many.sh
 # Example script to launch multiple KD experiments (ASMB or others)
