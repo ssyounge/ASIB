@@ -53,7 +53,11 @@ def student_distillation_update(
     # 여기도 feat_key 가져옴
     feat_key = cfg.get("feat_key", "feat_2d")
 
-    for ep in range(cfg["student_epochs_per_stage"]):
+    # 1) student_iters 우선 => 없으면 student_epochs_per_stage
+    student_epochs = cfg.get("student_iters", cfg.get("student_epochs_per_stage", 15))
+    logger.info(f"[StudentDistill] Using student_epochs={student_epochs}")
+
+    for ep in range(student_epochs):
         distill_loss_sum = 0.0
         cnt = 0
         student_model.train()
