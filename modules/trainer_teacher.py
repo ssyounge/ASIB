@@ -79,7 +79,11 @@ def teacher_adaptive_update(
     # 여기! feat_key 설정
     feat_key = cfg.get("feat_key", "feat_2d")  # 디폴트 "feat_2d"
 
-    for ep in range(cfg["teacher_adapt_epochs"]):
+    # 1) teacher_iters 우선 => 없으면 teacher_adapt_epochs
+    teacher_epochs = cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5))
+    logger.info(f"[TeacherAdaptive] Using teacher_epochs={teacher_epochs}")
+
+    for ep in range(teacher_epochs):
         teacher_loss_sum = 0.0
         count = 0
 
