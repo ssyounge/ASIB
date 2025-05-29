@@ -1,4 +1,4 @@
-#!/bin/bash
+# scripts/run_sweep.sh
 
 # scripts/run_sweep.sh
 # Example: sweep teacher_lr & synergy_ce_alpha
