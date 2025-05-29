@@ -15,7 +15,7 @@ Partial Freeze & MBM can be reused. We rely on:
 import copy
 import torch
 
-from modules.kd_loss import kd_loss_fn, ce_loss_fn
+from modules.losses import kd_loss_fn, ce_loss_fn
 from modules.partial_freeze import freeze_teacher_params, freeze_student_with_adapter
 from trainer_teacher import teacher_adaptive_update
 from trainer_student import student_distillation_update
