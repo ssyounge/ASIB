@@ -1,6 +1,5 @@
 # scripts/run_many.sh
 
-# run_many.sh
 # Example script to launch multiple KD experiments (ASMB or others)
 # by sweeping over parameters like teacher1, teacher2, alpha, stage, etc.
 
