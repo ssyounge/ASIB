@@ -88,6 +88,14 @@ class ExperimentLogger:
         """
         self.config[key] = value
 
+    def info(self, msg: str):
+        """
+        drop-in replacement for logging.Logger.info.
+        현재는 stdout으로만 출력하지만, 필요하면
+        파일에 따로 쓰거나 time-stamp를 붙이는 등 확장 가능.
+        """
+        print(msg)
+
     def finalize(self):
         """
         1) Calculates total_time_sec

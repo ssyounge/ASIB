@@ -1,54 +1,73 @@
-# scripts/run_many.sh
+#!/usr/bin/env bash
+set -e
+export PYTHONPATH="$(pwd):${PYTHONPATH}"
 
-# run_many.sh
-# Example script to launch multiple KD experiments (ASMB or others)
-# by sweeping over parameters like teacher1, teacher2, alpha, stage, etc.
+###############################################################################
+# ★ 여기 변수만 바꾸면 학습 전부 재조정할 수 있습니다 ★
+###############################################################################
+# (A) Fine-tune Teacher
+FT_EPOCHS=50           # --finetune_epochs
+FT_LR=0.001            # --finetune_lr
+FT_WD=0.0005           # --finetune_weight_decay
+FT_BATCH=128           # --batch_size  (fine-tune & distill 공통 사용)
+CUTMIX_ALPHA=1.0       # --cutmix_alpha
 
-# If you want to run them in parallel, you can add "&" to each python line,
-# but be mindful of GPU resource conflicts.
+# (B) ASMB Distillation
+T_LR=2e-4              # --teacher_lr  (adaptive update)
+S_LR=1e-2              # --student_lr
+N_STAGE_LIST="2 3"     # for STAGE in …
+SC_ALPHA_LIST="0.3 0.6"
+STUDENT_LIST="resnet_adapter efficientnet_adapter swin_adapter"
+###############################################################################
 
-# Basic usage: 
-#   chmod +x run_many.sh
-#   ./run_many.sh
+mkdir -p checkpoints results
+RESULT_ROOT="results/$(date +%Y%m%d_%H%M%S)"
+mkdir -p "${RESULT_ROOT}"
 
-METHOD="asmb"      # or "fitnet", "crd" ...
-LR=0.0002
-EPOCHS=10
-BATCH=128
+T1=resnet101
+for T2 in efficientnet_b2 swin_tiny; do
+  ###########################################################################
+  # 1) Teacher fine-tuning (skip if ckpt already exists)
+  ###########################################################################
+  for T in "$T1" "$T2"; do
+    CKPT="checkpoints/${T}_ft.pth"
+    echo ">>> [run_many.sh] fine-tuning teacher=${T}  (epochs=${FT_EPOCHS}, lr=${FT_LR})"
+    if [ ! -f "${CKPT}" ]; then
+      python scripts/fine_tuning.py \
+        --teacher_name "${T}" \
+        --device cuda \
+        --batch_size ${FT_BATCH} \
+        --finetune_epochs ${FT_EPOCHS} \
+        --finetune_lr ${FT_LR} \
+        --finetune_weight_decay ${FT_WD} \
+        --cutmix_alpha ${CUTMIX_ALPHA} \
+        --finetune_ckpt_path "${CKPT}"
+    fi
+  done
 
-for TEACHER1 in "resnet50" "mobilenet_v2"
-do
-  for TEACHER2 in "efficientnet_b2" "densenet121"
-  do
-    for ALPHA in 0.3 0.6
-    do
-      for STAGE in 2 3
-      do
-        echo "============================================"
-        echo "Running experiment: method=$METHOD, t1=$TEACHER1, t2=$TEACHER2, alpha=$ALPHA, stage=$STAGE"
-        echo "============================================"
-        
-        # Option 1) Run in the foreground
+  ###########################################################################
+  # 2) ASMB multi-stage distillation
+  ###########################################################################
+  for STUDENT in ${STUDENT_LIST}; do
+    for SC_ALPHA in ${SC_ALPHA_LIST}; do
+      for STAGE in ${N_STAGE_LIST}; do
+        OUTDIR="${RESULT_ROOT}/${T2}_${STUDENT}_a${SC_ALPHA}_s${STAGE}"
+        mkdir -p "${OUTDIR}"
+
         python main.py \
-          --method $METHOD \
-          --teacher1 $TEACHER1 \
-          --teacher2 $TEACHER2 \
-          --alpha $ALPHA \
-          --stage $STAGE \
-          --lr $LR \
-          --epochs $EPOCHS \
-          --batch_size $BATCH \
-          --results_dir "results" \
+          --teacher1_type "${T1}" \
+          --teacher2_type "${T2}" \
+          --teacher1_ckpt checkpoints/${T1}_ft.pth \
+          --teacher2_ckpt checkpoints/${T2}_ft.pth \
+          --student_type "${STUDENT}" \
+          --num_stages ${STAGE} \
+          --synergy_ce_alpha ${SC_ALPHA} \
+          --teacher_lr ${T_LR} \
+          --student_lr ${S_LR} \
+          --batch_size ${FT_BATCH} \
+          --results_dir "${OUTDIR}" \
           --seed 42
-
-        # Option 2) If you want to run in background parallel, add '&'
-        # python main.py ... &
-
-        # If running in parallel, you might want a wait or a GPU scheduling logic 
-        # (like CUDA_VISIBLE_DEVICES or tools like slurm).
       done
     done
   done
 done
-
-echo "All experiments done."

@@ -3,13 +3,15 @@
 device: "cuda"
 dataset_name: "cifar100"
 
-# Teacher 이름 및 파인튜닝 옵션
+# Teacher
 teacher_name: "resnet101"
-fine_tune_partial_freeze: false  # 전체 학습(Full fine-tune) 또는 부분 동결 여부
-t1_finetune_epochs: 40
-t1_lr: 0.001
-t1_weight_decay: 0.0005
+fine_tune_partial_freeze: false    # true 로 두면 backbone freeze, head만 학습
 
-# CutMix 사용 유무
+# ★—— CutMix/CE 파인튜닝 하이퍼파라미터 ——★
+finetune_epochs: 50
+finetune_lr: 0.001
+finetune_weight_decay: 0.0005
+
+# CutMix 설정
 use_cutmix: true
 cutmix_alpha: 1.0

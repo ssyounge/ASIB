@@ -9,6 +9,13 @@ from tqdm import tqdm
 from modules.losses import kd_loss_fn, ce_loss_fn
 from torch.optim.lr_scheduler import StepLR
 
+def _cpu_state_dict(module: torch.nn.Module):
+    """
+    주어진 nn.Module의 state_dict() 값을 **CPU Tensor**로 복사해 반환한다.
+    GPU 메모리 사용량을 줄이기 위해 스냅샷을 RAM에 저장할 때 사용.
+    """
+    return {k: v.detach().cpu().clone() for k, v in module.state_dict().items()}
+
 @torch.no_grad()
 def eval_synergy(teacher_wrappers, mbm, synergy_head, loader, device="cuda", feat_key="feat_2d"):
     correct, total = 0, 0
@@ -71,9 +78,9 @@ def teacher_adaptive_update(
 
     best_synergy = -1
     best_state = {
-        "teacher_wraps": [copy.deepcopy(tw.state_dict()) for tw in teacher_wrappers],
-        "mbm": copy.deepcopy(mbm.state_dict()),
-        "syn_head": copy.deepcopy(synergy_head.state_dict())
+        "teacher_wraps": [_cpu_state_dict(tw) for tw in teacher_wrappers],
+        "mbm":  _cpu_state_dict(mbm),
+        "syn_head": _cpu_state_dict(synergy_head)
     }
 
     # 여기! feat_key 설정
@@ -110,30 +117,29 @@ def teacher_adaptive_update(
             zsyn = synergy_head(fsyn)
 
             # (D) loss 계산 (KL + synergyCE)
-            loss_kd = kd_loss_fn(zsyn, s_logit, T=cfg.get("temperature", 4.0))
-            loss_ce = ce_loss_fn(zsyn, y)
+            loss_kd         = kd_loss_fn(zsyn, s_logit, T=cfg.get("temperature", 4.0))
+            loss_ce         = ce_loss_fn(zsyn, y)
             synergy_ce_loss = cfg["synergy_ce_alpha"] * loss_ce
+
+            # 기본 KD+CE
             total_loss = cfg["teacher_adapt_alpha_kd"] * loss_kd + synergy_ce_loss
 
-            # (Optional) teacher_init_state 정규화
-            reg_loss = 0.0
-            if teacher_init_state is not None:
-                # ...
-                pass
-            if teacher_init_state_2 is not None and len(teacher_wrappers) > 1:
-                # ...
-                pass
+            # ── 1) Teacher 파라미터 L2 정규화 ───────────────────────────
+            reg_loss = torch.tensor(0.0, device=cfg["device"])
+            for p in teacher_params:                 # 위에서 이미 모아 둠
+                if p.requires_grad:
+                    reg_loss = reg_loss + p.pow(2).sum()
+            total_loss = total_loss + float(cfg.get("reg_lambda", 0.0)) * reg_loss
+            # -----------------------------------------------------------
 
-            total_loss += cfg.get("reg_lambda", 0.0) * reg_loss
-
-            # MBM, synergy_head 정규화
-            mbm_reg_loss = 0.0
-            for p in mbm_params:
-                mbm_reg_loss += p.pow(2).sum()
-            for p in syn_params:
-                mbm_reg_loss += p.pow(2).sum()
-            total_loss += cfg.get("mbm_reg_lambda", 0.0) * mbm_reg_loss
-
+            # ── 2) MBM + Synergy-Head L2 정규화 ─────────────────────────
+            mbm_reg_loss = torch.tensor(0.0, device=cfg["device"])
+            for p in mbm_params + syn_params:
+                if p.requires_grad:
+                    mbm_reg_loss = mbm_reg_loss + p.pow(2).sum()
+            total_loss = total_loss + float(cfg.get("mbm_reg_lambda", 0.0)) * mbm_reg_loss
+            # -----------------------------------------------------------      
+            
             optimizer.zero_grad()
             total_loss.backward()
             optimizer.step()
