@@ -160,6 +160,7 @@ def finetune_teacher_cutmix(
         )
 
     teacher_model.load_state_dict(best_state)
+    os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
     torch.save(teacher_model.state_dict(), ckpt_path)
     print(f"[CutMix] Fine-tune done => bestAcc={best_acc:.2f}, saved={ckpt_path}")
     return teacher_model, best_acc

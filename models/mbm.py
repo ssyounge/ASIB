@@ -1,4 +1,4 @@
-# mbm.py
+# models/mbm.py
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -9,9 +9,12 @@ class ManifoldBridgingModule(nn.Module):
     (4D 기능은 제거)
     """
     def __init__(
-        in_dim=None,      
-        hidden_dim=None,  
-        out_dim=None
+        self,                 # ← 반드시 첫 번째 파라미터로 self 추가
+        in_dim:      int,
+        hidden_dim:  int,
+        out_dim:     int,
+        # in_ch_4d:  Optional[int] = None,  # 4D 경로를 쓰게 되면 추가
+        # out_ch_4d: Optional[int] = None
     ):
         super().__init__()
 

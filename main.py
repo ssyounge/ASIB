@@ -17,6 +17,7 @@ import yaml
 from utils.logger import ExperimentLogger
 from modules.disagreement import compute_disagreement_rate
 from modules.trainer_teacher import teacher_adaptive_update
+from modules.trainer_teacher import _cpu_state_dict
 from modules.trainer_student import student_distillation_update
 from data.cifar100 import get_cifar100_loaders  # or imagenet100
 
@@ -35,16 +36,57 @@ from models.teachers.teacher_resnet import create_resnet101
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from models.teachers.teacher_swin import create_swin_t
 
-# Student example
-from models.students.student_resnet_adapter import StudentResNetAdapter
+def create_student_by_name(student_name: str, pretrained: bool = True):
+    """
+    Returns a student model that follows the common interface
+    (feature_dict, logits, ce_loss).
+    """
+    if student_name == "resnet_adapter":
+        from models.students.student_resnet_adapter import (
+            create_resnet101_with_extended_adapter,
+        )
+        return create_resnet101_with_extended_adapter(pretrained=pretrained)
 
-# MBM
+    elif student_name == "efficientnet_adapter":
+        from models.students.student_efficientnet_adapter import (
+            create_efficientnet_b2_with_adapter,
+        )
+        return create_efficientnet_b2_with_adapter(pretrained=pretrained)
+
+    elif student_name == "swin_adapter":
+        from models.students.student_swin_adapter import (
+            create_swin_adapter_student,
+        )
+        return create_swin_adapter_student(pretrained=pretrained)
+
+    else:
+        raise ValueError(f"[create_student_by_name] unknown student_name={student_name}")# MBM
+
 from models.mbm import ManifoldBridgingModule, SynergyHead
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="configs/default.yaml",
+
+    # (1) YAML 파일
+    parser.add_argument("--config", type=str,
+                        default="configs/default.yaml",
                         help="Path to yaml config for distillation")
+
+    # (2) sweep 할 때 바꿀 필드들 ▶ YAML 값을 CLI-인자가 **덮어쓰도록** 할 목적
+    parser.add_argument("--teacher1_type", type=str)
+    parser.add_argument("--teacher2_type", type=str)
+    parser.add_argument("--num_stages",   type=int)
+    parser.add_argument("--synergy_ce_alpha", type=float)    # α
+    parser.add_argument("--student_type", type=str)
+    
+    # 편의용 하이퍼파라미터
+    parser.add_argument("--batch_size", type=int)
+    parser.add_argument("--teacher_lr", type=float)
+    parser.add_argument("--student_lr", type=float)
+    parser.add_argument("--student_epochs_per_stage", type=int)
+    parser.add_argument("--epochs",     type=int)            # 예: teacher_iters
+    parser.add_argument("--results_dir", type=str)
+    parser.add_argument("--seed", type=int, default=42)
     return parser.parse_args()
 
 def load_config(cfg_path):
@@ -159,8 +201,12 @@ def main():
         )
 
     # 5) Student
-    student_name = cfg.get("student_type", "resnet_adapter")
-    student_model = StudentResNetAdapter(pretrained=True).to(device)
+    student_name  = cfg.get("student_type", "resnet_adapter")   # e.g. resnet_adapter / efficientnet_adapter / swin_adapter
+    student_model = create_student_by_name(
+        student_name,
+        pretrained=cfg.get("student_pretrained", True),
+    ).to(device)
+
     if cfg.get("student_ckpt"):
         student_model.load_state_dict(torch.load(cfg["student_ckpt"], map_location=device))
         print(f"[Main] Loaded student from {cfg['student_ckpt']}")
@@ -213,8 +259,8 @@ def main():
     for stage_id in range(1, num_stages + 1):
         print(f"\n=== Stage {stage_id}/{num_stages} ===")
 
-        teacher_init1 = copy.deepcopy(teacher1.state_dict())
-        teacher_init2 = copy.deepcopy(teacher2.state_dict())
+        teacher_init1 = _cpu_state_dict(teacher1)
+        teacher_init2 = _cpu_state_dict(teacher2)
 
         # (A) Teacher adaptive update
         teacher_adaptive_update(
@@ -250,6 +296,7 @@ def main():
 
     # 8) save final
     student_ckpt_path = f"{cfg['results_dir']}/final_student_asmb.pth"
+    os.makedirs(os.path.dirname(student_ckpt_path), exist_ok=True)
     torch.save(student_model.state_dict(), student_ckpt_path)
     print(f"[main] Distillation done => {student_ckpt_path}")
     logger.update_metric("final_student_ckpt", student_ckpt_path)

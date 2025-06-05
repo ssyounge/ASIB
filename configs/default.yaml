@@ -23,7 +23,7 @@ teacher_adapt_alpha_ce: 0.5  # (추가) 만약 Teacher adaptive에서 CE 비중�
 
 reg_lambda: 1e-5   # Teacher param reg
 
-student_type: "resnet_adapter"
+student_type: "efficientnet_adapter"
 student_lr: 0.01
 student_weight_decay: 0.0005
 student_epochs_per_stage: 15  # Student distill epochs per stage
