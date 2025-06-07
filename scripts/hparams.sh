@@ -6,6 +6,7 @@
 DEVICE=cuda
 BATCH_SIZE=128
 SEED=42
+DATA_AUG=1
 
 # Teacher fine-tuning
 FT_EPOCHS=50

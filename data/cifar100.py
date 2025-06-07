@@ -4,17 +4,27 @@ import torch
 import torchvision
 import torchvision.transforms as T
 
-def get_cifar100_loaders(root="./data", batch_size=128, num_workers=2):
+def get_cifar100_loaders(root="./data", batch_size=128, num_workers=2, augment=True):
     """
     CIFAR-100 size = (32x32)
     Returns:
         train_loader, test_loader
     """
-    transform_train = T.Compose([
-        T.ToTensor(),
-        T.Normalize((0.5071,0.4865,0.4409),
-                    (0.2673,0.2564,0.2762))
-    ])
+    if augment:
+        transform_train = T.Compose([
+            T.RandomCrop(32, padding=4),
+            T.RandomHorizontalFlip(),
+            T.RandAugment(),
+            T.ToTensor(),
+            T.Normalize((0.5071,0.4865,0.4409),
+                        (0.2673,0.2564,0.2762))
+        ])
+    else:
+        transform_train = T.Compose([
+            T.ToTensor(),
+            T.Normalize((0.5071,0.4865,0.4409),
+                        (0.2673,0.2564,0.2762))
+        ])
     transform_test = T.Compose([
         T.ToTensor(),
         T.Normalize((0.5071,0.4865,0.4409),
