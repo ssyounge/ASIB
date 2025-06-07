@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
+# scripts/run_many.sh
 set -e
 export PYTHONPATH="$(pwd):${PYTHONPATH}"
+
+source ~/.bashrc
+conda activate facil_env
 
 ###############################################################################
 # ★ 여기 변수만 바꾸면 학습 전부 재조정할 수 있습니다 ★
