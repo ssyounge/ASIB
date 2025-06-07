@@ -28,10 +28,21 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
    git clone https://github.com/YourName/ASMB-KD.git
    cd ASMB-KD
 ```
-2. **Install dependencies**:
+2. *(Optional)* **Create and activate a Conda environment**:
+```bash
+conda create -n facil_env python=3.9
+conda activate facil_env
+```
+3. **Install dependencies**:
 ```bash
 pip install -r requirements.txt
 ```
+
+The bash scripts (`run_many.sh` and `run_sweep.sh`) automatically try to
+activate a Conda environment named `facil_env`. If you use a different
+environment name, set the `CONDA_ENV` variable accordingly. You can also
+skip activation entirely by exporting `USE_CONDA=0` before running the
+scripts.
 
 ---
 
