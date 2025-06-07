@@ -4,8 +4,21 @@
 set -e
 export PYTHONPATH="$(pwd):${PYTHONPATH}"
 
-source ~/.bashrc
-conda activate facil_env
+# Conda setup (optional)
+USE_CONDA=${USE_CONDA:-1}
+CONDA_ENV=${CONDA_ENV:-facil_env}
+if [ "$USE_CONDA" -eq 1 ]; then
+  if command -v conda >/dev/null 2>&1; then
+    if conda info --envs | awk '{print $1}' | grep -qx "$CONDA_ENV"; then
+      source ~/.bashrc
+      conda activate "$CONDA_ENV"
+    else
+      echo "[run_sweep.sh] Conda env '$CONDA_ENV' not found. Skipping activation." >&2
+    fi
+  else
+    echo "[run_sweep.sh] Conda executable not found. Skipping activation." >&2
+  fi
+fi
 
 source "$(dirname "$0")/hparams.sh"
 
