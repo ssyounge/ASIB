@@ -89,6 +89,15 @@ def parse_args():
     parser.add_argument("--epochs",     type=int)            # 예: teacher_iters
     parser.add_argument("--results_dir", type=str)
     parser.add_argument("--seed", type=int, default=42)
+
+    # optional fine-tune params
+    parser.add_argument("--finetune_epochs", type=int)
+    parser.add_argument("--finetune_lr", type=float)
+    parser.add_argument("--finetune_weight_decay", type=float)
+    parser.add_argument("--finetune_use_cutmix", type=int)
+    parser.add_argument("--finetune_alpha", type=float)
+    parser.add_argument("--finetune_ckpt1", type=str)
+    parser.add_argument("--finetune_ckpt2", type=str)
     return parser.parse_args()
 
 def load_config(cfg_path):
@@ -201,6 +210,67 @@ def main():
             freeze_ln=cfg.get("teacher2_freeze_ln", True),
             freeze_scope=cfg.get("teacher2_freeze_scope", None)
         )
+
+    # optional fine-tuning of teachers before ASMB stages
+    finetune_epochs = int(cfg.get("finetune_epochs", 0))
+    if finetune_epochs > 0:
+        from modules.cutmix_finetune_teacher import (
+            finetune_teacher_cutmix,
+            standard_ce_finetune,
+        )
+
+        print(f"[Main] Fine-tuning teachers for {finetune_epochs} epochs")
+        lr = cfg.get("finetune_lr", 1e-3)
+        wd = cfg.get("finetune_weight_decay", 1e-4)
+        use_cutmix = bool(cfg.get("finetune_use_cutmix", True))
+        alpha = cfg.get("finetune_alpha", 1.0)
+        ckpt1 = cfg.get("finetune_ckpt1", "teacher1_finetuned.pth")
+        ckpt2 = cfg.get("finetune_ckpt2", "teacher2_finetuned.pth")
+
+        if use_cutmix:
+            teacher1, _ = finetune_teacher_cutmix(
+                teacher1,
+                train_loader,
+                test_loader,
+                alpha=alpha,
+                lr=lr,
+                weight_decay=wd,
+                epochs=finetune_epochs,
+                device=device,
+                ckpt_path=ckpt1,
+            )
+            teacher2, _ = finetune_teacher_cutmix(
+                teacher2,
+                train_loader,
+                test_loader,
+                alpha=alpha,
+                lr=lr,
+                weight_decay=wd,
+                epochs=finetune_epochs,
+                device=device,
+                ckpt_path=ckpt2,
+            )
+        else:
+            teacher1, _ = standard_ce_finetune(
+                teacher1,
+                train_loader,
+                test_loader,
+                lr=lr,
+                weight_decay=wd,
+                epochs=finetune_epochs,
+                device=device,
+                ckpt_path=ckpt1,
+            )
+            teacher2, _ = standard_ce_finetune(
+                teacher2,
+                train_loader,
+                test_loader,
+                lr=lr,
+                weight_decay=wd,
+                epochs=finetune_epochs,
+                device=device,
+                ckpt_path=ckpt2,
+            )
 
     # 5) Student
     student_name  = cfg.get("student_type", "resnet_adapter")   # e.g. resnet_adapter / efficientnet_adapter / swin_adapter
