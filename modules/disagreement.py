@@ -5,8 +5,8 @@ import torch
 @torch.no_grad()
 def compute_disagreement_rate(teacher1, teacher2, loader, device="cuda"):
     """
-    Compute the percentage of samples on which teacher1 and teacher2
-    BOTH make an incorrect prediction.
+    Compute the *cross-error rate*, i.e. the percentage of samples on which
+    ``teacher1`` and ``teacher2`` both make an incorrect prediction.
 
     teacher1, teacher2: nn.Module (teacher wrappers)
         Their forward(x) should return (feat, logit, loss) or similar.
@@ -14,7 +14,7 @@ def compute_disagreement_rate(teacher1, teacher2, loader, device="cuda"):
     device: "cuda" or "cpu"
 
     Returns:
-        float (0~100) indicating the cross-error percentage.
+        float (0~100) indicating the cross-error rate.
     """
     teacher1.eval()
     teacher2.eval()
