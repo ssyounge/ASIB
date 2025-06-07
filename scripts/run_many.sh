@@ -63,7 +63,9 @@ for T2 in efficientnet_b2 swin_tiny; do
           mbm_hidden_dim=${MBM_HIDDEN_DIM} \
           mbm_out_dim=${MBM_OUT_DIM} \
           use_partial_freeze=${USE_PARTIAL_FREEZE} \
-          batch_size=${BATCH_SIZE}
+          batch_size=${BATCH_SIZE} \
+          mixup_alpha=${MIXUP_ALPHA} \
+          label_smoothing=${LABEL_SMOOTHING}
 
         python main.py \
           --config "$CFG_TMP" \
@@ -79,7 +81,9 @@ for T2 in efficientnet_b2 swin_tiny; do
           --batch_size ${BATCH_SIZE} \
           --results_dir "${OUTDIR}" \
           --seed 42 \
-          --data_aug ${DATA_AUG}
+          --data_aug ${DATA_AUG} \
+          --mixup_alpha ${MIXUP_ALPHA} \
+          --label_smoothing ${LABEL_SMOOTHING}
       done
     done
   done
