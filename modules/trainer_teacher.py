@@ -150,10 +150,13 @@ def teacher_adaptive_update(
         ep_loss = teacher_loss_sum / count
 
         # synergy_eval
-        if "testloader" in cfg and cfg["testloader"] is not None:
+        # Use the explicit `testloader` argument rather than looking for it
+        # inside `cfg`. This ensures the evaluation loader is correctly used
+        # even when `cfg` does not contain a `testloader` entry.
+        if testloader is not None:
             synergy_test_acc = eval_synergy(
                 teacher_wrappers, mbm, synergy_head,
-                loader=cfg["testloader"],
+                loader=testloader,
                 device=cfg["device"],
                 feat_key=cfg.get("feat_key", "feat_2d")  # 예: "feat_4d"
             )
