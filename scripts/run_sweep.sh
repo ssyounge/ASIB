@@ -33,12 +33,16 @@ for teacher_lr in 0.0001 0.0002 0.0005; do
       mbm_hidden_dim=${MBM_HIDDEN_DIM} \
       mbm_out_dim=${MBM_OUT_DIM} \
       use_partial_freeze=${USE_PARTIAL_FREEZE} \
-      batch_size=${BATCH_SIZE}
+      batch_size=${BATCH_SIZE} \
+      mixup_alpha=${MIXUP_ALPHA} \
+      label_smoothing=${LABEL_SMOOTHING}
 
     python main.py \
       --config "$CFG_TMP" \
       --synergy_ce_alpha ${sc_alpha} \
       --device ${DEVICE} \
-      --data_aug ${DATA_AUG}
+      --data_aug ${DATA_AUG} \
+      --mixup_alpha ${MIXUP_ALPHA} \
+      --label_smoothing ${LABEL_SMOOTHING}
   done
 done
