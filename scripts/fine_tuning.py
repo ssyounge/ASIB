@@ -53,6 +53,7 @@ def parse_args():
     # ↓ run_many.sh 에서 CutMix 알파도 변경할 수 있도록
     parser.add_argument("--cutmix_alpha", type=float)
     parser.add_argument("--data_aug", type=int)
+    parser.add_argument("--small_input", type=int)
     
     return parser.parse_args()
 
@@ -73,12 +74,12 @@ def get_data_loaders(dataset_name, batch_size=128, augment=True):
     else:
         raise ValueError(f"Unknown dataset_name={dataset_name}")
 
-def create_teacher_by_name(teacher_name, num_classes=100, pretrained=True):
+def create_teacher_by_name(teacher_name, num_classes=100, pretrained=True, small_input=False):
     """
     Extends to handle resnet101, efficientnet_b2, swin_tiny, etc.
     """
     if teacher_name == "resnet101":
-        return create_resnet101(num_classes=num_classes, pretrained=pretrained)
+        return create_resnet101(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
     elif teacher_name == "efficientnet_b2":
         return create_efficientnet_b2(num_classes=num_classes, pretrained=pretrained)
     elif teacher_name == "swin_tiny":
@@ -148,13 +149,18 @@ def main():
         augment=cfg.get("data_aug", True)
     )
 
+    small_input = cfg.get("small_input")
+    if small_input is None:
+        small_input = dataset_name == "cifar100"
+
     # 2) teacher
     teacher_name = cfg.get("teacher_name", "resnet101")  # e.g. "resnet101", "efficientnet_b2", "swin_tiny"
     print(f"[FineTune] ===== Now fine-tuning teacher: {teacher_name} =====")
     teacher_model = create_teacher_by_name(
         teacher_name,
         num_classes=cfg.get("num_classes", 100),
-        pretrained=cfg.get("teacher_pretrained", True)
+        pretrained=cfg.get("teacher_pretrained", True),
+        small_input=small_input,
     ).to(device)
 
     # optional load ckpt
