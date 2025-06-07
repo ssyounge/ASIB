@@ -72,9 +72,22 @@ def create_efficientnet_b2(
 
     if small_input:
         # 32x32 등 작은 입력에 맞게 conv_stem stride를 1로 수정
-        out_ch = model.features[0][0].out_channels
-        model.features[0][0] = nn.Conv2d(3, out_ch, kernel_size=3,
-                                         stride=1, padding=1, bias=False)
+        # 기존 pretrained weight를 보존하기 위해 새 layer 생성 후 weight copy
+        old_conv = model.features[0][0]
+        new_conv = nn.Conv2d(
+            old_conv.in_channels,
+            old_conv.out_channels,
+            kernel_size=old_conv.kernel_size,
+            stride=1,
+            padding=old_conv.padding,
+            bias=old_conv.bias is not None,
+        )
+        # pretrained weights 복사
+        new_conv.weight.data.copy_(old_conv.weight.data)
+        if old_conv.bias is not None:
+            new_conv.bias.data.copy_(old_conv.bias.data)
+
+        model.features[0][0] = new_conv
 
     in_feats = model.classifier[1].in_features
 
