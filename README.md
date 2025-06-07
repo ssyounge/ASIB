@@ -15,6 +15,7 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 - **MixUp & Label Smoothing**: enable with `--mixup_alpha` and `--label_smoothing`
 - **MBM Dropout**: set `mbm_dropout` in configs to add dropout within the
   Manifold Bridging Module
+- **Smart Progress Bars**: progress bars hide automatically when stdout isn't a TTY
 - **CIFAR-friendly ResNet/EfficientNet stem**: use `--small_input 1` when
   fine-tuning or evaluating models that modify the conv stem for 32x32 inputs
   (and remove max-pool for ResNet)
