@@ -65,11 +65,6 @@ Use the `--data_aug` flag to control dataset transforms. When set to `1` (defaul
 python main.py --config configs/default.yaml --data_aug 0
 ```
 
-### MBM Dropout
-
-The `mbm_dropout` value in `configs/*.yaml` controls dropout inside the
-Manifold Bridging Module MLP. Start with `0.0` and increase to around
-`0.1`&ndash;`0.3` if the synergy model begins to overfit.
 
 
 ---

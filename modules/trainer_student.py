@@ -7,6 +7,7 @@ import copy
 from tqdm import tqdm
 
 from modules.losses import kd_loss_fn, ce_loss_fn
+from utils.misc import mixup_data, mixup_criterion
 from torch.optim.lr_scheduler import StepLR
 
 def student_distillation_update(
@@ -75,13 +76,18 @@ def student_distillation_update(
         for x, y in tqdm(trainloader, desc=f"[StudentDistill ep={ep+1}]"):
             x, y = x.to(cfg["device"]), y.to(cfg["device"])
 
+            if cfg.get("mixup_alpha", 0.0) > 0.0:
+                x_mixed, y_a, y_b, lam = mixup_data(x, y, alpha=cfg["mixup_alpha"])
+            else:
+                x_mixed, y_a, y_b, lam = x, y, y, 1.0
+
             # (A) Teacher synergy logit
             with torch.no_grad():
                 # Teacher #1
-                t1_dict, _, _ = teacher_wrappers[0](x)
+                t1_dict, _, _ = teacher_wrappers[0](x_mixed)
                 f1 = t1_dict[feat_key]  # 2D or 4D
                 # Teacher #2
-                t2_dict, _, _ = teacher_wrappers[1](x)
+                t2_dict, _, _ = teacher_wrappers[1](x_mixed)
                 f2 = t2_dict[feat_key]
 
                 # MBM => 텐서 반환
@@ -97,10 +103,22 @@ def student_distillation_update(
                     zsyn = synergy_head(fsyn)
 
             # (B) Student forward
-            feat_dict, s_logit, _ = student_model(x)   # (만약 student도 dict 반환하면 logit만 꺼내야 함)
+            feat_dict, s_logit, _ = student_model(x_mixed)   # (만약 student도 dict 반환하면 logit만 꺼내야 함)
 
             # CE + KD
-            ce_loss_val = ce_loss_fn(s_logit, y)
+            if cfg.get("mixup_alpha", 0.0) > 0.0:
+                ce_obj = lambda pred, target: ce_loss_fn(
+                    pred,
+                    target,
+                    label_smoothing=cfg.get("label_smoothing", 0.0),
+                )
+                ce_loss_val = mixup_criterion(ce_obj, s_logit, y_a, y_b, lam)
+            else:
+                ce_loss_val = ce_loss_fn(
+                    s_logit,
+                    y,
+                    label_smoothing=cfg.get("label_smoothing", 0.0),
+                )
             kd_loss_val = kd_loss_fn(s_logit, zsyn, T=cfg.get("temperature", 4.0))
             loss = cfg["ce_alpha"] * ce_loss_val + cfg["kd_alpha"] * kd_loss_val
 
