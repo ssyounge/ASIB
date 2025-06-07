@@ -3,11 +3,23 @@
 import torch
 import torch.nn.functional as F
 
-def ce_loss_fn(student_logits, labels):
+def ce_loss_fn(student_logits, labels, label_smoothing: float = 0.0):
+    """Standard cross-entropy loss for classification.
+
+    Parameters
+    ----------
+    student_logits : Tensor
+        Model predictions of shape ``(N, C)``.
+    labels : Tensor
+        Ground-truth integer labels.
+    label_smoothing : float, optional
+        Amount of label smoothing to apply. ``0.0`` disables smoothing.
     """
-    Standard cross-entropy loss for classification.
-    """
-    return F.cross_entropy(student_logits, labels)
+    return F.cross_entropy(
+        student_logits,
+        labels,
+        label_smoothing=label_smoothing,
+    )
 
 def kd_loss_fn(student_logits, teacher_logits, T=4.0, reduction="batchmean"):
     """

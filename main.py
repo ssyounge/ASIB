@@ -100,6 +100,8 @@ def parse_args():
     parser.add_argument("--finetune_ckpt1", type=str)
     parser.add_argument("--finetune_ckpt2", type=str)
     parser.add_argument("--data_aug", type=int, help="1: use augmentation, 0: disable")
+    parser.add_argument("--mixup_alpha", type=float)
+    parser.add_argument("--label_smoothing", type=float)
     return parser.parse_args()
 
 def load_config(cfg_path):

@@ -44,6 +44,8 @@ mbm_hidden_dim: 1024
 mbm_out_dim: 2048
 
 cutmix_alpha: 1.0
+mixup_alpha: 0.0
+label_smoothing: 0.0
 
 log_filename: "train.log"
 save_checkpoint: true
