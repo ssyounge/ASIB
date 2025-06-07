@@ -25,8 +25,9 @@ class TeacherEfficientNetWrapper(nn.Module):
     
     def forward(self, x, y=None):
         # 1) 4D feature from backbone.features
-        with torch.no_grad():
-            f4d = self.backbone.features(x)  # shape: [N, 1408, h, w]
+        # compute features with gradient support so that the teacher can be
+        # fine-tuned during adaptive updates
+        f4d = self.backbone.features(x)  # shape: [N, 1408, h, w]
 
         # 2) 최종 로짓(이미지 x 그대로 -> self.backbone(x))
         logit = self.backbone(x)
