@@ -107,6 +107,23 @@ Alternatively edit the YAML file used by `scripts/fine_tuning.py`:
 finetune_epochs: 100
 finetune_lr: 0.0005
 use_cutmix: false
+efficientnet_dropout: 0.3  # dropout probability for EfficientNet teachers
+```
+
+Set `efficientnet_dropout` to control the dropout rate used in EfficientNet
+teachers. The default value is **0.3**. You can override it on the command line:
+
+```bash
+python scripts/fine_tuning.py --config configs/fine_tune.yaml --dropout_p 0.5
+```
+
+For partial freezing with EfficientNet, a new freeze scope
+`features_classifier` unfreezes the feature extractor and classifier modules
+along with the MBM:
+
+```yaml
+# configs/partial_freeze.yaml
+teacher2_freeze_scope: "features_classifier"
 ```
 
 After saving the changes, re-run the batch script to generate new teacher
