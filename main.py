@@ -19,7 +19,8 @@ from modules.disagreement import compute_disagreement_rate
 from modules.trainer_teacher import teacher_adaptive_update
 from modules.trainer_teacher import _cpu_state_dict
 from modules.trainer_student import student_distillation_update
-from data.cifar100 import get_cifar100_loaders  # or imagenet100
+from data.cifar100 import get_cifar100_loaders
+from data.imagenet100 import get_imagenet100_loaders
 
 # partial freeze
 from modules.partial_freeze import (
@@ -98,6 +99,7 @@ def parse_args():
     parser.add_argument("--finetune_alpha", type=float)
     parser.add_argument("--finetune_ckpt1", type=str)
     parser.add_argument("--finetune_ckpt2", type=str)
+    parser.add_argument("--data_aug", type=int, help="1: use augmentation, 0: disable")
     return parser.parse_args()
 
 def load_config(cfg_path):
@@ -155,7 +157,8 @@ def main():
 
     # 2) load config from YAML
     base_cfg = load_config(args.config)
-    cfg = {**base_cfg, **vars(args)}
+    cli_cfg = {k: v for k, v in vars(args).items() if v is not None}
+    cfg = {**base_cfg, **cli_cfg}
 
     logger = ExperimentLogger(cfg, exp_name="asmb_experiment")
 
@@ -169,7 +172,23 @@ def main():
     torch.manual_seed(seed)
 
     # 3) Data
-    train_loader, test_loader = get_cifar100_loaders(batch_size=cfg.get("batch_size", 128))
+    dataset = cfg.get("dataset_name", "cifar100")
+    batch_size = cfg.get("batch_size", 128)
+    data_root = cfg.get("data_root", "./data")
+    if dataset == "cifar100":
+        train_loader, test_loader = get_cifar100_loaders(
+            root=data_root,
+            batch_size=batch_size,
+            augment=cfg.get("data_aug", True),
+        )
+    elif dataset == "imagenet100":
+        train_loader, test_loader = get_imagenet100_loaders(
+            root=data_root,
+            batch_size=batch_size,
+            augment=cfg.get("data_aug", True),
+        )
+    else:
+        raise ValueError(f"Unknown dataset_name={dataset}")
 
     # 4) Create teacher1, teacher2
     teacher1_type = cfg.get("teacher1_type", "resnet101")

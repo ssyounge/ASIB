@@ -32,7 +32,8 @@ for T2 in efficientnet_b2 swin_tiny; do
         --finetune_lr ${FT_LR} \
         --finetune_weight_decay ${FT_WD} \
         --cutmix_alpha ${CUTMIX_ALPHA} \
-        --finetune_ckpt_path "${CKPT}"
+        --finetune_ckpt_path "${CKPT}" \
+        --data_aug ${DATA_AUG}
     fi
   done
 
@@ -77,7 +78,8 @@ for T2 in efficientnet_b2 swin_tiny; do
           --student_lr ${S_LR} \
           --batch_size ${BATCH_SIZE} \
           --results_dir "${OUTDIR}" \
-          --seed 42
+          --seed 42 \
+          --data_aug ${DATA_AUG}
       done
     done
   done
