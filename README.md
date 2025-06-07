@@ -20,14 +20,13 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
    ```bash
    git clone https://github.com/YourName/ASMB-KD.git
    cd ASMB-KD
-
-	2.	Install dependencies:
-
+```
+2. **Install dependencies**:
+```bash
 pip install -r requirements.txt
+```
 
-
-
-⸻
+---
 
 Usage
 
@@ -54,7 +53,7 @@ python eval.py --eval_mode synergy \
 
 	•	Prints Train/Test accuracy, optionally logs to CSV if configured.
 
-⸻
+---
 ```plaintext
 Folder Structure
 
@@ -133,14 +132,14 @@ Folder Structure
 	• scripts/: Shell scripts for multiple or batch experiments
 
 ```
-⸻
+---
 
 Results
 
 Experiment outputs (CSV, logs, etc.) reside in the results/ folder.
 You can run analysis/compare_ablation.py or analysis/plot_results.ipynb to analyze or visualize them.
 
-⸻
+---
 
 License
 
@@ -153,7 +152,7 @@ Copyright (c) 2024 Suyoung Yang
 Permission is hereby granted, free of charge, ...
 
 
-⸻
+---
 
 Citation
 
@@ -167,7 +166,7 @@ If you use this framework, please cite:
 }
 
 
-⸻
+---
 
 Contact
 
