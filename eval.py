@@ -21,12 +21,16 @@ from models.teachers.teacher_resnet import create_resnet101
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from models.teachers.teacher_swin import create_swin_t
 
-def create_teacher_by_name(teacher_name, num_classes=100, pretrained=False):
+def create_teacher_by_name(teacher_name, num_classes=100, pretrained=False, small_input=False):
     """Creates a teacher model based on teacher_name."""
     if teacher_name == "resnet101":
-        return create_resnet101(num_classes=num_classes, pretrained=pretrained)
+        return create_resnet101(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
     elif teacher_name == "efficientnet_b2":
-        return create_efficientnet_b2(num_classes=num_classes, pretrained=pretrained)
+        return create_efficientnet_b2(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            small_input=small_input,
+        )
     elif teacher_name == "swin_tiny":
         return create_swin_t(num_classes=num_classes, pretrained=pretrained)
     else:
@@ -56,6 +60,8 @@ def parse_args():
     parser.add_argument("--results_dir", type=str, default="./results",
                         help="Directory to store logs (JSON+CSV via logger)")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--small_input", type=int,
+                        help="1 for CIFAR-style conv stem in teachers")
     return parser.parse_args()
 
 def load_config(path):
@@ -112,8 +118,12 @@ def main():
     logger = ExperimentLogger(cfg, exp_name="eval_experiment")
 
     # 4) Data
+    dataset_name = cfg.get("dataset_name", "cifar100")
     train_loader, test_loader = get_cifar100_loaders(batch_size=cfg["batch_size"])
     device = cfg["device"]
+    small_input = cfg.get("small_input")
+    if small_input is None:
+        small_input = dataset_name == "cifar100"
     n_classes = 100
 
     if cfg["eval_mode"] == "single":
@@ -147,8 +157,18 @@ def main():
         teacher2_type = cfg.get("teacher2_type", "efficientnet_b2")
 
         # 2) create teachers
-        teacher1 = create_teacher_by_name(teacher1_type, num_classes=n_classes, pretrained=False).to(device)
-        teacher2 = create_teacher_by_name(teacher2_type, num_classes=n_classes, pretrained=False).to(device)
+        teacher1 = create_teacher_by_name(
+            teacher1_type,
+            num_classes=n_classes,
+            pretrained=False,
+            small_input=small_input,
+        ).to(device)
+        teacher2 = create_teacher_by_name(
+            teacher2_type,
+            num_classes=n_classes,
+            pretrained=False,
+            small_input=small_input,
+        ).to(device)
 
         # 3) load teacher ckpts
         if cfg["teacher1_ckpt"]:
