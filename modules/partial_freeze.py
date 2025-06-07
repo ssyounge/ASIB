@@ -127,8 +127,11 @@ def partial_freeze_teacher_swin(
                 param.requires_grad = True
 
     if not freeze_ln:
-        # LN unfreeze
-        model.apply(freeze_ln_params)
+        # Unfreeze LayerNorm parameters
+        for m in model.modules():
+            if isinstance(m, nn.LayerNorm):
+                for p in m.parameters():
+                    p.requires_grad = True
 
 def partial_freeze_student_resnet(
     model: nn.Module,
@@ -230,4 +233,7 @@ def partial_freeze_student_swin(
                 param.requires_grad = True
 
     if not freeze_ln:
-        model.apply(freeze_ln_params)
+        for m in model.modules():
+            if isinstance(m, nn.LayerNorm):
+                for p in m.parameters():
+                    p.requires_grad = True
