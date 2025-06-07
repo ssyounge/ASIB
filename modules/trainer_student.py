@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import copy
-from tqdm import tqdm
+from utils.progress import smart_tqdm
 
 from modules.losses import kd_loss_fn, ce_loss_fn
 from utils.misc import mixup_data, mixup_criterion
@@ -73,7 +73,7 @@ def student_distillation_update(
         cnt = 0
         student_model.train()
 
-        for x, y in tqdm(trainloader, desc=f"[StudentDistill ep={ep+1}]"):
+        for x, y in smart_tqdm(trainloader, desc=f"[StudentDistill ep={ep+1}]"):
             x, y = x.to(cfg["device"]), y.to(cfg["device"])
 
             if cfg.get("mixup_alpha", 0.0) > 0.0:
