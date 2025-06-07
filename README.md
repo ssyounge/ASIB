@@ -77,6 +77,34 @@ Control MixUp augmentation and label smoothing via CLI flags:
 python main.py --mixup_alpha 0.2 --label_smoothing 0.1
 ```
 
+### Teacher Fine-Tuning
+
+Fine-tune the individual teachers before running the distillation stages.
+Adjust the parameters in `scripts/hparams.sh`:
+
+```bash
+# scripts/hparams.sh
+FT_EPOCHS=100   # number of fine-tuning epochs
+FT_LR=0.0005    # learning rate
+CUTMIX_ALPHA=0  # set to 0 to disable CutMix
+```
+
+Alternatively edit the YAML file used by `scripts/fine_tuning.py`:
+
+```yaml
+# configs/fine_tune.yaml
+finetune_epochs: 100
+finetune_lr: 0.0005
+use_cutmix: false
+```
+
+After saving the changes, re-run the batch script to generate new teacher
+checkpoints and continue with distillation:
+
+```bash
+bash scripts/run_many.sh
+```
+
 
 
 ---
