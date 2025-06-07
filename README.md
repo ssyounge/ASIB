@@ -32,9 +32,10 @@ Usage
 
 1) Multi-Stage Distillation (main.py)
 
-python main.py --config configs/partial_freeze.yaml --device cuda
-
+python main.py --config configs/partial_freeze.yaml --device cuda \
+--teacher1_ckpt teacher1.pth --teacher2_ckpt teacher2.pth
 	•	Adjust hyperparameters in configs/*.yaml (partial freeze, learning rates, etc.).
+	•	Optionally load pre-finetuned teacher checkpoints via `--teacher1_ckpt` and `--teacher2_ckpt`.
 
 2) Evaluation (eval.py)
 
