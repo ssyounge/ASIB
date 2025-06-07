@@ -11,10 +11,8 @@ from tqdm import tqdm
 
 def cutmix_data(inputs, targets, alpha=1.0):
     """
-    inputs: [N, C, H, W]
-    targets: [N]
-    alpha>0 => cutmix 적용
-    alpha<=0 => cutmix 비활성 (return 그대로)
+    CutMix augmentation for tensors shaped ``[N, C, H, W]``.
+    ``alpha`` governs the Beta distribution (``alpha <= 0`` disables CutMix).
     """
     if alpha <= 0.0:
         # no cutmix
@@ -24,12 +22,12 @@ def cutmix_data(inputs, targets, alpha=1.0):
     indices = torch.randperm(batch_size, device=inputs.device)
     lam = random.betavariate(alpha, alpha)
 
-    # crop box
-    W, H = inputs.size(2), inputs.size(3)
+    # crop box (NCHW -> H,W spatial dims)
+    H, W = inputs.size(2), inputs.size(3)
     cut_w = int(W * (1 - lam))
     cut_h = int(H * (1 - lam))
-    cx = random.randint(0, W)
-    cy = random.randint(0, H)
+    cx = random.randint(0, W - 1)
+    cy = random.randint(0, H - 1)
 
     x1 = max(cx - cut_w // 2, 0)
     y1 = max(cy - cut_h // 2, 0)
@@ -38,7 +36,7 @@ def cutmix_data(inputs, targets, alpha=1.0):
 
     # clone
     inputs_clone = inputs.clone()
-    inputs_clone[:, :, x1:x2, y1:y2] = inputs[indices, :, x1:x2, y1:y2]
+    inputs_clone[:, :, y1:y2, x1:x2] = inputs[indices, :, y1:y2, x1:x2]
 
     lam = 1.0 - ((x2 - x1) * (y2 - y1) / (W * H))
 

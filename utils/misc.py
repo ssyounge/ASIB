@@ -43,6 +43,9 @@ def load_checkpoint(model, optimizer, load_path):
 def cutmix_data(inputs, targets, alpha=1.0):
     """Apply CutMix augmentation.
 
+    ``inputs`` and ``targets`` are NCHW tensors, i.e. ``[N, C, H, W]`` for
+    ``inputs`` and ``[N]`` for ``targets``.
+
     Parameters
     ----------
     inputs : Tensor
@@ -59,11 +62,11 @@ def cutmix_data(inputs, targets, alpha=1.0):
     indices = torch.randperm(batch_size, device=inputs.device)
     lam = random.betavariate(alpha, alpha)
 
-    W, H = inputs.size(2), inputs.size(3)
+    H, W = inputs.size(2), inputs.size(3)
     cut_w = int(W * (1 - lam))
     cut_h = int(H * (1 - lam))
-    cx = random.randint(0, W)
-    cy = random.randint(0, H)
+    cx = random.randint(0, W - 1)
+    cy = random.randint(0, H - 1)
 
     x1 = max(cx - cut_w // 2, 0)
     y1 = max(cy - cut_h // 2, 0)
@@ -71,7 +74,7 @@ def cutmix_data(inputs, targets, alpha=1.0):
     y2 = min(cy + cut_h // 2, H)
 
     inputs_clone = inputs.clone()
-    inputs_clone[:, :, x1:x2, y1:y2] = inputs[indices, :, x1:x2, y1:y2]
+    inputs_clone[:, :, y1:y2, x1:x2] = inputs[indices, :, y1:y2, x1:x2]
 
     lam = 1.0 - ((x2 - x1) * (y2 - y1) / (W * H))
     target_a = targets
