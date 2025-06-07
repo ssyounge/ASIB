@@ -48,3 +48,12 @@ cutmix_alpha: 1.0
 log_filename: "train.log"
 save_checkpoint: true
 ckpt_dir: "./checkpoints"
+
+# Optional teacher fine-tuning before ASMB stages
+finetune_epochs: 0           # >0 => run fine-tuning step
+finetune_lr: 0.001
+finetune_weight_decay: 0.0005
+finetune_use_cutmix: true
+finetune_alpha: 1.0
+finetune_ckpt1: "./checkpoints/teacher1_finetuned.pth"
+finetune_ckpt2: "./checkpoints/teacher2_finetuned.pth"
