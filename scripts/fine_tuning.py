@@ -52,6 +52,10 @@ def parse_args():
     parser.add_argument("--finetune_weight_decay", type=float)
     # ↓ run_many.sh 에서 CutMix 알파도 변경할 수 있도록
     parser.add_argument("--cutmix_alpha", type=float)
+
+    # (공통) config 값을 key=value 형태로 덮어쓰기
+    parser.add_argument("--override", type=str,
+                        help="comma-separated KEY=VAL pairs to override config")
     
     return parser.parse_args()
 
@@ -129,7 +133,11 @@ def main():
 
     # argparse 값이 None 이면 YAML 값을 유지, 아니면 덮어쓰기
     cli_cfg  = {k: v for k, v in vars(args).items() if v is not None}
-    cfg      = {**base_cfg, **cli_cfg}
+    override_str = cli_cfg.pop("override", None)
+    cfg = {**base_cfg, **cli_cfg}
+    if override_str:
+        from utils.misc import parse_override_str
+        cfg.update(parse_override_str(override_str))
     device = cfg.get("device", "cuda")
     if device == "cuda" and not torch.cuda.is_available():
         print("[Warning] No CUDA => Using CPU")

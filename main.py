@@ -87,6 +87,8 @@ def parse_args():
     parser.add_argument("--epochs",     type=int)            # 예: teacher_iters
     parser.add_argument("--results_dir", type=str)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--override", type=str,
+                        help="comma-separated KEY=VAL pairs to override config")
     return parser.parse_args()
 
 def load_config(cfg_path):
@@ -144,7 +146,12 @@ def main():
 
     # 2) load config from YAML
     base_cfg = load_config(args.config)
-    cfg = {**base_cfg, **vars(args)}
+    cli_cfg = vars(args)
+    override_str = cli_cfg.pop("override", None)
+    cfg = {**base_cfg, **cli_cfg}
+    if override_str:
+        from utils.misc import parse_override_str
+        cfg.update(parse_override_str(override_str))
 
     logger = ExperimentLogger(cfg, exp_name="asmb_experiment")
 
