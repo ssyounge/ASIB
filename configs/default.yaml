@@ -3,6 +3,7 @@
 device: "cuda"          # "cuda" or "cpu"
 seed: 42
 dataset_name: "cifar100"
+small_input: true
 data_root: "./data"
 batch_size: 128
 
