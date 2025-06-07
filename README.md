@@ -11,6 +11,7 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 - **Partial Freeze**: Freeze backbone parameters, adapt BN/Heads/MBM for efficiency  
 - **Multiple KD Methods**: FitNet, CRD, AT, DKD, VanillaKD, plus custom `asmb.py`  
 - **CIFAR-100 / ImageNet100** dataset support
+- **Configurable Data Augmentation**: toggle with `--data_aug` (1/0)
 
 ---
 
@@ -53,6 +54,15 @@ python eval.py --eval_mode synergy \
   --head_ckpt synergy_head.pth
 
 	•	Prints Train/Test accuracy, optionally logs to CSV if configured.
+
+### Data Augmentation
+
+Use the `--data_aug` flag to control dataset transforms. When set to `1` (default), the loaders apply `RandomCrop`, `RandomHorizontalFlip` and `RandAugment` for stronger augmentation. Passing `--data_aug 0` disables these operations and only performs normalization/resizing.
+
+```bash
+python main.py --config configs/default.yaml --data_aug 0
+```
+
 
 ---
 ```plaintext
