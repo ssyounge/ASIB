@@ -12,6 +12,11 @@ teacher2_type: "efficientnet_b2"
 teacher1_pretrained: true
 teacher2_pretrained: true
 
+# Fine-tune settings (used when checkpoints are absent)
+finetune_epochs: 50
+finetune_lr: 0.001
+finetune_weight_decay: 0.0005
+
 teacher_lr: 0.0001           # 통합 Teacher 학습률
 teacher_weight_decay: 0.0003
 teacher_adapt_epochs: 5      # Teacher Adaptive Update epochs

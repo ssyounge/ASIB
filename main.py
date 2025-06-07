@@ -19,6 +19,7 @@ from modules.disagreement import compute_disagreement_rate
 from modules.trainer_teacher import teacher_adaptive_update
 from modules.trainer_teacher import _cpu_state_dict
 from modules.trainer_student import student_distillation_update
+from modules.cutmix_finetune_teacher import finetune_teacher_cutmix
 from data.cifar100 import get_cifar100_loaders  # or imagenet100
 
 # partial freeze
@@ -85,6 +86,12 @@ def parse_args():
     parser.add_argument("--student_lr", type=float)
     parser.add_argument("--student_epochs_per_stage", type=int)
     parser.add_argument("--epochs",     type=int)            # 예: teacher_iters
+    parser.add_argument("--teacher1_ckpt", type=str)
+    parser.add_argument("--teacher2_ckpt", type=str)
+    parser.add_argument("--finetune_epochs", type=int)
+    parser.add_argument("--finetune_lr", type=float)
+    parser.add_argument("--finetune_weight_decay", type=float)
+    parser.add_argument("--cutmix_alpha", type=float)
     parser.add_argument("--results_dir", type=str)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--override", type=str,
@@ -125,8 +132,8 @@ def partial_freeze_teacher_auto(
 
 def partial_freeze_student_auto(
     model,
-    student_name="resnet_adapter", 
-    freeze_bn=True, 
+    student_name="resnet_adapter",
+    freeze_bn=True,
     freeze_ln=True,
     use_adapter=False,
     freeze_scope=None
@@ -139,6 +146,40 @@ def partial_freeze_student_auto(
         partial_freeze_student_swin(model, freeze_ln=freeze_ln, use_adapter=use_adapter, freeze_scope=freeze_scope)
     else:
         partial_freeze_student_resnet(model, freeze_bn=freeze_bn, freeze_scope=freeze_scope)
+
+def maybe_finetune_teacher(
+    model,
+    train_loader,
+    test_loader,
+    cfg,
+    ckpt_key,
+    teacher_name,
+    device
+):
+    ckpt_path = cfg.get(ckpt_key)
+    if ckpt_path and os.path.isfile(ckpt_path):
+        model.load_state_dict(torch.load(ckpt_path, map_location=device))
+        print(f"[Main] Loaded {teacher_name} from {ckpt_path}")
+        return model
+
+    # fine-tune if checkpoint does not exist
+    if ckpt_path is None:
+        ckpt_path = f"checkpoints/{teacher_name}_ft.pth"
+        cfg[ckpt_key] = ckpt_path
+
+    print(f"[Main] Fine-tuning {teacher_name} => {ckpt_path}")
+    model, _ = finetune_teacher_cutmix(
+        teacher_model=model,
+        train_loader=train_loader,
+        test_loader=test_loader,
+        alpha=cfg.get("cutmix_alpha", 1.0),
+        lr=cfg.get("finetune_lr", 1e-3),
+        weight_decay=cfg.get("finetune_weight_decay", 1e-4),
+        epochs=cfg.get("finetune_epochs", 10),
+        device=device,
+        ckpt_path=ckpt_path,
+    )
+    return model
 
 def main():
     # 1) parse args
@@ -177,9 +218,15 @@ def main():
         pretrained=cfg.get("teacher1_pretrained", True)
     ).to(device)
 
-    if cfg.get("teacher1_ckpt"):
-        teacher1.load_state_dict(torch.load(cfg["teacher1_ckpt"], map_location=device))
-        print(f"[Main] Loaded teacher1 from {cfg['teacher1_ckpt']}")
+    teacher1 = maybe_finetune_teacher(
+        model=teacher1,
+        train_loader=train_loader,
+        test_loader=test_loader,
+        cfg=cfg,
+        ckpt_key="teacher1_ckpt",
+        teacher_name=teacher1_type,
+        device=device,
+    )
 
     if cfg.get("use_partial_freeze", True):
         partial_freeze_teacher_auto(
@@ -195,9 +242,15 @@ def main():
         pretrained=cfg.get("teacher2_pretrained", True)
     ).to(device)
 
-    if cfg.get("teacher2_ckpt"):
-        teacher2.load_state_dict(torch.load(cfg["teacher2_ckpt"], map_location=device))
-        print(f"[Main] Loaded teacher2 from {cfg['teacher2_ckpt']}")
+    teacher2 = maybe_finetune_teacher(
+        model=teacher2,
+        train_loader=train_loader,
+        test_loader=test_loader,
+        cfg=cfg,
+        ckpt_key="teacher2_ckpt",
+        teacher_name=teacher2_type,
+        device=device,
+    )
 
     if cfg.get("use_partial_freeze", True):
         partial_freeze_teacher_auto(
