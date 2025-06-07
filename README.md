@@ -63,6 +63,17 @@ Use the `--data_aug` flag to control dataset transforms. When set to `1` (defaul
 python main.py --config configs/default.yaml --data_aug 0
 ```
 
+### MixUp & Label Smoothing
+
+Enable MixUp by setting `mixup_alpha` > 0 in the config or via the CLI. The
+cross-entropy loss also supports label smoothing through the
+`label_smoothing` option.
+
+```bash
+python main.py --config configs/default.yaml \
+  --mixup_alpha 0.2 --label_smoothing 0.1
+```
+
 
 ---
 ```plaintext

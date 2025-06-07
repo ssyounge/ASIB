@@ -41,15 +41,75 @@ def load_checkpoint(model, optimizer, load_path):
     return start_epoch
 
 def cutmix_data(inputs, targets, alpha=1.0):
-    inputs: [N, C, H, W]
-    targets: [N]
-    alpha>0 => cutmix 적용
-    alpha<=0 => cutmix 비활성 (return 그대로)
-    ...
+    """Apply CutMix augmentation.
+
+    Parameters
+    ----------
+    inputs : Tensor
+        Input tensor of shape ``(N, C, H, W)``.
+    targets : Tensor
+        Labels tensor of shape ``(N,)``.
+    alpha : float, optional
+        Beta distribution parameter. ``alpha <= 0`` disables CutMix.
+    """
+    if alpha <= 0.0:
+        return inputs, targets, targets, 1.0
+
+    batch_size = inputs.size(0)
     indices = torch.randperm(batch_size, device=inputs.device)
     lam = random.betavariate(alpha, alpha)
-    ...
+
+    W, H = inputs.size(2), inputs.size(3)
+    cut_w = int(W * (1 - lam))
+    cut_h = int(H * (1 - lam))
+    cx = random.randint(0, W)
+    cy = random.randint(0, H)
+
+    x1 = max(cx - cut_w // 2, 0)
+    y1 = max(cy - cut_h // 2, 0)
+    x2 = min(cx + cut_w // 2, W)
+    y2 = min(cy + cut_h // 2, H)
+
     inputs_clone = inputs.clone()
     inputs_clone[:, :, x1:x2, y1:y2] = inputs[indices, :, x1:x2, y1:y2]
-    ...
+
+    lam = 1.0 - ((x2 - x1) * (y2 - y1) / (W * H))
+    target_a = targets
+    target_b = targets[indices]
     return inputs_clone, target_a, target_b, lam
+
+
+def mixup_data(inputs, targets, alpha=1.0):
+    """Apply MixUp augmentation.
+
+    Parameters
+    ----------
+    inputs : Tensor
+        Input tensor of shape ``(N, C, H, W)``.
+    targets : Tensor
+        Ground-truth labels of shape ``(N,)``.
+    alpha : float, optional
+        MixUp beta distribution parameter. ``alpha <= 0`` disables MixUp.
+
+    Returns
+    -------
+    Tuple[Tensor, Tensor, Tensor, float]
+        Mixed inputs, first set of labels, second set of labels and mix
+        coefficient ``lam``.
+    """
+    if alpha <= 0.0:
+        return inputs, targets, targets, 1.0
+
+    lam = np.random.beta(alpha, alpha)
+    batch_size = inputs.size(0)
+    index = torch.randperm(batch_size, device=inputs.device)
+
+    mixed_inputs = lam * inputs + (1.0 - lam) * inputs[index]
+    targets_a = targets
+    targets_b = targets[index]
+    return mixed_inputs, targets_a, targets_b, lam
+
+
+def mixup_criterion(criterion, pred, y_a, y_b, lam):
+    """Compute the criterion for mixed targets."""
+    return lam * criterion(pred, y_a) + (1.0 - lam) * criterion(pred, y_b)
