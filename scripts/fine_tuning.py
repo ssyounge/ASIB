@@ -81,7 +81,7 @@ def create_teacher_by_name(teacher_name, num_classes=100, pretrained=True, small
     if teacher_name == "resnet101":
         return create_resnet101(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
     elif teacher_name == "efficientnet_b2":
-        return create_efficientnet_b2(num_classes=num_classes, pretrained=pretrained)
+        return create_efficientnet_b2(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
     elif teacher_name == "swin_tiny":
         return create_swin_t(num_classes=num_classes, pretrained=pretrained)
     else:

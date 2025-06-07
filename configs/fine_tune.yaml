@@ -2,7 +2,7 @@
 
 device: "cuda"
 dataset_name: "cifar100"
-small_input: true        # use 3x3 conv stem when dataset uses 32x32 images
+small_input: true        # 32x32 이미지에 맞게 stem stride를 1로 수정
 
 # Teacher
 teacher_name: "resnet101"
