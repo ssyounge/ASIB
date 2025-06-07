@@ -91,6 +91,16 @@ def partial_freeze_teacher_efficientnet(
             if "classifier." in name:
                 param.requires_grad = True
 
+    elif freeze_scope == "features_classifier":
+        # features. + classifier. (+ mbm.)
+        for name, param in model.named_parameters():
+            if (
+                "features." in name
+                or "classifier." in name
+                or "mbm." in name
+            ):
+                param.requires_grad = True
+
     else:
         # default: classifier. + mbm. unfreeze
         for name, param in model.named_parameters():
@@ -180,13 +190,20 @@ def partial_freeze_student_efficientnet(
     freeze_scope: str = None
 ):
     """
-    Student (EfficientNet-B2)
+    Student (EfficientNet-B2) partial freeze
+      - freeze_scope 예시:
+         "classifier_only", "features_classifier", etc.
     """
     freeze_all_params(model)
 
     if freeze_scope == "classifier_only":
         for name, param in model.named_parameters():
             if "classifier." in name:
+                param.requires_grad = True
+
+    elif freeze_scope == "features_classifier":
+        for name, param in model.named_parameters():
+            if "features." in name or "classifier." in name:
                 param.requires_grad = True
     else:
         # default => classifier. (기존)
