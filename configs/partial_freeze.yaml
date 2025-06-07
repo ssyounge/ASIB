@@ -15,12 +15,12 @@ teacher1_freeze_scope: "layer4_fc"  # partial_freeze_teacher_resnet에서 layer4
 teacher2_type: "efficientnet_b2"
 teacher2_pretrained: true
 teacher2_freeze_bn: true            # BN까지 동결
-teacher2_freeze_scope: "classifier_only"
+teacher2_freeze_scope: "classifier_only"  # or "features_classifier" to unfreeze features + classifier (+ mbm)
 
 # 4) Student 관련
 student_type: "resnet_adapter"
 student_freeze_bn: false            # BN unfreeze
-student_freeze_scope: "fc_only"
+student_freeze_scope: "fc_only"      # EfficientNet 사용 시 "features_classifier" 도 가능
 student_use_adapter: false          # adapter_ 파라미터 해제 여부
 
 # 기타
