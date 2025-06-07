@@ -52,6 +52,7 @@ def parse_args():
     parser.add_argument("--finetune_weight_decay", type=float)
     # ↓ run_many.sh 에서 CutMix 알파도 변경할 수 있도록
     parser.add_argument("--cutmix_alpha", type=float)
+    parser.add_argument("--data_aug", type=int)
     
     return parser.parse_args()
 
@@ -61,14 +62,14 @@ def load_config(cfg_path):
             return yaml.safe_load(f)
     return {}
 
-def get_data_loaders(dataset_name, batch_size=128):
+def get_data_loaders(dataset_name, batch_size=128, augment=True):
     """
     Returns train_loader, test_loader based on dataset_name.
     """
     if dataset_name == "cifar100":
-        return get_cifar100_loaders(batch_size=batch_size)
+        return get_cifar100_loaders(batch_size=batch_size, augment=augment)
     elif dataset_name == "imagenet100":
-        return get_imagenet100_loaders(batch_size=batch_size)
+        return get_imagenet100_loaders(batch_size=batch_size, augment=augment)
     else:
         raise ValueError(f"Unknown dataset_name={dataset_name}")
 
@@ -141,7 +142,11 @@ def main():
     # 1) dataset
     dataset_name = cfg.get("dataset_name", "cifar100")
     batch_size   = cfg.get("batch_size", 128)
-    train_loader, test_loader = get_data_loaders(dataset_name, batch_size=batch_size)
+    train_loader, test_loader = get_data_loaders(
+        dataset_name,
+        batch_size=batch_size,
+        augment=cfg.get("data_aug", True)
+    )
 
     # 2) teacher
     teacher_name = cfg.get("teacher_name", "resnet101")  # e.g. "resnet101", "efficientnet_b2", "swin_tiny"

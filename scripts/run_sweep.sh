@@ -38,6 +38,7 @@ for teacher_lr in 0.0001 0.0002 0.0005; do
     python main.py \
       --config "$CFG_TMP" \
       --synergy_ce_alpha ${sc_alpha} \
-      --device ${DEVICE}
+      --device ${DEVICE} \
+      --data_aug ${DATA_AUG}
   done
 done

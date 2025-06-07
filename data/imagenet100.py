@@ -5,19 +5,29 @@ import torch
 import torchvision
 import torchvision.transforms as T
 
-def get_imagenet100_loaders(root="./data/imagenet100", batch_size=128, num_workers=4):
+def get_imagenet100_loaders(root="./data/imagenet100", batch_size=128, num_workers=4, augment=True):
     """    
     ImageNet100 size = (224×224)
     Returns:
         train_loader, test_loader
     """
-    transform_train = T.Compose([
-        T.RandomResizedCrop(224),
-        T.RandomHorizontalFlip(),
-        T.ToTensor(),
-        T.Normalize(mean=[0.485, 0.456, 0.406],
-                    std=[0.229, 0.224, 0.225])
-    ])
+    if augment:
+        transform_train = T.Compose([
+            T.RandomResizedCrop(224),
+            T.RandomHorizontalFlip(),
+            T.RandAugment(),
+            T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406],
+                        std=[0.229, 0.224, 0.225])
+        ])
+    else:
+        transform_train = T.Compose([
+            T.Resize(256),
+            T.CenterCrop(224),
+            T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406],
+                        std=[0.229, 0.224, 0.225])
+        ])
     transform_test = T.Compose([
         T.Resize(256),
         T.CenterCrop(224),
