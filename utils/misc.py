@@ -39,13 +39,3 @@ def load_checkpoint(model, optimizer, load_path):
     optimizer.load_state_dict(ckpt["optim_state"])
     start_epoch = ckpt["epoch"]
     return start_epoch
-
-def cutmix_data(inputs, targets, alpha=1.0):
-    """
-    Simple example of CutMix, if you want it here.
-    """
-    if alpha <= 0.0:
-        return inputs, targets, targets, 1.0
-    # ... (이전에도 썼던 cutmix 코드)
-    # ...
-    return inputs_clone, target_a, target_b, lam
