@@ -12,6 +12,7 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 - **Multiple KD Methods**: FitNet, CRD, AT, DKD, VanillaKD, plus custom `asmb.py`
 - **CIFAR-100 / ImageNet100** dataset support
 - **Configurable Data Augmentation**: toggle with `--data_aug` (1/0)
+- **MixUp & Label Smoothing**: enable with `--mixup_alpha` and `--label_smoothing`
 - **MBM Dropout**: set `mbm_dropout` in configs to add dropout within the
   Manifold Bridging Module
 
@@ -63,6 +64,14 @@ Use the `--data_aug` flag to control dataset transforms. When set to `1` (defaul
 
 ```bash
 python main.py --config configs/default.yaml --data_aug 0
+```
+
+### MixUp & Label Smoothing
+
+Control MixUp augmentation and label smoothing via CLI flags:
+
+```bash
+python main.py --mixup_alpha 0.2 --label_smoothing 0.1
 ```
 
 
