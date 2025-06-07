@@ -13,6 +13,7 @@ class ManifoldBridgingModule(nn.Module):
         in_dim:      int,
         hidden_dim:  int,
         out_dim:     int,
+        dropout:     float = 0.0,
         # in_ch_4d:  Optional[int] = None,  # 4D 경로를 쓰게 되면 추가
         # out_ch_4d: Optional[int] = None
     ):
@@ -22,8 +23,10 @@ class ManifoldBridgingModule(nn.Module):
         self.mlp = nn.Sequential(
             nn.Linear(in_dim, hidden_dim),
             nn.ReLU(inplace=True),
+            nn.Dropout(dropout),
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(inplace=True),
+            nn.Dropout(dropout),
             nn.Linear(hidden_dim, out_dim)
         )
 

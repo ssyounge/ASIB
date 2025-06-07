@@ -9,9 +9,11 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 - **Multi-Stage Distillation**: Teacher ↔ Student updates in a phased (block-wise) manner  
 - **ASMB** (Adaptive Synergy Manifold Bridging): Uses a Manifold Bridging Module (MBM) to fuse two Teacher feature maps into synergy logits  
 - **Partial Freeze**: Freeze backbone parameters, adapt BN/Heads/MBM for efficiency  
-- **Multiple KD Methods**: FitNet, CRD, AT, DKD, VanillaKD, plus custom `asmb.py`  
+- **Multiple KD Methods**: FitNet, CRD, AT, DKD, VanillaKD, plus custom `asmb.py`
 - **CIFAR-100 / ImageNet100** dataset support
 - **Configurable Data Augmentation**: toggle with `--data_aug` (1/0)
+- **MBM Dropout**: set `mbm_dropout` in configs to add dropout within the
+  Manifold Bridging Module
 
 ---
 
@@ -62,6 +64,12 @@ Use the `--data_aug` flag to control dataset transforms. When set to `1` (defaul
 ```bash
 python main.py --config configs/default.yaml --data_aug 0
 ```
+
+### MBM Dropout
+
+The `mbm_dropout` value in `configs/*.yaml` controls dropout inside the
+Manifold Bridging Module MLP. Start with `0.0` and increase to around
+`0.1`&ndash;`0.3` if the synergy model begins to overfit.
 
 
 ---
