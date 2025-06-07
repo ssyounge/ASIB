@@ -42,6 +42,7 @@ use_partial_freeze: true
 mbm_in_dim: 3456
 mbm_hidden_dim: 1024
 mbm_out_dim: 2048
+mbm_dropout: 0.0
 
 cutmix_alpha: 1.0
 mixup_alpha: 0.0

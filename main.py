@@ -321,6 +321,7 @@ def main():
 
     mbm_hidden_dim = cfg.get("mbm_hidden_dim", 512)
     mbm_out_dim    = cfg.get("mbm_out_dim", 512)
+    mbm_dropout    = cfg.get("mbm_dropout", 0.0)
 
     # 만약 4D 채널을 쓰려면 teacher가 get_feat_channels()도 제공해야 함
     # ex) t1_ch = teacher1.get_feat_channels()
@@ -334,6 +335,7 @@ def main():
         in_dim=mbm_in_dim,
         hidden_dim=mbm_hidden_dim,
         out_dim=mbm_out_dim,
+        dropout=mbm_dropout,
 
         # 4D params (예시 주석)
         # in_ch_4d=in_ch_4d,
