@@ -39,3 +39,17 @@ def load_checkpoint(model, optimizer, load_path):
     optimizer.load_state_dict(ckpt["optim_state"])
     start_epoch = ckpt["epoch"]
     return start_epoch
+
+def cutmix_data(inputs, targets, alpha=1.0):
+    inputs: [N, C, H, W]
+    targets: [N]
+    alpha>0 => cutmix 적용
+    alpha<=0 => cutmix 비활성 (return 그대로)
+    ...
+    indices = torch.randperm(batch_size, device=inputs.device)
+    lam = random.betavariate(alpha, alpha)
+    ...
+    inputs_clone = inputs.clone()
+    inputs_clone[:, :, x1:x2, y1:y2] = inputs[indices, :, x1:x2, y1:y2]
+    ...
+    return inputs_clone, target_a, target_b, lam
