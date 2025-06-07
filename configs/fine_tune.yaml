@@ -7,6 +7,7 @@ small_input: true        # 32x32 이미지에 맞게 stem stride를 1로 수정
 # Teacher
 teacher_name: "resnet101"
 fine_tune_partial_freeze: false    # true 로 두면 backbone freeze, head만 학습
+efficientnet_dropout: 0.3
 
 # ★—— CutMix/CE 파인튜닝 하이퍼파라미터 ——★
 finetune_epochs: 50
