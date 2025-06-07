@@ -15,8 +15,9 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 - **MixUp & Label Smoothing**: enable with `--mixup_alpha` and `--label_smoothing`
 - **MBM Dropout**: set `mbm_dropout` in configs to add dropout within the
   Manifold Bridging Module
-- **CIFAR-friendly ResNet stem**: use `--small_input 1` when fine-tuning to
-  replace the 7x7 conv with a 3x3 version and disable max-pooling
+- **CIFAR-friendly ResNet/EfficientNet stem**: use `--small_input 1` when
+  fine-tuning to replace the large-stride stem with a 3x3, stride-1 version
+  (and remove max-pool for ResNet)
 
 ---
 
