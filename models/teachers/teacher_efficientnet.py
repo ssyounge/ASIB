@@ -54,15 +54,22 @@ class TeacherEfficientNetWrapper(nn.Module):
         """
         return self.feat_dim
 
-def create_efficientnet_b2(num_classes=100, pretrained=True):
+def create_efficientnet_b2(num_classes=100, pretrained=True, small_input=False):
     """
     EfficientNet-B2를 로드한 뒤, (in_feats->num_classes) 교체
+    small_input=True 시, CIFAR-100과 같은 작은 이미지에 맞게 stem stride를 1로 수정
     => TeacherEfficientNetWrapper로 감싸서 반환
     """
     if pretrained:
         model = efficientnet_b2(weights=EfficientNet_B2_Weights.IMAGENET1K_V1)
     else:
         model = efficientnet_b2(weights=None)
+
+    if small_input:
+        # 32x32 등 작은 입력에 맞게 conv_stem stride를 1로 수정
+        out_ch = model.features[0][0].out_channels
+        model.features[0][0] = nn.Conv2d(3, out_ch, kernel_size=3,
+                                         stride=1, padding=1, bias=False)
 
     in_feats = model.classifier[1].in_features
     model.classifier[1] = nn.Linear(in_feats, num_classes)
