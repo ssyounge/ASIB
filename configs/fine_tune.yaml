@@ -2,6 +2,7 @@
 
 device: "cuda"
 dataset_name: "cifar100"
+small_input: true        # use 3x3 conv stem when dataset uses 32x32 images
 
 # Teacher
 teacher_name: "resnet101"

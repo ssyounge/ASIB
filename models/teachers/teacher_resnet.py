@@ -62,14 +62,20 @@ class TeacherResNetWrapper(nn.Module):
         """
         return self.feat_dim
 
-def create_resnet101(num_classes=100, pretrained=True):
+def create_resnet101(num_classes=100, pretrained=True, small_input=False):
     """
-    ResNet101 로드 후, 마지막 FC 교체 => TeacherResNetWrapper
+    ResNet101 로드 후 stem을 optional로 CIFAR-friendly 형태로 바꾸고,
+    마지막 FC 교체 => TeacherResNetWrapper
     """
     if pretrained:
         model = resnet101(weights=ResNet101_Weights.IMAGENET1K_V2)
     else:
         model = resnet101(weights=None)
+
+    if small_input:
+        # 32x32 input 등에 맞게 3x3 conv + stride1, maxpool 제거
+        model.conv1 = nn.Conv2d(3, 64, 3, stride=1, padding=1, bias=False)
+        model.maxpool = nn.Identity()
 
     in_feats = model.fc.in_features
     model.fc = nn.Linear(in_feats, num_classes)
