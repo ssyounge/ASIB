@@ -164,3 +164,52 @@ def finetune_teacher_cutmix(
     torch.save(teacher_model.state_dict(), ckpt_path)
     print(f"[CutMix] Fine-tune done => bestAcc={best_acc:.2f}, saved={ckpt_path}")
     return teacher_model, best_acc
+
+def standard_ce_finetune(
+    teacher_model,
+    train_loader,
+    test_loader,
+    lr=1e-3,
+    weight_decay=1e-4,
+    epochs=10,
+    device="cuda",
+    ckpt_path="teacher_finetuned_ce.pth",
+):
+    """Simple cross-entropy fine-tuning loop."""
+    teacher_model = teacher_model.to(device)
+
+    if os.path.exists(ckpt_path):
+        print(f"[CEFineTune] Found checkpoint => load {ckpt_path}")
+        teacher_model.load_state_dict(torch.load(ckpt_path))
+        test_acc = eval_teacher(teacher_model, test_loader, device=device)
+        print(f"[CEFineTune] loaded => testAcc={test_acc:.2f}")
+        return teacher_model, test_acc
+
+    optimizer = optim.SGD(
+        teacher_model.parameters(), lr=lr, momentum=0.9, weight_decay=weight_decay
+    )
+    criterion = nn.CrossEntropyLoss()
+
+    best_acc = 0.0
+    best_state = copy.deepcopy(teacher_model.state_dict())
+
+    for ep in range(1, epochs + 1):
+        teacher_model.train()
+        for x, y in tqdm(train_loader, desc=f"[CE FineTune ep={ep}]"):
+            x, y = x.to(device), y.to(device)
+            optimizer.zero_grad()
+            _, logits, _ = teacher_model(x)
+            loss = criterion(logits, y)
+            loss.backward()
+            optimizer.step()
+        te_acc = eval_teacher(teacher_model, test_loader, device=device)
+        if te_acc > best_acc:
+            best_acc = te_acc
+            best_state = copy.deepcopy(teacher_model.state_dict())
+        print(f"[CE FineTune|ep={ep}/{epochs}] testAcc={te_acc:.2f}, best={best_acc:.2f}")
+
+    teacher_model.load_state_dict(best_state)
+    os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
+    torch.save(teacher_model.state_dict(), ckpt_path)
+    print(f"[CEFineTune] done => bestAcc={best_acc:.2f}, saved={ckpt_path}")
+    return teacher_model, best_acc
