@@ -15,6 +15,8 @@ FT_LR=0.001            # --finetune_lr
 FT_WD=0.0005           # --finetune_weight_decay
 FT_BATCH=128           # --batch_size  (fine-tune & distill 공통 사용)
 CUTMIX_ALPHA=1.0       # --cutmix_alpha
+# 추가 YAML 덮어쓰기용 파라미터 (선택)
+FT_OVERRIDE=""         # 예) "fine_tune_partial_freeze=true"
 
 # (B) ASMB Distillation
 T_LR=2e-4              # --teacher_lr  (adaptive update)
@@ -22,6 +24,7 @@ S_LR=1e-2              # --student_lr
 N_STAGE_LIST="2 3"     # for STAGE in …
 SC_ALPHA_LIST="0.3 0.6"
 STUDENT_LIST="resnet_adapter efficientnet_adapter swin_adapter"
+DISTILL_OVERRIDE=""    # 예) "ce_alpha=0.5,kd_alpha=0.5"
 ###############################################################################
 
 mkdir -p checkpoints results
@@ -45,7 +48,8 @@ for T2 in efficientnet_b2 swin_tiny; do
         --finetune_lr ${FT_LR} \
         --finetune_weight_decay ${FT_WD} \
         --cutmix_alpha ${CUTMIX_ALPHA} \
-        --finetune_ckpt_path "${CKPT}"
+        --finetune_ckpt_path "${CKPT}" \
+        ${FT_OVERRIDE:+--override "$FT_OVERRIDE"}
     fi
   done
 
@@ -70,7 +74,8 @@ for T2 in efficientnet_b2 swin_tiny; do
           --student_lr ${S_LR} \
           --batch_size ${FT_BATCH} \
           --results_dir "${OUTDIR}" \
-          --seed 42
+          --seed 42 \
+          ${DISTILL_OVERRIDE:+--override "$DISTILL_OVERRIDE"}
       done
     done
   done
