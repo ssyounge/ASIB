@@ -75,6 +75,8 @@ def parse_args():
     # (2) sweep 할 때 바꿀 필드들 ▶ YAML 값을 CLI-인자가 **덮어쓰도록** 할 목적
     parser.add_argument("--teacher1_type", type=str)
     parser.add_argument("--teacher2_type", type=str)
+    parser.add_argument("--teacher1_ckpt", type=str)
+    parser.add_argument("--teacher2_ckpt", type=str)
     parser.add_argument("--num_stages",   type=int)
     parser.add_argument("--synergy_ce_alpha", type=float)    # α
     parser.add_argument("--student_type", type=str)
