@@ -102,6 +102,8 @@ def parse_args():
     parser.add_argument("--data_aug", type=int, help="1: use augmentation, 0: disable")
     parser.add_argument("--mixup_alpha", type=float)
     parser.add_argument("--label_smoothing", type=float)
+    parser.add_argument("--small_input", type=int,
+                        help="1 to use CIFAR-friendly stems for teachers")
     return parser.parse_args()
 
 def load_config(cfg_path):
@@ -111,11 +113,15 @@ def load_config(cfg_path):
             return yaml.safe_load(f)
     return {}
 
-def create_teacher_by_name(teacher_name, num_classes=100, pretrained=True):
+def create_teacher_by_name(teacher_name, num_classes=100, pretrained=True, small_input=False):
     if teacher_name == "resnet101":
-        return create_resnet101(num_classes=num_classes, pretrained=pretrained)
+        return create_resnet101(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
     elif teacher_name == "efficientnet_b2":
-        return create_efficientnet_b2(num_classes=num_classes, pretrained=pretrained)
+        return create_efficientnet_b2(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            small_input=small_input,
+        )
     elif teacher_name == "swin_tiny":
         return create_swin_t(num_classes=num_classes, pretrained=pretrained)
     else:
@@ -192,6 +198,10 @@ def main():
     else:
         raise ValueError(f"Unknown dataset_name={dataset}")
 
+    small_input = cfg.get("small_input")
+    if small_input is None:
+        small_input = dataset == "cifar100"
+
     # 4) Create teacher1, teacher2
     teacher1_type = cfg.get("teacher1_type", "resnet101")
     teacher2_type = cfg.get("teacher2_type", "efficientnet_b2")
@@ -199,7 +209,8 @@ def main():
     teacher1 = create_teacher_by_name(
         teacher_name=teacher1_type,
         num_classes=100,
-        pretrained=cfg.get("teacher1_pretrained", True)
+        pretrained=cfg.get("teacher1_pretrained", True),
+        small_input=small_input,
     ).to(device)
 
     if cfg.get("teacher1_ckpt"):
@@ -217,7 +228,8 @@ def main():
     teacher2 = create_teacher_by_name(
         teacher_name=teacher2_type,
         num_classes=100,
-        pretrained=cfg.get("teacher2_pretrained", True)
+        pretrained=cfg.get("teacher2_pretrained", True),
+        small_input=small_input,
     ).to(device)
 
     if cfg.get("teacher2_ckpt"):
