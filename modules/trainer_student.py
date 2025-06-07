@@ -23,12 +23,22 @@ def student_distillation_update(
     - Student => CE + KD
     """
     # 1) freeze teacher + mbm
+    teacher_reqgrad_states = []
     for tw in teacher_wrappers:
+        states = []
         for p in tw.parameters():
+            states.append(p.requires_grad)
             p.requires_grad = False
+        teacher_reqgrad_states.append(states)
+
+    mbm_reqgrad_states = []
     for p in mbm.parameters():
+        mbm_reqgrad_states.append(p.requires_grad)
         p.requires_grad = False
+
+    syn_reqgrad_states = []
     for p in synergy_head.parameters():
+        syn_reqgrad_states.append(p.requires_grad)
         p.requires_grad = False
 
     # 2) Student Optim
@@ -117,6 +127,16 @@ def student_distillation_update(
             best_state = copy.deepcopy(student_model.state_dict())
 
     student_model.load_state_dict(best_state)
+
+    # restore original requires_grad states
+    for tw, states in zip(teacher_wrappers, teacher_reqgrad_states):
+        for p, rg in zip(tw.parameters(), states):
+            p.requires_grad = rg
+    for p, rg in zip(mbm.parameters(), mbm_reqgrad_states):
+        p.requires_grad = rg
+    for p, rg in zip(synergy_head.parameters(), syn_reqgrad_states):
+        p.requires_grad = rg
+
     logger.info(f"[StudentDistill] bestAcc={best_acc:.2f}")
     return best_acc
 
