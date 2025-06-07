@@ -43,7 +43,7 @@ def eval_synergy(teacher_wrappers, mbm, synergy_head, loader, device="cuda", fea
 def teacher_adaptive_update(
     teacher_wrappers,
     mbm, synergy_head,
-    student_model,  
+    student_model,
     trainloader,
     testloader,
     cfg,
@@ -55,6 +55,7 @@ def teacher_adaptive_update(
     - teacher_wrappers: [teacher1, teacher2]
     - mbm, synergy_head: partial freeze 포함
     - student_model: 고정 (KD용)
+    - testloader: (optional) evaluation loader for synergy accuracy
     """
     teacher_params = []
     for tw in teacher_wrappers:
@@ -150,10 +151,12 @@ def teacher_adaptive_update(
         ep_loss = teacher_loss_sum / count
 
         # synergy_eval
-        if "testloader" in cfg and cfg["testloader"] is not None:
+        if testloader is not None:
             synergy_test_acc = eval_synergy(
-                teacher_wrappers, mbm, synergy_head,
-                loader=cfg["testloader"],
+                teacher_wrappers,
+                mbm,
+                synergy_head,
+                loader=testloader,
                 device=cfg["device"],
                 feat_key=cfg.get("feat_key", "feat_2d")  # 예: "feat_4d"
             )
