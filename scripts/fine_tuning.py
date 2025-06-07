@@ -54,6 +54,7 @@ def parse_args():
     parser.add_argument("--cutmix_alpha", type=float)
     parser.add_argument("--data_aug", type=int)
     parser.add_argument("--small_input", type=int)
+    parser.add_argument("--dropout_p", type=float)
     
     return parser.parse_args()
 
@@ -74,14 +75,25 @@ def get_data_loaders(dataset_name, batch_size=128, augment=True):
     else:
         raise ValueError(f"Unknown dataset_name={dataset_name}")
 
-def create_teacher_by_name(teacher_name, num_classes=100, pretrained=True, small_input=False):
+def create_teacher_by_name(
+    teacher_name,
+    num_classes=100,
+    pretrained=True,
+    small_input=False,
+    dropout_p=0.3,
+):
     """
     Extends to handle resnet101, efficientnet_b2, swin_tiny, etc.
     """
     if teacher_name == "resnet101":
         return create_resnet101(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
     elif teacher_name == "efficientnet_b2":
-        return create_efficientnet_b2(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
+        return create_efficientnet_b2(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            small_input=small_input,
+            dropout_p=dropout_p,
+        )
     elif teacher_name == "swin_tiny":
         return create_swin_t(num_classes=num_classes, pretrained=pretrained)
     else:
@@ -161,6 +173,7 @@ def main():
         num_classes=cfg.get("num_classes", 100),
         pretrained=cfg.get("teacher_pretrained", True),
         small_input=small_input,
+        dropout_p=cfg.get("efficientnet_dropout", 0.3),
     ).to(device)
 
     # optional load ckpt
