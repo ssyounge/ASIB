@@ -6,23 +6,10 @@ export PYTHONPATH="$(pwd):${PYTHONPATH}"
 source ~/.bashrc
 conda activate facil_env
 
-###############################################################################
-# ★ 여기 변수만 바꾸면 학습 전부 재조정할 수 있습니다 ★
-###############################################################################
-# (A) Fine-tune Teacher
-FT_EPOCHS=50           # --finetune_epochs
-FT_LR=0.001            # --finetune_lr
-FT_WD=0.0005           # --finetune_weight_decay
-FT_BATCH=128           # --batch_size  (fine-tune & distill 공통 사용)
-CUTMIX_ALPHA=1.0       # --cutmix_alpha
-
-# (B) ASMB Distillation
-T_LR=2e-4              # --teacher_lr  (adaptive update)
-S_LR=1e-2              # --student_lr
-N_STAGE_LIST="2 3"     # for STAGE in …
-SC_ALPHA_LIST="0.3 0.6"
-STUDENT_LIST="resnet_adapter efficientnet_adapter swin_adapter"
-###############################################################################
+# ---------------------------------------------------------------------------
+# Central hyperparameter config
+# ---------------------------------------------------------------------------
+source "$(dirname "$0")/hparams.sh"
 
 mkdir -p checkpoints results
 RESULT_ROOT="results/$(date +%Y%m%d_%H%M%S)"
@@ -40,7 +27,7 @@ for T2 in efficientnet_b2 swin_tiny; do
       python scripts/fine_tuning.py \
         --teacher_name "${T}" \
         --device cuda \
-        --batch_size ${FT_BATCH} \
+        --batch_size ${BATCH_SIZE} \
         --finetune_epochs ${FT_EPOCHS} \
         --finetune_lr ${FT_LR} \
         --finetune_weight_decay ${FT_WD} \
@@ -58,7 +45,27 @@ for T2 in efficientnet_b2 swin_tiny; do
         OUTDIR="${RESULT_ROOT}/${T2}_${STUDENT}_a${SC_ALPHA}_s${STAGE}"
         mkdir -p "${OUTDIR}"
 
+        CFG_TMP=$(mktemp)
+        python scripts/generate_config.py \
+          --base configs/default.yaml \
+          --out "$CFG_TMP" \
+          teacher_lr=${T_LR} \
+          student_lr=${S_LR} \
+          teacher_weight_decay=${T_WD} \
+          student_weight_decay=${S_WD} \
+          ce_alpha=${CE_ALPHA} \
+          kd_alpha=${KD_ALPHA} \
+          temperature=${TEMPERATURE} \
+          student_epochs_per_stage=${STUDENT_EPS} \
+          teacher_iters=${TEACHER_ITERS} \
+          student_iters=${STUDENT_ITERS} \
+          mbm_hidden_dim=${MBM_HIDDEN_DIM} \
+          mbm_out_dim=${MBM_OUT_DIM} \
+          use_partial_freeze=${USE_PARTIAL_FREEZE} \
+          batch_size=${BATCH_SIZE}
+
         python main.py \
+          --config "$CFG_TMP" \
           --teacher1_type "${T1}" \
           --teacher2_type "${T2}" \
           --teacher1_ckpt checkpoints/${T1}_ft.pth \
@@ -68,7 +75,7 @@ for T2 in efficientnet_b2 swin_tiny; do
           --synergy_ce_alpha ${SC_ALPHA} \
           --teacher_lr ${T_LR} \
           --student_lr ${S_LR} \
-          --batch_size ${FT_BATCH} \
+          --batch_size ${BATCH_SIZE} \
           --results_dir "${OUTDIR}" \
           --seed 42
       done
