@@ -16,7 +16,7 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 - **MBM Dropout**: set `mbm_dropout` in configs to add dropout within the
   Manifold Bridging Module
 - **CIFAR-friendly ResNet/EfficientNet stem**: use `--small_input 1` when
-  fine-tuning to replace the large-stride stem with a 3x3, stride-1 version
+  fine-tuning or evaluating models that modify the conv stem for 32x32 inputs
   (and remove max-pool for ResNet)
 
 ---
@@ -87,6 +87,12 @@ Control MixUp augmentation and label smoothing via CLI flags:
 ```bash
 python main.py --mixup_alpha 0.2 --label_smoothing 0.1
 ```
+
+### Small Input Checkpoints
+
+Models fine-tuned with `--small_input 1` replace their conv stems for small
+images. When distilling or evaluating such checkpoints you must pass the same
+`--small_input 1` flag to `main.py` or `eval.py` so the architectures match.
 
 ### Teacher Fine-Tuning
 
