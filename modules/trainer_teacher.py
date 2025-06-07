@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import copy
-from tqdm import tqdm
+from utils.progress import smart_tqdm
 
 from modules.losses import kd_loss_fn, ce_loss_fn
 from torch.optim.lr_scheduler import StepLR
@@ -95,7 +95,7 @@ def teacher_adaptive_update(
         teacher_loss_sum = 0.0
         count = 0
 
-        for batch in tqdm(trainloader, desc=f"[TeacherAdaptive ep={ep+1}]"):
+        for batch in smart_tqdm(trainloader, desc=f"[TeacherAdaptive ep={ep+1}]"):
             x, y = batch
             x, y = x.to(cfg["device"]), y.to(cfg["device"])
 

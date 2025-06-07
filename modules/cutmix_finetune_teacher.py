@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from tqdm import tqdm
+from utils.progress import smart_tqdm
 
 def cutmix_data(inputs, targets, alpha=1.0):
     """
@@ -63,7 +63,7 @@ def train_one_epoch_cutmix(teacher_model, loader, optimizer, alpha=1.0, device="
     total_loss = 0.0
     correct, total = 0, 0
 
-    for batch_idx, (x, y) in enumerate(tqdm(loader, desc="[CutMix Train]")):
+    for batch_idx, (x, y) in enumerate(smart_tqdm(loader, desc="[CutMix Train]")):
         x, y = x.to(device), y.to(device)
 
         # 1) cutmix
@@ -193,7 +193,7 @@ def standard_ce_finetune(
 
     for ep in range(1, epochs + 1):
         teacher_model.train()
-        for x, y in tqdm(train_loader, desc=f"[CE FineTune ep={ep}]"):
+        for x, y in smart_tqdm(train_loader, desc=f"[CE FineTune ep={ep}]"):
             x, y = x.to(device), y.to(device)
             optimizer.zero_grad()
             _, logits, _ = teacher_model(x)
