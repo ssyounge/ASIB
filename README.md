@@ -9,9 +9,11 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 - **Multi-Stage Distillation**: Teacher ↔ Student updates in a phased (block-wise) manner  
 - **ASMB** (Adaptive Synergy Manifold Bridging): Uses a Manifold Bridging Module (MBM) to fuse two Teacher feature maps into synergy logits  
 - **Partial Freeze**: Freeze backbone parameters, adapt BN/Heads/MBM for efficiency  
-- **Multiple KD Methods**: FitNet, CRD, AT, DKD, VanillaKD, plus custom `asmb.py`  
+- **Multiple KD Methods**: FitNet, CRD, AT, DKD, VanillaKD, plus custom `asmb.py`
 - **CIFAR-100 / ImageNet100** dataset support
 - **Configurable Data Augmentation**: toggle with `--data_aug` (1/0)
+- **MBM Dropout**: set `mbm_dropout` in configs to add dropout within the
+  Manifold Bridging Module
 
 ---
 
@@ -63,16 +65,6 @@ Use the `--data_aug` flag to control dataset transforms. When set to `1` (defaul
 python main.py --config configs/default.yaml --data_aug 0
 ```
 
-### MixUp & Label Smoothing
-
-Enable MixUp by setting `mixup_alpha` > 0 in the config or via the CLI. The
-cross-entropy loss also supports label smoothing through the
-`label_smoothing` option.
-
-```bash
-python main.py --config configs/default.yaml \
-  --mixup_alpha 0.2 --label_smoothing 0.1
-```
 
 
 ---
