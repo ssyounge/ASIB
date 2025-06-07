@@ -54,7 +54,12 @@ class TeacherEfficientNetWrapper(nn.Module):
         """
         return self.feat_dim
 
-def create_efficientnet_b2(num_classes=100, pretrained=True, small_input=False):
+def create_efficientnet_b2(
+    num_classes: int = 100,
+    pretrained: bool = True,
+    small_input: bool = False,
+    dropout_p: float = 0.3,
+):
     """
     EfficientNet-B2를 로드한 뒤, (in_feats->num_classes) 교체
     small_input=True 시, CIFAR-100과 같은 작은 이미지에 맞게 stem stride를 1로 수정
@@ -72,6 +77,9 @@ def create_efficientnet_b2(num_classes=100, pretrained=True, small_input=False):
                                          stride=1, padding=1, bias=False)
 
     in_feats = model.classifier[1].in_features
+
+    # classifier[0] is Dropout layer in torchvision implementation
+    model.classifier[0] = nn.Dropout(p=dropout_p)
     model.classifier[1] = nn.Linear(in_feats, num_classes)
 
     teacher_model = TeacherEfficientNetWrapper(model)
