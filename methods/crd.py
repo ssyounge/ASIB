@@ -22,8 +22,8 @@ class CRDLoss(nn.Module):
 class CRDDistiller(nn.Module):
     """
     CRD Distiller (dict-based):
-      - teacher(x)->(t_dict, t_logit, ...)
-      - student(x)->(s_dict, s_logit, ...)
+      - teacher(x) -> dict_out (must contain the feature used)
+      - student(x) -> (s_dict, s_logit, ...)
       - CRD = InfoNCE(s_dict[feat_key], t_dict[feat_key])
       - CE = cross entropy with s_logit
       - total_loss = alpha * CRD + (1 - alpha) * CE
@@ -41,7 +41,7 @@ class CRDDistiller(nn.Module):
     def forward(self, x, y):
         # 1) teacher
         with torch.no_grad():
-            t_dict, _, _ = self.teacher(x)  # (dict, logit, ce_loss)
+            t_dict = self.teacher(x)
         # 2) student
         s_dict, s_logit, _ = self.student(x)
 

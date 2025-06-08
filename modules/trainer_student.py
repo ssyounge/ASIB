@@ -82,9 +82,9 @@ def student_distillation_update(
             # (A) Teacher synergy logit
             with torch.no_grad():
                 # Teacher #1
-                t1_dict, _, _ = teacher_wrappers[0](x_mixed)
+                t1_dict = teacher_wrappers[0](x_mixed)
                 # Teacher #2
-                t2_dict, _, _ = teacher_wrappers[1](x_mixed)
+                t2_dict = teacher_wrappers[1](x_mixed)
 
                 f1_2d = t1_dict["feat_2d"]
                 f2_2d = t2_dict["feat_2d"]

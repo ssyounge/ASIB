@@ -37,13 +37,14 @@ class FitNetDistiller(nn.Module):
 
     def forward(self, x, y):
         """
-        1) teacher => (t_dict, t_logit)
+        1) teacher => dict_out
         2) student => (s_dict, s_logit)
         3) MSE( t_dict[hint_key], s_dict[guided_key] ) + CE
         """
         # Teacher (no_grad)
         with torch.no_grad():
-            t_dict, t_logit, _ = self.teacher(x)  # (feat_dict, logit, ce_loss(opt))
+            t_out = self.teacher(x)
+            t_dict = t_out
 
         # Student
         s_dict, s_logit, _ = self.student(x)      # (feat_dict, logit, ce_loss(opt))

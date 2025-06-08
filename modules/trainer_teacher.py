@@ -22,8 +22,8 @@ def eval_synergy(teacher_wrappers, mbm, synergy_head, loader, device="cuda"):
     for x, y in loader:
         x, y = x.to(device), y.to(device)
 
-        t1_dict, _, _ = teacher_wrappers[0](x)
-        t2_dict, _, _ = teacher_wrappers[1](x)
+        t1_dict = teacher_wrappers[0](x)
+        t2_dict = teacher_wrappers[1](x)
 
         f1_2d = t1_dict["feat_2d"]
         f2_2d = t2_dict["feat_2d"]
@@ -106,7 +106,7 @@ def teacher_adaptive_update(
             feats_2d = []
             feats_4d = []
             for tw in teacher_wrappers:
-                t_dict, _, _ = tw(x)
+                t_dict = tw(x)
                 feats_2d.append(t_dict["feat_2d"])
                 feats_4d.append(t_dict.get("feat_4d"))
 

@@ -8,7 +8,7 @@ from torchvision.models import swin_t, Swin_T_Weights
 class TeacherSwinWrapper(nn.Module):
     """
     Teacher 모델(Swin Tiny) forward:
-     => (feature_dict, logit, ce_loss) 반환
+     => dict 반환 {"feat_4d", "feat_2d", "logit", "ce_loss"}
     feature_dict 예시:
       {
         "feat_4d": [N, C, H, W],  # backbone.forward_features(x)
@@ -44,11 +44,12 @@ class TeacherSwinWrapper(nn.Module):
             ce_loss = self.criterion_ce(logit, y)
 
         # Dict
-        feature_dict = {
+        return {
             "feat_4d": f4d,  # [N, C, H, W]
             "feat_2d": f2d,  # [N, C]
+            "logit": logit,
+            "ce_loss": ce_loss,
         }
-        return feature_dict, logit, ce_loss
         
     def get_feat_dim(self):
         """
