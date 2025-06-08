@@ -40,3 +40,53 @@ def compute_disagreement_rate(teacher1, teacher2, loader, device="cuda"):
 
     cross_err_rate = 100.0 * both_wrong / total_samples if total_samples > 0 else 0.0
     return cross_err_rate
+
+
+@torch.no_grad()
+def sample_weights_from_disagreement(
+    logit1: torch.Tensor,
+    logit2: torch.Tensor,
+    labels: torch.Tensor,
+    mode: str = "pred",
+    lambda_high: float = 1.0,
+    lambda_low: float = 1.0,
+) -> torch.Tensor:
+    """Return per-sample weights based on teacher disagreement.
+
+    Parameters
+    ----------
+    logit1 : Tensor
+        Teacher #1 logits of shape ``(N, C)``.
+    logit2 : Tensor
+        Teacher #2 logits of shape ``(N, C)``.
+    labels : Tensor
+        Ground truth labels of shape ``(N,)``.
+    mode : str, optional
+        ``"pred"`` to assign ``lambda_high`` when teacher predictions differ.
+        ``"both_wrong"`` to assign ``lambda_high`` when both teachers are
+        incorrect on the sample. Defaults to ``"pred"``.
+    lambda_high : float, optional
+        Weight for samples that satisfy the condition.
+    lambda_low : float, optional
+        Weight for the remaining samples.
+
+    Returns
+    -------
+    Tensor
+        1D tensor of shape ``(N,)`` containing non-negative sample weights.
+    """
+
+    pred1 = logit1.argmax(dim=1)
+    pred2 = logit2.argmax(dim=1)
+
+    if mode == "pred":
+        mask = pred1 != pred2
+    elif mode == "both_wrong":
+        mask = (pred1 != labels) & (pred2 != labels)
+    else:
+        raise ValueError(f"Unknown disagree_mode: {mode}")
+
+    high = torch.tensor(lambda_high, dtype=torch.float32, device=logit1.device)
+    low = torch.tensor(lambda_low, dtype=torch.float32, device=logit1.device)
+    weights = torch.where(mask, high, low)
+    return weights
