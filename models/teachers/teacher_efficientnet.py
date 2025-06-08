@@ -22,6 +22,7 @@ class TeacherEfficientNetWrapper(nn.Module):
 
         # 추가: EffNet-B2의 글로벌 피처 차원(1408)
         self.feat_dim = 1408
+        self.feat_channels = 1408
     
     def forward(self, x, y=None):
         # 1) 4D feature from backbone.features
@@ -53,6 +54,10 @@ class TeacherEfficientNetWrapper(nn.Module):
         EffNet-B2 => 1408
         """
         return self.feat_dim
+
+    def get_feat_channels(self):
+        """Channel dimension of the 4D feature."""
+        return self.feat_channels
 
 def create_efficientnet_b2(
     num_classes: int = 100,
