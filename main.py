@@ -65,7 +65,7 @@ def create_student_by_name(student_name: str, pretrained: bool = True,
     else:
         raise ValueError(f"[create_student_by_name] unknown student_name={student_name}")# MBM
 
-from models.mbm import ManifoldBridgingModule, SynergyHead
+from models.mbm import ManifoldBridgingModule, SynergyHead, build_from_teachers
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -332,38 +332,10 @@ def main():
             use_adapter=cfg.get("student_use_adapter", False)
         )
 
-    # 6) MBM => 2D in_dim + (옵션)4D in_ch
-    t1_dim = teacher1.get_feat_dim()  # e.g. 2048
-    t2_dim = teacher2.get_feat_dim()  # e.g. 1408
-    mbm_in_dim = t1_dim + t2_dim
-
-    mbm_hidden_dim = cfg.get("mbm_hidden_dim", 512)
-    mbm_out_dim    = cfg.get("mbm_out_dim", 512)
-    mbm_dropout    = cfg.get("mbm_dropout", 0.0)
-
-    # 만약 4D 채널을 쓰려면 teacher가 get_feat_channels()도 제공해야 함
-    # ex) t1_ch = teacher1.get_feat_channels()
-    #     t2_ch = teacher2.get_feat_channels()
-    #     in_ch_4d = t1_ch + t2_ch
-    #     out_ch_4d = 256  # 임의 값
-    # => 아래 인자에 in_ch_4d=..., out_ch_4d=... 도 전달
-
-    mbm = ManifoldBridgingModule(
-        # 2D params
-        in_dim=mbm_in_dim,
-        hidden_dim=mbm_hidden_dim,
-        out_dim=mbm_out_dim,
-        dropout=mbm_dropout,
-
-        # 4D params (예시 주석)
-        # in_ch_4d=in_ch_4d,
-        # out_ch_4d=out_ch_4d
-    ).to(device)
-
-    synergy_head = SynergyHead(
-        in_dim=mbm_out_dim,
-        num_classes=100
-    ).to(device)
+    # 6) MBM and synergy head
+    mbm, synergy_head = build_from_teachers([teacher1, teacher2], cfg)
+    mbm = mbm.to(device)
+    synergy_head = synergy_head.to(device)
 
     # 7) multi-stage distillation
     teacher_wrappers = [teacher1, teacher2]
