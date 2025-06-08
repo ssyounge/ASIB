@@ -21,7 +21,8 @@ class TeacherResNetWrapper(nn.Module):
         self.criterion_ce = nn.CrossEntropyLoss()
 
         # 추가: ResNet101의 글로벌 피처 차원 (기본 2048)
-        self.feat_dim = 2048  
+        self.feat_dim = 2048
+        self.feat_channels = 2048
     
     def forward(self, x, y=None):
         # 1) stem
@@ -61,6 +62,10 @@ class TeacherResNetWrapper(nn.Module):
         ResNet101 => 2048
         """
         return self.feat_dim
+
+    def get_feat_channels(self):
+        """Channel dimension of the 4D feature."""
+        return self.feat_channels
 
 def create_resnet101(num_classes=100, pretrained=True, small_input=False):
     """

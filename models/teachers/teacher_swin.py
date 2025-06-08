@@ -23,6 +23,7 @@ class TeacherSwinWrapper(nn.Module):
         # Swin Tiny의 head.in_features => 768 (기본)
         #   (모델마다 다를 수 있음)
         self.feat_dim = self.backbone.head.in_features
+        self.feat_channels = self.feat_dim
 
     
     def forward(self, x, y=None):
@@ -54,6 +55,10 @@ class TeacherSwinWrapper(nn.Module):
         Swin Tiny => usually 768
         """
         return self.feat_dim
+
+    def get_feat_channels(self):
+        """Channel dimension of the 4D feature."""
+        return self.feat_channels
 
 def create_swin_t(num_classes=100, pretrained=True):
     """

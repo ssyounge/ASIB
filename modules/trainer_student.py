@@ -61,8 +61,6 @@ def student_distillation_update(
     best_acc = 0.0
     best_state = copy.deepcopy(student_model.state_dict())
 
-    # 여기도 feat_key 가져옴
-    feat_key = cfg.get("feat_key", "feat_2d")
 
     # 1) student_iters 우선 => 없으면 student_epochs_per_stage
     student_epochs = cfg.get("student_iters", cfg.get("student_epochs_per_stage", 15))
@@ -85,22 +83,16 @@ def student_distillation_update(
             with torch.no_grad():
                 # Teacher #1
                 t1_dict, _, _ = teacher_wrappers[0](x_mixed)
-                f1 = t1_dict[feat_key]  # 2D or 4D
                 # Teacher #2
                 t2_dict, _, _ = teacher_wrappers[1](x_mixed)
-                f2 = t2_dict[feat_key]
 
-                # MBM => 텐서 반환
-                fsyn = mbm(f1, f2)  # returns a tensor (2D or 4D)
+                f1_2d = t1_dict["feat_2d"]
+                f2_2d = t2_dict["feat_2d"]
+                f1_4d = t1_dict.get("feat_4d")
+                f2_4d = t2_dict.get("feat_4d")
 
-                # synergy_head가 2D를 기대한다고 가정
-                if fsyn.dim() == 4:
-                    # global pooling => 2D
-                    fsyn_2d = torch.nn.functional.adaptive_avg_pool2d(fsyn, (1,1)).flatten(1)
-                    zsyn = synergy_head(fsyn_2d)  # (N, num_classes)
-                else:
-                    # 2D 바로
-                    zsyn = synergy_head(fsyn)
+                fsyn = mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
+                zsyn = synergy_head(fsyn)
 
             # (B) Student forward
             feat_dict, s_logit, _ = student_model(x_mixed)   # (만약 student도 dict 반환하면 logit만 꺼내야 함)

@@ -17,7 +17,7 @@ def _cpu_state_dict(module: torch.nn.Module):
     return {k: v.detach().cpu().clone() for k, v in module.state_dict().items()}
 
 @torch.no_grad()
-def eval_synergy(teacher_wrappers, mbm, synergy_head, loader, device="cuda", feat_key="feat_2d"):
+def eval_synergy(teacher_wrappers, mbm, synergy_head, loader, device="cuda"):
     correct, total = 0, 0
     for x, y in loader:
         x, y = x.to(device), y.to(device)
@@ -25,12 +25,12 @@ def eval_synergy(teacher_wrappers, mbm, synergy_head, loader, device="cuda", fea
         t1_dict, _, _ = teacher_wrappers[0](x)
         t2_dict, _, _ = teacher_wrappers[1](x)
 
-        f1 = t1_dict[feat_key]  # "feat_2d" or "feat_4d"
-        f2 = t2_dict[feat_key]
+        f1_2d = t1_dict["feat_2d"]
+        f2_2d = t2_dict["feat_2d"]
+        f1_4d = t1_dict.get("feat_4d")
+        f2_4d = t2_dict.get("feat_4d")
 
-        fsyn = mbm(f1, f2)  # => 2D/4D 텐서
-        if fsyn.dim() == 4:
-            fsyn = torch.nn.functional.adaptive_avg_pool2d(fsyn, (1,1)).flatten(1)
+        fsyn = mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
         zsyn = synergy_head(fsyn)
 
         pred = zsyn.argmax(dim=1)
@@ -84,8 +84,7 @@ def teacher_adaptive_update(
         "syn_head": _cpu_state_dict(synergy_head)
     }
 
-    # 여기! feat_key 설정
-    feat_key = cfg.get("feat_key", "feat_2d")  # 디폴트 "feat_2d"
+
 
     # 1) teacher_iters 우선 => 없으면 teacher_adapt_epochs
     teacher_epochs = cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5))
@@ -103,18 +102,16 @@ def teacher_adaptive_update(
             with torch.no_grad():
                 _, s_logit, _ = student_model(x)
 
-            # (B) Teacher => feat_dict -> f = feat_dict[feat_key]
-            feats = []
+            # (B) Teacher features
+            feats_2d = []
+            feats_4d = []
             for tw in teacher_wrappers:
-                t_dict, _, _ = tw(x)             # t_dict는 {"feat_4d":..., "feat_2d":...}
-                f = t_dict[feat_key]             # 여기서 2D or 4D 텐서를 선택
-                feats.append(f)
+                t_dict, _, _ = tw(x)
+                feats_2d.append(t_dict["feat_2d"])
+                feats_4d.append(t_dict.get("feat_4d"))
 
             # (C) MBM + synergy_head
-            if len(feats) == 1:
-                fsyn = feats[0]                 # Teacher가 1명이라면 그냥 feats[0]
-            else:
-                fsyn = mbm(*feats)              # Teacher가 2명이면 mbm(feat1, feat2)
+            fsyn = mbm(feats_2d, feats_4d)
             zsyn = synergy_head(fsyn)
 
             # (D) loss 계산 (KL + synergyCE)
@@ -158,7 +155,6 @@ def teacher_adaptive_update(
                 synergy_head,
                 loader=testloader,
                 device=cfg["device"],
-                feat_key=cfg.get("feat_key", "feat_2d")  # 예: "feat_4d"
             )
         else:
             synergy_test_acc = -1
