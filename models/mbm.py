@@ -77,15 +77,16 @@ class ManifoldBridgingModule(nn.Module):
             return outputs[0]
         return sum(outputs) / len(outputs)
 
-class SynergyHead(nn.Module):
-    """Linear head mapping synergy embedding to logits."""
+class SynergyHead(nn.Sequential):
+    """FC-ReLU-(Dropout)-FC mapping from synergy embedding to logits."""
 
-    def __init__(self, in_dim: int, num_classes: int = 100) -> None:
-        super().__init__()
-        self.fc = nn.Linear(in_dim, num_classes)
-
-    def forward(self, synergy_emb: torch.Tensor) -> torch.Tensor:
-        return self.fc(synergy_emb)
+    def __init__(self, in_dim: int, num_classes: int = 100, p: float = 0.0) -> None:
+        super().__init__(
+            nn.Linear(in_dim, in_dim),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p),
+            nn.Linear(in_dim, num_classes),
+        )
 
 def build_from_teachers(teachers: List[nn.Module], cfg: dict) -> Tuple[ManifoldBridgingModule, SynergyHead]:
     feat_dims = [t.get_feat_dim() for t in teachers]
@@ -110,5 +111,9 @@ def build_from_teachers(teachers: List[nn.Module], cfg: dict) -> Tuple[ManifoldB
         attn_heads=int(cfg.get("mbm_attn_heads", 0)),
     )
 
-    head = SynergyHead(in_dim=cfg.get("mbm_out_dim", 512), num_classes=cfg.get("num_classes", 100))
+    head = SynergyHead(
+        in_dim=cfg.get("mbm_out_dim", 512),
+        num_classes=cfg.get("num_classes", 100),
+        p=cfg.get("synergy_head_dropout", cfg.get("mbm_dropout", 0.0)),
+    )
     return mbm, head

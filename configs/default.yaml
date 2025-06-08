@@ -44,6 +44,7 @@ mbm_in_dim: 3456
 mbm_hidden_dim: 1024
 mbm_out_dim: 2048
 mbm_dropout: 0.0
+synergy_head_dropout: 0.0
 mbm_use_4d: false
 mbm_attn_heads: 0
 
