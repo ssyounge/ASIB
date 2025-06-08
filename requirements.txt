@@ -1,1 +1,5 @@
-
+torch
+torchvision
+timm
+PyYAML
+tqdm
