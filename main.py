@@ -113,6 +113,10 @@ def parse_args():
     parser.add_argument("--feat_kd_alpha", type=float)
     parser.add_argument("--feat_kd_key", type=str)
     parser.add_argument("--feat_kd_norm", type=str)
+    parser.add_argument("--use_disagree_weight", type=int)
+    parser.add_argument("--disagree_mode", type=str)
+    parser.add_argument("--disagree_lambda_high", type=float)
+    parser.add_argument("--disagree_lambda_low", type=float)
     return parser.parse_args()
 
 def load_config(cfg_path):
