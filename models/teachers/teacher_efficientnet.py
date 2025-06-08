@@ -8,7 +8,7 @@ from torchvision.models import efficientnet_b2, EfficientNet_B2_Weights
 class TeacherEfficientNetWrapper(nn.Module):
     """
     Teacher 모델(EfficientNet-B2) forward:
-     => (feature_dict, logit, ce_loss) 반환
+     => dict 반환 {"feat_4d", "feat_2d", "logit", "ce_loss"}
     feature_dict 예시:
       {
         "feat_4d": [N, 1408, H, W],   # backbone.features(x)
@@ -42,11 +42,12 @@ class TeacherEfficientNetWrapper(nn.Module):
             ce_loss = self.criterion_ce(logit, y)
 
         # Dict로 묶어서 반환
-        feature_dict = {
+        return {
             "feat_4d": f4d,       # [N, 1408, h, w]
             "feat_2d": fpool,     # [N, 1408]
+            "logit": logit,
+            "ce_loss": ce_loss,
         }
-        return feature_dict, logit, ce_loss
 
     def get_feat_dim(self):
         """

@@ -9,10 +9,9 @@ from modules.losses import kd_loss_fn, ce_loss_fn
 
 class VanillaKDDistiller(nn.Module):
     """
-    Distiller for 'vanilla KD' (Hinton et al. 2015),
-    assuming teacher(x)->(t_dict, t_logit, [ce_loss]),
-              student(x)->(s_dict, s_logit, [ce_loss])
-    but we only use the logits for CE + KD
+    Distiller for 'vanilla KD' (Hinton et al. 2015).
+    The teacher forward returns a dict containing a "logit" entry and
+    optional features. Only logits are used here.
     total_loss = alpha * CE + (1 - alpha) * KD
     """
     def __init__(
@@ -30,12 +29,13 @@ class VanillaKDDistiller(nn.Module):
 
     def forward(self, x, y):
         """
-        1) teacher => (dict, t_logit, _), but only t_logit is used
+        1) teacher => dict_out (use "logit" field)
         2) student => (dict, s_logit, _)
         3) CE + KD
         """
         with torch.no_grad():
-            t_dict, t_logit, _ = self.teacher(x)  # we don't use t_dict here
+            t_out = self.teacher(x)
+            t_logit = t_out["logit"]
         s_dict, s_logit, _ = self.student(x)     # we don't use s_dict either
 
         # CE

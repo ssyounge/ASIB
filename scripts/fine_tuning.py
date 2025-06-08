@@ -124,8 +124,8 @@ def standard_ce_finetune(model, train_loader, test_loader,
         for x, y in train_loader:
             x, y = x.to(device), y.to(device)
             optim.zero_grad()
-            _, logits, _ = model(x)          # teacher wrapper: (dict, logit, ce)
-            loss = crit(logits, y)
+            out = model(x)
+            loss = crit(out["logit"], y)
             loss.backward()
             optim.step()
         acc = eval_teacher(model, test_loader, device)

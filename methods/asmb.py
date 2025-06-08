@@ -61,11 +61,13 @@ class ASMBDistiller(nn.Module):
         """
         # 1) teacher feats
         with torch.no_grad():
-            f1, _, _ = self.teacher1(x)
-            f2, _, _ = self.teacher2(x)
+            t1 = self.teacher1(x)
+            t2 = self.teacher2(x)
+            feats_2d = [t1["feat_2d"], t2["feat_2d"]]
+            feats_4d = [t1.get("feat_4d"), t2.get("feat_4d")]
 
         # 2) mbm => synergy
-        fsyn = self.mbm(f1, f2)
+        fsyn = self.mbm(feats_2d, feats_4d)
         zsyn = self.synergy_head(fsyn)
 
         # 3) student
@@ -193,8 +195,10 @@ class ASMBDistiller(nn.Module):
                     # student logit
                     _, s_logit, _ = self.student(x)
                     # teacher feats
-                    f1, _, _ = self.teacher1(x)  # but teacher backbones are partial freeze
-                    f2, _, _ = self.teacher2(x)
+                    t1 = self.teacher1(x)
+                    t2 = self.teacher2(x)
+                    f1 = [t1["feat_2d"], t2["feat_2d"]]
+                    f2 = [t1.get("feat_4d"), t2.get("feat_4d")]
 
                 # synergy
                 fsyn = self.mbm(f1, f2)
@@ -270,8 +274,10 @@ class ASMBDistiller(nn.Module):
 
                 with torch.no_grad():
                     # teacher feats
-                    f1, _, _ = self.teacher1(x)
-                    f2, _, _ = self.teacher2(x)
+                    t1 = self.teacher1(x)
+                    t2 = self.teacher2(x)
+                    f1 = [t1["feat_2d"], t2["feat_2d"]]
+                    f2 = [t1.get("feat_4d"), t2.get("feat_4d")]
                     fsyn = self.mbm(f1, f2)
                     zsyn = self.synergy_head(fsyn)
 

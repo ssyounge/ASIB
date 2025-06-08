@@ -9,7 +9,8 @@ def compute_disagreement_rate(teacher1, teacher2, loader, device="cuda"):
     ``teacher1`` and ``teacher2`` both make an incorrect prediction.
 
     teacher1, teacher2: nn.Module (teacher wrappers)
-        Their forward(x) should return (feat, logit, loss) or similar.
+        Their forward(x) should return a dict containing at least the
+        keys "feat_2d", "feat_4d" and "logit".
     loader: DataLoader
     device: "cuda" or "cpu"
 
@@ -24,10 +25,9 @@ def compute_disagreement_rate(teacher1, teacher2, loader, device="cuda"):
     for x, y in loader:
         x, y = x.to(device), y.to(device)
 
-        # forward each teacher, get their logits
-        # assume forward(...) => (feat, logit, ce_loss)
-        _, logit1, _ = teacher1(x)
-        _, logit2, _ = teacher2(x)
+        # forward each teacher, get their logits from the returned dict
+        logit1 = teacher1(x)["logit"]
+        logit2 = teacher2(x)["logit"]
 
         # argmax predictions
         pred1 = logit1.argmax(dim=1)

@@ -55,7 +55,7 @@ def cutmix_criterion(criterion, pred, y_a, y_b, lam):
 
 def train_one_epoch_cutmix(teacher_model, loader, optimizer, alpha=1.0, device="cuda"):
     """
-    teacher_model: forward(x, y=None)-> (dict, logit, ce_loss)
+    teacher_model: forward(x, y=None)-> dict (must contain "logit")
       - dict은 사용하지 않고, logit만 이용하여 crossentropy 계산
     """
     teacher_model.train()
@@ -70,8 +70,8 @@ def train_one_epoch_cutmix(teacher_model, loader, optimizer, alpha=1.0, device="
         x_cm, y_a, y_b, lam = cutmix_data(x, y, alpha=alpha)
 
         # 2) forward
-        _, logits, _ = teacher_model(x_cm)  # we only need `logits` for classification
-                                            # dict, ce_loss are ignored here
+        out = teacher_model(x_cm)  # we only need `logits` for classification
+        logits = out["logit"]
 
         # 3) loss
         loss = cutmix_criterion(criterion, logits, y_a, y_b, lam)
@@ -101,8 +101,8 @@ def eval_teacher(teacher_model, loader, device="cuda"):
     correct, total = 0, 0
     for x, y in loader:
         x, y = x.to(device), y.to(device)
-        _, logits, _ = teacher_model(x)  # dict, logit, ce_loss
-        preds = logits.argmax(dim=1)
+        out = teacher_model(x)  # dict with "logit"
+        preds = out["logit"].argmax(dim=1)
         correct += (preds == y).sum().item()
         total   += y.size(0)
     return 100.0 * correct / total
@@ -119,7 +119,8 @@ def finetune_teacher_cutmix(
     ckpt_path="teacher_finetuned_cutmix.pth"
 ):
     """
-    teacher_model: must produce (dict, logit, ce_loss) but we only need 'logit' to do classification
+    teacher_model: must produce a dict containing "logit". Only the
+    logits are used to do classification during fine-tuning.
     train_loader, test_loader: standard classification dataset
     alpha: cutmix alpha
     lr, weight_decay, epochs, etc. for standard SGD
@@ -196,8 +197,8 @@ def standard_ce_finetune(
         for x, y in smart_tqdm(train_loader, desc=f"[CE FineTune ep={ep}]"):
             x, y = x.to(device), y.to(device)
             optimizer.zero_grad()
-            _, logits, _ = teacher_model(x)
-            loss = criterion(logits, y)
+            out = teacher_model(x)
+            loss = criterion(out["logit"], y)
             loss.backward()
             optimizer.step()
         te_acc = eval_teacher(teacher_model, test_loader, device=device)
