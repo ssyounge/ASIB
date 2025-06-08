@@ -38,6 +38,12 @@ feat_kd_alpha: 0.25       # λ_feat   (논문 α_feat)
 feat_kd_key: "feat_2d"    # 어느 딕셔너리 key를 쓸지 (feat_4d 도 가능)
 feat_kd_norm: "none"      # "none" | "l2"  (예: 벡터 정규화 후 MSE)
 
+# disagreement-based sample weighting
+use_disagree_weight: false
+disagree_mode: "pred"       # "pred" | "both_wrong"
+disagree_lambda_high: 1.0
+disagree_lambda_low: 1.0
+
 num_stages: 2
 
 teacher_iters: 10

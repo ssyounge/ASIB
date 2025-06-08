@@ -7,6 +7,7 @@ import copy
 from utils.progress import smart_tqdm
 
 from modules.losses import kd_loss_fn, ce_loss_fn
+from modules.disagreement import sample_weights_from_disagreement
 from utils.misc import mixup_data, mixup_criterion
 from torch.optim.lr_scheduler import StepLR
 
@@ -97,23 +98,41 @@ def student_distillation_update(
             # (B) Student forward
             feat_dict, s_logit, _ = student_model(x_mixed)   # (만약 student도 dict 반환하면 logit만 꺼내야 함)
 
-            # CE + KD
+            # (B1) disagreement-based sample weights
+            if cfg.get("use_disagree_weight", False):
+                weights = sample_weights_from_disagreement(
+                    t1_dict["logit"],
+                    t2_dict["logit"],
+                    y,
+                    mode=cfg.get("disagree_mode", "pred"),
+                    lambda_high=cfg.get("disagree_lambda_high", 1.0),
+                    lambda_low=cfg.get("disagree_lambda_low", 1.0),
+                )
+            else:
+                weights = torch.ones_like(y, dtype=torch.float32, device=y.device)
+
+            # CE + KD with per-sample reductions
             if cfg.get("mixup_alpha", 0.0) > 0.0:
                 ce_obj = lambda pred, target: ce_loss_fn(
                     pred,
                     target,
                     label_smoothing=cfg.get("label_smoothing", 0.0),
+                    reduction="none",
                 )
-                ce_loss_val = mixup_criterion(ce_obj, s_logit, y_a, y_b, lam)
+                ce_vec = mixup_criterion(ce_obj, s_logit, y_a, y_b, lam)
             else:
-                ce_loss_val = ce_loss_fn(
+                ce_vec = ce_loss_fn(
                     s_logit,
                     y,
                     label_smoothing=cfg.get("label_smoothing", 0.0),
+                    reduction="none",
                 )
-            kd_loss_val = kd_loss_fn(
-                s_logit, zsyn, T=cfg.get("temperature", 4.0)
-            )
+            kd_vec = kd_loss_fn(
+                s_logit, zsyn, T=cfg.get("temperature", 4.0), reduction="none"
+            ).sum(dim=1)
+
+            ce_loss_val = (weights * ce_vec).mean()
+            kd_loss_val = (weights * kd_vec).mean()
 
             feat_kd_val = torch.tensor(0.0, device=cfg["device"])
             if cfg.get("use_feat_kd", False):
