@@ -61,7 +61,28 @@ def run_asmb_continual(
     logger.info("[Continual] Stage 1: Multi-Teacher Distillation from teacher #1,#2 => student_A")
 
     # partial freeze Student, if needed
-    # freeze_student_with_adapter(current_student)  # example if you want partial freeze
+    if cfg.get("use_partial_freeze", False):
+        freeze_teacher_params(
+            first_teachers[0],
+            teacher_name=cfg.get("teacher1_type", "resnet101"),
+            freeze_bn=cfg.get("teacher1_freeze_bn", True),
+            freeze_ln=cfg.get("teacher1_freeze_ln", True),
+            freeze_scope=cfg.get("teacher1_freeze_scope", None),
+        )
+        freeze_teacher_params(
+            first_teachers[1],
+            teacher_name=cfg.get("teacher2_type", "efficientnet_b2"),
+            freeze_bn=cfg.get("teacher2_freeze_bn", True),
+            freeze_ln=cfg.get("teacher2_freeze_ln", True),
+            freeze_scope=cfg.get("teacher2_freeze_scope", None),
+        )
+        freeze_student_with_adapter(
+            current_student,
+            student_name=cfg.get("student_type", "resnet_adapter"),
+            freeze_bn=cfg.get("student_freeze_bn", True),
+            freeze_ln=cfg.get("student_freeze_ln", True),
+            freeze_scope=cfg.get("student_freeze_scope", None),
+        )
 
     # (A) Teacher adaptive update (optional)
     teacher_adaptive_update(
@@ -109,7 +130,14 @@ def run_asmb_continual(
         new_student = copy.deepcopy(base_student)  # or create a new scratch model
 
         # partial freeze if needed
-        # freeze_student_with_adapter(new_student)
+        if cfg.get("use_partial_freeze", False):
+            freeze_student_with_adapter(
+                new_student,
+                student_name=cfg.get("student_type", "resnet_adapter"),
+                freeze_bn=cfg.get("student_freeze_bn", True),
+                freeze_ln=cfg.get("student_freeze_ln", True),
+                freeze_scope=cfg.get("student_freeze_scope", None),
+            )
 
         # 1) teacher adaptive update:
         teacher_wrappers = [teacherA, new_teacher]

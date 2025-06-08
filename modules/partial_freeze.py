@@ -254,3 +254,65 @@ def partial_freeze_student_swin(
             if isinstance(m, nn.LayerNorm):
                 for p in m.parameters():
                     p.requires_grad = True
+
+
+def freeze_teacher_params(
+    model: nn.Module,
+    teacher_name: str = "resnet101",
+    freeze_bn: bool = True,
+    freeze_ln: bool = True,
+    freeze_scope: str = None,
+) -> None:
+    """Wrapper that partially freezes a teacher model by type."""
+    if teacher_name == "resnet101":
+        partial_freeze_teacher_resnet(
+            model, freeze_bn=freeze_bn, freeze_scope=freeze_scope
+        )
+    elif teacher_name == "efficientnet_b2":
+        partial_freeze_teacher_efficientnet(
+            model, freeze_bn=freeze_bn, freeze_scope=freeze_scope
+        )
+    elif teacher_name == "swin_tiny":
+        partial_freeze_teacher_swin(
+            model, freeze_ln=freeze_ln, freeze_scope=freeze_scope
+        )
+    else:
+        freeze_all_params(model)
+
+
+def freeze_student_with_adapter(
+    model: nn.Module,
+    student_name: str = "resnet_adapter",
+    freeze_bn: bool = True,
+    freeze_ln: bool = True,
+    freeze_scope: str = None,
+) -> None:
+    """Wrapper that freezes a student and optionally unfreezes its adapters."""
+    if student_name == "resnet_adapter":
+        partial_freeze_student_resnet(
+            model,
+            freeze_bn=freeze_bn,
+            use_adapter=True,
+            freeze_scope=freeze_scope,
+        )
+    elif student_name == "efficientnet_adapter":
+        partial_freeze_student_efficientnet(
+            model,
+            freeze_bn=freeze_bn,
+            use_adapter=True,
+            freeze_scope=freeze_scope,
+        )
+    elif student_name == "swin_adapter":
+        partial_freeze_student_swin(
+            model,
+            freeze_ln=freeze_ln,
+            use_adapter=True,
+            freeze_scope=freeze_scope,
+        )
+    else:
+        partial_freeze_student_resnet(
+            model,
+            freeze_bn=freeze_bn,
+            use_adapter=True,
+            freeze_scope=freeze_scope,
+        )
