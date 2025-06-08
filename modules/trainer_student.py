@@ -111,8 +111,41 @@ def student_distillation_update(
                     y,
                     label_smoothing=cfg.get("label_smoothing", 0.0),
                 )
-            kd_loss_val = kd_loss_fn(s_logit, zsyn, T=cfg.get("temperature", 4.0))
-            loss = cfg["ce_alpha"] * ce_loss_val + cfg["kd_alpha"] * kd_loss_val
+            kd_loss_val = kd_loss_fn(
+                s_logit, zsyn, T=cfg.get("temperature", 4.0)
+            )
+
+            feat_kd_val = torch.tensor(0.0, device=cfg["device"])
+            if cfg.get("use_feat_kd", False):
+                key = cfg.get("feat_kd_key", "feat_2d")
+
+                s_feat = feat_dict[key]
+
+                if fsyn.dim() == 4 and s_feat.dim() == 2:
+                    fsyn_use = torch.nn.functional.adaptive_avg_pool2d(
+                        fsyn, (1, 1)
+                    ).flatten(1)
+                else:
+                    fsyn_use = fsyn
+
+                if cfg.get("feat_kd_norm", "none") == "l2":
+                    s_feat = torch.nn.functional.normalize(
+                        s_feat.view(s_feat.size(0), -1), dim=1
+                    )
+                    fsyn_use = torch.nn.functional.normalize(
+                        fsyn_use.view(fsyn_use.size(0), -1), dim=1
+                    )
+
+                feat_kd_val = torch.nn.functional.mse_loss(
+                    s_feat.view(s_feat.size(0), -1),
+                    fsyn_use.detach().view(s_feat.size(0), -1),
+                )
+
+            loss = (
+                cfg["ce_alpha"] * ce_loss_val
+                + cfg["kd_alpha"] * kd_loss_val
+                + cfg.get("feat_kd_alpha", 0.0) * feat_kd_val
+            )
 
             optimizer_s.zero_grad()
             loss.backward()
@@ -128,6 +161,7 @@ def student_distillation_update(
         test_acc = eval_student(student_model, testloader, cfg["device"])
 
         logger.info(f"[StudentDistill ep={ep+1}] loss={ep_loss:.4f}, testAcc={test_acc:.2f}, best={best_acc:.2f}")
+        logger.update_metric(f"ep{ep+1}_feat_kd", feat_kd_val.item())
 
         scheduler_s.step()
 
