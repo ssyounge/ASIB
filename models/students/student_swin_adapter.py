@@ -13,14 +13,17 @@ class StudentSwinAdapter(nn.Module):
       3) final fc => logit
       => returns (feature_dict, logit, ce_loss)
     """
-    def __init__(self, pretrained=True, adapter_dim=64, num_classes=100):
+    def __init__(self, pretrained=True, adapter_dim=64, num_classes=100,
+                 small_input: bool = False):
         super().__init__()
         self.criterion_ce = nn.CrossEntropyLoss()
 
         # 1) load Swin Tiny from timm
+        img_sz = 32 if small_input else 224
         self.swin = timm.create_model(
-            "swin_tiny_patch4_window7_224", 
-            pretrained=pretrained
+            "swin_tiny_patch4_window7_224",
+            pretrained=pretrained,
+            img_size=img_sz,
         )
         
         # 2) remove default classifier => (N, in_features)
@@ -72,12 +75,14 @@ class StudentSwinAdapter(nn.Module):
         return feature_dict, logit, ce_loss
 
 
-def create_swin_adapter_student(pretrained=True, adapter_dim=64, num_classes=100):
+def create_swin_adapter_student(pretrained=True, adapter_dim=64, num_classes=100,
+                                small_input: bool = False):
     """
     Creates the Student Swin model w/ adapter => (dict, logit, ce_loss)
     """
     return StudentSwinAdapter(
         pretrained=pretrained,
         adapter_dim=adapter_dim,
-        num_classes=num_classes
+        num_classes=num_classes,
+        small_input=small_input,
     )

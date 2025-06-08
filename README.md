@@ -94,6 +94,7 @@ python main.py --mixup_alpha 0.2 --label_smoothing 0.1
 Models fine-tuned with `--small_input 1` replace their conv stems for small
 images. When distilling or evaluating such checkpoints you must pass the same
 `--small_input 1` flag to `main.py` or `eval.py` so the architectures match.
+The flag now also configures the student Swin adapter to expect 32×32 inputs.
 
 ### Teacher Fine-Tuning
 

@@ -37,7 +37,8 @@ from models.teachers.teacher_resnet import create_resnet101
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from models.teachers.teacher_swin import create_swin_t
 
-def create_student_by_name(student_name: str, pretrained: bool = True):
+def create_student_by_name(student_name: str, pretrained: bool = True,
+                           small_input: bool = False):
     """
     Returns a student model that follows the common interface
     (feature_dict, logits, ce_loss).
@@ -58,7 +59,8 @@ def create_student_by_name(student_name: str, pretrained: bool = True):
         from models.students.student_swin_adapter import (
             create_swin_adapter_student,
         )
-        return create_swin_adapter_student(pretrained=pretrained)
+        return create_swin_adapter_student(pretrained=pretrained,
+                                           small_input=small_input)
 
     else:
         raise ValueError(f"[create_student_by_name] unknown student_name={student_name}")# MBM
@@ -102,8 +104,11 @@ def parse_args():
     parser.add_argument("--data_aug", type=int, help="1: use augmentation, 0: disable")
     parser.add_argument("--mixup_alpha", type=float)
     parser.add_argument("--label_smoothing", type=float)
-    parser.add_argument("--small_input", type=int,
-                        help="1 to use CIFAR-friendly stems for teachers")
+    parser.add_argument(
+        "--small_input",
+        type=int,
+        help="1 to use CIFAR-friendly stems (teachers + Swin student)",
+    )
     return parser.parse_args()
 
 def load_config(cfg_path):
@@ -310,6 +315,7 @@ def main():
     student_model = create_student_by_name(
         student_name,
         pretrained=cfg.get("student_pretrained", True),
+        small_input=small_input,
     ).to(device)
 
     if cfg.get("student_ckpt"):
