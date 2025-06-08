@@ -1,3 +1,5 @@
+# scripts/generate_config.py
+
 import argparse, yaml
 
 parser = argparse.ArgumentParser(description="Merge base YAML with overrides")
