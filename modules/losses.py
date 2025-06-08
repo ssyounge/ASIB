@@ -3,7 +3,7 @@
 import torch
 import torch.nn.functional as F
 
-def ce_loss_fn(student_logits, labels, label_smoothing: float = 0.0):
+def ce_loss_fn(student_logits, labels, label_smoothing: float = 0.0, reduction: str = "mean"):
     """Standard cross-entropy loss for classification.
 
     Parameters
@@ -19,6 +19,7 @@ def ce_loss_fn(student_logits, labels, label_smoothing: float = 0.0):
         student_logits,
         labels,
         label_smoothing=label_smoothing,
+        reduction=reduction,
     )
 
 def kd_loss_fn(student_logits, teacher_logits, T=4.0, reduction="batchmean"):
