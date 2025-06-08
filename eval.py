@@ -11,7 +11,7 @@ import torch.nn as nn
 import os
 
 from data.cifar100 import get_cifar100_loaders
-from models.mbm import ManifoldBridgingModule, SynergyHead
+from models.mbm import ManifoldBridgingModule, SynergyHead, build_from_teachers
 from utils.logger import ExperimentLogger
 from utils.misc import set_random_seed
 
@@ -97,11 +97,12 @@ class SynergyEnsemble(nn.Module):
             f1_dict, _, _ = self.teacher1(x)
             f2_dict, _, _ = self.teacher2(x)
 
-        # assume we use "feat_2d" for synergy
         f1_2d = f1_dict["feat_2d"]
         f2_2d = f2_dict["feat_2d"]
+        f1_4d = f1_dict.get("feat_4d")
+        f2_4d = f2_dict.get("feat_4d")
 
-        fsyn = self.mbm(f1_2d, f2_2d)
+        fsyn = self.mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
         zsyn = self.synergy_head(fsyn)
         return zsyn
 
@@ -178,17 +179,10 @@ def main():
             t2_ck = torch.load(cfg["teacher2_ckpt"], map_location=device)
             teacher2.load_state_dict(t2_ck)
 
-        # 4) MBM => in_dim from teacher dims
-        t1_dim = teacher1.get_feat_dim()
-        t2_dim = teacher2.get_feat_dim()
-        mbm_in_dim = t1_dim + t2_dim
-
-        mbm = ManifoldBridgingModule(
-            in_dim=mbm_in_dim,
-            hidden_dim=512,
-            out_dim=256
-        ).to(device)
-        synergy_head = SynergyHead(in_dim=256, num_classes=n_classes).to(device)
+        # 4) MBM and synergy head
+        mbm, synergy_head = build_from_teachers([teacher1, teacher2], cfg)
+        mbm = mbm.to(device)
+        synergy_head = synergy_head.to(device)
 
         # load MBM, synergy head
         if cfg["mbm_ckpt"]:
