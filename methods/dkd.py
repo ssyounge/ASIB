@@ -9,7 +9,7 @@ class DKDDistiller(nn.Module):
     """
     Decoupled Knowledge Distillation (DKD) Distiller
     dict-based Teacher/Student:
-      teacher(x)->(t_dict, t_logit, _),
+      teacher(x)->dict_out (must contain "logit"),
       student(x)->(s_dict, s_logit, _)
     => total_loss = CE + warmup_factor * DKD
     """
@@ -41,7 +41,7 @@ class DKDDistiller(nn.Module):
 
     def forward(self, x, y, epoch=1):
         """
-        1) teacher => (t_dict, t_logit)
+        1) teacher => dict_out
         2) student => (s_dict, s_logit)
         3) CE + DKD
            - DKD는 warmup_factor= min(epoch/self.warmup, 1.0)
@@ -49,7 +49,9 @@ class DKDDistiller(nn.Module):
         """
         # teacher
         with torch.no_grad():
-            t_dict, t_logit, _ = self.teacher(x)
+            t_out = self.teacher(x)
+            t_dict = t_out
+            t_logit = t_out["logit"]
         # student
         s_dict, s_logit, _ = self.student(x)
 

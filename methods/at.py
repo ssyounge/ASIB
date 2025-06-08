@@ -38,7 +38,7 @@ def at_loss_dict(teacher_dict, student_dict, layer_key="feat_4d_layer3", p=2):
 class ATDistiller(nn.Module):
     """
     Example of AT Distiller using the dict-based teacher/student outputs.
-    1) teacher(x)->(t_dict, t_logits)
+    1) teacher(x)->dict_out
     2) student(x)->(s_dict, s_logits)
     3) at_loss_dict(...) => single_layer_at_loss
     4) total_loss = CE + alpha*AT
@@ -55,7 +55,7 @@ class ATDistiller(nn.Module):
     def forward(self, x, y):
         # 1) teacher
         with torch.no_grad():
-            t_dict, t_logit, _ = self.teacher(x)
+            t_dict = self.teacher(x)
         # 2) student
         s_dict, s_logit, _ = self.student(x)
 

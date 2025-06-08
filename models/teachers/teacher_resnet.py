@@ -8,7 +8,7 @@ from torchvision.models import resnet101, ResNet101_Weights
 class TeacherResNetWrapper(nn.Module):
     """
     Teacher 모델(ResNet101) forward:
-     => (feature_dict, logit, ce_loss) 형태로 반환
+     => dict 반환 {"feat_4d", "feat_2d", "logit", "ce_loss"}
     feature_dict 예시:
       {
         "feat_4d": [N, 2048, H, W],   # layer4까지의 4D 출력
@@ -50,11 +50,12 @@ class TeacherResNetWrapper(nn.Module):
             ce_loss = self.criterion_ce(logit, y)
 
         # Dict
-        feature_dict = {
+        return {
             "feat_4d": f4d,      # [N, 2048, H, W]
             "feat_2d": feat_2d,  # [N, 2048]
+            "logit": logit,
+            "ce_loss": ce_loss,
         }
-        return feature_dict, logit, ce_loss
 
     def get_feat_dim(self):
         """
