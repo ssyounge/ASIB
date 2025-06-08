@@ -20,7 +20,6 @@ mbm_lr_factor: 5.0           # MBM/Head LR 배수
 
 synergy_ce_alpha: 0.3
 teacher_adapt_alpha_kd: 0.2  # Teacher adaptive 시 KL 비중
-teacher_adapt_alpha_ce: 0.5  # (추가) 만약 Teacher adaptive에서 CE 비중이 따로 필요하다면
 
 reg_lambda: 1e-5   # Teacher param reg
 
