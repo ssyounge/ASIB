@@ -94,8 +94,8 @@ class SynergyEnsemble(nn.Module):
 
     def forward(self, x):
         with torch.no_grad():
-            f1_dict, _, _ = self.teacher1(x)
-            f2_dict, _, _ = self.teacher2(x)
+            f1_dict = self.teacher1(x)
+            f2_dict = self.teacher2(x)
 
         f1_2d = f1_dict["feat_2d"]
         f2_2d = f2_dict["feat_2d"]
