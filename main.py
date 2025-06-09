@@ -127,6 +127,12 @@ def parse_args():
     parser.add_argument("--use_amp", type=int)
     parser.add_argument("--amp_dtype", type=str)
     parser.add_argument("--grad_scaler_init_scale", type=int)
+
+    # MBM options
+    parser.add_argument("--mbm_type", type=str)
+    parser.add_argument("--mbm_r", type=int)
+    parser.add_argument("--mbm_n_head", type=int)
+    parser.add_argument("--mbm_learnable_q", type=int)
     return parser.parse_args()
 
 def load_config(cfg_path):
@@ -214,6 +220,10 @@ def main():
     logger = ExperimentLogger(cfg, exp_name="asmb_experiment")
     logger.update_metric("use_amp", cfg.get("use_amp", False))
     logger.update_metric("amp_dtype", cfg.get("amp_dtype", "float16"))
+    logger.update_metric("mbm_type", cfg.get("mbm_type", "MLP"))
+    logger.update_metric("mbm_r", cfg.get("mbm_r"))
+    logger.update_metric("mbm_n_head", cfg.get("mbm_n_head"))
+    logger.update_metric("mbm_learnable_q", cfg.get("mbm_learnable_q"))
 
     device = cfg.get("device", "cuda")
     if device == "cuda" and not torch.cuda.is_available():
