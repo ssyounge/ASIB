@@ -16,7 +16,21 @@ class CRDLoss(nn.Module):
         self.temperature = temperature
 
     def forward(self, s_feat, t_feat):
-        ...  # 위 내용 동일
+        """Compute InfoNCE loss between student and teacher features."""
+        # flatten in case features have extra dimensions (e.g. N,C,H,W)
+        s = s_feat.view(s_feat.size(0), -1)
+        t = t_feat.view(t_feat.size(0), -1)
+
+        # L2-normalize along the feature dimension
+        s = F.normalize(s, dim=1)
+        t = F.normalize(t, dim=1)
+
+        # similarity matrix and labels for contrastive learning
+        logits = torch.mm(s, t.t()) / self.temperature
+        labels = torch.arange(s.size(0), device=s.device)
+
+        loss = F.cross_entropy(logits, labels)
+        return loss
 
 
 class CRDDistiller(nn.Module):
