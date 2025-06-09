@@ -6,6 +6,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 from modules.losses import kd_loss_fn, ce_loss_fn
+from utils.schedule import get_tau
 
 class VanillaKDDistiller(nn.Module):
     """
@@ -19,15 +20,17 @@ class VanillaKDDistiller(nn.Module):
         teacher_model: nn.Module,
         student_model: nn.Module,
         alpha: float = 0.5,
-        temperature: float = 4.0
+        temperature: float = 4.0,
+        config: dict | None = None
     ):
         super().__init__()
         self.teacher = teacher_model
         self.student = student_model
         self.alpha = alpha
         self.temperature = temperature
+        self.cfg = config if config is not None else {}
 
-    def forward(self, x, y):
+    def forward(self, x, y, tau=None):
         """
         1) teacher => dict_out (use "logit" field)
         2) student => (dict, s_logit, _)
@@ -41,7 +44,8 @@ class VanillaKDDistiller(nn.Module):
         # CE
         ce_loss = ce_loss_fn(s_logit, y)
         # KD
-        kd_loss = kd_loss_fn(s_logit, t_logit, T=self.temperature)
+        T_use = self.temperature if tau is None else tau
+        kd_loss = kd_loss_fn(s_logit, t_logit, T=T_use)
 
         total_loss = self.alpha * ce_loss + (1 - self.alpha) * kd_loss
         return total_loss, s_logit
@@ -73,10 +77,11 @@ class VanillaKDDistiller(nn.Module):
 
         for epoch in range(1, epochs+1):
             self.train()
+            cur_tau = get_tau(self.cfg, epoch-1)
             total_loss, total_num = 0.0, 0
             for x, y in train_loader:
                 x, y = x.to(device), y.to(device)
-                loss, _ = self.forward(x, y)
+                loss, _ = self.forward(x, y, tau=cur_tau)
 
                 optimizer.zero_grad()
                 loss.backward()

@@ -41,7 +41,11 @@ student_epochs_per_stage: 15  # Student distill epochs per stage
 
 ce_alpha: 0.5     # CE 비중
 kd_alpha: 0.5     # KL 비중
-temperature: 4.0
+# ----- KD temperature (τ) schedule -----
+temperature_schedule: "fixed"   # fixed | linear | cosine
+tau_start: 4.0                  # 초기 τ
+tau_end:   1.0                  # 최종 τ
+tau_decay_epochs: 40            # 몇 epoch 동안 감소할지 (넘어가면 tau_end 고정)
 
 # --- Feature-KD 옵션 (추가) -------------------------
 use_feat_kd: false        # true → MSE 활성화

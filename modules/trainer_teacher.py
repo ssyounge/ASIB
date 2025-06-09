@@ -6,6 +6,7 @@ import copy
 from utils.progress import smart_tqdm
 
 from modules.losses import kd_loss_fn, ce_loss_fn
+from utils.schedule import get_tau
 
 def _cpu_state_dict(module: torch.nn.Module):
     """
@@ -48,6 +49,7 @@ def teacher_adaptive_update(
     logger,
     optimizer,
     scheduler=None,
+    global_ep: int = 0,
 ):
     """
     - teacher_wrappers: [teacher1, teacher2]
@@ -78,6 +80,7 @@ def teacher_adaptive_update(
     logger.info(f"[TeacherAdaptive] Using teacher_epochs={teacher_epochs}")
 
     for ep in range(teacher_epochs):
+        cur_tau = get_tau(cfg, global_ep + ep)
         teacher_loss_sum = 0.0
         count = 0
 
@@ -102,7 +105,7 @@ def teacher_adaptive_update(
             zsyn = synergy_head(fsyn)
 
             # (D) loss 계산 (KL + synergyCE)
-            loss_kd         = kd_loss_fn(zsyn, s_logit, T=cfg.get("temperature", 4.0))
+            loss_kd         = kd_loss_fn(zsyn, s_logit, T=cur_tau)
             loss_ce         = ce_loss_fn(
                 zsyn,
                 y,
@@ -155,6 +158,7 @@ def teacher_adaptive_update(
         # ── NEW: per-epoch logging ───────────────────────────────
         logger.update_metric(f"teacher_ep{ep+1}_loss", ep_loss)
         logger.update_metric(f"teacher_ep{ep+1}_synAcc", synergy_test_acc)
+        logger.update_metric(f"epoch{global_ep+ep+1}_tau", cur_tau)
 
         if scheduler is not None:
             scheduler.step()
