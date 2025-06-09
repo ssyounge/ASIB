@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import copy
 from utils.progress import smart_tqdm
+from models.la_mbm import LightweightAttnMBM
 
 from modules.losses import kd_loss_fn, ce_loss_fn
 from modules.disagreement import sample_weights_from_disagreement
@@ -56,6 +57,7 @@ def student_distillation_update(
     logger.info(f"[StudentDistill] Using student_epochs={student_epochs}")
 
     autocast_ctx, scaler = get_amp_components(cfg)
+    la_mode = isinstance(mbm, LightweightAttnMBM) or cfg.get("mbm_type") == "LA"
     for ep in range(student_epochs):
         cur_tau = get_tau(cfg, global_ep + ep)
         distill_loss_sum = 0.0
@@ -69,6 +71,7 @@ def student_distillation_update(
             else "none"
         )
 
+        attn_sum = 0.0
         for x, y in smart_tqdm(trainloader, desc=f"[StudentDistill ep={ep+1}]"):
             x, y = x.to(cfg["device"]), y.to(cfg["device"])
 
@@ -82,7 +85,9 @@ def student_distillation_update(
                 x_mixed, y_a, y_b, lam = x, y, y, 1.0
 
             with autocast_ctx:
-                # (A) Teacher synergy logit
+                # (A) Student forward (query)
+                feat_dict, s_logit, _ = student_model(x_mixed)
+
                 with torch.no_grad():
                     t1_dict = teacher_wrappers[0](x_mixed)
                     t2_dict = teacher_wrappers[1](x_mixed)
@@ -92,11 +97,14 @@ def student_distillation_update(
                     f1_4d = t1_dict.get("feat_4d")
                     f2_4d = t2_dict.get("feat_4d")
 
+                if la_mode:
+                    s_feat = feat_dict[cfg.get("feat_kd_key", "feat_2d")]
+                    syn_feat, attn = mbm(s_feat, [f1_2d, f2_2d])
+                    fsyn = syn_feat
+                    attn_sum += attn.mean().item() * x.size(0)
+                else:
                     fsyn = mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
-                    zsyn = synergy_head(fsyn)
-
-                # (B) Student forward
-                feat_dict, s_logit, _ = student_model(x_mixed)
+                zsyn = synergy_head(fsyn)
 
                 if mix_mode != "none":
                     ce_obj = lambda pred, target: ce_loss_fn(
@@ -135,17 +143,16 @@ def student_distillation_update(
             kd_loss_val = (weights * kd_vec).mean()
 
             feat_kd_val = torch.tensor(0.0, device=cfg["device"])
-            if cfg.get("use_feat_kd", False):
+            if cfg.get("feat_kd_alpha", 0) > 0:
                 key = cfg.get("feat_kd_key", "feat_2d")
 
                 s_feat = feat_dict[key]
+                fsyn_use = fsyn
 
-                if fsyn.dim() == 4 and s_feat.dim() == 2:
+                if fsyn_use.dim() == 4 and s_feat.dim() == 2:
                     fsyn_use = torch.nn.functional.adaptive_avg_pool2d(
-                        fsyn, (1, 1)
+                        fsyn_use, (1, 1)
                     ).flatten(1)
-                else:
-                    fsyn_use = fsyn
 
                 if cfg.get("feat_kd_norm", "none") == "l2":
                     s_feat = torch.nn.functional.normalize(
@@ -180,6 +187,7 @@ def student_distillation_update(
             cnt += bs
 
         ep_loss = distill_loss_sum / cnt
+        attn_avg = attn_sum / cnt if la_mode and cnt > 0 else 0.0
 
         # (C) validate
         test_acc = eval_student(student_model, testloader, cfg["device"], cfg)
@@ -189,6 +197,8 @@ def student_distillation_update(
         # ── NEW: per-epoch logging ───────────────────────────────
         logger.update_metric(f"student_ep{ep+1}_acc", test_acc)
         logger.update_metric(f"student_ep{ep+1}_loss", ep_loss)
+        if la_mode:
+            logger.update_metric(f"student_ep{ep+1}_attn", attn_avg)
         logger.update_metric(f"ep{ep+1}_feat_kd", feat_kd_val.item())
         logger.update_metric(f"ep{ep+1}_mix_mode", mix_mode)
         logger.update_metric(f"epoch{global_ep+ep+1}_tau", cur_tau)
