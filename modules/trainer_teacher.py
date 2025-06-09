@@ -103,7 +103,11 @@ def teacher_adaptive_update(
 
             # (D) loss 계산 (KL + synergyCE)
             loss_kd         = kd_loss_fn(zsyn, s_logit, T=cfg.get("temperature", 4.0))
-            loss_ce         = ce_loss_fn(zsyn, y)
+            loss_ce         = ce_loss_fn(
+                zsyn,
+                y,
+                label_smoothing=cfg.get("label_smoothing", 0.0),
+            )
             synergy_ce_loss = cfg["synergy_ce_alpha"] * loss_ce
 
             # 기본 KD+CE
