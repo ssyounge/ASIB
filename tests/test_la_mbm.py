@@ -13,3 +13,12 @@ def test_custom_query_dim_forward():
     assert out.shape == (4, 32)
     assert attn.shape[0] == 4
 
+
+def test_zero_query_dim_uses_teacher_dim():
+    mbm = LightweightAttnMBM([16, 16], out_dim=32, r=2, query_dim=0)
+    q = torch.randn(2, 32)  # sum of teacher dims = 32
+    feats = [torch.randn(2, 16), torch.randn(2, 16)]
+    out, attn = mbm(q, feats)
+    assert out.shape == (2, 32)
+    assert attn.shape[0] == 2
+

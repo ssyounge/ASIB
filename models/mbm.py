@@ -110,13 +110,16 @@ def build_from_teachers(
 
     mbm_type = cfg.get("mbm_type", "MLP")
     if mbm_type == "LA":
+        qdim = cfg.get("mbm_query_dim", query_dim)
+        if qdim is not None and qdim <= 0:
+            qdim = None
         mbm = LightweightAttnMBM(
             feat_dims=feat_dims,
             out_dim=cfg.get("mbm_out_dim", 512),
             r=cfg.get("mbm_r", 4),
             n_head=cfg.get("mbm_n_head", 1),
             learnable_q=cfg.get("mbm_learnable_q", False),
-            query_dim=cfg.get("mbm_query_dim", query_dim),
+            query_dim=qdim,
         )
     else:
         mbm = ManifoldBridgingModule(
