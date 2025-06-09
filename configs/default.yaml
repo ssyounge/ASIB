@@ -75,6 +75,7 @@ mbm_use_4d: false
 mbm_attn_heads: 0
 
 cutmix_alpha: 1.0
+cutmix_alpha_distill: 0.0
 mixup_alpha: 0.0
 label_smoothing: 0.0
 
