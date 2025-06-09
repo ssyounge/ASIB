@@ -83,6 +83,14 @@ Use the `--data_aug` flag to control dataset transforms. When set to `1` (defaul
 python main.py --config configs/default.yaml --data_aug 0
 ```
 
+| Flag | Purpose |
+| ---- | ------- |
+| `--mixup_alpha` | MixUp alpha for distillation |
+| `--cutmix_alpha` | CutMix alpha during fine-tuning |
+| `--cutmix_alpha_distill` | CutMix alpha during distillation (YAML key `cutmix_alpha_distill`, default `0.0`) |
+
+CutMix takes priority over MixUp when both are > 0. MixUp is used when only `--mixup_alpha` > 0, otherwise no mixing is applied.
+
 ### MixUp, CutMix & Label Smoothing
 
 Control MixUp or CutMix augmentation and label smoothing via CLI flags:
