@@ -46,6 +46,18 @@ environment name, set the `CONDA_ENV` variable accordingly. You can also
 skip activation entirely by exporting `USE_CONDA=0` before running the
 scripts.
 
+## Testing
+
+Install the dependencies (including **PyTorch**) and run `pytest`:
+
+```bash
+pip install -r requirements.txt
+pip install pytest
+pytest
+```
+
+PyTorch must be available for the unit tests to run.
+
 ---
 
 Usage
