@@ -45,6 +45,7 @@ for teacher_lr in 0.0001 0.0002 0.0005; do
       student_iters=${STUDENT_ITERS} \
       mbm_hidden_dim=${MBM_HIDDEN_DIM} \
       mbm_out_dim=${MBM_OUT_DIM} \
+      mbm_reg_lambda=${MBM_REG} \
       use_partial_freeze=${USE_PARTIAL_FREEZE} \
       batch_size=${BATCH_SIZE} \
       mixup_alpha=${MIXUP_ALPHA} \
