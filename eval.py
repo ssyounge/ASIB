@@ -88,7 +88,13 @@ def evaluate_acc(model, loader, device="cuda", cfg=None):
         x, y = x.to(device), y.to(device)
         with autocast_ctx:
             out = model(x)
-            preds = out.argmax(dim=1)
+            if isinstance(out, tuple):
+                logits = out[1]
+            elif isinstance(out, dict):
+                logits = out["logit"]
+            else:
+                logits = out
+            preds = logits.argmax(dim=1)
         correct += (preds == y).sum().item()
         total   += y.size(0)
     return 100.0 * correct / total
