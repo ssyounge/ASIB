@@ -13,9 +13,19 @@ class LightweightAttnMBM(nn.Module):
     otherwise the original behaviour (query from concatenated teacher
     features or learnable vector) is kept for backward compatibility.
     The forward now returns both the fused feature and attention map.
+    `query_dim` optionally specifies the dimension of the student
+    query features. When omitted, the concatenated teacher feature
+    dimension is used for backward compatibility.
     """
-    def __init__(self, feat_dims: List[int], out_dim: int, r: int = 4,
-                 n_head: int = 1, learnable_q: bool = False) -> None:
+    def __init__(
+        self,
+        feat_dims: List[int],
+        out_dim: int,
+        r: int = 4,
+        n_head: int = 1,
+        learnable_q: bool = False,
+        query_dim: Optional[int] = None,
+    ) -> None:
         super().__init__()
         self.learnable_q = learnable_q
         self.embed_dim = max(1, out_dim // r)
@@ -25,7 +35,8 @@ class LightweightAttnMBM(nn.Module):
         if learnable_q:
             self.q = nn.Parameter(torch.zeros(1, 1, self.embed_dim))
         else:
-            self.q_proj = nn.Linear(sum(feat_dims), self.embed_dim)
+            in_q = query_dim if query_dim is not None else sum(feat_dims)
+            self.q_proj = nn.Linear(in_q, self.embed_dim)
 
         # per-teacher key/value projections
         self.k_proj = nn.ModuleList([nn.Linear(d, self.embed_dim) for d in feat_dims])
