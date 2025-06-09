@@ -424,12 +424,16 @@ def main():
     # 8) multi-stage distillation
     num_stages = cfg.get("num_stages", 2)
 
+    global_ep = 0
     for stage_id in range(1, num_stages + 1):
         print(f"\n=== Stage {stage_id}/{num_stages} ===")
 
         # restart schedulers each stage
         teacher_scheduler.last_epoch = -1
         student_scheduler.last_epoch = -1
+
+        teacher_epochs = cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5))
+        student_epochs = cfg.get("student_iters", cfg.get("student_epochs_per_stage", 15))
 
         # (A) Teacher adaptive update
         teacher_adaptive_update(
@@ -443,7 +447,10 @@ def main():
             logger=logger,
             optimizer=teacher_optimizer,
             scheduler=teacher_scheduler,
+            global_ep=global_ep,
         )
+
+        global_ep += teacher_epochs
 
         dis_rate = compute_disagreement_rate(teacher1, teacher2, test_loader, device=device)
         print(f"[Stage {stage_id}] Teacher disagreement= {dis_rate:.2f}%")
@@ -461,7 +468,9 @@ def main():
             logger=logger,
             optimizer=student_optimizer,
             scheduler=student_scheduler,
+            global_ep=global_ep,
         )
+        global_ep += student_epochs
         print(f"[Stage {stage_id}] Student final acc= {final_acc:.2f}%")
         logger.update_metric(f"stage{stage_id}_student_acc", final_acc)
 

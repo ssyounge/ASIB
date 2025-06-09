@@ -69,7 +69,10 @@ for T2 in efficientnet_b2 swin_tiny; do
           student_weight_decay=${S_WD} \
           ce_alpha=${CE_ALPHA} \
           kd_alpha=${KD_ALPHA} \
-          temperature=${TEMPERATURE} \
+          temperature_schedule=${TEMPERATURE_SCHEDULE} \
+          tau_start=${TAU_START} \
+          tau_end=${TAU_END} \
+          tau_decay_epochs=${TAU_DECAY_EPOCHS} \
           student_epochs_per_stage=${STUDENT_EPS} \
           teacher_iters=${TEACHER_ITERS} \
           student_iters=${STUDENT_ITERS} \

@@ -8,6 +8,7 @@ from utils.progress import smart_tqdm
 from modules.losses import kd_loss_fn, ce_loss_fn
 from modules.disagreement import sample_weights_from_disagreement
 from utils.misc import mixup_data, mixup_criterion
+from utils.schedule import get_tau
 
 def student_distillation_update(
     teacher_wrappers,
@@ -18,7 +19,8 @@ def student_distillation_update(
     cfg,
     logger,
     optimizer,
-    scheduler=None
+    scheduler=None,
+    global_ep: int = 0
 ):
     """
     - Teacher/MBM 고정 -> synergy logit
@@ -54,6 +56,7 @@ def student_distillation_update(
     logger.info(f"[StudentDistill] Using student_epochs={student_epochs}")
 
     for ep in range(student_epochs):
+        cur_tau = get_tau(cfg, global_ep + ep)
         distill_loss_sum = 0.0
         cnt = 0
         student_model.train()
@@ -114,7 +117,7 @@ def student_distillation_update(
                     reduction="none",
                 )
             kd_vec = kd_loss_fn(
-                s_logit, zsyn, T=cfg.get("temperature", 4.0), reduction="none"
+                s_logit, zsyn, T=cur_tau, reduction="none"
             ).sum(dim=1)
 
             ce_loss_val = (weights * ce_vec).mean()
@@ -171,6 +174,7 @@ def student_distillation_update(
         logger.update_metric(f"student_ep{ep+1}_acc", test_acc)
         logger.update_metric(f"student_ep{ep+1}_loss", ep_loss)
         logger.update_metric(f"ep{ep+1}_feat_kd", feat_kd_val.item())
+        logger.update_metric(f"epoch{global_ep+ep+1}_tau", cur_tau)
 
         if scheduler is not None:
             scheduler.step()
