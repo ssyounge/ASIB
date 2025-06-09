@@ -113,7 +113,8 @@ def main():
     cfg = {**base_cfg, **vars(args)}
 
     # 2) set seed
-    set_random_seed(cfg["seed"])
+    deterministic = cfg.get("deterministic", True)
+    set_random_seed(cfg["seed"], deterministic=deterministic)
 
     # 3) Logger
     logger = ExperimentLogger(cfg, exp_name="eval_experiment")
