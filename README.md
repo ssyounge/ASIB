@@ -17,7 +17,9 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 - **MBM Dropout**: set `mbm_dropout` in configs to add dropout within the
   Manifold Bridging Module
 - **Custom MBM Query Dim**: set `mbm_query_dim` to specify the dimension of
-  student features used as the attention query in `LightweightAttnMBM`
+  student features used as the attention query in `LightweightAttnMBM`.
+  Passing `0` (or any non-positive value) defaults to the summed teacher
+  feature dimension for backward compatibility.
 - **Smart Progress Bars**: progress bars hide automatically when stdout isn't a TTY
 - **CIFAR-friendly ResNet/EfficientNet stem**: use `--small_input 1` when
   fine-tuning or evaluating models that modify the conv stem for 32x32 inputs
