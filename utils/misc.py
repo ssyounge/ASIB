@@ -133,3 +133,17 @@ def mixup_data(inputs, targets, alpha=1.0):
 def mixup_criterion(criterion, pred, y_a, y_b, lam):
     """Compute the criterion for mixed targets."""
     return lam * criterion(pred, y_a) + (1.0 - lam) * criterion(pred, y_b)
+
+def get_amp_components(cfg):
+    """Return autocast context and GradScaler based on config."""
+    use_amp = bool(cfg.get("use_amp", False))
+    if not use_amp:
+        from contextlib import nullcontext
+        return nullcontext(), None
+    amp_dtype = cfg.get("amp_dtype", "float16")
+    dtype = torch.float16 if amp_dtype == "float16" else torch.bfloat16
+    autocast_ctx = torch.autocast("cuda", dtype=dtype)
+    scaler = torch.cuda.amp.GradScaler(
+        init_scale=int(cfg.get("grad_scaler_init_scale", 1024))
+    )
+    return autocast_ctx, scaler

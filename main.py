@@ -124,6 +124,9 @@ def parse_args():
     parser.add_argument("--teacher1_bn_head_only", type=int)
     parser.add_argument("--teacher2_use_adapter", type=int)
     parser.add_argument("--teacher2_bn_head_only", type=int)
+    parser.add_argument("--use_amp", type=int)
+    parser.add_argument("--amp_dtype", type=str)
+    parser.add_argument("--grad_scaler_init_scale", type=int)
     return parser.parse_args()
 
 def load_config(cfg_path):
@@ -209,6 +212,8 @@ def main():
     cfg = {**base_cfg, **cli_cfg}
 
     logger = ExperimentLogger(cfg, exp_name="asmb_experiment")
+    logger.update_metric("use_amp", cfg.get("use_amp", False))
+    logger.update_metric("amp_dtype", cfg.get("amp_dtype", "float16"))
 
     device = cfg.get("device", "cuda")
     if device == "cuda" and not torch.cuda.is_available():
@@ -453,7 +458,13 @@ def main():
 
         global_ep += teacher_epochs
 
-        dis_rate = compute_disagreement_rate(teacher1, teacher2, test_loader, device=device)
+        dis_rate = compute_disagreement_rate(
+            teacher1,
+            teacher2,
+            test_loader,
+            device=device,
+            cfg=cfg,
+        )
         print(f"[Stage {stage_id}] Teacher disagreement= {dis_rate:.2f}%")
         logger.update_metric(f"stage{stage_id}_disagreement_rate", dis_rate)
 

@@ -57,7 +57,10 @@ def parse_args():
     parser.add_argument("--data_aug", type=int)
     parser.add_argument("--small_input", type=int)
     parser.add_argument("--dropout_p", type=float)
-    
+    parser.add_argument("--use_amp", type=int)
+    parser.add_argument("--amp_dtype", type=str)
+    parser.add_argument("--grad_scaler_init_scale", type=int)
+
     return parser.parse_args()
 
 def load_config(cfg_path):
