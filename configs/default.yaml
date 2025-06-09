@@ -21,7 +21,13 @@ mbm_lr_factor: 5.0           # MBM/Head LR 배수
 synergy_ce_alpha: 0.3
 teacher_adapt_alpha_kd: 0.2  # Teacher adaptive 시 KL 비중
 
-reg_lambda: 1e-5   # Teacher param reg
+reg_lambda: 1e-5          # Teacher L2 regularisation
+# --------------------------------------------------
+# L2 regularisation for MBM + Synergy-Head (App. C)
+#   - Setting it to 0.0 keeps current behaviour.
+#   - Tune around 1e-5 ~ 1e-4 for best results.
+mbm_reg_lambda: 0.0
+# --------------------------------------------------
 
 student_type: "efficientnet_adapter"
 student_lr: 0.01
