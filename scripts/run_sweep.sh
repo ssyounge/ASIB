@@ -47,6 +47,10 @@ for teacher_lr in 0.0001 0.0002 0.0005; do
       mbm_out_dim=${MBM_OUT_DIM} \
       mbm_reg_lambda=${MBM_REG} \
       use_partial_freeze=${USE_PARTIAL_FREEZE} \
+      teacher1_use_adapter=${TEACHER1_USE_ADAPTER} \
+      teacher1_bn_head_only=${TEACHER1_BN_HEAD_ONLY} \
+      teacher2_use_adapter=${TEACHER2_USE_ADAPTER} \
+      teacher2_bn_head_only=${TEACHER2_BN_HEAD_ONLY} \
       batch_size=${BATCH_SIZE} \
       mixup_alpha=${MIXUP_ALPHA} \
       label_smoothing=${LABEL_SMOOTHING}
@@ -57,6 +61,10 @@ for teacher_lr in 0.0001 0.0002 0.0005; do
       --device ${DEVICE} \
       --data_aug ${DATA_AUG} \
       --mixup_alpha ${MIXUP_ALPHA} \
+      --teacher1_use_adapter ${TEACHER1_USE_ADAPTER} \
+      --teacher1_bn_head_only ${TEACHER1_BN_HEAD_ONLY} \
+      --teacher2_use_adapter ${TEACHER2_USE_ADAPTER} \
+      --teacher2_bn_head_only ${TEACHER2_BN_HEAD_ONLY} \
       --label_smoothing ${LABEL_SMOOTHING}
   done
 done

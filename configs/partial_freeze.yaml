@@ -16,12 +16,16 @@ teacher1_type: "resnet101"          # 혹은 "swin_tiny", "efficientnet_b2"
 teacher1_pretrained: true
 teacher1_freeze_bn: false           # BN을 unfreeze (즉 BN도 학습)
 teacher1_freeze_scope: "layer4_fc"  # partial_freeze_teacher_resnet에서 layer4. + fc. 만 unfreeze
+teacher1_use_adapter: false
+teacher1_bn_head_only: false
 
 # 3) Teacher2 관련
 teacher2_type: "efficientnet_b2"
 teacher2_pretrained: true
 teacher2_freeze_bn: true            # BN까지 동결
 teacher2_freeze_scope: "classifier_only"  # or "features_classifier" to unfreeze features + classifier (+ mbm)
+teacher2_use_adapter: false
+teacher2_bn_head_only: false
 
 # 4) Student 관련
 student_type: "resnet_adapter"
