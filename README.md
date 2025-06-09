@@ -16,10 +16,10 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
   `--cutmix_alpha_distill` and `--label_smoothing`
 - **MBM Dropout**: set `mbm_dropout` in configs to add dropout within the
   Manifold Bridging Module
-- **Custom MBM Query Dim**: set `mbm_query_dim` to specify the dimension of
+- **Custom MBM Query Dim**: `mbm_query_dim` controls the dimension of the
   student features used as the attention query in `LightweightAttnMBM`.
-  Passing `0` (or any non-positive value) defaults to the summed teacher
-  feature dimension for backward compatibility.
+  When omitted or set to `0`, the script automatically falls back to the
+  feature dimension reported by the student model (if available).
   Common student feature dimensions are:
 
   | Student model                | Feature dim |
@@ -82,8 +82,8 @@ Usage
 
 python main.py --config configs/partial_freeze.yaml --device cuda \
   --teacher1_ckpt teacher1.pth --teacher2_ckpt teacher2.pth \
-  --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 0 \
-  --mbm_query_dim 512
+  --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 0
+  # mbm_query_dim is automatically set to the student feature dimension
 	•	Adjust hyperparameters in configs/*.yaml (partial freeze, learning rates, etc.).
 	•	Optionally load pre-finetuned teacher checkpoints via `--teacher1_ckpt` and `--teacher2_ckpt`.
         •       Optimizers and schedulers are instantiated once before stages and reset before each stage.
@@ -102,8 +102,8 @@ python eval.py --eval_mode synergy \
   --teacher2_ckpt teacher2.pth \
   --mbm_ckpt mbm.pth \
   --head_ckpt synergy_head.pth \
-  --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 0 \
-  --mbm_query_dim 512
+  --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 0
+  # mbm_query_dim is automatically set to the student feature dimension
 
 	•	Prints Train/Test accuracy, optionally logs to CSV if configured.
 

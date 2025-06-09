@@ -393,17 +393,25 @@ def main():
             use_adapter=cfg.get("student_use_adapter", False)
         )
 
-    # Validate MBM query dimension if specified
-    if cfg.get("mbm_query_dim", 0) > 0:
+    # Validate or infer MBM query dimension
+    mbm_query_dim = cfg.get("mbm_query_dim", 0)
+    if cfg.get("mbm_type", "MLP") == "LA" and mbm_query_dim <= 0:
         if hasattr(student_model, "get_feat_dim"):
-            s_dim = student_model.get_feat_dim()
-            if cfg["mbm_query_dim"] != s_dim:
-                raise ValueError(
-                    f"mbm_query_dim ({cfg['mbm_query_dim']}) does not match the "
-                    f"student feature dimension ({s_dim})."
-                )
+            mbm_query_dim = student_model.get_feat_dim()
+            cfg["mbm_query_dim"] = mbm_query_dim
+            print(
+                f"[Info] mbm_query_dim not specified; using student feature dimension {mbm_query_dim}"
+            )
         else:
-            print("[Warning] Student model does not expose get_feat_dim(); unable to validate mbm_query_dim")
+            print(
+                "[Warning] Student model does not expose get_feat_dim(); please set mbm_query_dim manually"
+            )
+    elif mbm_query_dim > 0 and hasattr(student_model, "get_feat_dim"):
+        s_dim = student_model.get_feat_dim()
+        if mbm_query_dim != s_dim:
+            raise ValueError(
+                f"mbm_query_dim ({mbm_query_dim}) does not match the student feature dimension ({s_dim})."
+            )
 
     # 6) MBM and synergy head
     mbm_query_dim = cfg.get("mbm_query_dim")
