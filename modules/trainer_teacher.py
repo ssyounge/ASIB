@@ -48,8 +48,6 @@ def teacher_adaptive_update(
     testloader,
     cfg,
     logger,
-    teacher_init_state=None,
-    teacher_init_state_2=None
 ):
     """
     - teacher_wrappers: [teacher1, teacher2]

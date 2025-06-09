@@ -17,7 +17,6 @@ import yaml
 from utils.logger import ExperimentLogger
 from modules.disagreement import compute_disagreement_rate
 from modules.trainer_teacher import teacher_adaptive_update
-from modules.trainer_teacher import _cpu_state_dict
 from modules.trainer_student import student_distillation_update
 from data.cifar100 import get_cifar100_loaders
 from data.imagenet100 import get_imagenet100_loaders
@@ -352,9 +351,6 @@ def main():
     for stage_id in range(1, num_stages + 1):
         print(f"\n=== Stage {stage_id}/{num_stages} ===")
 
-        teacher_init1 = _cpu_state_dict(teacher1)
-        teacher_init2 = _cpu_state_dict(teacher2)
-
         # (A) Teacher adaptive update
         teacher_adaptive_update(
             teacher_wrappers=teacher_wrappers,
@@ -365,8 +361,6 @@ def main():
             testloader=test_loader,
             cfg=cfg,
             logger=logger,
-            teacher_init_state=teacher_init1,
-            teacher_init_state_2=teacher_init2
         )
 
         dis_rate = compute_disagreement_rate(teacher1, teacher2, test_loader, device=device)
