@@ -119,18 +119,24 @@ class ExperimentLogger:
         save_json(self.config, json_path)
         print(f"[ExperimentLogger] JSON saved => {json_path}")
 
-        # 4) Write CSV (only some fields)
-        # You can define any columns you want. 
-        fieldnames = [
+        # 4) Write CSV
+        #   - 기본 열 + 모든 ep* 또는 teacher_ep* key 자동 포함
+        base_cols = [
             "exp_id",
             "csv_filename",
             "eval_mode",
             "train_acc",
             "test_acc",
             "batch_size",
-            "config",
             "total_time_sec",
-            # plus more keys if you want: teacher1_ckpt, synergy params, etc.
         ]
+
+        epoch_cols = [
+            k for k in self.config.keys()
+            if k.startswith(("student_ep", "teacher_ep"))
+        ]
+
+        fieldnames = base_cols + sorted(epoch_cols)
+
         save_csv_row(self.config, csv_path, fieldnames, write_header_if_new=True)
         print(f"[ExperimentLogger] CSV saved => {csv_path}")
