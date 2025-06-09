@@ -166,6 +166,10 @@ def student_distillation_update(
         test_acc = eval_student(student_model, testloader, cfg["device"])
 
         logger.info(f"[StudentDistill ep={ep+1}] loss={ep_loss:.4f}, testAcc={test_acc:.2f}, best={best_acc:.2f}")
+
+        # ── NEW: per-epoch logging ───────────────────────────────
+        logger.update_metric(f"student_ep{ep+1}_acc", test_acc)
+        logger.update_metric(f"student_ep{ep+1}_loss", ep_loss)
         logger.update_metric(f"ep{ep+1}_feat_kd", feat_kd_val.item())
 
         if scheduler is not None:
