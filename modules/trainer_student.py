@@ -7,7 +7,7 @@ from utils.progress import smart_tqdm
 
 from modules.losses import kd_loss_fn, ce_loss_fn
 from modules.disagreement import sample_weights_from_disagreement
-from utils.misc import mixup_data, mixup_criterion
+from utils.misc import mixup_data, cutmix_data, mixup_criterion
 from utils.schedule import get_tau
 
 def student_distillation_update(
@@ -61,10 +61,21 @@ def student_distillation_update(
         cnt = 0
         student_model.train()
 
+        mix_mode = (
+            "cutmix"
+            if cfg.get("cutmix_alpha_distill", 0.0) > 0.0
+            else "mixup" if cfg.get("mixup_alpha", 0.0) > 0.0
+            else "none"
+        )
+
         for x, y in smart_tqdm(trainloader, desc=f"[StudentDistill ep={ep+1}]"):
             x, y = x.to(cfg["device"]), y.to(cfg["device"])
 
-            if cfg.get("mixup_alpha", 0.0) > 0.0:
+            if mix_mode == "cutmix":
+                x_mixed, y_a, y_b, lam = cutmix_data(
+                    x, y, alpha=cfg["cutmix_alpha_distill"]
+                )
+            elif mix_mode == "mixup":
                 x_mixed, y_a, y_b, lam = mixup_data(x, y, alpha=cfg["mixup_alpha"])
             else:
                 x_mixed, y_a, y_b, lam = x, y, y, 1.0
@@ -101,7 +112,7 @@ def student_distillation_update(
                 weights = torch.ones_like(y, dtype=torch.float32, device=y.device)
 
             # CE + KD with per-sample reductions
-            if cfg.get("mixup_alpha", 0.0) > 0.0:
+            if mix_mode != "none":
                 ce_obj = lambda pred, target: ce_loss_fn(
                     pred,
                     target,
@@ -174,6 +185,7 @@ def student_distillation_update(
         logger.update_metric(f"student_ep{ep+1}_acc", test_acc)
         logger.update_metric(f"student_ep{ep+1}_loss", ep_loss)
         logger.update_metric(f"ep{ep+1}_feat_kd", feat_kd_val.item())
+        logger.update_metric(f"ep{ep+1}_mix_mode", mix_mode)
         logger.update_metric(f"epoch{global_ep+ep+1}_tau", cur_tau)
 
         if scheduler is not None:
