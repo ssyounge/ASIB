@@ -7,6 +7,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 from modules.losses import kd_loss_fn, ce_loss_fn
+from utils.schedule import get_tau
 
 class ASMBDistiller(nn.Module):
     """
@@ -189,6 +190,7 @@ class ASMBDistiller(nn.Module):
         self.student.eval()   # Student 고정
 
         for ep in range(1, epochs+1):
+            cur_tau = get_tau(self.config, ep-1)
             total_loss, total_num = 0.0, 0
             for x, y in train_loader:
                 x, y = x.to(self.device), y.to(self.device)
@@ -207,7 +209,7 @@ class ASMBDistiller(nn.Module):
                 zsyn = self.synergy_head(fsyn)
 
                 # (i) -KL(s_logit, zsyn)
-                kl_val = kd_loss_fn(zsyn, s_logit, T=self.T)  # 여기선 sign 주의
+                kl_val = kd_loss_fn(zsyn, s_logit, T=cur_tau)  # 여기선 sign 주의
                 # (ii) synergy CE
                 ce_val = ce_loss_fn(
                     zsyn,
@@ -273,6 +275,7 @@ class ASMBDistiller(nn.Module):
         best_state = copy.deepcopy(self.student.state_dict())
 
         for ep in range(1, epochs+1):
+            cur_tau = get_tau(self.config, ep-1)
             self.student.train()
             total_loss, total_num = 0.0, 0
             for x, y in train_loader:
@@ -293,7 +296,7 @@ class ASMBDistiller(nn.Module):
                 # CE
                 ce_val = ce_loss_fn(s_logit, y)
                 # KL
-                kd_val = kd_loss_fn(s_logit, zsyn, T=self.T)
+                kd_val = kd_loss_fn(s_logit, zsyn, T=cur_tau)
 
                 loss = self.alpha*ce_val + (1-self.alpha)*kd_val
 
