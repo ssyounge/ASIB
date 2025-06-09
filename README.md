@@ -37,7 +37,7 @@ conda activate facil_env
 ```
 3. **Install dependencies**:
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt  # includes pandas for analysis
 ```
 
 The bash scripts (`run_many.sh` and `run_sweep.sh`) automatically try to
@@ -301,7 +301,7 @@ Folder Structure
 Results
 
 Experiment outputs (CSV, logs, etc.) reside in the results/ folder.
-You can run analysis/compare_ablation.py or analysis/plot_results.ipynb to analyze or visualize them.
+You can run analysis/compare_ablation.py or analysis/plot_results.ipynb to analyze or visualize them. These scripts require the pandas library, which is installed via `requirements.txt`.
 
 ---
 
