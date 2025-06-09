@@ -22,3 +22,11 @@ def test_zero_query_dim_uses_teacher_dim():
     assert out.shape == (2, 32)
     assert attn.shape[0] == 2
 
+
+def test_query_dim_mismatch_raises():
+    mbm = LightweightAttnMBM([16, 16], out_dim=32, r=2, query_dim=8)
+    q = torch.randn(1, 10)
+    feats = [torch.randn(1, 16), torch.randn(1, 16)]
+    with pytest.raises(ValueError):
+        mbm(q, feats)
+
