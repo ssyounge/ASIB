@@ -236,7 +236,6 @@ Folder Structure
 │   ├── crd.py
 │   ├── dkd.py
 │   ├── at.py
-│   ├── continual_asmb.py
 │   ├── vanilla_kd.py
 │   └── __init__.py
 
