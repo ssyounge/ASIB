@@ -16,6 +16,8 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
   `--cutmix_alpha_distill` and `--label_smoothing`
 - **MBM Dropout**: set `mbm_dropout` in configs to add dropout within the
   Manifold Bridging Module
+- **Custom MBM Query Dim**: set `mbm_query_dim` to specify the dimension of
+  student features used as the attention query in `LightweightAttnMBM`
 - **Smart Progress Bars**: progress bars hide automatically when stdout isn't a TTY
 - **CIFAR-friendly ResNet/EfficientNet stem**: use `--small_input 1` when
   fine-tuning or evaluating models that modify the conv stem for 32x32 inputs
@@ -66,7 +68,8 @@ Usage
 
 python main.py --config configs/partial_freeze.yaml --device cuda \
   --teacher1_ckpt teacher1.pth --teacher2_ckpt teacher2.pth \
-  --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 0
+  --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 0 \
+  --mbm_query_dim 512
 	•	Adjust hyperparameters in configs/*.yaml (partial freeze, learning rates, etc.).
 	•	Optionally load pre-finetuned teacher checkpoints via `--teacher1_ckpt` and `--teacher2_ckpt`.
         •       Optimizers and schedulers are instantiated once before stages and reset before each stage.
@@ -85,7 +88,8 @@ python eval.py --eval_mode synergy \
   --teacher2_ckpt teacher2.pth \
   --mbm_ckpt mbm.pth \
   --head_ckpt synergy_head.pth \
-  --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 0
+  --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 0 \
+  --mbm_query_dim 512
 
 	•	Prints Train/Test accuracy, optionally logs to CSV if configured.
 

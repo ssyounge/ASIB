@@ -81,6 +81,7 @@ mbm_type: "LA"        # "MLP" for old behaviour
 mbm_r: 4
 mbm_n_head: 1
 mbm_learnable_q: false
+mbm_query_dim: 0      # 0 -> use sum(feat_dims); set to student feat dim to override
 
 cutmix_alpha: 1.0
 cutmix_alpha_distill: 0.0
