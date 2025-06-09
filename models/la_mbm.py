@@ -86,6 +86,10 @@ class LightweightAttnMBM(nn.Module):
             if self.learnable_q:
                 q = self.q.expand(batch_size, -1, -1)
             else:
+                if query_or_feats.size(1) != self.q_proj.in_features:
+                    raise ValueError(
+                        "mbm_query_dim must equal the student feature dimension"
+                    )
                 q = self.q_proj(query_or_feats).unsqueeze(1)
             feats = feats_2d
 
