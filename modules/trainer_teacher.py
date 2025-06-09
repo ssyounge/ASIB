@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import copy
 from utils.progress import smart_tqdm
+from models.la_mbm import LightweightAttnMBM
 
 from modules.losses import kd_loss_fn, ce_loss_fn
 from utils.schedule import get_tau
@@ -82,19 +83,24 @@ def teacher_adaptive_update(
     logger.info(f"[TeacherAdaptive] Using teacher_epochs={teacher_epochs}")
 
     autocast_ctx, scaler = get_amp_components(cfg)
+    la_mode = isinstance(mbm, LightweightAttnMBM) or cfg.get("mbm_type") == "LA"
     for ep in range(teacher_epochs):
         cur_tau = get_tau(cfg, global_ep + ep)
         teacher_loss_sum = 0.0
         count = 0
+        attn_sum = 0.0
 
         for batch in smart_tqdm(trainloader, desc=f"[TeacherAdaptive ep={ep+1}]"):
             x, y = batch
             x, y = x.to(cfg["device"]), y.to(cfg["device"])
 
             with autocast_ctx:
-                # (A) Student logit (고정)
+                # (A) Student feature + logit (고정)
                 with torch.no_grad():
-                    _, s_logit, _ = student_model(x)
+                    feat_dict, s_logit, _ = student_model(x)
+                    if la_mode:
+                        key = cfg.get("feat_kd_key", "feat_2d")
+                        s_feat = feat_dict[key]
 
                 # (B) Teacher features
                 feats_2d = []
@@ -105,7 +111,12 @@ def teacher_adaptive_update(
                     feats_4d.append(t_dict.get("feat_4d"))
 
                 # (C) MBM + synergy_head
-                fsyn = mbm(feats_2d, feats_4d)
+                if la_mode:
+                    syn_feat, attn = mbm(s_feat, feats_2d)
+                    fsyn = syn_feat
+                else:
+                    fsyn = mbm(feats_2d, feats_4d)
+                    attn = None
                 zsyn = synergy_head(fsyn)
 
                 # (D) loss 계산 (KL + synergyCE)
@@ -117,8 +128,22 @@ def teacher_adaptive_update(
                 )
                 synergy_ce_loss = cfg["synergy_ce_alpha"] * loss_ce
 
+                if la_mode and attn is not None:
+                    attn_sum += attn.mean().item() * x.size(0)
+
+                feat_kd_loss = torch.tensor(0.0, device=cfg["device"])
+                if la_mode and cfg.get("feat_kd_alpha", 0) > 0:
+                    feat_kd_loss = torch.nn.functional.mse_loss(
+                        s_feat.view(s_feat.size(0), -1),
+                        fsyn.detach().view(s_feat.size(0), -1),
+                    )
+
             # 기본 KD+CE
-            total_loss = cfg["teacher_adapt_alpha_kd"] * loss_kd + synergy_ce_loss
+            total_loss = (
+                cfg["teacher_adapt_alpha_kd"] * loss_kd
+                + synergy_ce_loss
+                + cfg.get("feat_kd_alpha", 0) * feat_kd_loss
+            )
 
             # ── 1) Teacher 파라미터 L2 정규화 ───────────────────────────
             reg_loss = torch.tensor(0.0, device=cfg["device"])
@@ -149,6 +174,7 @@ def teacher_adaptive_update(
             count += x.size(0)
 
         ep_loss = teacher_loss_sum / count
+        attn_avg = attn_sum / count if la_mode and count > 0 else 0.0
 
         # synergy_eval
         if testloader is not None:
@@ -169,6 +195,8 @@ def teacher_adaptive_update(
         logger.update_metric(f"teacher_ep{ep+1}_loss", ep_loss)
         logger.update_metric(f"teacher_ep{ep+1}_synAcc", synergy_test_acc)
         logger.update_metric(f"epoch{global_ep+ep+1}_tau", cur_tau)
+        if la_mode:
+            logger.update_metric(f"teacher_ep{ep+1}_attn", attn_avg)
 
         if scheduler is not None:
             scheduler.step()
