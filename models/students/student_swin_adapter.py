@@ -29,6 +29,7 @@ class StudentSwinAdapter(nn.Module):
         # 2) remove default classifier => (N, in_features)
         in_features = self.swin.head.in_features
         self.swin.head = nn.Identity()
+        self.feat_dim = in_features
 
         # 3) small linear adapter => residual
         self.adapter = nn.Sequential(
@@ -39,6 +40,10 @@ class StudentSwinAdapter(nn.Module):
 
         # 4) final linear => (N, num_classes)
         self.fc = nn.Linear(in_features, num_classes)
+
+    def get_feat_dim(self) -> int:
+        """Return the dimension of the 2D feature (feat_2d)."""
+        return self.feat_dim
 
     def forward(self, x, y=None):
         """
