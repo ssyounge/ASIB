@@ -270,7 +270,9 @@ def main():
     ).to(device)
 
     if cfg.get("teacher1_ckpt"):
-        teacher1.load_state_dict(torch.load(cfg["teacher1_ckpt"], map_location=device))
+        teacher1.load_state_dict(
+            torch.load(cfg["teacher1_ckpt"], map_location=device, weights_only=True)
+        )
         print(f"[Main] Loaded teacher1 from {cfg['teacher1_ckpt']}")
 
     if cfg.get("use_partial_freeze", True):
@@ -291,7 +293,9 @@ def main():
     ).to(device)
 
     if cfg.get("teacher2_ckpt"):
-        teacher2.load_state_dict(torch.load(cfg["teacher2_ckpt"], map_location=device))
+        teacher2.load_state_dict(
+            torch.load(cfg["teacher2_ckpt"], map_location=device, weights_only=True)
+        )
         print(f"[Main] Loaded teacher2 from {cfg['teacher2_ckpt']}")
 
     if cfg.get("use_partial_freeze", True):
@@ -374,7 +378,9 @@ def main():
     ).to(device)
 
     if cfg.get("student_ckpt"):
-        student_model.load_state_dict(torch.load(cfg["student_ckpt"], map_location=device))
+        student_model.load_state_dict(
+            torch.load(cfg["student_ckpt"], map_location=device, weights_only=True)
+        )
         print(f"[Main] Loaded student from {cfg['student_ckpt']}")
 
     if cfg.get("use_partial_freeze", True):

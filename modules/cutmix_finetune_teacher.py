@@ -112,7 +112,7 @@ def finetune_teacher_cutmix(
 
     if os.path.exists(ckpt_path):
         print(f"[CutMix] Found checkpoint => load {ckpt_path}")
-        teacher_model.load_state_dict(torch.load(ckpt_path))
+        teacher_model.load_state_dict(torch.load(ckpt_path, weights_only=True))
         test_acc = eval_teacher(teacher_model, test_loader, device=device, cfg=None)
         print(f"[CutMix] loaded => testAcc={test_acc:.2f}")
         return teacher_model, test_acc
@@ -176,7 +176,7 @@ def standard_ce_finetune(
 
     if os.path.exists(ckpt_path):
         print(f"[CEFineTune] Found checkpoint => load {ckpt_path}")
-        teacher_model.load_state_dict(torch.load(ckpt_path))
+        teacher_model.load_state_dict(torch.load(ckpt_path, weights_only=True))
         test_acc = eval_teacher(teacher_model, test_loader, device=device, cfg=cfg)
         print(f"[CEFineTune] loaded => testAcc={test_acc:.2f}")
         return teacher_model, test_acc
