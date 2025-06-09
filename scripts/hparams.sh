@@ -21,6 +21,7 @@ T_WD=0.0003
 S_WD=0.0005
 CE_ALPHA=0.5
 KD_ALPHA=0.5
+CUTMIX_ALPHA_DISTILL=0.0   # CutMix alpha used during distillation
 # Temperature scheduling
 TEMPERATURE_SCHEDULE="fixed"
 TAU_START=4.0
