@@ -143,17 +143,37 @@ def create_teacher_by_name(teacher_name, num_classes=100, pretrained=True, small
         raise ValueError(f"[create_teacher_by_name] Unknown teacher_name={teacher_name}")
 
 def partial_freeze_teacher_auto(
-    model, teacher_name, 
-    freeze_bn=True, 
-    freeze_ln=True, 
-    freeze_scope=None
+    model,
+    teacher_name,
+    freeze_bn=True,
+    freeze_ln=True,
+    use_adapter=False,
+    bn_head_only=False,
+    freeze_scope=None,
 ):
     if teacher_name == "resnet101":
-        partial_freeze_teacher_resnet(model, freeze_bn=freeze_bn, freeze_scope=freeze_scope)
+        partial_freeze_teacher_resnet(
+            model,
+            freeze_bn=freeze_bn,
+            use_adapter=use_adapter,
+            bn_head_only=bn_head_only,
+            freeze_scope=freeze_scope,
+        )
     elif teacher_name == "efficientnet_b2":
-        partial_freeze_teacher_efficientnet(model, freeze_bn=freeze_bn, freeze_scope=freeze_scope)
+        partial_freeze_teacher_efficientnet(
+            model,
+            freeze_bn=freeze_bn,
+            use_adapter=use_adapter,
+            bn_head_only=bn_head_only,
+            freeze_scope=freeze_scope,
+        )
     elif teacher_name == "swin_tiny":
-        partial_freeze_teacher_swin(model, freeze_ln=freeze_ln, freeze_scope=freeze_scope)
+        partial_freeze_teacher_swin(
+            model,
+            freeze_ln=freeze_ln,
+            use_adapter=use_adapter,
+            freeze_scope=freeze_scope,
+        )
     else:
         raise ValueError(f"[partial_freeze_teacher_auto] Unknown teacher_name={teacher_name}")
 
@@ -238,6 +258,8 @@ def main():
             teacher1, teacher1_type,
             freeze_bn=cfg.get("teacher1_freeze_bn", True),
             freeze_ln=cfg.get("teacher1_freeze_ln", True),
+            use_adapter=cfg.get("teacher1_use_adapter", False),
+            bn_head_only=cfg.get("teacher1_bn_head_only", False),
             freeze_scope=cfg.get("teacher1_freeze_scope", None)
         )
 
@@ -257,6 +279,8 @@ def main():
             teacher2, teacher2_type,
             freeze_bn=cfg.get("teacher2_freeze_bn", True),
             freeze_ln=cfg.get("teacher2_freeze_ln", True),
+            use_adapter=cfg.get("teacher2_use_adapter", False),
+            bn_head_only=cfg.get("teacher2_bn_head_only", False),
             freeze_scope=cfg.get("teacher2_freeze_scope", None)
         )
 
