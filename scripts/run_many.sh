@@ -86,6 +86,7 @@ for T2 in efficientnet_b2 swin_tiny; do
           teacher2_bn_head_only=${TEACHER2_BN_HEAD_ONLY} \
           batch_size=${BATCH_SIZE} \
           mixup_alpha=${MIXUP_ALPHA} \
+          cutmix_alpha_distill=${CUTMIX_ALPHA_DISTILL} \
           label_smoothing=${LABEL_SMOOTHING}
 
         python main.py \
@@ -108,6 +109,7 @@ for T2 in efficientnet_b2 swin_tiny; do
           --seed 42 \
           --data_aug ${DATA_AUG} \
           --mixup_alpha ${MIXUP_ALPHA} \
+          --cutmix_alpha_distill ${CUTMIX_ALPHA_DISTILL} \
           --label_smoothing ${LABEL_SMOOTHING}
       done
     done
