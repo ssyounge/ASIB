@@ -56,6 +56,7 @@ for teacher_lr in 0.0001 0.0002 0.0005; do
       teacher2_bn_head_only=${TEACHER2_BN_HEAD_ONLY} \
       batch_size=${BATCH_SIZE} \
       mixup_alpha=${MIXUP_ALPHA} \
+      cutmix_alpha_distill=${CUTMIX_ALPHA_DISTILL} \
       label_smoothing=${LABEL_SMOOTHING}
 
     python main.py \
@@ -64,6 +65,7 @@ for teacher_lr in 0.0001 0.0002 0.0005; do
       --device ${DEVICE} \
       --data_aug ${DATA_AUG} \
       --mixup_alpha ${MIXUP_ALPHA} \
+      --cutmix_alpha_distill ${CUTMIX_ALPHA_DISTILL} \
       --teacher1_use_adapter ${TEACHER1_USE_ADAPTER} \
       --teacher1_bn_head_only ${TEACHER1_BN_HEAD_ONLY} \
       --teacher2_use_adapter ${TEACHER2_USE_ADAPTER} \
