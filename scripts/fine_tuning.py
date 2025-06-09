@@ -101,16 +101,40 @@ def create_teacher_by_name(
     else:
         raise ValueError(f"[fine_tuning.py] Unknown teacher_name={teacher_name}")
 
-def partial_freeze_teacher_auto(model, teacher_name, freeze_bn=True, freeze_ln=True):
+def partial_freeze_teacher_auto(
+    model,
+    teacher_name,
+    freeze_bn=True,
+    freeze_ln=True,
+    use_adapter=False,
+    bn_head_only=False,
+):
     """
     If needed, partial freeze for fine-tune. Or you can freeze nothing if you want full fine-tune.
     """
     if teacher_name == "resnet101":
-        partial_freeze_teacher_resnet(model, freeze_bn=freeze_bn, freeze_scope=None)
+        partial_freeze_teacher_resnet(
+            model,
+            freeze_bn=freeze_bn,
+            use_adapter=use_adapter,
+            bn_head_only=bn_head_only,
+            freeze_scope=None,
+        )
     elif teacher_name == "efficientnet_b2":
-        partial_freeze_teacher_efficientnet(model, freeze_bn=freeze_bn, freeze_scope=None)
+        partial_freeze_teacher_efficientnet(
+            model,
+            freeze_bn=freeze_bn,
+            use_adapter=use_adapter,
+            bn_head_only=bn_head_only,
+            freeze_scope=None,
+        )
     elif teacher_name == "swin_tiny":
-        partial_freeze_teacher_swin(model, freeze_ln=freeze_ln, freeze_scope=None)
+        partial_freeze_teacher_swin(
+            model,
+            freeze_ln=freeze_ln,
+            use_adapter=use_adapter,
+            freeze_scope=None,
+        )
     else:
         raise ValueError(f"Unknown teacher_name={teacher_name}")
 
@@ -211,7 +235,14 @@ def main():
         # e.g. freeze backbone, unfreeze head
         freeze_bn = cfg.get("teacher_freeze_bn", True)
         freeze_ln = cfg.get("teacher_freeze_ln", True)
-        partial_freeze_teacher_auto(teacher_model, teacher_name, freeze_bn=freeze_bn, freeze_ln=freeze_ln)
+        partial_freeze_teacher_auto(
+            teacher_model,
+            teacher_name,
+            freeze_bn=freeze_bn,
+            freeze_ln=freeze_ln,
+            use_adapter=cfg.get("teacher_use_adapter", False),
+            bn_head_only=cfg.get("teacher_bn_head_only", False),
+        )
         print("[FineTune] partial freeze mode => only head is trainable (example).")
     else:
         # full fine-tune => do nothing or freeze_all_params if you want the opposite
