@@ -8,6 +8,7 @@ import torch.nn.functional as F
 
 from modules.losses import kd_loss_fn, ce_loss_fn
 from utils.schedule import get_tau
+from models import LightweightAttnMBM
 
 class ASMBDistiller(nn.Module):
     """
@@ -24,13 +25,14 @@ class ASMBDistiller(nn.Module):
         teacher1,
         teacher2,
         student,
-        mbm, 
+        mbm,
         synergy_head,
         alpha=0.5,               # student CE vs. KL 비율
         synergy_ce_alpha=0.3,    # teacher 시너지 CE 비중
         temperature=4.0,
         reg_lambda=1e-4,
         mbm_reg_lambda=1e-4,
+        feat_align_alpha=0.0,
         num_stages=2,
         device="cuda",
         config=None
@@ -41,6 +43,7 @@ class ASMBDistiller(nn.Module):
         self.student  = student
         self.mbm = mbm
         self.synergy_head = synergy_head
+        self.la_mode = isinstance(mbm, LightweightAttnMBM)
 
         # 하이퍼파라미터
         self.alpha = alpha
@@ -48,6 +51,7 @@ class ASMBDistiller(nn.Module):
         self.T = temperature
         self.reg_lambda = reg_lambda
         self.mbm_reg_lambda = mbm_reg_lambda
+        self.feat_align_alpha = feat_align_alpha
         self.num_stages = num_stages
         self.device = device
         self.config = config if config is not None else {}
@@ -69,12 +73,18 @@ class ASMBDistiller(nn.Module):
             feats_2d = [t1["feat_2d"], t2["feat_2d"]]
             feats_4d = [t1.get("feat_4d"), t2.get("feat_4d")]
 
-        # 2) mbm => synergy
-        fsyn = self.mbm(feats_2d, feats_4d)
-        zsyn = self.synergy_head(fsyn)
+        # 3) student (query feature)
+        feat_dict, s_logit, _ = self.student(x)
+        key = self.config.get("feat_kd_key", "feat_2d")
+        s_feat = feat_dict[key]
 
-        # 3) student
-        s_feat, s_logit, _ = self.student(x)
+        # 2) mbm => synergy with query if available
+        if self.la_mode:
+            syn_feat, attn = self.mbm(s_feat, feats_2d)
+        else:
+            syn_feat = self.mbm(feats_2d, feats_4d)
+            attn = None
+        zsyn = self.synergy_head(syn_feat)
 
         # CE
         ce_val = 0.0
@@ -83,7 +93,19 @@ class ASMBDistiller(nn.Module):
 
         # KL
         kd_val = kd_loss_fn(s_logit, zsyn, T=self.T, reduction="batchmean")
-        total_loss = self.alpha*ce_val + (1-self.alpha)*kd_val
+
+        feat_loss = torch.tensor(0.0, device=s_feat.device)
+        if self.feat_align_alpha > 0:
+            feat_loss = F.mse_loss(
+                s_feat.view(s_feat.size(0), -1),
+                syn_feat.detach().view(s_feat.size(0), -1),
+            )
+
+        total_loss = (
+            self.alpha * ce_val
+            + (1 - self.alpha) * kd_val
+            + self.feat_align_alpha * feat_loss
+        )
 
         return total_loss, s_logit
 
@@ -196,8 +218,9 @@ class ASMBDistiller(nn.Module):
                 x, y = x.to(self.device), y.to(self.device)
 
                 with torch.no_grad():
-                    # student logit
-                    _, s_logit, _ = self.student(x)
+                    # student feature + logit
+                    feat_dict, s_logit, _ = self.student(x)
+                    s_feat = feat_dict[self.config.get("feat_kd_key", "feat_2d")]
                     # teacher feats
                     t1 = self.teacher1(x)
                     t2 = self.teacher2(x)
@@ -205,8 +228,12 @@ class ASMBDistiller(nn.Module):
                     f2 = [t1.get("feat_4d"), t2.get("feat_4d")]
 
                 # synergy
-                fsyn = self.mbm(f1, f2)
-                zsyn = self.synergy_head(fsyn)
+                if self.la_mode:
+                    syn_feat, attn = self.mbm(s_feat, f1)
+                else:
+                    syn_feat = self.mbm(f1, f2)
+                    attn = None
+                zsyn = self.synergy_head(syn_feat)
 
                 # (i) -KL(s_logit, zsyn)
                 kl_val = kd_loss_fn(zsyn, s_logit, T=cur_tau)  # 여기선 sign 주의
@@ -218,13 +245,28 @@ class ASMBDistiller(nn.Module):
                 )
                 synergy_ce = self.synergy_ce_alpha * ce_val
 
+                feat_loss = torch.tensor(0.0, device=s_feat.device)
+                if self.feat_align_alpha > 0:
+                    feat_loss = F.mse_loss(
+                        s_feat.view(s_feat.size(0), -1),
+                        syn_feat.detach().view(s_feat.size(0), -1),
+                    )
+
                 # 정규화
-                # (단순 L2) => MBM + teacher head ... 
+                # (단순 L2) => MBM + teacher head ...
                 reg_loss = 0.0
                 for p in params:
                     reg_loss += (p**2).sum()
 
-                loss = (-1.0)*kl_val + synergy_ce + self.reg_lambda*reg_loss
+                loss = (
+                    (-1.0) * kl_val
+                    + synergy_ce
+                    + self.feat_align_alpha * feat_loss
+                    + self.reg_lambda * reg_loss
+                )
+
+                if logger is not None and attn is not None:
+                    logger.debug(f"attn_mean={attn.mean().item():.4f}")
 
                 optimizer.zero_grad()
                 loss.backward()
@@ -287,18 +329,38 @@ class ASMBDistiller(nn.Module):
                     t2 = self.teacher2(x)
                     f1 = [t1["feat_2d"], t2["feat_2d"]]
                     f2 = [t1.get("feat_4d"), t2.get("feat_4d")]
-                    fsyn = self.mbm(f1, f2)
-                    zsyn = self.synergy_head(fsyn)
 
-                # student forward
-                _, s_logit, _ = self.student(x)
+                # student forward (query)
+                feat_dict, s_logit, _ = self.student(x)
+                s_feat = feat_dict[self.config.get("feat_kd_key", "feat_2d")]
+
+                if self.la_mode:
+                    syn_feat, attn = self.mbm(s_feat, f1)
+                else:
+                    syn_feat = self.mbm(f1, f2)
+                    attn = None
+                zsyn = self.synergy_head(syn_feat)
 
                 # CE
                 ce_val = ce_loss_fn(s_logit, y)
                 # KL
                 kd_val = kd_loss_fn(s_logit, zsyn, T=cur_tau)
 
-                loss = self.alpha*ce_val + (1-self.alpha)*kd_val
+                feat_loss = torch.tensor(0.0, device=s_feat.device)
+                if self.feat_align_alpha > 0:
+                    feat_loss = F.mse_loss(
+                        s_feat.view(s_feat.size(0), -1),
+                        syn_feat.detach().view(s_feat.size(0), -1),
+                    )
+
+                loss = (
+                    self.alpha * ce_val
+                    + (1 - self.alpha) * kd_val
+                    + self.feat_align_alpha * feat_loss
+                )
+
+                if logger is not None and attn is not None:
+                    logger.debug(f"attn_mean={attn.mean().item():.4f}")
 
                 optimizer.zero_grad()
                 loss.backward()
