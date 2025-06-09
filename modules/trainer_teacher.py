@@ -18,8 +18,23 @@ def _cpu_state_dict(module: torch.nn.Module):
     return {k: v.detach().cpu().clone() for k, v in module.state_dict().items()}
 
 @torch.no_grad()
-def eval_synergy(teacher_wrappers, mbm, synergy_head, loader, device="cuda", cfg=None):
+def eval_synergy(
+    teacher_wrappers,
+    mbm,
+    synergy_head,
+    loader,
+    device="cuda",
+    cfg=None,
+    student_model=None,
+):
+    """Evaluate synergy accuracy.
+
+    When ``mbm`` is a :class:`LightweightAttnMBM`, ``student_model`` must be
+    provided so that the student features can be used as the attention query.
+    """
+
     autocast_ctx, _ = get_amp_components(cfg or {})
+    la_mode = isinstance(mbm, LightweightAttnMBM) or (cfg or {}).get("mbm_type") == "LA"
     correct, total = 0, 0
     for x, y in loader:
         x, y = x.to(device), y.to(device)
@@ -32,7 +47,12 @@ def eval_synergy(teacher_wrappers, mbm, synergy_head, loader, device="cuda", cfg
             f1_4d = t1_dict.get("feat_4d")
             f2_4d = t2_dict.get("feat_4d")
 
-            fsyn = mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
+            if la_mode:
+                assert student_model is not None, "student_model required for LA MBM"
+                s_feat = student_model(x)[0][cfg.get("feat_kd_key", "feat_2d")]
+                fsyn, _ = mbm(s_feat, [f1_2d, f2_2d])
+            else:
+                fsyn = mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
             zsyn = synergy_head(fsyn)
 
         pred = zsyn.argmax(dim=1)
@@ -185,6 +205,7 @@ def teacher_adaptive_update(
                 loader=testloader,
                 device=cfg["device"],
                 cfg=cfg,
+                student_model=student_model if la_mode else None,
             )
         else:
             synergy_test_acc = -1
