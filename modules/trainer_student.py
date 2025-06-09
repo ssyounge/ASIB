@@ -7,7 +7,7 @@ from utils.progress import smart_tqdm
 
 from modules.losses import kd_loss_fn, ce_loss_fn
 from modules.disagreement import sample_weights_from_disagreement
-from utils.misc import mixup_data, cutmix_data, mixup_criterion
+from utils.misc import mixup_data, cutmix_data, mixup_criterion, get_amp_components
 from utils.schedule import get_tau
 
 def student_distillation_update(
@@ -55,6 +55,7 @@ def student_distillation_update(
     student_epochs = cfg.get("student_iters", cfg.get("student_epochs_per_stage", 15))
     logger.info(f"[StudentDistill] Using student_epochs={student_epochs}")
 
+    autocast_ctx, scaler = get_amp_components(cfg)
     for ep in range(student_epochs):
         cur_tau = get_tau(cfg, global_ep + ep)
         distill_loss_sum = 0.0
@@ -80,23 +81,41 @@ def student_distillation_update(
             else:
                 x_mixed, y_a, y_b, lam = x, y, y, 1.0
 
-            # (A) Teacher synergy logit
-            with torch.no_grad():
-                # Teacher #1
-                t1_dict = teacher_wrappers[0](x_mixed)
-                # Teacher #2
-                t2_dict = teacher_wrappers[1](x_mixed)
+            with autocast_ctx:
+                # (A) Teacher synergy logit
+                with torch.no_grad():
+                    t1_dict = teacher_wrappers[0](x_mixed)
+                    t2_dict = teacher_wrappers[1](x_mixed)
 
-                f1_2d = t1_dict["feat_2d"]
-                f2_2d = t2_dict["feat_2d"]
-                f1_4d = t1_dict.get("feat_4d")
-                f2_4d = t2_dict.get("feat_4d")
+                    f1_2d = t1_dict["feat_2d"]
+                    f2_2d = t2_dict["feat_2d"]
+                    f1_4d = t1_dict.get("feat_4d")
+                    f2_4d = t2_dict.get("feat_4d")
 
-                fsyn = mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
-                zsyn = synergy_head(fsyn)
+                    fsyn = mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
+                    zsyn = synergy_head(fsyn)
 
-            # (B) Student forward
-            feat_dict, s_logit, _ = student_model(x_mixed)   # (만약 student도 dict 반환하면 logit만 꺼내야 함)
+                # (B) Student forward
+                feat_dict, s_logit, _ = student_model(x_mixed)
+
+                if mix_mode != "none":
+                    ce_obj = lambda pred, target: ce_loss_fn(
+                        pred,
+                        target,
+                        label_smoothing=cfg.get("label_smoothing", 0.0),
+                        reduction="none",
+                    )
+                    ce_vec = mixup_criterion(ce_obj, s_logit, y_a, y_b, lam)
+                else:
+                    ce_vec = ce_loss_fn(
+                        s_logit,
+                        y,
+                        label_smoothing=cfg.get("label_smoothing", 0.0),
+                        reduction="none",
+                    )
+                kd_vec = kd_loss_fn(
+                    s_logit, zsyn, T=cur_tau, reduction="none"
+                ).sum(dim=1)
 
             # (B1) disagreement-based sample weights
             if cfg.get("use_disagree_weight", False):
@@ -167,8 +186,13 @@ def student_distillation_update(
             )
 
             optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+            if scaler is not None:
+                scaler.scale(loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                loss.backward()
+                optimizer.step()
 
             bs = x.size(0)
             distill_loss_sum += loss.item()*bs
@@ -177,7 +201,7 @@ def student_distillation_update(
         ep_loss = distill_loss_sum / cnt
 
         # (C) validate
-        test_acc = eval_student(student_model, testloader, cfg["device"])
+        test_acc = eval_student(student_model, testloader, cfg["device"], cfg)
 
         logger.info(f"[StudentDistill ep={ep+1}] loss={ep_loss:.4f}, testAcc={test_acc:.2f}, best={best_acc:.2f}")
 
@@ -211,12 +235,14 @@ def student_distillation_update(
     return best_acc
 
 @torch.no_grad()
-def eval_student(model, loader, device):
+def eval_student(model, loader, device, cfg=None):
+    autocast_ctx, _ = get_amp_components(cfg or {})
     model.eval()
     correct, total = 0, 0
     for x, y in loader:
         x, y = x.to(device), y.to(device)
-        feat_dict, s_logit, _ = model(x)
+        with autocast_ctx:
+            feat_dict, s_logit, _ = model(x)
         pred = s_logit.argmax(dim=1)
         correct += (pred==y).sum().item()
         total += y.size(0)

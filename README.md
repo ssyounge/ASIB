@@ -99,6 +99,38 @@ Control MixUp or CutMix augmentation and label smoothing via CLI flags:
 python main.py --mixup_alpha 0.2 --cutmix_alpha_distill 0.5 --label_smoothing 0.1
 ```
 
+### Automatic Mixed Precision (AMP)
+
+Add the following keys to your config to enable AMP:
+
+```yaml
+use_amp: true
+amp_dtype: float16  # or bfloat16
+grad_scaler_init_scale: 1024
+```
+
+Example usage:
+
+```python
+from utils.misc import get_amp_components
+
+autocast_ctx, scaler = get_amp_components(cfg)
+with autocast_ctx:
+    out = model(x)
+    loss = criterion(out, target)
+if scaler:
+    scaler.scale(loss).backward()
+    scaler.step(optimizer)
+    scaler.update()
+else:
+    loss.backward()
+    optimizer.step()
+```
+
+```bash
+python main.py --use_amp 1 --amp_dtype bfloat16
+```
+
 ### Small Input Checkpoints
 
 Models fine-tuned with `--small_input 1` replace their conv stems for small
