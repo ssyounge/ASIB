@@ -53,13 +53,21 @@ def cutmix_criterion(criterion, pred, y_a, y_b, lam):
     return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
 
 
-def train_one_epoch_cutmix(teacher_model, loader, optimizer, alpha=1.0, device="cuda"):
+def train_one_epoch_cutmix(
+    teacher_model,
+    loader,
+    optimizer,
+    alpha=1.0,
+    device="cuda",
+    label_smoothing: float = 0.0,
+):
     """
-    teacher_model: forward(x, y=None)-> dict (must contain "logit")
-      - dict은 사용하지 않고, logit만 이용하여 crossentropy 계산
+    teacher_model: forward(x, y=None)-> dict (must contain ``"logit"``)
+      - ``logit`` 만 사용하여 cross-entropy 계산
+    label_smoothing: amount of label smoothing to apply to CE
     """
     teacher_model.train()
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
     total_loss = 0.0
     correct, total = 0, 0
 
@@ -116,7 +124,8 @@ def finetune_teacher_cutmix(
     weight_decay=1e-4,
     epochs=10,
     device="cuda",
-    ckpt_path="teacher_finetuned_cutmix.pth"
+    ckpt_path="teacher_finetuned_cutmix.pth",
+    label_smoothing: float = 0.0,
 ):
     """
     teacher_model: must produce a dict containing "logit". Only the
@@ -124,6 +133,7 @@ def finetune_teacher_cutmix(
     train_loader, test_loader: standard classification dataset
     alpha: cutmix alpha
     lr, weight_decay, epochs, etc. for standard SGD
+    label_smoothing: passed to ``CrossEntropyLoss`` during training
     """
     teacher_model = teacher_model.to(device)
 
@@ -142,8 +152,12 @@ def finetune_teacher_cutmix(
 
     for ep in range(1, epochs + 1):
         tr_loss, tr_acc = train_one_epoch_cutmix(
-            teacher_model, train_loader,
-            optimizer, alpha=alpha, device=device
+            teacher_model,
+            train_loader,
+            optimizer,
+            alpha=alpha,
+            device=device,
+            label_smoothing=label_smoothing,
         )
         te_acc = eval_teacher(teacher_model, test_loader, device=device)
 
@@ -173,8 +187,15 @@ def standard_ce_finetune(
     epochs=10,
     device="cuda",
     ckpt_path="teacher_finetuned_ce.pth",
+    label_smoothing: float = 0.0,
 ):
-    """Simple cross-entropy fine-tuning loop."""
+    """Simple cross-entropy fine-tuning loop.
+
+    Parameters
+    ----------
+    label_smoothing : float, optional
+        Amount of label smoothing for ``CrossEntropyLoss``.
+    """
     teacher_model = teacher_model.to(device)
 
     if os.path.exists(ckpt_path):
@@ -187,7 +208,7 @@ def standard_ce_finetune(
     optimizer = optim.SGD(
         teacher_model.parameters(), lr=lr, momentum=0.9, weight_decay=weight_decay
     )
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
 
     best_acc = 0.0
     best_state = copy.deepcopy(teacher_model.state_dict())
