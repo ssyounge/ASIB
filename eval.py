@@ -203,7 +203,10 @@ def main():
             teacher2.load_state_dict(t2_ck)
 
         # 4) MBM and synergy head
-        mbm, synergy_head = build_from_teachers([teacher1, teacher2], cfg)
+        mbm_query_dim = cfg.get("mbm_query_dim")
+        mbm, synergy_head = build_from_teachers(
+            [teacher1, teacher2], cfg, query_dim=mbm_query_dim
+        )
         mbm = mbm.to(device)
         synergy_head = synergy_head.to(device)
 
