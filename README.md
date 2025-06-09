@@ -142,6 +142,26 @@ checkpoints and continue with distillation:
 bash scripts/run_many.sh
 ```
 
+### Teacher Adapter & BN-Head-Only Options
+
+With partial freezing you can further restrict the teachers to small
+adapters or only update their batch-norm layers and classifier heads.
+Set the following keys in your config:
+
+```yaml
+# configs/partial_freeze.yaml
+teacher1_use_adapter: true
+teacher1_bn_head_only: true
+teacher2_use_adapter: true
+teacher2_bn_head_only: false
+```
+
+These map to `TEACHER1_USE_ADAPTER`, `TEACHER1_BN_HEAD_ONLY`,
+`TEACHER2_USE_ADAPTER` and `TEACHER2_BN_HEAD_ONLY` in
+`scripts/hparams.sh`. Both `run_many.sh` and `run_sweep.sh` read the
+values from `hparams.sh` so you can toggle them for sweeps or batch
+runs without editing every config file.
+
 
 
 ---
