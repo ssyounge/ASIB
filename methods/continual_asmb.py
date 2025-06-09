@@ -14,6 +14,8 @@ Partial Freeze & MBM can be reused. We rely on:
 
 import copy
 import torch
+import torch.optim as optim
+from torch.optim.lr_scheduler import StepLR
 
 from modules.losses import kd_loss_fn, ce_loss_fn
 from modules.partial_freeze import freeze_teacher_params, freeze_student_with_adapter
@@ -84,6 +86,49 @@ def run_asmb_continual(
             freeze_scope=cfg.get("student_freeze_scope", None),
         )
 
+    # build optimizers for first stage
+    t_params = []
+    for tw in first_teachers:
+        for p in tw.parameters():
+            if p.requires_grad:
+                t_params.append(p)
+    mbm_params = [p for p in mbm.parameters() if p.requires_grad]
+    syn_params = [p for p in synergy_head.parameters() if p.requires_grad]
+
+    t_opt = optim.Adam(
+        [
+            {"params": t_params, "lr": cfg["teacher_lr"]},
+            {
+                "params": mbm_params,
+                "lr": cfg["teacher_lr"] * cfg.get("mbm_lr_factor", 1.0),
+            },
+            {
+                "params": syn_params,
+                "lr": cfg["teacher_lr"] * cfg.get("mbm_lr_factor", 1.0),
+            },
+        ],
+        weight_decay=cfg["teacher_weight_decay"],
+    )
+    t_sched = StepLR(
+        t_opt,
+        step_size=cfg.get("teacher_step_size", 10),
+        gamma=cfg.get("teacher_gamma", 0.1),
+    )
+
+    s_params = [p for p in current_student.parameters() if p.requires_grad]
+    s_opt = optim.Adam(
+        s_params,
+        lr=cfg["student_lr"],
+        weight_decay=cfg["student_weight_decay"],
+        betas=(0.9, 0.999),
+        eps=1e-8,
+    )
+    s_sched = StepLR(
+        s_opt,
+        step_size=cfg.get("student_step_size", 10),
+        gamma=cfg.get("student_gamma", 0.1),
+    )
+
     # (A) Teacher adaptive update (optional)
     teacher_adaptive_update(
         teacher_wrappers=first_teachers,
@@ -92,7 +137,9 @@ def run_asmb_continual(
         student_model=current_student,  # student is fixed at this step
         trainloader=trainloader,
         cfg=cfg,
-        logger=logger
+        logger=logger,
+        optimizer=t_opt,
+        scheduler=t_sched,
     )
 
     # (B) Student Distillation => actually, we can do logit-level distill 
@@ -107,7 +154,9 @@ def run_asmb_continual(
         trainloader=trainloader,
         testloader=testloader,
         cfg=cfg,
-        logger=logger
+        logger=logger,
+        optimizer=s_opt,
+        scheduler=s_sched,
     )
 
     student_A = copy.deepcopy(current_student)
@@ -141,6 +190,49 @@ def run_asmb_continual(
 
         # 1) teacher adaptive update:
         teacher_wrappers = [teacherA, new_teacher]
+        # build optimizers for this stage
+        t_params = []
+        for tw in teacher_wrappers:
+            for p in tw.parameters():
+                if p.requires_grad:
+                    t_params.append(p)
+        mbm_params = [p for p in mbm.parameters() if p.requires_grad]
+        syn_params = [p for p in synergy_head.parameters() if p.requires_grad]
+
+        t_opt = optim.Adam(
+            [
+                {"params": t_params, "lr": cfg["teacher_lr"]},
+                {
+                    "params": mbm_params,
+                    "lr": cfg["teacher_lr"] * cfg.get("mbm_lr_factor", 1.0),
+                },
+                {
+                    "params": syn_params,
+                    "lr": cfg["teacher_lr"] * cfg.get("mbm_lr_factor", 1.0),
+                },
+            ],
+            weight_decay=cfg["teacher_weight_decay"],
+        )
+        t_sched = StepLR(
+            t_opt,
+            step_size=cfg.get("teacher_step_size", 10),
+            gamma=cfg.get("teacher_gamma", 0.1),
+        )
+
+        s_params = [p for p in new_student.parameters() if p.requires_grad]
+        s_opt = optim.Adam(
+            s_params,
+            lr=cfg["student_lr"],
+            weight_decay=cfg["student_weight_decay"],
+            betas=(0.9, 0.999),
+            eps=1e-8,
+        )
+        s_sched = StepLR(
+            s_opt,
+            step_size=cfg.get("student_step_size", 10),
+            gamma=cfg.get("student_gamma", 0.1),
+        )
+
         teacher_adaptive_update(
             teacher_wrappers=teacher_wrappers,
             mbm=mbm,
@@ -148,7 +240,9 @@ def run_asmb_continual(
             student_model=new_student,
             trainloader=trainloader,
             cfg=cfg,
-            logger=logger
+            logger=logger,
+            optimizer=t_opt,
+            scheduler=t_sched,
         )
 
         # 2) student distillation
@@ -160,7 +254,9 @@ def run_asmb_continual(
             trainloader=trainloader,
             testloader=testloader,
             cfg=cfg,
-            logger=logger
+            logger=logger,
+            optimizer=s_opt,
+            scheduler=s_sched,
         )
 
         logger.info(f"[Continual] => new student_{idx} obtained.")
