@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import List, Optional, Tuple
 
+from .la_mbm import LightweightAttnMBM
+
 class ManifoldBridgingModule(nn.Module):
     """Fuses teacher features using optional MLP, convolutional and attention paths."""
 
@@ -100,16 +102,26 @@ def build_from_teachers(teachers: List[nn.Module], cfg: dict) -> Tuple[ManifoldB
     else:
         in_ch_4d = out_ch_4d = None
 
-    mbm = ManifoldBridgingModule(
-        feat_dims=feat_dims,
-        hidden_dim=cfg.get("mbm_hidden_dim", 512),
-        out_dim=cfg.get("mbm_out_dim", 512),
-        dropout=cfg.get("mbm_dropout", 0.0),
-        use_4d=use_4d,
-        in_ch_4d=in_ch_4d,
-        out_ch_4d=out_ch_4d,
-        attn_heads=int(cfg.get("mbm_attn_heads", 0)),
-    )
+    mbm_type = cfg.get("mbm_type", "MLP")
+    if mbm_type == "LA":
+        mbm = LightweightAttnMBM(
+            feat_dims=feat_dims,
+            out_dim=cfg.get("mbm_out_dim", 512),
+            r=cfg.get("mbm_r", 4),
+            n_head=cfg.get("mbm_n_head", 1),
+            learnable_q=cfg.get("mbm_learnable_q", False),
+        )
+    else:
+        mbm = ManifoldBridgingModule(
+            feat_dims=feat_dims,
+            hidden_dim=cfg.get("mbm_hidden_dim", 512),
+            out_dim=cfg.get("mbm_out_dim", 512),
+            dropout=cfg.get("mbm_dropout", 0.0),
+            use_4d=use_4d,
+            in_ch_4d=in_ch_4d,
+            out_ch_4d=out_ch_4d,
+            attn_heads=int(cfg.get("mbm_attn_heads", 0)),
+        )
 
     head = SynergyHead(
         in_dim=cfg.get("mbm_out_dim", 512),
