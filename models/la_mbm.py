@@ -14,8 +14,9 @@ class LightweightAttnMBM(nn.Module):
     features or learnable vector) is kept for backward compatibility.
     The forward now returns both the fused feature and attention map.
     `query_dim` optionally specifies the dimension of the student
-    query features. When omitted, the concatenated teacher feature
-    dimension is used for backward compatibility.
+    query features. When omitted or set to a non-positive value,
+    the concatenated teacher feature dimension is used for backward
+    compatibility.
     """
     def __init__(
         self,
@@ -27,6 +28,9 @@ class LightweightAttnMBM(nn.Module):
         query_dim: Optional[int] = None,
     ) -> None:
         super().__init__()
+        if query_dim is not None and query_dim <= 0:
+            query_dim = None
+
         self.learnable_q = learnable_q
         self.embed_dim = max(1, out_dim // r)
         self.n_tokens = len(feat_dims)
