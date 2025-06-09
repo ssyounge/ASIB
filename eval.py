@@ -157,7 +157,9 @@ def main():
 
         # load single model ckpt
         if cfg["ckpt_path"]:
-            ckpt = torch.load(cfg["ckpt_path"], map_location=device)
+            ckpt = torch.load(
+                cfg["ckpt_path"], map_location=device, weights_only=True
+            )
             if "model_state" in ckpt:
                 model.load_state_dict(ckpt["model_state"])
             else:
@@ -196,10 +198,14 @@ def main():
 
         # 3) load teacher ckpts
         if cfg["teacher1_ckpt"]:
-            t1_ck = torch.load(cfg["teacher1_ckpt"], map_location=device)
+            t1_ck = torch.load(
+                cfg["teacher1_ckpt"], map_location=device, weights_only=True
+            )
             teacher1.load_state_dict(t1_ck)
         if cfg["teacher2_ckpt"]:
-            t2_ck = torch.load(cfg["teacher2_ckpt"], map_location=device)
+            t2_ck = torch.load(
+                cfg["teacher2_ckpt"], map_location=device, weights_only=True
+            )
             teacher2.load_state_dict(t2_ck)
 
         # 4) MBM and synergy head
@@ -212,10 +218,14 @@ def main():
 
         # load MBM, synergy head
         if cfg["mbm_ckpt"]:
-            mbm_ck = torch.load(cfg["mbm_ckpt"], map_location=device)
+            mbm_ck = torch.load(
+                cfg["mbm_ckpt"], map_location=device, weights_only=True
+            )
             mbm.load_state_dict(mbm_ck)
         if cfg["head_ckpt"]:
-            head_ck = torch.load(cfg["head_ckpt"], map_location=device)
+            head_ck = torch.load(
+                cfg["head_ckpt"], map_location=device, weights_only=True
+            )
             synergy_head.load_state_dict(head_ck)
 
         # synergy ensemble

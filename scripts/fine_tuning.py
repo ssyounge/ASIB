@@ -225,7 +225,9 @@ def main():
     # optional load ckpt
     if cfg.get("finetune_ckpt_path") and os.path.isfile(cfg["finetune_ckpt_path"]):
         teacher_model.load_state_dict(
-            torch.load(cfg["finetune_ckpt_path"], map_location=device)
+            torch.load(
+                cfg["finetune_ckpt_path"], map_location=device, weights_only=True
+            )
         )
         print(f"[FineTune] ckpt exists → fine-tune 스킵 ({cfg['finetune_ckpt_path']})")
         # 평가만 한 번 찍고 바로 반환
