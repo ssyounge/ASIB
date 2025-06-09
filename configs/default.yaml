@@ -13,6 +13,10 @@ teacher2_type: "efficientnet_b2"
 
 teacher1_pretrained: true
 teacher2_pretrained: true
+teacher1_use_adapter: false
+teacher1_bn_head_only: false
+teacher2_use_adapter: false
+teacher2_bn_head_only: false
 
 teacher_lr: 0.0001           # 통합 Teacher 학습률
 teacher_weight_decay: 0.0003

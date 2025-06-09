@@ -119,6 +119,10 @@ def parse_args():
     parser.add_argument("--disagree_mode", type=str)
     parser.add_argument("--disagree_lambda_high", type=float)
     parser.add_argument("--disagree_lambda_low", type=float)
+    parser.add_argument("--teacher1_use_adapter", type=int)
+    parser.add_argument("--teacher1_bn_head_only", type=int)
+    parser.add_argument("--teacher2_use_adapter", type=int)
+    parser.add_argument("--teacher2_bn_head_only", type=int)
     return parser.parse_args()
 
 def load_config(cfg_path):
