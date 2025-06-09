@@ -2,47 +2,12 @@
 
 import os
 import copy
-import random
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 from utils.progress import smart_tqdm
 
-def cutmix_data(inputs, targets, alpha=1.0):
-    """
-    CutMix augmentation for tensors shaped ``[N, C, H, W]``.
-    ``alpha`` governs the Beta distribution (``alpha <= 0`` disables CutMix).
-    """
-    if alpha <= 0.0:
-        # no cutmix
-        return inputs, targets, targets, 1.0
-
-    batch_size = inputs.size(0)
-    indices = torch.randperm(batch_size, device=inputs.device)
-    lam = random.betavariate(alpha, alpha)
-
-    # crop box (NCHW -> H,W spatial dims)
-    H, W = inputs.size(2), inputs.size(3)
-    cut_w = int(W * (1 - lam))
-    cut_h = int(H * (1 - lam))
-    cx = random.randint(0, W - 1)
-    cy = random.randint(0, H - 1)
-
-    x1 = max(cx - cut_w // 2, 0)
-    y1 = max(cy - cut_h // 2, 0)
-    x2 = min(cx + cut_w // 2, W)
-    y2 = min(cy + cut_h // 2, H)
-
-    # clone
-    inputs_clone = inputs.clone()
-    inputs_clone[:, :, y1:y2, x1:x2] = inputs[indices, :, y1:y2, x1:x2]
-
-    lam = 1.0 - ((x2 - x1) * (y2 - y1) / (W * H))
-
-    target_a = targets
-    target_b = targets[indices]
-    return inputs_clone, target_a, target_b, lam
+from utils.misc import cutmix_data
 
 
 def cutmix_criterion(criterion, pred, y_a, y_b, lam):
