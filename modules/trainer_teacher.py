@@ -152,6 +152,10 @@ def teacher_adaptive_update(
 
         logger.info(f"[TeacherAdaptive ep={ep+1}] loss={ep_loss:.4f}, synergy={synergy_test_acc:.2f}")
 
+        # ── NEW: per-epoch logging ───────────────────────────────
+        logger.update_metric(f"teacher_ep{ep+1}_loss", ep_loss)
+        logger.update_metric(f"teacher_ep{ep+1}_synAcc", synergy_test_acc)
+
         if scheduler is not None:
             scheduler.step()
 
