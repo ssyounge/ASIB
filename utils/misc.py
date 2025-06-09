@@ -5,15 +5,32 @@ import torch
 import random
 import numpy as np
 
-def set_random_seed(seed=42):
+def set_random_seed(seed: int = 42, deterministic: bool = True) -> None:
+    """Fix random seeds for reproducibility.
+
+    Parameters
+    ----------
+    seed : int, optional
+        Random seed to use for ``random``, ``numpy`` and ``torch``.
+    deterministic : bool, optional
+        If ``True`` and CUDA is available, sets deterministic flags for
+        ``cudnn`` backends. This also disables the benchmark mode for
+        convolution layers. When using deterministic cuBLAS operations,
+        PyTorch requires the ``CUBLAS_WORKSPACE_CONFIG`` environment
+        variable to be set (e.g. to ``":16:8"`` or ``":4096:8"``) before
+        importing ``torch``.
     """
-    Fix random seeds for reproducibility.
-    """
+
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+
+        if deterministic:
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
 
 def save_checkpoint(model, optimizer, epoch, save_path="checkpoint.pth"):
     """

@@ -2,6 +2,7 @@
 
 device: "cuda"          # "cuda" or "cpu"
 seed: 42
+deterministic: true
 dataset_name: "cifar100"
 small_input: true
 data_root: "./data"
