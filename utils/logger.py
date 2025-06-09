@@ -129,6 +129,10 @@ class ExperimentLogger:
             "test_acc",
             "batch_size",
             "total_time_sec",
+            "mbm_type",
+            "mbm_r",
+            "mbm_n_head",
+            "mbm_learnable_q",
         ]
 
         epoch_cols = [

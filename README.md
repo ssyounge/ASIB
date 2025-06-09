@@ -65,7 +65,8 @@ Usage
 1) Multi-Stage Distillation (main.py)
 
 python main.py --config configs/partial_freeze.yaml --device cuda \
---teacher1_ckpt teacher1.pth --teacher2_ckpt teacher2.pth
+  --teacher1_ckpt teacher1.pth --teacher2_ckpt teacher2.pth \
+  --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 0
 	•	Adjust hyperparameters in configs/*.yaml (partial freeze, learning rates, etc.).
 	•	Optionally load pre-finetuned teacher checkpoints via `--teacher1_ckpt` and `--teacher2_ckpt`.
         •       Optimizers and schedulers are instantiated once before stages and reset before each stage.
@@ -83,7 +84,8 @@ python eval.py --eval_mode synergy \
   --teacher1_ckpt teacher1.pth \
   --teacher2_ckpt teacher2.pth \
   --mbm_ckpt mbm.pth \
-  --head_ckpt synergy_head.pth
+  --head_ckpt synergy_head.pth \
+  --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 0
 
 	•	Prints Train/Test accuracy, optionally logs to CSV if configured.
 
