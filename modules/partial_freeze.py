@@ -3,6 +3,8 @@
 import torch
 import torch.nn as nn
 
+from utils.freeze import freeze_all, unfreeze_by_regex, apply_bn_ln_policy
+
 def freeze_all_params(model: nn.Module):
     """모델 내 모든 파라미터를 학습 불가능(requires_grad=False)하게 만든다."""
     for param in model.parameters():
@@ -29,7 +31,9 @@ def freeze_ln_params(module: nn.Module):
 def partial_freeze_teacher_resnet(
     model: nn.Module,
     freeze_bn: bool = True,
-    freeze_scope: str = None
+    use_adapter: bool = False,
+    bn_head_only: bool = False,
+    freeze_scope: str = None,
 ):
     """
     Teacher (ResNet101) partial freeze:
@@ -42,40 +46,34 @@ def partial_freeze_teacher_resnet(
       - "layer4_fc": layer4 + fc (그리고 mbm.?) unfreeze
       - None (default): fc + mbm 만 unfreeze
     """
-    # 1) 전체 동결
-    freeze_all_params(model)
+    freeze_all(model)
 
-    # 2) freeze_scope 별 unfreeze 로직
+    if bn_head_only:
+        unfreeze_by_regex(model, r"^fc\.")
+        apply_bn_ln_policy(model, train_bn=True)
+        return
+
+    patterns = []
     if freeze_scope == "fc_only":
-        # fc. 만 unfreeze
-        for name, param in model.named_parameters():
-            if "fc." in name:
-                param.requires_grad = True
-
+        patterns.append(r"^fc\.")
     elif freeze_scope == "layer4_fc":
-        # layer4. + fc. + mbm. 풀어 주는 예시
-        for name, param in model.named_parameters():
-            if "layer4." in name or "fc." in name or "mbm." in name:
-                param.requires_grad = True
-
+        patterns.extend([r"^layer4\.", r"^fc\.", r"^mbm\."])
     else:
-        # default: fc. + mbm. 만 unfreeze
-        for name, param in model.named_parameters():
-            if "fc." in name or "mbm." in name:
-                param.requires_grad = True
+        patterns.extend([r"^fc\.", r"^mbm\."])
 
-    # 3) BN 업데이트 여부
-    if not freeze_bn:
-        # BN 레이어 unfreeze
-        for m in model.modules():
-            if isinstance(m, (nn.BatchNorm2d, nn.BatchNorm1d)):
-                for p in m.parameters():
-                    p.requires_grad = True
+    if use_adapter:
+        patterns.append(r"\.adapter_")
+
+    unfreeze_by_regex(model, patterns)
+
+    apply_bn_ln_policy(model, train_bn=not freeze_bn)
 
 
 def partial_freeze_teacher_efficientnet(
     model: nn.Module,
     freeze_bn: bool = True,
+    use_adapter: bool = False,
+    bn_head_only: bool = False,
     freeze_scope: str = None
 ):
     """
@@ -83,39 +81,32 @@ def partial_freeze_teacher_efficientnet(
       - freeze_scope 예시:
          "classifier_only", "features_classifier", etc.
     """
-    freeze_all_params(model)
+    freeze_all(model)
 
+    if bn_head_only:
+        unfreeze_by_regex(model, r"^classifier\.")
+        apply_bn_ln_policy(model, train_bn=True)
+        return
+
+    patterns = []
     if freeze_scope == "classifier_only":
-        # classifier. 만 unfreeze
-        for name, param in model.named_parameters():
-            if "classifier." in name:
-                param.requires_grad = True
-
+        patterns.append(r"^classifier\.")
     elif freeze_scope == "features_classifier":
-        # features. + classifier. (+ mbm.)
-        for name, param in model.named_parameters():
-            if (
-                "features." in name
-                or "classifier." in name
-                or "mbm." in name
-            ):
-                param.requires_grad = True
-
+        patterns.extend([r"^features\.", r"^classifier\.", r"^mbm\."])
     else:
-        # default: classifier. + mbm. unfreeze
-        for name, param in model.named_parameters():
-            if "classifier." in name or "mbm." in name:
-                param.requires_grad = True
+        patterns.extend([r"^classifier\.", r"^mbm\."])
 
-    if not freeze_bn:
-        for m in model.modules():
-            if isinstance(m, (nn.BatchNorm2d, nn.BatchNorm1d)):
-                for p in m.parameters():
-                    p.requires_grad = True
+    if use_adapter:
+        patterns.append(r"\.adapter_")
+
+    unfreeze_by_regex(model, patterns)
+
+    apply_bn_ln_policy(model, train_bn=not freeze_bn)
 
 def partial_freeze_teacher_swin(
     model: nn.Module,
     freeze_ln: bool = True,
+    use_adapter: bool = False,
     freeze_scope: str = None
 ):
     """
@@ -124,24 +115,20 @@ def partial_freeze_teacher_swin(
       - default: head. + mbm.
       - freeze_ln=True => LN 동결
     """
-    freeze_all_params(model)
+    freeze_all(model)
 
+    patterns = []
     if freeze_scope == "head_only":
-        for name, param in model.named_parameters():
-            if "head." in name:
-                param.requires_grad = True
+        patterns.append(r"^head\.")
     else:
-        # default => head. + mbm. unfreeze
-        for name, param in model.named_parameters():
-            if "head." in name or "mbm." in name:
-                param.requires_grad = True
+        patterns.extend([r"^head\.", r"^mbm\."])
 
-    if not freeze_ln:
-        # Unfreeze LayerNorm parameters
-        for m in model.modules():
-            if isinstance(m, nn.LayerNorm):
-                for p in m.parameters():
-                    p.requires_grad = True
+    if use_adapter:
+        patterns.append(r"\.adapter_")
+
+    unfreeze_by_regex(model, patterns)
+
+    apply_bn_ln_policy(model, train_ln=not freeze_ln)
 
 def partial_freeze_student_resnet(
     model: nn.Module,
@@ -261,23 +248,36 @@ def freeze_teacher_params(
     teacher_name: str = "resnet101",
     freeze_bn: bool = True,
     freeze_ln: bool = True,
+    use_adapter: bool = False,
+    bn_head_only: bool = False,
     freeze_scope: str = None,
 ) -> None:
     """Wrapper that partially freezes a teacher model by type."""
     if teacher_name == "resnet101":
         partial_freeze_teacher_resnet(
-            model, freeze_bn=freeze_bn, freeze_scope=freeze_scope
+            model,
+            freeze_bn=freeze_bn,
+            use_adapter=use_adapter,
+            bn_head_only=bn_head_only,
+            freeze_scope=freeze_scope,
         )
     elif teacher_name == "efficientnet_b2":
         partial_freeze_teacher_efficientnet(
-            model, freeze_bn=freeze_bn, freeze_scope=freeze_scope
+            model,
+            freeze_bn=freeze_bn,
+            use_adapter=use_adapter,
+            bn_head_only=bn_head_only,
+            freeze_scope=freeze_scope,
         )
     elif teacher_name == "swin_tiny":
         partial_freeze_teacher_swin(
-            model, freeze_ln=freeze_ln, freeze_scope=freeze_scope
+            model,
+            freeze_ln=freeze_ln,
+            use_adapter=use_adapter,
+            freeze_scope=freeze_scope,
         )
     else:
-        freeze_all_params(model)
+        freeze_all(model)
 
 
 def freeze_student_with_adapter(
