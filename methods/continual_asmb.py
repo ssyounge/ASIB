@@ -86,7 +86,7 @@ def run_asmb_continual(
             freeze_scope=cfg.get("student_freeze_scope", None),
         )
 
-    # build optimizers for first stage
+    # build shared optimizers for all stages
     t_params = []
     for tw in first_teachers:
         for p in tw.parameters():
@@ -190,48 +190,24 @@ def run_asmb_continual(
 
         # 1) teacher adaptive update:
         teacher_wrappers = [teacherA, new_teacher]
-        # build optimizers for this stage
+        # update shared optimizer params for this stage
         t_params = []
         for tw in teacher_wrappers:
             for p in tw.parameters():
                 if p.requires_grad:
                     t_params.append(p)
-        mbm_params = [p for p in mbm.parameters() if p.requires_grad]
-        syn_params = [p for p in synergy_head.parameters() if p.requires_grad]
-
-        t_opt = optim.Adam(
-            [
-                {"params": t_params, "lr": cfg["teacher_lr"]},
-                {
-                    "params": mbm_params,
-                    "lr": cfg["teacher_lr"] * cfg.get("mbm_lr_factor", 1.0),
-                },
-                {
-                    "params": syn_params,
-                    "lr": cfg["teacher_lr"] * cfg.get("mbm_lr_factor", 1.0),
-                },
-            ],
-            weight_decay=cfg["teacher_weight_decay"],
-        )
-        t_sched = StepLR(
-            t_opt,
-            step_size=cfg.get("teacher_step_size", 10),
-            gamma=cfg.get("teacher_gamma", 0.1),
-        )
+        t_opt.param_groups[0]["params"] = t_params
+        t_sched.base_lrs = [
+            t_opt.param_groups[0]["lr"],
+            t_opt.param_groups[1]["lr"],
+            t_opt.param_groups[2]["lr"],
+        ]
+        t_sched.last_epoch = -1
 
         s_params = [p for p in new_student.parameters() if p.requires_grad]
-        s_opt = optim.Adam(
-            s_params,
-            lr=cfg["student_lr"],
-            weight_decay=cfg["student_weight_decay"],
-            betas=(0.9, 0.999),
-            eps=1e-8,
-        )
-        s_sched = StepLR(
-            s_opt,
-            step_size=cfg.get("student_step_size", 10),
-            gamma=cfg.get("student_gamma", 0.1),
-        )
+        s_opt.param_groups[0]["params"] = s_params
+        s_sched.base_lrs = [s_opt.param_groups[0]["lr"]]
+        s_sched.last_epoch = -1
 
         teacher_adaptive_update(
             teacher_wrappers=teacher_wrappers,
