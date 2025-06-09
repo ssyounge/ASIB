@@ -60,6 +60,11 @@ pytest
 
 PyTorch must be available for the unit tests to run.
 
+> **Note**
+> The training and evaluation scripts now call `torch.load(..., weights_only=True)`
+> when loading checkpoints. Make sure you have **PyTorch&nbsp;2.1** or newer
+> installed, otherwise loading state dictionaries will fail.
+
 ---
 
 Usage
