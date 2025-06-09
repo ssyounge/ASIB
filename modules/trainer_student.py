@@ -130,26 +130,7 @@ def student_distillation_update(
             else:
                 weights = torch.ones_like(y, dtype=torch.float32, device=y.device)
 
-            # CE + KD with per-sample reductions
-            if mix_mode != "none":
-                ce_obj = lambda pred, target: ce_loss_fn(
-                    pred,
-                    target,
-                    label_smoothing=cfg.get("label_smoothing", 0.0),
-                    reduction="none",
-                )
-                ce_vec = mixup_criterion(ce_obj, s_logit, y_a, y_b, lam)
-            else:
-                ce_vec = ce_loss_fn(
-                    s_logit,
-                    y,
-                    label_smoothing=cfg.get("label_smoothing", 0.0),
-                    reduction="none",
-                )
-            kd_vec = kd_loss_fn(
-                s_logit, zsyn, T=cur_tau, reduction="none"
-            ).sum(dim=1)
-
+            # apply sample weights to CE and KD losses computed above
             ce_loss_val = (weights * ce_vec).mean()
             kd_loss_val = (weights * kd_vec).mean()
 
