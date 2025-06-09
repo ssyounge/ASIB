@@ -1,5 +1,6 @@
 import contextlib
-import torch
+import pytest
+pytest.importorskip("torch")
 from utils.misc import get_amp_components
 
 def test_amp_disabled():
