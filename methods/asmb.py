@@ -31,7 +31,8 @@ class ASMBDistiller(nn.Module):
         reg_lambda=1e-4,
         mbm_reg_lambda=1e-4,
         num_stages=2,
-        device="cuda"
+        device="cuda",
+        config=None
     ):
         super().__init__()
         self.teacher1 = teacher1
@@ -48,6 +49,7 @@ class ASMBDistiller(nn.Module):
         self.mbm_reg_lambda = mbm_reg_lambda
         self.num_stages = num_stages
         self.device = device
+        self.config = config if config is not None else {}
 
         # 기본 Loss
         self.ce_loss_fn = nn.CrossEntropyLoss()
@@ -207,7 +209,11 @@ class ASMBDistiller(nn.Module):
                 # (i) -KL(s_logit, zsyn)
                 kl_val = kd_loss_fn(zsyn, s_logit, T=self.T)  # 여기선 sign 주의
                 # (ii) synergy CE
-                ce_val = ce_loss_fn(zsyn, y)
+                ce_val = ce_loss_fn(
+                    zsyn,
+                    y,
+                    label_smoothing=self.config.get("label_smoothing", 0.0)
+                )
                 synergy_ce = self.synergy_ce_alpha * ce_val
 
                 # 정규화
