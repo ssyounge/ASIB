@@ -1,4 +1,5 @@
 #!/bin/bash
+# run.sh
 #SBATCH --job-name=run_asmb_experiment
 #SBATCH --partition=base_suma_rtx3090
 #SBATCH --gres=gpu:1
