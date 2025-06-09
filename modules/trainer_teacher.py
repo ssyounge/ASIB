@@ -2,12 +2,10 @@
 
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import copy
 from utils.progress import smart_tqdm
 
 from modules.losses import kd_loss_fn, ce_loss_fn
-from torch.optim.lr_scheduler import StepLR
 
 def _cpu_state_dict(module: torch.nn.Module):
     """
@@ -48,6 +46,8 @@ def teacher_adaptive_update(
     testloader,
     cfg,
     logger,
+    optimizer,
+    scheduler=None,
 ):
     """
     - teacher_wrappers: [teacher1, teacher2]
@@ -63,17 +63,6 @@ def teacher_adaptive_update(
     mbm_params = [p for p in mbm.parameters() if p.requires_grad]
     syn_params = [p for p in synergy_head.parameters() if p.requires_grad]
 
-    optimizer = optim.Adam([
-        {"params": teacher_params, "lr": cfg["teacher_lr"]},
-        {"params": mbm_params,     "lr": cfg["teacher_lr"] * cfg.get("mbm_lr_factor", 1.0)},
-        {"params": syn_params,     "lr": cfg["teacher_lr"] * cfg.get("mbm_lr_factor", 1.0)},
-    ], weight_decay=cfg["teacher_weight_decay"])
-
-    scheduler_t = StepLR(
-        optimizer,
-        step_size=cfg.get("teacher_step_size", 10),
-        gamma=cfg.get("teacher_gamma", 0.1)
-    )
 
     best_synergy = -1
     best_state = {
@@ -159,7 +148,8 @@ def teacher_adaptive_update(
 
         logger.info(f"[TeacherAdaptive ep={ep+1}] loss={ep_loss:.4f}, synergy={synergy_test_acc:.2f}")
 
-        scheduler_t.step()
+        if scheduler is not None:
+            scheduler.step()
 
         # best snapshot
         if synergy_test_acc > best_synergy:

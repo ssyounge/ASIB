@@ -2,14 +2,12 @@
 
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import copy
 from utils.progress import smart_tqdm
 
 from modules.losses import kd_loss_fn, ce_loss_fn
 from modules.disagreement import sample_weights_from_disagreement
 from utils.misc import mixup_data, mixup_criterion
-from torch.optim.lr_scheduler import StepLR
 
 def student_distillation_update(
     teacher_wrappers,
@@ -18,7 +16,9 @@ def student_distillation_update(
     trainloader,
     testloader,
     cfg,
-    logger
+    logger,
+    optimizer,
+    scheduler=None
 ):
     """
     - Teacher/MBM 고정 -> synergy logit
@@ -43,21 +43,7 @@ def student_distillation_update(
         syn_reqgrad_states.append(p.requires_grad)
         p.requires_grad = False
 
-    # 2) Student Optim
-    params_s = [p for p in student_model.parameters() if p.requires_grad]
-    optimizer_s = optim.Adam(
-        params_s,
-        lr=cfg["student_lr"],
-        weight_decay=cfg["student_weight_decay"],
-        betas=(0.9, 0.999),
-        eps=1e-8
-    )
-
-    scheduler_s = StepLR(
-        optimizer_s,
-        step_size=cfg.get("student_step_size", 10),
-        gamma=cfg.get("student_gamma", 0.1)
-    )
+    # 2) Student Optim handled externally
     
     best_acc = 0.0
     best_state = copy.deepcopy(student_model.state_dict())
@@ -166,9 +152,9 @@ def student_distillation_update(
                 + cfg.get("feat_kd_alpha", 0.0) * feat_kd_val
             )
 
-            optimizer_s.zero_grad()
+            optimizer.zero_grad()
             loss.backward()
-            optimizer_s.step()
+            optimizer.step()
 
             bs = x.size(0)
             distill_loss_sum += loss.item()*bs
@@ -182,7 +168,8 @@ def student_distillation_update(
         logger.info(f"[StudentDistill ep={ep+1}] loss={ep_loss:.4f}, testAcc={test_acc:.2f}, best={best_acc:.2f}")
         logger.update_metric(f"ep{ep+1}_feat_kd", feat_kd_val.item())
 
-        scheduler_s.step()
+        if scheduler is not None:
+            scheduler.step()
 
         # (E) best snapshot
         if test_acc > best_acc:
