@@ -7,6 +7,7 @@ from utils.progress import smart_tqdm
 
 from modules.losses import kd_loss_fn, ce_loss_fn
 from utils.schedule import get_tau
+from utils.misc import get_amp_components
 
 def _cpu_state_dict(module: torch.nn.Module):
     """
@@ -16,21 +17,22 @@ def _cpu_state_dict(module: torch.nn.Module):
     return {k: v.detach().cpu().clone() for k, v in module.state_dict().items()}
 
 @torch.no_grad()
-def eval_synergy(teacher_wrappers, mbm, synergy_head, loader, device="cuda"):
+def eval_synergy(teacher_wrappers, mbm, synergy_head, loader, device="cuda", cfg=None):
+    autocast_ctx, _ = get_amp_components(cfg or {})
     correct, total = 0, 0
     for x, y in loader:
         x, y = x.to(device), y.to(device)
+        with autocast_ctx:
+            t1_dict = teacher_wrappers[0](x)
+            t2_dict = teacher_wrappers[1](x)
 
-        t1_dict = teacher_wrappers[0](x)
-        t2_dict = teacher_wrappers[1](x)
+            f1_2d = t1_dict["feat_2d"]
+            f2_2d = t2_dict["feat_2d"]
+            f1_4d = t1_dict.get("feat_4d")
+            f2_4d = t2_dict.get("feat_4d")
 
-        f1_2d = t1_dict["feat_2d"]
-        f2_2d = t2_dict["feat_2d"]
-        f1_4d = t1_dict.get("feat_4d")
-        f2_4d = t2_dict.get("feat_4d")
-
-        fsyn = mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
-        zsyn = synergy_head(fsyn)
+            fsyn = mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
+            zsyn = synergy_head(fsyn)
 
         pred = zsyn.argmax(dim=1)
         correct += (pred == y).sum().item()
@@ -79,6 +81,7 @@ def teacher_adaptive_update(
     teacher_epochs = cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5))
     logger.info(f"[TeacherAdaptive] Using teacher_epochs={teacher_epochs}")
 
+    autocast_ctx, scaler = get_amp_components(cfg)
     for ep in range(teacher_epochs):
         cur_tau = get_tau(cfg, global_ep + ep)
         teacher_loss_sum = 0.0
@@ -88,30 +91,31 @@ def teacher_adaptive_update(
             x, y = batch
             x, y = x.to(cfg["device"]), y.to(cfg["device"])
 
-            # (A) Student logit (고정)
-            with torch.no_grad():
-                _, s_logit, _ = student_model(x)
+            with autocast_ctx:
+                # (A) Student logit (고정)
+                with torch.no_grad():
+                    _, s_logit, _ = student_model(x)
 
-            # (B) Teacher features
-            feats_2d = []
-            feats_4d = []
-            for tw in teacher_wrappers:
-                t_dict = tw(x)
-                feats_2d.append(t_dict["feat_2d"])
-                feats_4d.append(t_dict.get("feat_4d"))
+                # (B) Teacher features
+                feats_2d = []
+                feats_4d = []
+                for tw in teacher_wrappers:
+                    t_dict = tw(x)
+                    feats_2d.append(t_dict["feat_2d"])
+                    feats_4d.append(t_dict.get("feat_4d"))
 
-            # (C) MBM + synergy_head
-            fsyn = mbm(feats_2d, feats_4d)
-            zsyn = synergy_head(fsyn)
+                # (C) MBM + synergy_head
+                fsyn = mbm(feats_2d, feats_4d)
+                zsyn = synergy_head(fsyn)
 
-            # (D) loss 계산 (KL + synergyCE)
-            loss_kd         = kd_loss_fn(zsyn, s_logit, T=cur_tau)
-            loss_ce         = ce_loss_fn(
-                zsyn,
-                y,
-                label_smoothing=cfg.get("label_smoothing", 0.0),
-            )
-            synergy_ce_loss = cfg["synergy_ce_alpha"] * loss_ce
+                # (D) loss 계산 (KL + synergyCE)
+                loss_kd         = kd_loss_fn(zsyn, s_logit, T=cur_tau)
+                loss_ce         = ce_loss_fn(
+                    zsyn,
+                    y,
+                    label_smoothing=cfg.get("label_smoothing", 0.0),
+                )
+                synergy_ce_loss = cfg["synergy_ce_alpha"] * loss_ce
 
             # 기본 KD+CE
             total_loss = cfg["teacher_adapt_alpha_kd"] * loss_kd + synergy_ce_loss
@@ -133,8 +137,13 @@ def teacher_adaptive_update(
             # -----------------------------------------------------------      
             
             optimizer.zero_grad()
-            total_loss.backward()
-            optimizer.step()
+            if scaler is not None:
+                scaler.scale(total_loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                total_loss.backward()
+                optimizer.step()
 
             teacher_loss_sum += total_loss.item() * x.size(0)
             count += x.size(0)
@@ -149,6 +158,7 @@ def teacher_adaptive_update(
                 synergy_head,
                 loader=testloader,
                 device=cfg["device"],
+                cfg=cfg,
             )
         else:
             synergy_test_acc = -1

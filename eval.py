@@ -13,7 +13,7 @@ import os
 from data.cifar100 import get_cifar100_loaders
 from models.mbm import ManifoldBridgingModule, SynergyHead, build_from_teachers
 from utils.logger import ExperimentLogger
-from utils.misc import set_random_seed
+from utils.misc import set_random_seed, get_amp_components
 
 # Teacher Factory
 # Import the three teacher creation functions:
@@ -62,6 +62,8 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--small_input", type=int,
                         help="1 for CIFAR-style conv stem in teachers")
+    parser.add_argument("--use_amp", type=int)
+    parser.add_argument("--amp_dtype", type=str)
     return parser.parse_args()
 
 def load_config(path):
@@ -71,14 +73,16 @@ def load_config(path):
     return {}
 
 @torch.no_grad()
-def evaluate_acc(model, loader, device="cuda"):
+def evaluate_acc(model, loader, device="cuda", cfg=None):
+    autocast_ctx, _ = get_amp_components(cfg or {})
     model.eval()
     correct = 0
     total = 0
     for x, y in loader:
         x, y = x.to(device), y.to(device)
-        out = model(x)
-        preds = out.argmax(dim=1)
+        with autocast_ctx:
+            out = model(x)
+            preds = out.argmax(dim=1)
         correct += (preds == y).sum().item()
         total   += y.size(0)
     return 100.0 * correct / total
@@ -118,6 +122,8 @@ def main():
 
     # 3) Logger
     logger = ExperimentLogger(cfg, exp_name="eval_experiment")
+    logger.update_metric("use_amp", cfg.get("use_amp", False))
+    logger.update_metric("amp_dtype", cfg.get("amp_dtype", "float16"))
 
     # 4) Data
     dataset_name = cfg.get("dataset_name", "cifar100")
@@ -144,8 +150,8 @@ def main():
         else:
             print("[Eval single] no ckpt => random init")
 
-        train_acc = evaluate_acc(model, train_loader, device)
-        test_acc  = evaluate_acc(model, test_loader, device)
+        train_acc = evaluate_acc(model, train_loader, device, cfg)
+        test_acc  = evaluate_acc(model, test_loader, device, cfg)
         print(f"[Single] Train={train_acc:.2f}, Test={test_acc:.2f}")
 
         logger.update_metric("eval_mode", "single")
@@ -197,8 +203,8 @@ def main():
         synergy_model = SynergyEnsemble(teacher1, teacher2, mbm, synergy_head).to(device)
 
         # evaluate
-        train_acc = evaluate_acc(synergy_model, train_loader, device)
-        test_acc  = evaluate_acc(synergy_model, test_loader, device)
+        train_acc = evaluate_acc(synergy_model, train_loader, device, cfg)
+        test_acc  = evaluate_acc(synergy_model, test_loader, device, cfg)
         print(f"[Synergy] Train={train_acc:.2f}, Test={test_acc:.2f}")
 
         logger.update_metric("eval_mode", "synergy")

@@ -1,9 +1,10 @@
 # modules/disagreement.py
 
 import torch
+from utils.misc import get_amp_components
 
 @torch.no_grad()
-def compute_disagreement_rate(teacher1, teacher2, loader, device="cuda"):
+def compute_disagreement_rate(teacher1, teacher2, loader, device="cuda", cfg=None):
     """
     Compute the *cross-error rate*, i.e. the percentage of samples on which
     ``teacher1`` and ``teacher2`` both make an incorrect prediction.
@@ -22,12 +23,13 @@ def compute_disagreement_rate(teacher1, teacher2, loader, device="cuda"):
     total_samples = 0
     both_wrong = 0
 
+    autocast_ctx, _ = get_amp_components(cfg or {})
     for x, y in loader:
         x, y = x.to(device), y.to(device)
 
-        # forward each teacher, get their logits from the returned dict
-        logit1 = teacher1(x)["logit"]
-        logit2 = teacher2(x)["logit"]
+        with autocast_ctx:
+            logit1 = teacher1(x)["logit"]
+            logit2 = teacher2(x)["logit"]
 
         # argmax predictions
         pred1 = logit1.argmax(dim=1)

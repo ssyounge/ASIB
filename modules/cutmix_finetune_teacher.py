@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.optim as optim
 from utils.progress import smart_tqdm
 
-from utils.misc import cutmix_data
+from utils.misc import cutmix_data, get_amp_components
 
 
 def cutmix_criterion(criterion, pred, y_a, y_b, lam):
@@ -25,6 +25,7 @@ def train_one_epoch_cutmix(
     alpha=1.0,
     device="cuda",
     label_smoothing: float = 0.0,
+    cfg=None,
 ):
     """
     teacher_model: forward(x, y=None)-> dict (must contain ``"logit"``)
@@ -33,6 +34,7 @@ def train_one_epoch_cutmix(
     """
     teacher_model.train()
     criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
+    autocast_ctx, scaler = get_amp_components(cfg or {})
     total_loss = 0.0
     correct, total = 0, 0
 
@@ -42,17 +44,21 @@ def train_one_epoch_cutmix(
         # 1) cutmix
         x_cm, y_a, y_b, lam = cutmix_data(x, y, alpha=alpha)
 
-        # 2) forward
-        out = teacher_model(x_cm)  # we only need `logits` for classification
-        logits = out["logit"]
-
-        # 3) loss
-        loss = cutmix_criterion(criterion, logits, y_a, y_b, lam)
+        # 2) forward + loss
+        with autocast_ctx:
+            out = teacher_model(x_cm)  # we only need `logits` for classification
+            logits = out["logit"]
+            loss = cutmix_criterion(criterion, logits, y_a, y_b, lam)
 
         # 4) backward
         optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        if scaler is not None:
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            loss.backward()
+            optimizer.step()
 
         # 5) log
         bs = x.size(0)
@@ -69,13 +75,15 @@ def train_one_epoch_cutmix(
     return epoch_loss, epoch_acc
 
 @torch.no_grad()
-def eval_teacher(teacher_model, loader, device="cuda"):
+def eval_teacher(teacher_model, loader, device="cuda", cfg=None):
+    autocast_ctx, _ = get_amp_components(cfg or {})
     teacher_model.eval()
     correct, total = 0, 0
     for x, y in loader:
         x, y = x.to(device), y.to(device)
-        out = teacher_model(x)  # dict with "logit"
-        preds = out["logit"].argmax(dim=1)
+        with autocast_ctx:
+            out = teacher_model(x)  # dict with "logit"
+            preds = out["logit"].argmax(dim=1)
         correct += (preds == y).sum().item()
         total   += y.size(0)
     return 100.0 * correct / total
@@ -105,7 +113,7 @@ def finetune_teacher_cutmix(
     if os.path.exists(ckpt_path):
         print(f"[CutMix] Found checkpoint => load {ckpt_path}")
         teacher_model.load_state_dict(torch.load(ckpt_path))
-        test_acc = eval_teacher(teacher_model, test_loader, device=device)
+        test_acc = eval_teacher(teacher_model, test_loader, device=device, cfg=None)
         print(f"[CutMix] loaded => testAcc={test_acc:.2f}")
         return teacher_model, test_acc
 
@@ -123,8 +131,9 @@ def finetune_teacher_cutmix(
             alpha=alpha,
             device=device,
             label_smoothing=label_smoothing,
+            cfg=None,
         )
-        te_acc = eval_teacher(teacher_model, test_loader, device=device)
+        te_acc = eval_teacher(teacher_model, test_loader, device=device, cfg=None)
 
         if te_acc > best_acc:
             best_acc = te_acc
@@ -153,6 +162,7 @@ def standard_ce_finetune(
     device="cuda",
     ckpt_path="teacher_finetuned_ce.pth",
     label_smoothing: float = 0.0,
+    cfg=None,
 ):
     """Simple cross-entropy fine-tuning loop.
 
@@ -162,11 +172,12 @@ def standard_ce_finetune(
         Amount of label smoothing for ``CrossEntropyLoss``.
     """
     teacher_model = teacher_model.to(device)
+    autocast_ctx, scaler = get_amp_components(cfg or {})
 
     if os.path.exists(ckpt_path):
         print(f"[CEFineTune] Found checkpoint => load {ckpt_path}")
         teacher_model.load_state_dict(torch.load(ckpt_path))
-        test_acc = eval_teacher(teacher_model, test_loader, device=device)
+        test_acc = eval_teacher(teacher_model, test_loader, device=device, cfg=cfg)
         print(f"[CEFineTune] loaded => testAcc={test_acc:.2f}")
         return teacher_model, test_acc
 
@@ -183,11 +194,17 @@ def standard_ce_finetune(
         for x, y in smart_tqdm(train_loader, desc=f"[CE FineTune ep={ep}]"):
             x, y = x.to(device), y.to(device)
             optimizer.zero_grad()
-            out = teacher_model(x)
-            loss = criterion(out["logit"], y)
-            loss.backward()
-            optimizer.step()
-        te_acc = eval_teacher(teacher_model, test_loader, device=device)
+            with autocast_ctx:
+                out = teacher_model(x)
+                loss = criterion(out["logit"], y)
+            if scaler is not None:
+                scaler.scale(loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                loss.backward()
+                optimizer.step()
+        te_acc = eval_teacher(teacher_model, test_loader, device=device, cfg=cfg)
         if te_acc > best_acc:
             best_acc = te_acc
             best_state = copy.deepcopy(teacher_model.state_dict())
