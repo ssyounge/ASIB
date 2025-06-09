@@ -20,6 +20,13 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
   student features used as the attention query in `LightweightAttnMBM`.
   Passing `0` (or any non-positive value) defaults to the summed teacher
   feature dimension for backward compatibility.
+  Common student feature dimensions are:
+
+  | Student model                | Feature dim |
+  |------------------------------|-------------|
+  | `student_efficientnet_adapter` | 1408        |
+  | `student_resnet_adapter`       | 2048        |
+  | `student_swin_adapter`         | 768         |
 - **Smart Progress Bars**: progress bars hide automatically when stdout isn't a TTY
 - **CIFAR-friendly ResNet/EfficientNet stem**: use `--small_input 1` when
   fine-tuning or evaluating models that modify the conv stem for 32x32 inputs

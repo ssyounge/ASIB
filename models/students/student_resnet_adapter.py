@@ -19,6 +19,7 @@ class ExtendedAdapterResNet101(nn.Module):
         super().__init__()
         self.backbone = base_model
         self.criterion_ce = nn.CrossEntropyLoss()
+        self.feat_dim = 2048
 
         # 기존 resnet structure references
         self.conv1   = self.backbone.conv1
@@ -40,6 +41,10 @@ class ExtendedAdapterResNet101(nn.Module):
         self.adapter_conv3 = nn.Conv2d(512, 1024, kernel_size=1, bias=False)
         self.adapter_gn3   = nn.GroupNorm(32, 1024)
         self.adapter_relu  = nn.ReLU(inplace=True)
+
+    def get_feat_dim(self) -> int:
+        """Return the dimension of the 2D feature (feat_2d)."""
+        return self.feat_dim
 
     def forward(self, x, y=None):
         # 1) stem

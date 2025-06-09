@@ -18,6 +18,7 @@ class ExtendedAdapterEffNetB2(nn.Module):
         self.backbone = base_model
         self.num_classes = num_classes
         self.criterion_ce = nn.CrossEntropyLoss()
+        self.feat_dim = 1408
 
         # adapter
         self.adapter_conv1 = nn.Conv2d(1408, 512, kernel_size=1, bias=False)
@@ -25,6 +26,10 @@ class ExtendedAdapterEffNetB2(nn.Module):
         self.adapter_conv2 = nn.Conv2d(512, 1408, kernel_size=1, bias=False)
         self.adapter_gn2   = nn.GroupNorm(32, 1408)
         self.adapter_relu  = nn.ReLU(inplace=True)
+
+    def get_feat_dim(self) -> int:
+        """Return the dimension of the 2D feature (feat_2d)."""
+        return self.feat_dim
 
     def forward(self, x, y=None):
         # 1) backbone 4D feature
