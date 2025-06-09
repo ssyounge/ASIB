@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from typing import List
+from typing import List, Optional, Union, Tuple
 
 class LightweightAttnMBM(nn.Module):
     """Lightweight attention-based MBM.
@@ -34,9 +34,9 @@ class LightweightAttnMBM(nn.Module):
 
     def forward(
         self,
-        query_or_feats: torch.Tensor | List[torch.Tensor],
-        feats_2d: List[torch.Tensor] | None = None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+        query_or_feats: Union[torch.Tensor, List[torch.Tensor]],
+        feats_2d: Optional[List[torch.Tensor]] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Forward pass.
 
         Parameters
