@@ -13,6 +13,8 @@ import copy
 import torch
 import yaml
 
+from utils.misc import set_random_seed
+
 # data loaders
 from data.cifar100 import get_cifar100_loaders
 from data.imagenet100 import get_imagenet100_loaders
@@ -166,7 +168,8 @@ def main():
         device = "cpu"
 
     seed = cfg.get("seed", 42)
-    torch.manual_seed(seed)
+    deterministic = cfg.get("deterministic", True)
+    set_random_seed(seed, deterministic=deterministic)
 
     # 1) dataset
     dataset_name = cfg.get("dataset_name", "cifar100")

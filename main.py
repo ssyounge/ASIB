@@ -17,6 +17,7 @@ import os
 import yaml
 
 from utils.logger import ExperimentLogger
+from utils.misc import set_random_seed
 from modules.disagreement import compute_disagreement_rate
 from modules.trainer_teacher import teacher_adaptive_update
 from modules.trainer_student import student_distillation_update
@@ -191,7 +192,8 @@ def main():
 
     # fix seed
     seed = cfg.get("seed", 42)
-    torch.manual_seed(seed)
+    deterministic = cfg.get("deterministic", True)
+    set_random_seed(seed, deterministic=deterministic)
 
     # 3) Data
     dataset = cfg.get("dataset_name", "cifar100")
