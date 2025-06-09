@@ -3,6 +3,7 @@
 device: "cuda"
 dataset_name: "cifar100"
 small_input: true        # 32x32 이미지에 맞게 stem stride를 1로 수정
+deterministic: true
 
 # Teacher
 teacher_name: "resnet101"
