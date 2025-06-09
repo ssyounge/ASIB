@@ -112,12 +112,28 @@ def partial_freeze_teacher_auto(model, teacher_name, freeze_bn=True, freeze_ln=T
     else:
         raise ValueError(f"Unknown teacher_name={teacher_name}")
 
-def standard_ce_finetune(model, train_loader, test_loader,
-                         lr, weight_decay, epochs, device, ckpt_path):
+def standard_ce_finetune(
+    model,
+    train_loader,
+    test_loader,
+    lr,
+    weight_decay,
+    epochs,
+    device,
+    ckpt_path,
+    label_smoothing: float = 0.0,
+):
+    """Simple fine-tune loop using cross-entropy loss.
+
+    Parameters
+    ----------
+    label_smoothing : float, optional
+        Passed to ``CrossEntropyLoss``.
+    """
     model = model.to(device)
     optim = torch.optim.SGD(model.parameters(), lr=lr,
                             momentum=0.9, weight_decay=weight_decay)
-    crit  = torch.nn.CrossEntropyLoss()
+    crit  = torch.nn.CrossEntropyLoss(label_smoothing=label_smoothing)
     best_acc = 0.0
     for ep in range(1, epochs+1):
         model.train()
@@ -222,7 +238,8 @@ def main():
             weight_decay=weight_decay,
             epochs=finetune_epochs,
             device=device,
-            ckpt_path=ckpt_path
+            ckpt_path=ckpt_path,
+            label_smoothing=cfg.get("label_smoothing", 0.0),
         )
     else:
         # => implement your own standard CE fine-tune loop or reuse a function
@@ -234,7 +251,8 @@ def main():
             weight_decay=weight_decay,
             epochs=finetune_epochs,
             device=device,
-            ckpt_path=ckpt_path
+            ckpt_path=ckpt_path,
+            label_smoothing=cfg.get("label_smoothing", 0.0),
         )
 
     print(f"[FineTune] done => bestAcc={best_acc:.2f}, final ckpt={ckpt_path}")
