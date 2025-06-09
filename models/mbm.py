@@ -92,7 +92,11 @@ class SynergyHead(nn.Sequential):
             nn.Linear(in_dim, num_classes),
         )
 
-def build_from_teachers(teachers: List[nn.Module], cfg: dict) -> Tuple[ManifoldBridgingModule, SynergyHead]:
+def build_from_teachers(
+    teachers: List[nn.Module],
+    cfg: dict,
+    query_dim: Optional[int] = None,
+) -> Tuple[ManifoldBridgingModule, SynergyHead]:
     feat_dims = [t.get_feat_dim() for t in teachers]
     in_dim = sum(feat_dims)
 
@@ -112,6 +116,7 @@ def build_from_teachers(teachers: List[nn.Module], cfg: dict) -> Tuple[ManifoldB
             r=cfg.get("mbm_r", 4),
             n_head=cfg.get("mbm_n_head", 1),
             learnable_q=cfg.get("mbm_learnable_q", False),
+            query_dim=cfg.get("mbm_query_dim", query_dim),
         )
     else:
         mbm = ManifoldBridgingModule(
