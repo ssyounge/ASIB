@@ -112,7 +112,6 @@ def parse_args():
         type=int,
         help="1 to use CIFAR-friendly stems (teachers + Swin student)",
     )
-    parser.add_argument("--use_feat_kd", type=int)
     parser.add_argument("--feat_kd_alpha", type=float)
     parser.add_argument("--feat_kd_key", type=str)
     parser.add_argument("--feat_kd_norm", type=str)
