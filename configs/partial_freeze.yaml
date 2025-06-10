@@ -37,16 +37,3 @@ student_freeze_bn: false            # BN unfreeze
 student_freeze_scope: "fc_only"      # EfficientNet 사용 시 "features_classifier" 도 가능
 student_use_adapter: false          # adapter_ 파라미터 해제 여부
 
-# 기타
-reg_lambda: 1e-4          # Teacher L2 regularisation
-# --------------------------------------------------
-# L2 regularisation for MBM + Synergy-Head (App. C)
-#   - Setting it to 0.0 keeps current behaviour.
-#   - Tune around 1e-5 ~ 1e-4 for best results.
-mbm_reg_lambda: 0.0
-# --------------------------------------------------
-teacher_lr: 2e-4        # Teacher LR override
-mbm_type: "LA"        # "MLP" for old behaviour
-mbm_r: 4
-mbm_n_head: 1
-mbm_learnable_q: false
