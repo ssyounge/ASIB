@@ -189,10 +189,21 @@ def teacher_adaptive_update(
             optimizer.zero_grad()
             if scaler is not None:
                 scaler.scale(total_loss).backward()
+                if cfg.get("grad_clip_norm", 0) > 0:
+                    scaler.unscale_(optimizer)
+                    torch.nn.utils.clip_grad_norm_(
+                        teacher_params + mbm_params + syn_params,
+                        cfg["grad_clip_norm"],
+                    )
                 scaler.step(optimizer)
                 scaler.update()
             else:
                 total_loss.backward()
+                if cfg.get("grad_clip_norm", 0) > 0:
+                    torch.nn.utils.clip_grad_norm_(
+                        teacher_params + mbm_params + syn_params,
+                        cfg["grad_clip_norm"],
+                    )
                 optimizer.step()
 
             teacher_loss_sum += total_loss.item() * x.size(0)
