@@ -59,11 +59,11 @@ scripts.
 
 ## Testing
 
-Install the dependencies (including **PyTorch**) and run `pytest`:
+Install **PyTorch** and the remaining dependencies using the helper script and
+then run `pytest`:
 
 ```bash
-pip install -r requirements.txt
-pip install pytest
+bash scripts/setup_tests.sh
 pytest
 ```
 
