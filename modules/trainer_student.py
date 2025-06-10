@@ -162,10 +162,15 @@ def student_distillation_update(
                         fsyn_use.view(fsyn_use.size(0), -1), dim=1
                     )
 
-                feat_kd_val = torch.nn.functional.mse_loss(
-                    s_feat.view(s_feat.size(0), -1),
-                    fsyn_use.detach().view(s_feat.size(0), -1),
-                )
+                s_flat = s_feat.view(s_feat.size(0), -1)
+                f_flat = fsyn_use.detach().view(fsyn_use.size(0), -1)
+                if s_flat.size(1) == f_flat.size(1):
+                    feat_kd_val = torch.nn.functional.mse_loss(s_flat, f_flat)
+                else:
+                    logger.info(
+                        f"[StudentDistill] skip feat KD: s_feat={s_flat.size(1)}"
+                        f" vs fsyn={f_flat.size(1)}"
+                    )
 
             loss = (
                 cfg["ce_alpha"] * ce_loss_val

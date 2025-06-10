@@ -153,10 +153,15 @@ def teacher_adaptive_update(
 
                 feat_kd_loss = torch.tensor(0.0, device=cfg["device"])
                 if la_mode and cfg.get("feat_kd_alpha", 0) > 0:
-                    feat_kd_loss = torch.nn.functional.mse_loss(
-                        s_feat.view(s_feat.size(0), -1),
-                        fsyn.detach().view(s_feat.size(0), -1),
-                    )
+                    s_flat = s_feat.view(s_feat.size(0), -1)
+                    f_flat = fsyn.detach().view(fsyn.size(0), -1)
+                    if s_flat.size(1) == f_flat.size(1):
+                        feat_kd_loss = torch.nn.functional.mse_loss(s_flat, f_flat)
+                    else:
+                        logger.info(
+                            f"[TeacherAdaptive] skip feat KD: s_feat={s_flat.size(1)}"
+                            f" vs fsyn={f_flat.size(1)}"
+                        )
 
             # 기본 KD+CE
             total_loss = (
