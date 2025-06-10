@@ -52,7 +52,7 @@ tau_end:   1.0                  # 최종 τ
 tau_decay_epochs: 40            # 몇 epoch 동안 감소할지 (넘어가면 tau_end 고정)
 
 # --- Feature-KD 옵션 (추가) -------------------------
-use_feat_kd: false        # true → MSE 활성화
+# feat_kd_alpha가 0이면 Feature-KD 비활성화
 feat_kd_alpha: 0.25       # λ_feat   (논문 α_feat)
 feat_kd_key: "feat_2d"    # 어느 딕셔너리 key를 쓸지 (feat_4d 도 가능)
 feat_kd_norm: "none"      # "none" | "l2"  (예: 벡터 정규화 후 MSE)
