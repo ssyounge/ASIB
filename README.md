@@ -16,6 +16,7 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
   `--cutmix_alpha_distill` and `--label_smoothing`
 - **MBM Dropout**: set `mbm_dropout` in configs to add dropout within the
   Manifold Bridging Module
+- **Gradient Clipping**: enable by setting `grad_clip_norm` (>0) in configs
 - **Custom MBM Query Dim**: `mbm_query_dim` controls the dimension of the
   student features used as the attention query in `LightweightAttnMBM`.
   When omitted or set to `0`, the script automatically falls back to the
