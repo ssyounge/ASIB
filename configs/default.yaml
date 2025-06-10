@@ -82,7 +82,7 @@ mbm_r: 4
 mbm_n_head: 1
 mbm_learnable_q: false
 mbm_query_dim: 0      # <=0 -> use sum(feat_dims); set to student feat dim to override
-grad_clip_norm: 0.0   # max norm for gradient clipping (0 to disable)
+grad_clip_norm: 2.0   # max norm for gradient clipping (0 to disable)
 
 cutmix_alpha: 1.0
 cutmix_alpha_distill: 0.0
