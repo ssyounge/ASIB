@@ -181,10 +181,19 @@ def student_distillation_update(
             optimizer.zero_grad()
             if scaler is not None:
                 scaler.scale(loss).backward()
+                if cfg.get("grad_clip_norm", 0) > 0:
+                    scaler.unscale_(optimizer)
+                    torch.nn.utils.clip_grad_norm_(
+                        student_model.parameters(), cfg["grad_clip_norm"]
+                    )
                 scaler.step(optimizer)
                 scaler.update()
             else:
                 loss.backward()
+                if cfg.get("grad_clip_norm", 0) > 0:
+                    torch.nn.utils.clip_grad_norm_(
+                        student_model.parameters(), cfg["grad_clip_norm"]
+                    )
                 optimizer.step()
 
             bs = x.size(0)
