@@ -13,6 +13,7 @@ parser.add_argument(
     help="One or more YAML files or a directory of YAML fragments",
 )
 parser.add_argument('--out', required=True, help='Output YAML file')
+parser.add_argument('--hparams', help='YAML file with numeric hyperparameters')
 parser.add_argument('overrides', nargs='*', help='KEY=VAL pairs to override')
 args = parser.parse_args()
 
@@ -29,6 +30,12 @@ for base in args.base:
             data = yaml.safe_load(f)
             if data:
                 cfg.update(data)
+
+if args.hparams:
+    with open(args.hparams) as f:
+        hparams = yaml.safe_load(f)
+        if hparams:
+            cfg.update(hparams)
 
 for ov in args.overrides:
     if '=' not in ov:
