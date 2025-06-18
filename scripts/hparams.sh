@@ -42,6 +42,8 @@ MIXUP_ALPHA=0.2
 LABEL_SMOOTHING=0.1
 
 # Sweep/loop variables
+# N_STAGE_LIST accepts a space-separated list of stage counts,
+# e.g. "2 3 4 5" to run multiple values in a batch script.
 N_STAGE_LIST=5
 SC_ALPHA_LIST="0.3 0.6"
 STUDENT_LIST="resnet_adapter efficientnet_adapter swin_adapter"
