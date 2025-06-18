@@ -52,11 +52,11 @@ conda activate facil_env
 pip install -r requirements.txt  # includes pandas for analysis
 ```
 
-The unified script `run_experiments.sh` (used by `run_many.sh` and
-`run_sweep.sh`) automatically tries to activate a Conda environment named
-`facil_env`. If you use a different environment name, set the
-`CONDA_ENV` variable accordingly. You can also skip activation entirely by
-exporting `USE_CONDA=0` before running the script.
+The unified script `run_experiments.sh` automatically tries to activate a
+Conda environment named `facil_env`. If you use a different environment name,
+set the `CONDA_ENV` variable accordingly. You can also skip activation
+entirely by exporting `USE_CONDA=0` before running the script. Run experiments
+directly with `bash scripts/run_experiments.sh --mode {loop,sweep}`.
 
 The base config merged by `generate_config.py` defaults to
 `configs/default.yaml`. Override it by setting the `BASE_CONFIG`
@@ -339,9 +339,7 @@ Folder Structure
 
 ├── scripts
 │   ├── fine_tuning.py
-│   ├── run_experiments.sh
-│   ├── run_many.sh
-│   └── run_sweep.sh
+│   └── run_experiments.sh
 
 └── utils
     ├── logger.py
