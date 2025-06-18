@@ -66,16 +66,19 @@ environment variable:
 BASE_CONFIG=configs/partial_freeze.yaml bash scripts/run_many.sh
 ```
 
+Edit `configs/hparams.yaml` before running `bash scripts/run_many.sh` or
+`bash scripts/run_sweep.sh` to customize the default hyperparameters.
+
 ### Batch scripts & hyperparameter overrides
 
-`scripts/hparams.sh` stores the default hyperparameters used by
+`configs/hparams.yaml` stores the default hyperparameters used by
 `run_many.sh` and `run_sweep.sh`. The selected YAML file (via
 `BASE_CONFIG`) supplies the base settings such as model types and
 partial‑freeze options. When you run a script, the values are merged in
 the following order:
 
 1. YAML file specified by `BASE_CONFIG`
-2. Variables from `hparams.sh` (unless overridden)
+2. Variables from `configs/hparams.yaml` (unless overridden)
 3. Command-line overrides passed to `generate_config.py` or `main.py`
 
 You can override any variable by exporting it before calling the script.
@@ -202,10 +205,10 @@ The flag now also configures the student Swin adapter to expect 32×32 inputs.
 ### Teacher Fine-Tuning
 
 Fine-tune the individual teachers before running the distillation stages.
-Adjust the parameters in `scripts/hparams.sh`:
+Adjust the parameters in `configs/hparams.yaml`:
 
 ```bash
-# scripts/hparams.sh
+# configs/hparams.yaml
 FT_EPOCHS=100   # number of fine-tuning epochs
 FT_LR=0.0005    # learning rate
 CUTMIX_ALPHA=0  # set to 0 to disable CutMix
@@ -242,6 +245,8 @@ teacher2_freeze_scope: "features_classifier"
 After saving the changes, re-run the batch script to generate new teacher
 checkpoints and continue with distillation:
 
+Edit `configs/hparams.yaml` if you want to tweak the default hyperparameters.
+
 ```bash
 bash scripts/run_many.sh
 ```
@@ -262,8 +267,8 @@ teacher2_bn_head_only: false
 
 These map to `TEACHER1_USE_ADAPTER`, `TEACHER1_BN_HEAD_ONLY`,
 `TEACHER2_USE_ADAPTER` and `TEACHER2_BN_HEAD_ONLY` in
-`scripts/hparams.sh`. Both `run_many.sh` and `run_sweep.sh` read the
-values from `hparams.sh` so you can toggle them for sweeps or batch
+`configs/hparams.yaml`. Both `run_many.sh` and `run_sweep.sh` read the
+values from this file so you can toggle them for sweeps or batch
 runs without editing every config file.
 
 
@@ -344,7 +349,7 @@ Folder Structure
 	• modules/: Partial freeze utility, trainers, custom losses
 	• results/: CSV logs, outputs from training/evaluation
         • scripts/: Shell scripts for multiple or batch experiments
-            ◦ Edit `scripts/hparams.sh` to change common hyperparameters
+            ◦ Edit `configs/hparams.yaml` to change common hyperparameters
 
 ```
 ---
