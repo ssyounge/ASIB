@@ -60,7 +60,7 @@ mbm_type: "LA"        # "MLP" for old behaviour
 mbm_r: 4
 mbm_n_head: 1
 mbm_learnable_q: false
-mbm_query_dim: 0      # <=0 -> use sum(feat_dims); set to student feat dim to override
+mbm_query_dim: 0  # <=0 -> use sum(feat_dims); set to student feat dim to override
 grad_clip_norm: 2.0   # max norm for gradient clipping (0 to disable)
 
 # CutMix/MixUp and label smoothing defined in hparams.yaml
