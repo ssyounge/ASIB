@@ -195,6 +195,7 @@ Alternatively edit the YAML file used by `scripts/fine_tuning.py`:
 
 ```yaml
 # configs/fine_tune.yaml
+teacher_type: resnet101
 finetune_epochs: 100
 finetune_lr: 0.0005
 use_cutmix: false
@@ -205,7 +206,8 @@ Set `efficientnet_dropout` to control the dropout rate used in EfficientNet
 teachers. The default value is **0.3**. You can override it on the command line:
 
 ```bash
-python scripts/fine_tuning.py --config configs/fine_tune.yaml --dropout_p 0.5
+python scripts/fine_tuning.py --config configs/fine_tune.yaml \
+  --teacher_type resnet101 --dropout_p 0.5
 ```
 
 For partial freezing with EfficientNet, a new freeze scope
