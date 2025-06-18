@@ -17,13 +17,8 @@ teacher2_type: "efficientnet_b2"
 
 teacher1_pretrained: true
 teacher2_pretrained: true
-teacher1_use_adapter: false
-teacher1_bn_head_only: false
-teacher2_use_adapter: false
-teacher2_bn_head_only: false
 
-teacher_lr: 0.0001           # 통합 Teacher 학습률
-teacher_weight_decay: 0.0003
+# learning rates & weight decay now defined in hparams.yaml
 teacher_adapt_epochs: 5      # Teacher Adaptive Update epochs
 mbm_lr_factor: 5.0           # MBM/Head LR 배수
 
@@ -39,17 +34,11 @@ mbm_reg_lambda: 0.0
 # --------------------------------------------------
 
 student_type: "efficientnet_adapter"
-student_lr: 0.01
-student_weight_decay: 0.0005
 student_epochs_per_stage: 15  # Student distill epochs per stage
 
-ce_alpha: 0.5     # CE 비중
-kd_alpha: 0.5     # KL 비중
+# CE/KL weights now defined in hparams.yaml
 # ----- KD temperature (τ) schedule -----
-temperature_schedule: "fixed"   # fixed | linear | cosine
-tau_start: 4.0                  # 초기 τ
-tau_end:   1.0                  # 최종 τ
-tau_decay_epochs: 40            # 몇 epoch 동안 감소할지 (넘어가면 tau_end 고정)
+# temperature schedule parameters defined in hparams.yaml
 
 # --- Feature-KD 옵션 (추가) -------------------------
 # feat_kd_alpha가 0이면 Feature-KD 비활성화
@@ -65,14 +54,11 @@ disagree_lambda_low: 1.0
 
 num_stages: 2
 
-teacher_iters: 10
-student_iters: 20
+# iteration counts defined in hparams.yaml
 
-use_partial_freeze: true
+# use_partial_freeze defined in hparams.yaml
 
 mbm_in_dim: 3456
-mbm_hidden_dim: 1024
-mbm_out_dim: 2048
 mbm_dropout: 0.0
 synergy_head_dropout: 0.0
 mbm_use_4d: false
@@ -84,19 +70,15 @@ mbm_learnable_q: false
 mbm_query_dim: 0      # <=0 -> use sum(feat_dims); set to student feat dim to override
 grad_clip_norm: 2.0   # max norm for gradient clipping (0 to disable)
 
-cutmix_alpha: 1.0
-cutmix_alpha_distill: 0.0
-mixup_alpha: 0.0
-label_smoothing: 0.0
+# CutMix/MixUp and label smoothing defined in hparams.yaml
 
 log_filename: "train.log"
 save_checkpoint: true
 ckpt_dir: "./checkpoints"
 
 # Optional teacher fine-tuning before ASMB stages
-finetune_epochs: 0           # >0 => run fine-tuning step
-finetune_lr: 0.001
-finetune_weight_decay: 0.0005
+# fine-tuning epochs defined in hparams.yaml
+# Fine-tuning lr & weight decay defined in hparams.yaml
 finetune_use_cutmix: true
 finetune_alpha: 1.0
 finetune_ckpt1: "./checkpoints/teacher1_finetuned.pth"

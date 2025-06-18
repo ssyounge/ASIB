@@ -118,7 +118,8 @@ python main.py --config configs/partial_freeze.yaml --device cuda \
   --teacher1_ckpt teacher1.pth --teacher2_ckpt teacher2.pth \
   --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 0
   # mbm_query_dim is automatically set to the student feature dimension
-	•	Adjust hyperparameters in configs/*.yaml (partial freeze, learning rates, etc.).
+        •       Adjust partial-freeze settings in `configs/*.yaml`.
+        •       Edit `configs/hparams.yaml` to change learning rates and other hyperparameters.
 	•	Optionally load pre-finetuned teacher checkpoints via `--teacher1_ckpt` and `--teacher2_ckpt`.
         •       Optimizers and schedulers are instantiated once before stages and reset before each stage.
 
