@@ -82,7 +82,10 @@ name):
 python scripts/generate_config.py --base configs/fragments/ --out combined.yaml
 ```
 
-Edit `configs/hparams.yaml` before running `bash scripts/run_experiments.sh --mode loop` or
+`configs/hparams.yaml` holds the numeric hyperparameters used by the batch
+scripts while `configs/*.yaml` describe the model architectures and freeze
+settings. Edit `configs/hparams.yaml` before running
+`bash scripts/run_experiments.sh --mode loop` or
 `bash scripts/run_experiments.sh --mode sweep` to customize the default hyperparameters.
 `N_STAGE_LIST` can contain a space-separated list such as `"2 3 4 5"` to run
 multiple stage counts in one batch.
@@ -134,8 +137,8 @@ python main.py --config configs/partial_freeze.yaml --device cuda \
   --teacher1_ckpt teacher1.pth --teacher2_ckpt teacher2.pth \
   --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 0
   # mbm_query_dim is automatically set to the student feature dimension
-        •       Adjust partial-freeze settings in `configs/*.yaml`.
-        •       Edit `configs/hparams.yaml` to change learning rates and other hyperparameters.
+        •       Adjust partial-freeze or architecture settings in `configs/*.yaml`.
+        •       Edit `configs/hparams.yaml` to change numeric hyperparameters like learning rates or dropout.
 	•	Optionally load pre-finetuned teacher checkpoints via `--teacher1_ckpt` and `--teacher2_ckpt`.
         •       Optimizers and schedulers are instantiated once before stages and reset before each stage.
 

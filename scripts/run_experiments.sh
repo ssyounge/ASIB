@@ -31,6 +31,7 @@ generate_config() {
   trap 'rm -f "$cfg_tmp"' EXIT
   python scripts/generate_config.py \
     --base "$BASE_CONFIG" \
+    --hparams configs/hparams.yaml \
     --out "$cfg_tmp" \
     teacher_lr=${T_LR} \
     student_lr=${S_LR} \
@@ -48,6 +49,9 @@ generate_config() {
     mbm_hidden_dim=${MBM_HIDDEN_DIM} \
     mbm_out_dim=${MBM_OUT_DIM} \
     mbm_reg_lambda=${MBM_REG} \
+    reg_lambda=${REG_LAMBDA} \
+    mbm_dropout=${MBM_DROPOUT} \
+    synergy_head_dropout=${HEAD_DROPOUT} \
     use_partial_freeze=${USE_PARTIAL_FREEZE} \
     teacher1_use_adapter=${TEACHER1_USE_ADAPTER} \
     teacher1_bn_head_only=${TEACHER1_BN_HEAD_ONLY} \
