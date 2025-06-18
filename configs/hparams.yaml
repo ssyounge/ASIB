@@ -34,6 +34,9 @@ STUDENT_ITERS: 40
 MBM_HIDDEN_DIM: 1024
 MBM_OUT_DIM: 2048
 MBM_REG: 5e-5         # default sweep value
+REG_LAMBDA: 1e-5      # teacher L2 regularisation
+MBM_DROPOUT: 0.0      # dropout prob inside MBM
+HEAD_DROPOUT: 0.0     # dropout prob for synergy head
 USE_PARTIAL_FREEZE: true
 TEACHER1_USE_ADAPTER: 0
 TEACHER1_BN_HEAD_ONLY: 0
