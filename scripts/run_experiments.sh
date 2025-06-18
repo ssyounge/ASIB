@@ -23,10 +23,12 @@ activate_conda() {
   fi
 }
 
-# Generate config and echo path to temporary file
+# Generate config, echo path to a temporary file, and ensure cleanup on exit
 generate_config() {
   local cfg_tmp
   cfg_tmp=$(mktemp)
+  # Ensure temporary config is cleaned up even if the script exits early
+  trap 'rm -f "$cfg_tmp"' EXIT
   python scripts/generate_config.py \
     --base "$BASE_CONFIG" \
     --out "$cfg_tmp" \
