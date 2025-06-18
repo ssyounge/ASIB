@@ -294,6 +294,7 @@ Folder Structure
 ├── configs
 │   ├── default.yaml
 │   ├── fine_tune.yaml
+│   ├── hparams.yaml        # default hyperparameters for run_experiments.sh
 │   └── partial_freeze.yaml
 
 ├── data
@@ -351,7 +352,7 @@ Folder Structure
 	• modules/: Partial freeze utility, trainers, custom losses
 	• results/: CSV logs, outputs from training/evaluation
         • scripts/: Shell scripts for multiple or batch experiments
-            ◦ Edit `configs/hparams.yaml` to change common hyperparameters
+            ◦ Edit `configs/hparams.yaml` to change the default hyperparameters consumed by `run_experiments.sh`
 
 ```
 ---
