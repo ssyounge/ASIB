@@ -42,7 +42,7 @@ def parse_args():
     parser.add_argument("--config", type=str, default="configs/fine_tune.yaml",
                         help="Path to YAML config for fine-tuning")
 
-    # ② run_many.sh 가 던지는 옵션들(없으면 None)
+    # ② run_experiments.sh 가 전달하는 옵션들(없으면 None)
     parser.add_argument("--teacher_type", type=str)
     parser.add_argument("--device", type=str)
     parser.add_argument("--finetune_ckpt_path", type=str)
@@ -52,7 +52,7 @@ def parse_args():
     parser.add_argument("--finetune_epochs", type=int)
     parser.add_argument("--batch_size", type=int)
     parser.add_argument("--finetune_weight_decay", type=float)
-    # ↓ run_many.sh 에서 CutMix 알파도 변경할 수 있도록
+    # ↓ run_experiments.sh 에서 CutMix 알파도 변경할 수 있도록
     parser.add_argument("--cutmix_alpha", type=float)
     parser.add_argument("--data_aug", type=int)
     parser.add_argument("--small_input", type=int)
