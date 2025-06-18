@@ -66,6 +66,26 @@ environment variable:
 BASE_CONFIG=configs/partial_freeze.yaml bash scripts/run_many.sh
 ```
 
+### Batch scripts & hyperparameter overrides
+
+`scripts/hparams.sh` stores the default hyperparameters used by
+`run_many.sh` and `run_sweep.sh`. The selected YAML file (via
+`BASE_CONFIG`) supplies the base settings such as model types and
+partial‑freeze options. When you run a script, the values are merged in
+the following order:
+
+1. YAML file specified by `BASE_CONFIG`
+2. Variables from `hparams.sh` (unless overridden)
+3. Command-line overrides passed to `generate_config.py` or `main.py`
+
+You can override any variable by exporting it before calling the script.
+For example, run the batch script with the partial-freeze configuration
+and a different teacher learning rate:
+
+```bash
+T_LR=0.0002 BASE_CONFIG=configs/partial_freeze.yaml bash scripts/run_many.sh
+```
+
 ## Testing
 
 Install **PyTorch** and the remaining dependencies using the helper script and
