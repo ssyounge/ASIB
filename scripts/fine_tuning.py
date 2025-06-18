@@ -43,7 +43,7 @@ def parse_args():
                         help="Path to YAML config for fine-tuning")
 
     # ② run_many.sh 가 던지는 옵션들(없으면 None)
-    parser.add_argument("--teacher_name", type=str)
+    parser.add_argument("--teacher_type", type=str)
     parser.add_argument("--device", type=str)
     parser.add_argument("--finetune_ckpt_path", type=str)
 
@@ -81,7 +81,7 @@ def get_data_loaders(dataset_name, batch_size=128, augment=True):
         raise ValueError(f"Unknown dataset_name={dataset_name}")
 
 def create_teacher_by_name(
-    teacher_name,
+    teacher_type,
     num_classes=100,
     pretrained=True,
     small_input=False,
@@ -90,23 +90,23 @@ def create_teacher_by_name(
     """
     Extends to handle resnet101, efficientnet_b2, swin_tiny, etc.
     """
-    if teacher_name == "resnet101":
+    if teacher_type == "resnet101":
         return create_resnet101(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
-    elif teacher_name == "efficientnet_b2":
+    elif teacher_type == "efficientnet_b2":
         return create_efficientnet_b2(
             num_classes=num_classes,
             pretrained=pretrained,
             small_input=small_input,
             dropout_p=dropout_p,
         )
-    elif teacher_name == "swin_tiny":
+    elif teacher_type == "swin_tiny":
         return create_swin_t(num_classes=num_classes, pretrained=pretrained)
     else:
-        raise ValueError(f"[fine_tuning.py] Unknown teacher_name={teacher_name}")
+        raise ValueError(f"[fine_tuning.py] Unknown teacher_type={teacher_type}")
 
 def partial_freeze_teacher_auto(
     model,
-    teacher_name,
+    teacher_type,
     freeze_bn=True,
     freeze_ln=True,
     use_adapter=False,
@@ -115,7 +115,7 @@ def partial_freeze_teacher_auto(
     """
     If needed, partial freeze for fine-tune. Or you can freeze nothing if you want full fine-tune.
     """
-    if teacher_name == "resnet101":
+    if teacher_type == "resnet101":
         partial_freeze_teacher_resnet(
             model,
             freeze_bn=freeze_bn,
@@ -123,7 +123,7 @@ def partial_freeze_teacher_auto(
             bn_head_only=bn_head_only,
             freeze_scope=None,
         )
-    elif teacher_name == "efficientnet_b2":
+    elif teacher_type == "efficientnet_b2":
         partial_freeze_teacher_efficientnet(
             model,
             freeze_bn=freeze_bn,
@@ -131,7 +131,7 @@ def partial_freeze_teacher_auto(
             bn_head_only=bn_head_only,
             freeze_scope=None,
         )
-    elif teacher_name == "swin_tiny":
+    elif teacher_type == "swin_tiny":
         partial_freeze_teacher_swin(
             model,
             freeze_ln=freeze_ln,
@@ -139,7 +139,7 @@ def partial_freeze_teacher_auto(
             freeze_scope=None,
         )
     else:
-        raise ValueError(f"Unknown teacher_name={teacher_name}")
+        raise ValueError(f"Unknown teacher_type={teacher_type}")
 
 def standard_ce_finetune(
     model,
@@ -212,10 +212,10 @@ def main():
         small_input = dataset_name == "cifar100"
 
     # 2) teacher
-    teacher_name = cfg.get("teacher_name", "resnet101")  # e.g. "resnet101", "efficientnet_b2", "swin_tiny"
-    print(f"[FineTune] ===== Now fine-tuning teacher: {teacher_name} =====")
+    teacher_type = cfg.get("teacher_type", "resnet101")  # e.g. "resnet101", "efficientnet_b2", "swin_tiny"
+    print(f"[FineTune] ===== Now fine-tuning teacher: {teacher_type} =====")
     teacher_model = create_teacher_by_name(
-        teacher_name,
+        teacher_type,
         num_classes=cfg.get("num_classes", 100),
         pretrained=cfg.get("teacher_pretrained", True),
         small_input=small_input,
@@ -242,7 +242,7 @@ def main():
         freeze_ln = cfg.get("teacher_freeze_ln", True)
         partial_freeze_teacher_auto(
             teacher_model,
-            teacher_name,
+            teacher_type,
             freeze_bn=freeze_bn,
             freeze_ln=freeze_ln,
             use_adapter=cfg.get("teacher_use_adapter", False),

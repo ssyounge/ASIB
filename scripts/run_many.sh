@@ -41,7 +41,7 @@ for T2 in efficientnet_b2 swin_tiny; do
     echo ">>> [run_many.sh] fine-tuning teacher=${T}  (epochs=${FT_EPOCHS}, lr=${FT_LR})"
     if [ ! -f "${CKPT}" ]; then
       python scripts/fine_tuning.py \
-        --teacher_name "${T}" \
+        --teacher_type "${T}" \
         --device cuda \
         --batch_size ${BATCH_SIZE} \
         --finetune_epochs ${FT_EPOCHS} \

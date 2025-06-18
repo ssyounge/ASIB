@@ -11,7 +11,7 @@ use_amp: false
 amp_dtype: float16
 grad_scaler_init_scale: 1024
 
-
+# teacher_type -> architecture name for each teacher
 teacher1_type: "resnet101"
 teacher2_type: "efficientnet_b2"
 
