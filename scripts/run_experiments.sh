@@ -87,7 +87,9 @@ run_loop() {
     # 2) ASMB multi-stage distillation
     for STUDENT in ${STUDENT_LIST}; do
       for SC_ALPHA in ${SC_ALPHA_LIST}; do
-        for STAGE in ${N_STAGE_LIST}; do
+        # N_STAGE_LIST may contain space-separated values like "2 3 4 5"
+        # Iterate over each item without quoting to allow word splitting.
+        for STAGE in $N_STAGE_LIST; do
           OUTDIR="${RESULT_ROOT}/${T2}_${STUDENT}_a${SC_ALPHA}_s${STAGE}"
           mkdir -p "${OUTDIR}"
 
