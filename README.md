@@ -59,11 +59,27 @@ entirely by exporting `USE_CONDA=0` before running the script. Run experiments
 directly with `bash scripts/run_experiments.sh --mode {loop,sweep}`.
 
 The base config merged by `generate_config.py` defaults to
-`configs/default.yaml`. Override it by setting the `BASE_CONFIG`
-environment variable:
+`configs/default.yaml`. Pass additional YAML files (or a directory
+containing fragments) to assemble a config from multiple pieces. Override
+the selection by setting the `BASE_CONFIG` environment variable:
 
 ```bash
 BASE_CONFIG=configs/partial_freeze.yaml bash scripts/run_experiments.sh --mode loop
+```
+
+You can also merge several fragments directly:
+
+```bash
+python scripts/generate_config.py \
+  --base configs/default.yaml configs/partial_freeze.yaml \
+  --out combined.yaml
+```
+
+Or point `--base` to a directory to load every YAML file inside (sorted by
+name):
+
+```bash
+python scripts/generate_config.py --base configs/fragments/ --out combined.yaml
 ```
 
 Edit `configs/hparams.yaml` before running `bash scripts/run_experiments.sh --mode loop` or
@@ -79,7 +95,7 @@ multiple stage counts in one batch.
 partial‑freeze options. When you run a script, the values are merged in
 the following order:
 
-1. YAML file specified by `BASE_CONFIG`
+1. YAML files passed to `--base` (via `BASE_CONFIG` or manually), merged in order
 2. Variables from `configs/hparams.yaml` (unless overridden)
 3. Command-line overrides passed to `generate_config.py` or `main.py`
 
