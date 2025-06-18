@@ -58,6 +58,14 @@ environment name, set the `CONDA_ENV` variable accordingly. You can also
 skip activation entirely by exporting `USE_CONDA=0` before running the
 scripts.
 
+The base config merged by `generate_config.py` defaults to
+`configs/default.yaml`. Override it by setting the `BASE_CONFIG`
+environment variable:
+
+```bash
+BASE_CONFIG=configs/partial_freeze.yaml bash scripts/run_many.sh
+```
+
 ## Testing
 
 Install **PyTorch** and the remaining dependencies using the helper script and

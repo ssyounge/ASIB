@@ -3,6 +3,9 @@
 set -e
 export PYTHONPATH="$(pwd):${PYTHONPATH}"
 
+# Base configuration for generate_config.py
+BASE_CONFIG=${BASE_CONFIG:-configs/default.yaml}
+
 # Conda setup (optional)
 USE_CONDA=${USE_CONDA:-1}
 CONDA_ENV=${CONDA_ENV:-facil_env}
@@ -61,7 +64,7 @@ for T2 in efficientnet_b2 swin_tiny; do
 
         CFG_TMP=$(mktemp)
         python scripts/generate_config.py \
-          --base configs/default.yaml \
+          --base "$BASE_CONFIG" \
           --out "$CFG_TMP" \
           teacher_lr=${T_LR} \
           student_lr=${S_LR} \
