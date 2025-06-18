@@ -10,4 +10,4 @@
 source ~/.bashrc
 conda activate facil_env
 
-bash scripts/run_many.sh
+bash scripts/run_experiments.sh --mode loop
