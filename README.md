@@ -59,9 +59,11 @@ entirely by exporting `USE_CONDA=0` before running the script. Run experiments
 directly with `bash scripts/run_experiments.sh --mode {loop,sweep}`.
 
 The base config merged by `generate_config.py` defaults to
-`configs/default.yaml`. Pass additional YAML files (or a directory
-containing fragments) to assemble a config from multiple pieces. Override
-the selection by setting the `BASE_CONFIG` environment variable:
+`configs/default.yaml`. The script can also merge optional fragments such as
+`configs/fine_tune.yaml` or `configs/partial_freeze.yaml`. Pass one or more
+fragment files (or a directory containing them) to assemble a config from
+multiple pieces. Override the selection by setting the `BASE_CONFIG`
+environment variable:
 
 ```bash
 BASE_CONFIG=configs/partial_freeze.yaml bash scripts/run_experiments.sh --mode loop
@@ -75,6 +77,14 @@ python scripts/generate_config.py \
   --out combined.yaml
 ```
 
+To combine more than two fragments, simply list them all after `--base`:
+
+```bash
+python scripts/generate_config.py \
+  --base configs/default.yaml configs/partial_freeze.yaml configs/fine_tune.yaml \
+  --out full.yaml
+```
+
 Or point `--base` to a directory to load every YAML file inside (sorted by
 name):
 
@@ -84,9 +94,10 @@ python scripts/generate_config.py --base configs/fragments/ --out combined.yaml
 
 `configs/hparams.yaml` holds the numeric hyperparameters used by the batch
 scripts while `configs/*.yaml` describe the model architectures and freeze
-settings. Edit `configs/hparams.yaml` before running
-`bash scripts/run_experiments.sh --mode loop` or
-`bash scripts/run_experiments.sh --mode sweep` to customize the default hyperparameters.
+settings. `generate_config.py` loads this file with `--hparams` so its values
+override or supplement those defined in the fragments. Edit
+`configs/hparams.yaml` before running `bash scripts/run_experiments.sh --mode loop`
+or `bash scripts/run_experiments.sh --mode sweep` to customize the default hyperparameters.
 `N_STAGE_LIST` can contain a space-separated list such as `"2 3 4 5"` to run
 multiple stage counts in one batch.
 
@@ -101,6 +112,11 @@ the following order:
 1. YAML files passed to `--base` (via `BASE_CONFIG` or manually), merged in order
 2. Variables from `configs/hparams.yaml` (unless overridden)
 3. Command-line overrides passed to `generate_config.py` or `main.py`
+
+`run_experiments.sh` exports the values from `configs/hparams.yaml` as
+environment variables. These variables are fed back into
+`generate_config.py` so they can still override any field defined in the
+YAML fragments.
 
 You can override any variable by exporting it before calling the script.
 For example, run the batch script with the partial-freeze configuration
