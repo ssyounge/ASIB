@@ -23,7 +23,7 @@ if [ "$USE_CONDA" -eq 1 ]; then
   fi
 fi
 
-source "$(dirname "$0")/hparams.sh"
+source <(python scripts/load_hparams.py configs/hparams.yaml)
 
 # Example sweep over teacher_lr & synergy_ce_alpha
 for teacher_lr in 0.0001 0.0002 0.0005; do
