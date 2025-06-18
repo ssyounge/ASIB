@@ -25,13 +25,8 @@ mbm_lr_factor: 5.0           # MBM/Head LR 배수
 synergy_ce_alpha: 0.3
 teacher_adapt_alpha_kd: 0.2  # Teacher adaptive 시 KL 비중
 
-reg_lambda: 1e-5          # Teacher L2 regularisation
-# --------------------------------------------------
-# L2 regularisation for MBM + Synergy-Head (App. C)
-#   - Setting it to 0.0 keeps current behaviour.
-#   - Tune around 1e-5 ~ 1e-4 for best results.
-mbm_reg_lambda: 0.0
-# --------------------------------------------------
+# teacher L2 regularisation, MBM weight decay and
+# dropout probabilities are now defined in hparams.yaml
 
 student_type: "efficientnet_adapter"
 student_epochs_per_stage: 15  # Student distill epochs per stage
@@ -59,8 +54,6 @@ num_stages: 2
 # use_partial_freeze defined in hparams.yaml
 
 mbm_in_dim: 3456
-mbm_dropout: 0.0
-synergy_head_dropout: 0.0
 mbm_use_4d: false
 mbm_attn_heads: 0
 mbm_type: "LA"        # "MLP" for old behaviour
