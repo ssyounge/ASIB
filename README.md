@@ -68,6 +68,8 @@ BASE_CONFIG=configs/partial_freeze.yaml bash scripts/run_experiments.sh --mode l
 
 Edit `configs/hparams.yaml` before running `bash scripts/run_experiments.sh --mode loop` or
 `bash scripts/run_experiments.sh --mode sweep` to customize the default hyperparameters.
+`N_STAGE_LIST` can contain a space-separated list such as `"2 3 4 5"` to run
+multiple stage counts in one batch.
 
 ### Batch scripts & hyperparameter overrides
 
@@ -246,6 +248,7 @@ After saving the changes, re-run the batch script to generate new teacher
 checkpoints and continue with distillation:
 
 Edit `configs/hparams.yaml` if you want to tweak the default hyperparameters.
+You can specify several stage counts by setting `N_STAGE_LIST="2 3 4 5"`.
 
 ```bash
 bash scripts/run_experiments.sh --mode loop
