@@ -25,7 +25,7 @@ fi
 # ---------------------------------------------------------------------------
 # Central hyperparameter config
 # ---------------------------------------------------------------------------
-source "$(dirname "$0")/hparams.sh"
+source <(python scripts/load_hparams.py configs/hparams.yaml)
 
 mkdir -p checkpoints results
 RESULT_ROOT="results/$(date +%Y%m%d_%H%M%S)"
