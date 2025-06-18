@@ -52,27 +52,27 @@ conda activate facil_env
 pip install -r requirements.txt  # includes pandas for analysis
 ```
 
-The bash scripts (`run_many.sh` and `run_sweep.sh`) automatically try to
-activate a Conda environment named `facil_env`. If you use a different
-environment name, set the `CONDA_ENV` variable accordingly. You can also
-skip activation entirely by exporting `USE_CONDA=0` before running the
-scripts.
+The unified script `run_experiments.sh` (used by `run_many.sh` and
+`run_sweep.sh`) automatically tries to activate a Conda environment named
+`facil_env`. If you use a different environment name, set the
+`CONDA_ENV` variable accordingly. You can also skip activation entirely by
+exporting `USE_CONDA=0` before running the script.
 
 The base config merged by `generate_config.py` defaults to
 `configs/default.yaml`. Override it by setting the `BASE_CONFIG`
 environment variable:
 
 ```bash
-BASE_CONFIG=configs/partial_freeze.yaml bash scripts/run_many.sh
+BASE_CONFIG=configs/partial_freeze.yaml bash scripts/run_experiments.sh --mode loop
 ```
 
-Edit `configs/hparams.yaml` before running `bash scripts/run_many.sh` or
-`bash scripts/run_sweep.sh` to customize the default hyperparameters.
+Edit `configs/hparams.yaml` before running `bash scripts/run_experiments.sh --mode loop` or
+`bash scripts/run_experiments.sh --mode sweep` to customize the default hyperparameters.
 
 ### Batch scripts & hyperparameter overrides
 
 `configs/hparams.yaml` stores the default hyperparameters used by
-`run_many.sh` and `run_sweep.sh`. The selected YAML file (via
+`run_experiments.sh`. The selected YAML file (via
 `BASE_CONFIG`) supplies the base settings such as model types and
 partial‑freeze options. When you run a script, the values are merged in
 the following order:
@@ -86,7 +86,7 @@ For example, run the batch script with the partial-freeze configuration
 and a different teacher learning rate:
 
 ```bash
-T_LR=0.0002 BASE_CONFIG=configs/partial_freeze.yaml bash scripts/run_many.sh
+T_LR=0.0002 BASE_CONFIG=configs/partial_freeze.yaml bash scripts/run_experiments.sh --mode loop
 ```
 
 ## Testing
@@ -248,7 +248,7 @@ checkpoints and continue with distillation:
 Edit `configs/hparams.yaml` if you want to tweak the default hyperparameters.
 
 ```bash
-bash scripts/run_many.sh
+bash scripts/run_experiments.sh --mode loop
 ```
 
 ### Teacher Adapter & BN-Head-Only Options
@@ -267,9 +267,9 @@ teacher2_bn_head_only: false
 
 These map to `TEACHER1_USE_ADAPTER`, `TEACHER1_BN_HEAD_ONLY`,
 `TEACHER2_USE_ADAPTER` and `TEACHER2_BN_HEAD_ONLY` in
-`configs/hparams.yaml`. Both `run_many.sh` and `run_sweep.sh` read the
-values from this file so you can toggle them for sweeps or batch
-runs without editing every config file.
+`configs/hparams.yaml`. `run_experiments.sh` reads the values from this
+file so you can toggle them for sweeps or batch runs without editing
+every config file.
 
 
 
@@ -336,6 +336,7 @@ Folder Structure
 
 ├── scripts
 │   ├── fine_tuning.py
+│   ├── run_experiments.sh
 │   ├── run_many.sh
 │   └── run_sweep.sh
 
