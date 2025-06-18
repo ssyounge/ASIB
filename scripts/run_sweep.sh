@@ -4,6 +4,9 @@
 set -e
 export PYTHONPATH="$(pwd):${PYTHONPATH}"
 
+# Base configuration for generate_config.py
+BASE_CONFIG=${BASE_CONFIG:-configs/default.yaml}
+
 # Conda setup (optional)
 USE_CONDA=${USE_CONDA:-1}
 CONDA_ENV=${CONDA_ENV:-facil_env}
@@ -31,7 +34,7 @@ for teacher_lr in 0.0001 0.0002 0.0005; do
 
     CFG_TMP=$(mktemp)
     python scripts/generate_config.py \
-      --base configs/default.yaml \
+      --base "$BASE_CONFIG" \
       --out "$CFG_TMP" \
       teacher_lr=${teacher_lr} \
       student_lr=${S_LR} \
