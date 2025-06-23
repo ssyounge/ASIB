@@ -94,7 +94,7 @@ class ExtendedAdapterResNet101(nn.Module):
         return feature_dict, logit, ce_loss
 
 
-def create_resnet101_with_extended_adapter(pretrained=True):
+def create_resnet101_with_extended_adapter(pretrained=True, num_classes: int = 100):
     """
     ResNet101 load => last FC => 100
     => ExtendedAdapterResNet101 => (dict, logit, ce_loss)
@@ -105,7 +105,7 @@ def create_resnet101_with_extended_adapter(pretrained=True):
         base = resnet101(weights=None)
 
     num_ftrs = base.fc.in_features
-    base.fc  = nn.Linear(num_ftrs, 100)
+    base.fc = nn.Linear(num_ftrs, num_classes)
 
     model = ExtendedAdapterResNet101(base)
     return model

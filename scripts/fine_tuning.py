@@ -13,7 +13,7 @@ import copy
 import torch
 import yaml
 
-from utils.misc import set_random_seed
+from utils.misc import set_random_seed, check_label_range
 
 # data loaders
 from data.cifar100 import get_cifar100_loaders
@@ -207,6 +207,10 @@ def main():
         augment=cfg.get("data_aug", True)
     )
 
+    num_classes = len(train_loader.dataset.classes)
+    check_label_range(train_loader.dataset, num_classes)
+    check_label_range(test_loader.dataset, num_classes)
+
     small_input = cfg.get("small_input")
     if small_input is None:
         small_input = dataset_name == "cifar100"
@@ -216,7 +220,7 @@ def main():
     print(f"[FineTune] ===== Now fine-tuning teacher: {teacher_type} =====")
     teacher_model = create_teacher_by_name(
         teacher_type,
-        num_classes=cfg.get("num_classes", 100),
+        num_classes=num_classes,
         pretrained=cfg.get("teacher_pretrained", True),
         small_input=small_input,
         dropout_p=cfg.get("efficientnet_dropout", 0.3),
