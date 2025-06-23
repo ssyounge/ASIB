@@ -173,6 +173,7 @@ python main.py --config configs/partial_freeze.yaml --device cuda \
   # mbm_query_dim is automatically set to the student feature dimension
         •       Adjust partial-freeze or architecture settings in `configs/*.yaml`.
         •       Edit `configs/hparams.yaml` to change numeric hyperparameters like learning rates or dropout.
+        •       Set `LR_SCHEDULE` to "step" or "cosine" to choose the learning rate scheduler.
 	•	Optionally load pre-finetuned teacher checkpoints via `--teacher1_ckpt` and `--teacher2_ckpt`.
         •       Optimizers and schedulers are instantiated once before stages and reset before each stage.
 
@@ -278,6 +279,7 @@ Adjust the parameters in `configs/hparams.yaml`:
 FT_EPOCHS=100   # number of fine-tuning epochs
 FT_LR=0.0005    # learning rate
 CUTMIX_ALPHA=0  # set to 0 to disable CutMix
+LR_SCHEDULE=step   # step or cosine
 ```
 
 Alternatively edit the YAML file used by `scripts/fine_tuning.py`:

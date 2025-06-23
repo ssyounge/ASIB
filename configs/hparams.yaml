@@ -24,6 +24,13 @@ CE_ALPHA: 0.5
 KD_ALPHA: 0.5
 CUTMIX_ALPHA_DISTILL: 0.0  # CutMix alpha used during distillation
 
+# Learning rate schedule
+LR_SCHEDULE: "step"       # "step" or "cosine"
+TEACHER_STEP_SIZE: 10
+TEACHER_GAMMA: 0.1
+STUDENT_STEP_SIZE: 10
+STUDENT_GAMMA: 0.1
+
 # Temperature scheduling
 TEMPERATURE_SCHEDULE: "fixed"
 TAU_START: 4.0
