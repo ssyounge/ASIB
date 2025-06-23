@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+from modules.losses import ce_loss_fn
 
 class FitNetDistiller(nn.Module):
     """
@@ -20,7 +21,8 @@ class FitNetDistiller(nn.Module):
         hint_key="feat_4d_layer2",    # teacher가 반환하는 key
         guided_key="feat_4d_layer2",  # student가 반환하는 key
         alpha_hint=1.0,
-        alpha_ce=1.0
+        alpha_ce=1.0,
+        label_smoothing: float = 0.0,
     ):
         super().__init__()
         self.teacher = teacher_model
@@ -32,8 +34,7 @@ class FitNetDistiller(nn.Module):
 
         self.alpha_hint = alpha_hint
         self.alpha_ce = alpha_ce
-
-        self.criterion_ce = nn.CrossEntropyLoss()
+        self.label_smoothing = label_smoothing
 
     def forward(self, x, y):
         """
@@ -55,7 +56,11 @@ class FitNetDistiller(nn.Module):
         hint_loss = F.mse_loss(s_feat, t_feat)
 
         # 2) CE
-        ce_loss = self.criterion_ce(s_logit, y)
+        ce_loss = ce_loss_fn(
+            s_logit,
+            y,
+            label_smoothing=self.label_smoothing,
+        )
 
         # total
         total_loss = self.alpha_hint * hint_loss + self.alpha_ce * ce_loss

@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+from modules.losses import ce_loss_fn
 
 class DKDDistiller(nn.Module):
     """
@@ -20,7 +21,8 @@ class DKDDistiller(nn.Module):
                  alpha=1.0,
                  beta=1.0,
                  temperature=4.0,
-                 warmup=5):
+                 warmup=5,
+                 label_smoothing: float = 0.0):
         """
         Args:
           ce_weight: CE 손실 가중치
@@ -36,8 +38,7 @@ class DKDDistiller(nn.Module):
         self.beta = beta
         self.temperature = temperature
         self.warmup = warmup
-
-        self.criterion_ce = nn.CrossEntropyLoss()
+        self.label_smoothing = label_smoothing
 
     def forward(self, x, y, epoch=1):
         """
@@ -56,7 +57,11 @@ class DKDDistiller(nn.Module):
         s_dict, s_logit, _ = self.student(x)
 
         # CE
-        ce_loss = self.ce_weight * self.criterion_ce(s_logit, y)
+        ce_loss = self.ce_weight * ce_loss_fn(
+            s_logit,
+            y,
+            label_smoothing=self.label_smoothing,
+        )
 
         # DKD
         warmup_factor = min(float(epoch) / self.warmup, 1.0)
