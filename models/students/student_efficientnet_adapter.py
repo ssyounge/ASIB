@@ -62,7 +62,11 @@ class ExtendedAdapterEffNetB2(nn.Module):
         return feature_dict, logit, ce_loss
 
 
-def create_efficientnet_b2_with_adapter(pretrained=True, num_classes: int = 100):
+def create_efficientnet_b2_with_adapter(
+    pretrained: bool = True,
+    num_classes: int = 100,
+    small_input: bool = False,
+):
     """
     1) efficientnet_b2 로드
     2) classifier => (1408->100)
@@ -72,6 +76,22 @@ def create_efficientnet_b2_with_adapter(pretrained=True, num_classes: int = 100)
         model = efficientnet_b2(weights=EfficientNet_B2_Weights.IMAGENET1K_V1)
     else:
         model = efficientnet_b2(weights=None)
+
+    if small_input:
+        old_conv = model.features[0][0]
+        new_conv = nn.Conv2d(
+            old_conv.in_channels,
+            old_conv.out_channels,
+            kernel_size=old_conv.kernel_size,
+            stride=1,
+            padding=old_conv.padding,
+            bias=old_conv.bias is not None,
+        )
+        new_conv.weight.data.copy_(old_conv.weight.data)
+        if old_conv.bias is not None:
+            new_conv.bias.data.copy_(old_conv.bias.data)
+
+        model.features[0][0] = new_conv
 
     in_feats = model.classifier[1].in_features  # 1408
     model.classifier[1] = nn.Linear(in_feats, num_classes)
