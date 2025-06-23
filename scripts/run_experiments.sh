@@ -40,6 +40,11 @@ generate_config() {
     student_weight_decay=${S_WD} \
     ce_alpha=${CE_ALPHA} \
     kd_alpha=${KD_ALPHA} \
+    lr_schedule=${LR_SCHEDULE} \
+    teacher_step_size=${TEACHER_STEP_SIZE} \
+    teacher_gamma=${TEACHER_GAMMA} \
+    student_step_size=${STUDENT_STEP_SIZE} \
+    student_gamma=${STUDENT_GAMMA} \
     temperature_schedule=${TEMPERATURE_SCHEDULE} \
     tau_start=${TAU_START} \
     tau_end=${TAU_END} \

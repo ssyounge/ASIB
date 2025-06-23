@@ -12,7 +12,7 @@ import argparse
 import copy
 import torch
 import torch.optim as optim
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR
 import os
 import yaml
 
@@ -132,6 +132,7 @@ def parse_args():
     parser.add_argument("--mbm_r", type=int)
     parser.add_argument("--mbm_n_head", type=int)
     parser.add_argument("--mbm_learnable_q", type=int)
+    parser.add_argument("--lr_schedule", type=str)
     return parser.parse_args()
 
 def load_config(cfg_path):
@@ -445,11 +446,15 @@ def main():
         ],
         weight_decay=cfg["teacher_weight_decay"],
     )
-    teacher_scheduler = StepLR(
-        teacher_optimizer,
-        step_size=cfg.get("teacher_step_size", 10),
-        gamma=cfg.get("teacher_gamma", 0.1),
-    )
+    total_teacher_epochs = cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5)) * cfg.get("num_stages", 2)
+    if cfg.get("lr_schedule", "step") == "cosine":
+        teacher_scheduler = CosineAnnealingLR(teacher_optimizer, T_max=total_teacher_epochs)
+    else:
+        teacher_scheduler = StepLR(
+            teacher_optimizer,
+            step_size=cfg.get("teacher_step_size", 10),
+            gamma=cfg.get("teacher_gamma", 0.1),
+        )
 
     student_params = [p for p in student_model.parameters() if p.requires_grad]
     student_optimizer = optim.Adam(
@@ -459,11 +464,15 @@ def main():
         betas=(0.9, 0.999),
         eps=1e-8,
     )
-    student_scheduler = StepLR(
-        student_optimizer,
-        step_size=cfg.get("student_step_size", 10),
-        gamma=cfg.get("student_gamma", 0.1),
-    )
+    total_student_epochs = cfg.get("student_iters", cfg.get("student_epochs_per_stage", 15)) * cfg.get("num_stages", 2)
+    if cfg.get("lr_schedule", "step") == "cosine":
+        student_scheduler = CosineAnnealingLR(student_optimizer, T_max=total_student_epochs)
+    else:
+        student_scheduler = StepLR(
+            student_optimizer,
+            step_size=cfg.get("student_step_size", 10),
+            gamma=cfg.get("student_gamma", 0.1),
+        )
 
     # 8) multi-stage distillation
     num_stages = cfg.get("num_stages", 2)
