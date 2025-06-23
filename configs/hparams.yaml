@@ -52,3 +52,4 @@ LABEL_SMOOTHING: 0.1
 N_STAGE_LIST: 5
 SC_ALPHA_LIST: "0.3 0.6"
 STUDENT_LIST: "resnet_adapter efficientnet_adapter swin_adapter"
+METHOD_LIST: "asmb at crd dkd fitnet vanilla_kd"

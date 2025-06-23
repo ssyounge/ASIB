@@ -67,11 +67,13 @@ generate_config() {
 
 run_loop() {
   source <(python scripts/load_hparams.py configs/hparams.yaml)
+  METHOD_LIST="${METHOD_LIST:-$METHOD}"
   mkdir -p checkpoints results
   RESULT_ROOT="results/$(date +%Y%m%d_%H%M%S)"
   mkdir -p "${RESULT_ROOT}"
 
   local T1=resnet101
+  for METHOD in $METHOD_LIST; do
   for T2 in efficientnet_b2 swin_tiny; do
     # 1) Teacher fine-tuning
     for T in "$T1" "$T2"; do
@@ -146,6 +148,7 @@ run_loop() {
         done
       done
     done
+  done
   done
 }
 
