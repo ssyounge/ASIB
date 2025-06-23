@@ -62,7 +62,7 @@ class ExtendedAdapterEffNetB2(nn.Module):
         return feature_dict, logit, ce_loss
 
 
-def create_efficientnet_b2_with_adapter(pretrained=True):
+def create_efficientnet_b2_with_adapter(pretrained=True, num_classes: int = 100):
     """
     1) efficientnet_b2 로드
     2) classifier => (1408->100)
@@ -74,7 +74,7 @@ def create_efficientnet_b2_with_adapter(pretrained=True):
         model = efficientnet_b2(weights=None)
 
     in_feats = model.classifier[1].in_features  # 1408
-    model.classifier[1] = nn.Linear(in_feats, 100)
+    model.classifier[1] = nn.Linear(in_feats, num_classes)
 
-    student_model = ExtendedAdapterEffNetB2(model, num_classes=100)
+    student_model = ExtendedAdapterEffNetB2(model, num_classes=num_classes)
     return student_model
