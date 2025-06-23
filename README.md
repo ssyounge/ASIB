@@ -184,10 +184,13 @@ python main.py --config configs/partial_freeze.yaml --device cuda \
 ```bash
 python scripts/run_single_teacher.py --config configs/default.yaml \
   --method vanilla_kd --teacher_type resnet101 --teacher_ckpt teacher.pth \
-  --student_type resnet_adapter --epochs 40
+  --student_type resnet_adapter --epochs 40 \
+  --dataset imagenet100
 ```
 
 The `--method` flag selects one of `vanilla_kd`, `fitnet`, `dkd`, `at` or `crd`.
+Pass `--dataset` to override the dataset specified in the YAML config (either
+`cifar100` or `imagenet100`).
 
 2) Evaluation (eval.py)
 
