@@ -44,6 +44,8 @@ def parse_args():
     p.add_argument("--results_dir", type=str, default="results")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--device", type=str)
+    p.add_argument("--dataset", "--dataset_name", dest="dataset_name", type=str,
+                   help="Dataset to use (cifar100 or imagenet100). Defaults to the config value")
     p.add_argument("--data_aug", type=int)
     p.add_argument("--mixup_alpha", type=float)
     p.add_argument("--cutmix_alpha_distill", type=float)
