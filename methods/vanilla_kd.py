@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+from typing import Optional
 
 from modules.losses import kd_loss_fn, ce_loss_fn
 from utils.schedule import get_tau
@@ -21,7 +22,7 @@ class VanillaKDDistiller(nn.Module):
         student_model: nn.Module,
         alpha: float = 0.5,
         temperature: float = 4.0,
-        config: dict | None = None
+        config: Optional[dict] = None
     ):
         super().__init__()
         self.teacher = teacher_model
