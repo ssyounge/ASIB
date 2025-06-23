@@ -58,6 +58,14 @@ set the `CONDA_ENV` variable accordingly. You can also skip activation
 entirely by exporting `USE_CONDA=0` before running the script. Run experiments
 directly with `bash scripts/run_experiments.sh --mode {loop,sweep}`.
 
+Set the distillation method via the `METHOD` variable. The default `asmb`
+runs the multi‑teacher pipeline in `main.py`. Specify `vanilla_kd`, `fitnet`,
+`dkd`, `at` or `crd` to launch the single‑teacher runner:
+
+```bash
+METHOD=fitnet bash scripts/run_experiments.sh --mode loop
+```
+
 The base config merged by `generate_config.py` defaults to
 `configs/default.yaml`. The script can also merge optional fragments such as
 `configs/fine_tune.yaml` or `configs/partial_freeze.yaml`. Pass one or more
@@ -157,6 +165,16 @@ python main.py --config configs/partial_freeze.yaml --device cuda \
         •       Edit `configs/hparams.yaml` to change numeric hyperparameters like learning rates or dropout.
 	•	Optionally load pre-finetuned teacher checkpoints via `--teacher1_ckpt` and `--teacher2_ckpt`.
         •       Optimizers and schedulers are instantiated once before stages and reset before each stage.
+
+2) Single-Teacher Distillation (run_single_teacher.py)
+
+```bash
+python scripts/run_single_teacher.py --config configs/default.yaml \
+  --method vanilla_kd --teacher_type resnet101 --teacher_ckpt teacher.pth \
+  --student_type resnet_adapter --epochs 40
+```
+
+The `--method` flag selects one of `vanilla_kd`, `fitnet`, `dkd`, `at` or `crd`.
 
 2) Evaluation (eval.py)
 
