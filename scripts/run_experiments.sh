@@ -74,6 +74,7 @@ run_loop() {
 
   local T1=resnet101
   for METHOD in $METHOD_LIST; do
+    echo ">>> [run_experiments.sh] running METHOD=${METHOD}"
   for T2 in efficientnet_b2 swin_tiny; do
     # 1) Teacher fine-tuning
     for T in "$T1" "$T2"; do
@@ -154,6 +155,7 @@ run_loop() {
 
 run_sweep() {
   source <(python scripts/load_hparams.py configs/hparams.yaml)
+  echo ">>> [run_experiments.sh] running METHOD=${METHOD}"
 
   for teacher_lr in 0.0001 0.0002 0.0005; do
     for sc_alpha in 0.2 0.3 0.5; do

@@ -83,6 +83,11 @@ def main():
     cfg = {**base_cfg, **cli_cfg}
 
     method = cfg.get("method", args.method)
+    teacher_type = cfg.get("teacher_type", args.teacher_type)
+    student_type = cfg.get("student_type", args.student_type)
+    print(
+        f">>> [run_single_teacher.py] method={method} teacher={teacher_type} student={student_type}"
+    )
     device = cfg.get("device", "cuda")
     if device == "cuda" and not torch.cuda.is_available():
         device = "cpu"
