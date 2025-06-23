@@ -96,3 +96,4 @@ __pypackages__/
 *.pth
 *.tar.gz
 data/cifar-100-python/
+configs/hparams.yaml
