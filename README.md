@@ -66,6 +66,9 @@ multi‑teacher pipeline in `main.py`. Specify `vanilla_kd`, `fitnet`, `dkd`,
 `at` or `crd` to launch the single‑teacher runner. With `METHOD_LIST` you can
 execute several methods sequentially:
 
+The main training script accepts the same flag via `--method` (default `asmb`)
+so `run_experiments.sh` can pass it uniformly.
+
 ```bash
 METHOD_LIST="asmb fitnet vanilla_kd" bash scripts/run_experiments.sh --mode loop
 ```
