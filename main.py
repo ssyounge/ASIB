@@ -148,6 +148,12 @@ def parse_args():
     parser.add_argument("--mbm_n_head", type=int)
     parser.add_argument("--mbm_learnable_q", type=int)
     parser.add_argument("--lr_schedule", type=str)
+    parser.add_argument(
+        "--method",
+        type=str,
+        default="asmb",
+        help="Distillation method name (for run_experiments.sh compatibility)",
+    )
     return parser.parse_args()
 
 def load_config(cfg_path):
