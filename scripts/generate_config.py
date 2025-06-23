@@ -14,6 +14,7 @@ parser.add_argument(
 )
 parser.add_argument('--out', required=True, help='Output YAML file')
 parser.add_argument('--hparams', help='YAML file with numeric hyperparameters')
+parser.add_argument('--method', help='Distillation method name')
 parser.add_argument('overrides', nargs='*', help='KEY=VAL pairs to override')
 args = parser.parse_args()
 
@@ -36,6 +37,9 @@ if args.hparams:
         hparams = yaml.safe_load(f)
         if hparams:
             cfg.update(hparams)
+
+if args.method:
+    cfg['method'] = args.method
 
 for ov in args.overrides:
     if '=' not in ov:

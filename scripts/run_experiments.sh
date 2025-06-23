@@ -32,6 +32,7 @@ generate_config() {
   python scripts/generate_config.py \
     --base "$BASE_CONFIG" \
     --hparams configs/hparams.yaml \
+    --method "$METHOD" \
     --out "$cfg_tmp" \
     teacher_lr=${T_LR} \
     student_lr=${S_LR} \
@@ -101,6 +102,7 @@ run_loop() {
 
           CFG_TMP=$(generate_config)
 
+          if [ "$METHOD" = "asmb" ]; then
           python main.py \
             --config "${CFG_TMP}" \
             --teacher1_type "${T1}" \
@@ -122,7 +124,25 @@ run_loop() {
             --data_aug ${DATA_AUG} \
             --mixup_alpha ${MIXUP_ALPHA} \
             --cutmix_alpha_distill ${CUTMIX_ALPHA_DISTILL} \
-            --label_smoothing ${LABEL_SMOOTHING}
+            --label_smoothing ${LABEL_SMOOTHING} \
+            --method ${METHOD}
+          else
+          python scripts/run_single_teacher.py \
+            --config "${CFG_TMP}" \
+            --teacher_type "${T2}" \
+            --teacher_ckpt checkpoints/${T2}_ft.pth \
+            --student_type "${STUDENT}" \
+            --student_lr ${S_LR} \
+            --batch_size ${BATCH_SIZE} \
+            --epochs ${STUDENT_ITERS} \
+            --results_dir "${OUTDIR}" \
+            --seed 42 \
+            --data_aug ${DATA_AUG} \
+            --mixup_alpha ${MIXUP_ALPHA} \
+            --cutmix_alpha_distill ${CUTMIX_ALPHA_DISTILL} \
+            --label_smoothing ${LABEL_SMOOTHING} \
+            --method ${METHOD}
+          fi
         done
       done
     done
@@ -152,7 +172,8 @@ run_sweep() {
         --teacher1_bn_head_only ${TEACHER1_BN_HEAD_ONLY} \
         --teacher2_use_adapter ${TEACHER2_USE_ADAPTER} \
         --teacher2_bn_head_only ${TEACHER2_BN_HEAD_ONLY} \
-        --label_smoothing ${LABEL_SMOOTHING}
+        --label_smoothing ${LABEL_SMOOTHING} \
+        --method ${METHOD}
     done
   done
 }
