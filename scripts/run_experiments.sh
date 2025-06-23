@@ -189,4 +189,4 @@ case "$MODE" in
     echo "Invalid mode: $MODE" >&2
     exit 1
     ;;
-fi
+esac
