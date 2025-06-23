@@ -58,12 +58,14 @@ set the `CONDA_ENV` variable accordingly. You can also skip activation
 entirely by exporting `USE_CONDA=0` before running the script. Run experiments
 directly with `bash scripts/run_experiments.sh --mode {loop,sweep}`.
 
-Set the distillation method via the `METHOD` variable. The default `asmb`
-runs the multi‑teacher pipeline in `main.py`. Specify `vanilla_kd`, `fitnet`,
-`dkd`, `at` or `crd` to launch the single‑teacher runner:
+Set the distillation method via the `METHOD` variable or provide a
+space‑separated list using `METHOD_LIST`. The default `asmb` runs the
+multi‑teacher pipeline in `main.py`. Specify `vanilla_kd`, `fitnet`, `dkd`,
+`at` or `crd` to launch the single‑teacher runner. With `METHOD_LIST` you can
+execute several methods sequentially:
 
 ```bash
-METHOD=fitnet bash scripts/run_experiments.sh --mode loop
+METHOD_LIST="asmb fitnet vanilla_kd" bash scripts/run_experiments.sh --mode loop
 ```
 
 The base config merged by `generate_config.py` defaults to
