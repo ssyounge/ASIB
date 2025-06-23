@@ -110,7 +110,9 @@ def build_from_teachers(
 
     mbm_type = cfg.get("mbm_type", "MLP")
     if mbm_type == "LA":
-        qdim = cfg.get("mbm_query_dim", query_dim)
+        qdim = cfg.get("mbm_query_dim")
+        if qdim is None or qdim <= 0:
+            qdim = query_dim
         if qdim is not None and qdim <= 0:
             qdim = None
         mbm = LightweightAttnMBM(
