@@ -4,7 +4,7 @@ import argparse
 import os
 import yaml
 import torch
-from utils.misc import set_random_seed
+from utils.misc import set_random_seed, check_label_range
 from data.cifar100 import get_cifar100_loaders
 from data.imagenet100 import get_imagenet100_loaders
 from main import (
@@ -106,6 +106,10 @@ def main():
             root=data_root, batch_size=batch_size, augment=cfg.get("data_aug", True)
         )
 
+    num_classes = len(train_loader.dataset.classes)
+    check_label_range(train_loader.dataset, num_classes)
+    check_label_range(test_loader.dataset, num_classes)
+
     small_input = cfg.get("small_input")
     if small_input is None:
         small_input = dataset == "cifar100"
@@ -114,6 +118,7 @@ def main():
         cfg.get("teacher_type", "resnet101"),
         pretrained=cfg.get("teacher_pretrained", True),
         small_input=small_input,
+        num_classes=num_classes,
     ).to(device)
     if cfg.get("teacher_ckpt"):
         teacher.load_state_dict(torch.load(cfg["teacher_ckpt"], map_location=device, weights_only=True))
@@ -124,6 +129,7 @@ def main():
         cfg.get("student_type", "resnet_adapter"),
         pretrained=cfg.get("student_pretrained", True),
         small_input=small_input,
+        num_classes=num_classes,
     ).to(device)
     if cfg.get("student_ckpt"):
         student.load_state_dict(torch.load(cfg["student_ckpt"], map_location=device, weights_only=True))

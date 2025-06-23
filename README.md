@@ -11,6 +11,8 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 - **Partial Freeze**: Freeze backbone parameters, adapt BN/Heads/MBM for efficiency  
 - **Multiple KD Methods**: FitNet, CRD, AT, DKD, VanillaKD, plus custom `asmb.py`
 - **CIFAR-100 / ImageNet100** dataset support
+- **Automatic class count detection**: number of classes is inferred from the
+  training loader when using `ImageFolder` or CIFAR datasets
 - **Configurable Data Augmentation**: toggle with `--data_aug` (1/0)
 - **MixUp, CutMix & Label Smoothing**: enable with `--mixup_alpha`,
   `--cutmix_alpha_distill` and `--label_smoothing`

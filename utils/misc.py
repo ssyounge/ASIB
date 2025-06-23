@@ -147,3 +147,37 @@ def get_amp_components(cfg):
         init_scale=int(cfg.get("grad_scaler_init_scale", 1024))
     )
     return autocast_ctx, scaler
+
+
+def check_label_range(dataset, num_classes: int) -> None:
+    """Validate that dataset labels are within ``[0, num_classes - 1]``.
+
+    Parameters
+    ----------
+    dataset : Dataset
+        Dataset object (must expose ``targets`` or ``labels`` attribute).
+    num_classes : int
+        Expected number of classes.
+
+    Raises
+    ------
+    ValueError
+        If any label falls outside the valid range.
+    """
+    labels = None
+    if hasattr(dataset, "targets"):
+        labels = dataset.targets
+    elif hasattr(dataset, "labels"):
+        labels = dataset.labels
+
+    if labels is None:
+        return
+
+    label_tensor = torch.as_tensor(labels)
+    min_label = int(label_tensor.min())
+    max_label = int(label_tensor.max())
+    if min_label < 0 or max_label >= num_classes:
+        raise ValueError(
+            f"Dataset labels must be within [0, {num_classes - 1}], "
+            f"got min={min_label}, max={max_label}"
+        )

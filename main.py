@@ -17,7 +17,7 @@ import os
 import yaml
 
 from utils.logger import ExperimentLogger
-from utils.misc import set_random_seed
+from utils.misc import set_random_seed, check_label_range
 from modules.disagreement import compute_disagreement_rate
 from modules.trainer_teacher import teacher_adaptive_update
 from modules.trainer_student import student_distillation_update
@@ -39,8 +39,12 @@ from models.teachers.teacher_resnet import create_resnet101
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from models.teachers.teacher_swin import create_swin_t
 
-def create_student_by_name(student_name: str, pretrained: bool = True,
-                           small_input: bool = False):
+def create_student_by_name(
+    student_name: str,
+    pretrained: bool = True,
+    small_input: bool = False,
+    num_classes: int = 100,
+):
     """
     Returns a student model that follows the common interface
     (feature_dict, logits, ce_loss).
@@ -49,20 +53,27 @@ def create_student_by_name(student_name: str, pretrained: bool = True,
         from models.students.student_resnet_adapter import (
             create_resnet101_with_extended_adapter,
         )
-        return create_resnet101_with_extended_adapter(pretrained=pretrained)
+        return create_resnet101_with_extended_adapter(
+            pretrained=pretrained, num_classes=num_classes
+        )
 
     elif student_name == "efficientnet_adapter":
         from models.students.student_efficientnet_adapter import (
             create_efficientnet_b2_with_adapter,
         )
-        return create_efficientnet_b2_with_adapter(pretrained=pretrained)
+        return create_efficientnet_b2_with_adapter(
+            pretrained=pretrained, num_classes=num_classes
+        )
 
     elif student_name == "swin_adapter":
         from models.students.student_swin_adapter import (
             create_swin_adapter_student,
         )
-        return create_swin_adapter_student(pretrained=pretrained,
-                                           small_input=small_input)
+        return create_swin_adapter_student(
+            pretrained=pretrained,
+            small_input=small_input,
+            num_classes=num_classes,
+        )
 
     else:
         raise ValueError(f"[create_student_by_name] unknown student_name={student_name}")# MBM
@@ -254,6 +265,10 @@ def main():
     else:
         raise ValueError(f"Unknown dataset_name={dataset}")
 
+    num_classes = len(train_loader.dataset.classes)
+    check_label_range(train_loader.dataset, num_classes)
+    check_label_range(test_loader.dataset, num_classes)
+
     small_input = cfg.get("small_input")
     if small_input is None:
         small_input = dataset == "cifar100"
@@ -264,7 +279,7 @@ def main():
 
     teacher1 = create_teacher_by_name(
         teacher_name=teacher1_type,
-        num_classes=100,
+        num_classes=num_classes,
         pretrained=cfg.get("teacher1_pretrained", True),
         small_input=small_input,
     ).to(device)
@@ -287,7 +302,7 @@ def main():
 
     teacher2 = create_teacher_by_name(
         teacher_name=teacher2_type,
-        num_classes=100,
+        num_classes=num_classes,
         pretrained=cfg.get("teacher2_pretrained", True),
         small_input=small_input,
     ).to(device)
@@ -375,6 +390,7 @@ def main():
         student_name,
         pretrained=cfg.get("student_pretrained", True),
         small_input=small_input,
+        num_classes=num_classes,
     ).to(device)
 
     if cfg.get("student_ckpt"):
