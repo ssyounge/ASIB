@@ -89,7 +89,8 @@ class ATDistiller(nn.Module):
         best_state = None
 
         for epoch in range(1, epochs+1):
-            self.train()
+            self.student.train()
+            self.teacher.eval()
             total_loss, total_num = 0.0, 0
             for x, y in train_loader:
                 x, y = x.to(device), y.to(device)
