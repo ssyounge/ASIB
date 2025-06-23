@@ -15,6 +15,7 @@ FT_WD: 0.0005
 CUTMIX_ALPHA: 1.0
 
 # Distillation
+METHOD: "asmb"
 T_LR: 2e-4
 S_LR: 1e-2
 T_WD: 0.0003
