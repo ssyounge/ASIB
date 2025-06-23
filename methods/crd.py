@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+from modules.losses import ce_loss_fn
 
 from modules.losses import kd_loss_fn, ce_loss_fn
 
@@ -43,14 +44,14 @@ class CRDDistiller(nn.Module):
       - total_loss = alpha * CRD + (1 - alpha) * CE
     """
     def __init__(self, teacher_model, student_model, feat_key="feat_2d",
-                 alpha=0.5, temperature=0.07):
+                 alpha=0.5, temperature=0.07, label_smoothing: float = 0.0):
         super().__init__()
         self.teacher = teacher_model
         self.student = student_model
         self.feat_key = feat_key   # 어떤 dict 키로부터 2D feat를 뽑아 CRD할지
         self.alpha = alpha
         self.crd_loss_fn = CRDLoss(temperature=temperature)
-        self.ce_loss_fn = nn.CrossEntropyLoss()
+        self.label_smoothing = label_smoothing
 
     def forward(self, x, y):
         # 1) teacher
@@ -65,7 +66,11 @@ class CRDDistiller(nn.Module):
         crd_loss_val = self.crd_loss_fn(s_feat, t_feat)
 
         # CE
-        ce_val = self.ce_loss_fn(s_logit, y)
+        ce_val = ce_loss_fn(
+            s_logit,
+            y,
+            label_smoothing=self.label_smoothing,
+        )
 
         total_loss = self.alpha * crd_loss_val + (1 - self.alpha) * ce_val
         return total_loss, s_logit
