@@ -191,6 +191,8 @@ python scripts/run_single_teacher.py --config configs/default.yaml \
 The `--method` flag selects one of `vanilla_kd`, `fitnet`, `dkd`, `at` or `crd`.
 Pass `--dataset` to override the dataset specified in the YAML config (either
 `cifar100` or `imagenet100`).
+Partial freezing is automatically turned off for these methods—`run_single_teacher.py`
+sets `use_partial_freeze: false` when the selected `method` is not `asmb`.
 
 2) Evaluation (eval.py)
 
