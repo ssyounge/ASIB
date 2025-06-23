@@ -43,7 +43,12 @@ class VanillaKDDistiller(nn.Module):
         s_dict, s_logit, _ = self.student(x)     # we don't use s_dict either
 
         # CE
-        ce_loss = ce_loss_fn(s_logit, y)
+        label_smoothing = self.cfg.get("label_smoothing", 0.0)
+        ce_loss = ce_loss_fn(
+            s_logit,
+            y,
+            label_smoothing=label_smoothing,
+        )
         # KD
         T_use = self.temperature if tau is None else tau
         kd_loss = kd_loss_fn(s_logit, t_logit, T=T_use)
