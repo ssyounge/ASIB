@@ -85,6 +85,8 @@ def main():
     cfg = {**base_cfg, **cli_cfg}
 
     method = cfg.get("method", args.method)
+    if method != "asmb":
+        cfg["use_partial_freeze"] = False
     teacher_type = cfg.get("teacher_type", args.teacher_type)
     student_type = cfg.get("student_type", args.student_type)
     print(
