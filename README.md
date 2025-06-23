@@ -157,6 +157,14 @@ PyTorch must be available for the unit tests to run.
 
 Usage
 
+### Typical Training Flow
+
+1. Fine-tune each teacher (optional but recommended).
+2. For each stage, perform a teacher adaptive update followed by student knowledge distillation.
+3. Repeat for the configured number of stages.
+
+Baseline runs (e.g., `vanilla_kd`) produce their own logs such as `VanillaKD => ...`.
+
 1) Multi-Stage Distillation (main.py)
 
 python main.py --config configs/partial_freeze.yaml --device cuda \
