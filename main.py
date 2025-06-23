@@ -54,7 +54,9 @@ def create_student_by_name(
             create_resnet101_with_extended_adapter,
         )
         return create_resnet101_with_extended_adapter(
-            pretrained=pretrained, num_classes=num_classes
+            pretrained=pretrained,
+            num_classes=num_classes,
+            small_input=small_input,
         )
 
     elif student_name == "efficientnet_adapter":
@@ -62,7 +64,9 @@ def create_student_by_name(
             create_efficientnet_b2_with_adapter,
         )
         return create_efficientnet_b2_with_adapter(
-            pretrained=pretrained, num_classes=num_classes
+            pretrained=pretrained,
+            num_classes=num_classes,
+            small_input=small_input,
         )
 
     elif student_name == "swin_adapter":

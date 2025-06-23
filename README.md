@@ -272,7 +272,8 @@ python main.py --use_amp 1 --amp_dtype bfloat16
 Models fine-tuned with `--small_input 1` replace their conv stems for small
 images. When distilling or evaluating such checkpoints you must pass the same
 `--small_input 1` flag to `main.py` or `eval.py` so the architectures match.
-The flag now also configures the student Swin adapter to expect 32×32 inputs.
+The flag now also configures **all student adapters** (ResNet, EfficientNet and
+Swin) to expect 32×32 inputs.
 
 ### Teacher Fine-Tuning
 
