@@ -9,12 +9,16 @@ def ce_loss_fn(student_logits, labels, label_smoothing: float = 0.0, reduction: 
     Parameters
     ----------
     student_logits : Tensor
-        Model predictions of shape ``(N, C)``.
+        Model predictions of shape ``(N, C)`` or higher. If the logits have
+        more than two dimensions, their spatial dimensions are averaged before
+        computing the loss.
     labels : Tensor
         Ground-truth integer labels.
     label_smoothing : float, optional
         Amount of label smoothing to apply. ``0.0`` disables smoothing.
     """
+    if student_logits.dim() > 2:
+        student_logits = student_logits.mean(dim=tuple(range(2, student_logits.dim())))
     return F.cross_entropy(
         student_logits,
         labels,
