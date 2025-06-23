@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from modules.losses import ce_loss_fn
 
 def single_layer_at_loss(f_s, f_t, p=2):
     """
@@ -43,14 +44,15 @@ class ATDistiller(nn.Module):
     3) at_loss_dict(...) => single_layer_at_loss
     4) total_loss = CE + alpha*AT
     """
-    def __init__(self, teacher_model, student_model, alpha=1.0, p=2, layer_key="feat_4d_layer3"):
+    def __init__(self, teacher_model, student_model, alpha=1.0, p=2,
+                 layer_key="feat_4d_layer3", label_smoothing: float = 0.0):
         super().__init__()
         self.teacher = teacher_model
         self.student = student_model
         self.alpha = alpha
         self.p = p
         self.layer_key = layer_key
-        self.criterion_ce = nn.CrossEntropyLoss()
+        self.label_smoothing = label_smoothing
 
     def forward(self, x, y):
         # 1) teacher
@@ -62,7 +64,11 @@ class ATDistiller(nn.Module):
         # 3) at_loss
         loss_at = at_loss_dict(t_dict, s_dict, layer_key=self.layer_key, p=self.p)
         # 4) CE
-        loss_ce = self.criterion_ce(s_logit, y)
+        loss_ce = ce_loss_fn(
+            s_logit,
+            y,
+            label_smoothing=self.label_smoothing,
+        )
         total_loss = loss_ce + self.alpha * loss_at
 
         return total_loss, s_logit

@@ -157,7 +157,8 @@ class ASMBDistiller(nn.Module):
                 student_lr=student_lr,
                 weight_decay=weight_decay,
                 epochs=epochs_per_stage,
-                logger=logger
+                logger=logger,
+                label_smoothing=self.config.get("label_smoothing", 0.0),
             )
             if acc > best_acc:
                 best_acc = acc
@@ -287,7 +288,8 @@ class ASMBDistiller(nn.Module):
         student_lr,
         weight_decay,
         epochs,
-        logger=None
+        logger=None,
+        label_smoothing: float = 0.0,
     ):
         """
         Student Distillation:
@@ -342,7 +344,11 @@ class ASMBDistiller(nn.Module):
                 zsyn = self.synergy_head(syn_feat)
 
                 # CE
-                ce_val = ce_loss_fn(s_logit, y)
+                ce_val = ce_loss_fn(
+                    s_logit,
+                    y,
+                    label_smoothing=label_smoothing,
+                )
                 # KL
                 kd_val = kd_loss_fn(s_logit, zsyn, T=cur_tau)
 
