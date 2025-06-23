@@ -77,7 +77,9 @@ class VanillaKDDistiller(nn.Module):
         best_state = None
 
         for epoch in range(1, epochs+1):
-            self.train()
+            # ensure only the student is in training mode
+            self.student.train()
+            self.teacher.eval()
             cur_tau = get_tau(self.cfg, epoch-1)
             total_loss, total_num = 0.0, 0
             for x, y in train_loader:
