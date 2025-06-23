@@ -94,7 +94,11 @@ class ExtendedAdapterResNet101(nn.Module):
         return feature_dict, logit, ce_loss
 
 
-def create_resnet101_with_extended_adapter(pretrained=True, num_classes: int = 100):
+def create_resnet101_with_extended_adapter(
+    pretrained: bool = True,
+    num_classes: int = 100,
+    small_input: bool = False,
+):
     """
     ResNet101 load => last FC => 100
     => ExtendedAdapterResNet101 => (dict, logit, ce_loss)
@@ -103,6 +107,10 @@ def create_resnet101_with_extended_adapter(pretrained=True, num_classes: int = 1
         base = resnet101(weights=ResNet101_Weights.IMAGENET1K_V2)
     else:
         base = resnet101(weights=None)
+
+    if small_input:
+        base.conv1 = nn.Conv2d(3, 64, 3, stride=1, padding=1, bias=False)
+        base.maxpool = nn.Identity()
 
     num_ftrs = base.fc.in_features
     base.fc = nn.Linear(num_ftrs, num_classes)
