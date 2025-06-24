@@ -19,6 +19,10 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 - **MBM Dropout**: set `mbm_dropout` in configs to add dropout within the
   Manifold Bridging Module
 - **Gradient Clipping**: enable by setting `grad_clip_norm` (>0) in configs
+- **Learnable MBM Query**: set `mbm_learnable_q: true` to use a global learnable
+  token instead of the student feature as attention query
+- **Feature-Level KD**: align student features with the synergy representation by
+  enabling `feat_kd_alpha` (e.g., `0.1`)
 - **Custom MBM Query Dim**: `mbm_query_dim` controls the dimension of the
   student features used as the attention query in `LightweightAttnMBM`.
   When omitted or set to `0`, the script automatically falls back to the
@@ -174,7 +178,7 @@ Baseline runs (e.g., `vanilla_kd`) produce their own logs such as `VanillaKD => 
 
 python main.py --config configs/partial_freeze.yaml --device cuda \
   --teacher1_ckpt teacher1.pth --teacher2_ckpt teacher2.pth \
-  --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 0
+  --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 1
   # mbm_query_dim is automatically set to the student feature dimension
         •       Adjust partial-freeze or architecture settings in `configs/*.yaml`.
         •       Edit `configs/hparams.yaml` to change numeric hyperparameters like learning rates or dropout.
@@ -225,7 +229,7 @@ python eval.py --eval_mode synergy \
   --teacher2_ckpt teacher2.pth \
   --mbm_ckpt mbm.pth \
   --head_ckpt synergy_head.pth \
-  --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 0
+  --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 1
   # mbm_query_dim is automatically set to the student feature dimension
 
 	•	Prints Train/Test accuracy, optionally logs to CSV if configured.
