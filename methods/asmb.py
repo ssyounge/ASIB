@@ -314,7 +314,8 @@ class ASMBDistiller(nn.Module):
 
         # student params
         student_params = [p for p in self.student.parameters() if p.requires_grad]
-        optimizer = optim.SGD(student_params, lr=student_lr, momentum=0.9, weight_decay=weight_decay)
+        optimizer = optim.AdamW(student_params, lr=student_lr, weight_decay=weight_decay)
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
         best_acc = 0.0
         best_state = copy.deepcopy(self.student.state_dict())
 
@@ -388,6 +389,8 @@ class ASMBDistiller(nn.Module):
             if acc > best_acc:
                 best_acc = acc
                 best_state = copy.deepcopy(self.student.state_dict())
+
+            scheduler.step()
 
         # restore
         self.student.load_state_dict(best_state)
