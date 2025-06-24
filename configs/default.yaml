@@ -37,7 +37,7 @@ student_epochs_per_stage: 15  # Student distill epochs per stage
 
 # --- Feature-KD 옵션 (추가) -------------------------
 # feat_kd_alpha가 0이면 Feature-KD 비활성화
-feat_kd_alpha: 0.25       # λ_feat   (논문 α_feat)
+feat_kd_alpha: 0.1        # λ_feat   (논문 α_feat)
 feat_kd_key: "feat_2d"    # 어느 딕셔너리 key를 쓸지 (feat_4d 도 가능)
 feat_kd_norm: "none"      # "none" | "l2"  (예: 벡터 정규화 후 MSE)
 
@@ -59,7 +59,7 @@ mbm_attn_heads: 0
 mbm_type: "LA"        # "MLP" for old behaviour
 mbm_r: 4
 mbm_n_head: 1
-mbm_learnable_q: false
+mbm_learnable_q: true
 mbm_query_dim: 0  # <=0 -> use sum(feat_dims); set to student feat dim to override
 grad_clip_norm: 2.0   # max norm for gradient clipping (0 to disable)
 

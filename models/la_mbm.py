@@ -24,7 +24,7 @@ class LightweightAttnMBM(nn.Module):
         out_dim: int,
         r: int = 4,
         n_head: int = 1,
-        learnable_q: bool = False,
+        learnable_q: bool = True,
         query_dim: Optional[int] = None,
     ) -> None:
         super().__init__()
