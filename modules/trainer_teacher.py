@@ -109,6 +109,7 @@ def teacher_adaptive_update(
         teacher_loss_sum = 0.0
         count = 0
         attn_sum = 0.0
+        feat_kd_warned = False
 
         for batch in smart_tqdm(trainloader, desc=f"[TeacherAdaptive ep={ep+1}]"):
             x, y = batch
@@ -158,10 +159,12 @@ def teacher_adaptive_update(
                     if s_flat.size(1) == f_flat.size(1):
                         feat_kd_loss = torch.nn.functional.mse_loss(s_flat, f_flat)
                     else:
-                        logger.info(
-                            f"[TeacherAdaptive] skip feat KD: s_feat={s_flat.size(1)}"
-                            f" vs fsyn={f_flat.size(1)}"
-                        )
+                        if not feat_kd_warned:
+                            logger.info(
+                                f"[TeacherAdaptive] skip feat KD: s_feat={s_flat.size(1)}"
+                                f" vs fsyn={f_flat.size(1)}"
+                            )
+                            feat_kd_warned = True
 
             # 기본 KD+CE
             total_loss = (
