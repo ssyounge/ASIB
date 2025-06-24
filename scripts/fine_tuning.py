@@ -5,6 +5,8 @@ using optional CutMix or standard CE training.
 
 Usage:
   python fine_tuning.py --config configs/hparams.yaml
+
+All fine-tuning options live in `configs/hparams.yaml`.
 """
 
 import argparse
