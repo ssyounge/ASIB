@@ -85,8 +85,8 @@ run_loop() {
     # 1) Teacher fine-tuning
     for T in "$T1" "$T2"; do
       CKPT="checkpoints/${T}_ft.pth"
-      echo ">>> [run_experiments.sh] fine-tuning teacher=${T}  (epochs=${finetune_epochs}, lr=${finetune_lr})"
       if [ ! -f "${CKPT}" ]; then
+        echo ">>> [run_experiments.sh] fine-tuning teacher=${T}  (epochs=${finetune_epochs}, lr=${finetune_lr})"
         python scripts/fine_tuning.py \
           --teacher_type "${T}" \
           --device cuda \
@@ -118,6 +118,7 @@ run_loop() {
             --teacher2_type "${T2}" \
             --teacher1_ckpt checkpoints/${T1}_ft.pth \
             --teacher2_ckpt checkpoints/${T2}_ft.pth \
+            --finetune_epochs 0 \
             --student_type "${STUDENT}" \
             --num_stages ${STAGE} \
             --synergy_ce_alpha ${SC_ALPHA} \
@@ -176,6 +177,7 @@ run_sweep() {
         --config "${CFG_TMP}" \
         --synergy_ce_alpha ${sc_alpha} \
         --device ${device} \
+        --finetune_epochs 0 \
         --data_aug ${data_aug} \
         --mixup_alpha ${mixup_alpha} \
         --cutmix_alpha_distill ${cutmix_alpha_distill} \
