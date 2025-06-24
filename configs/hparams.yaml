@@ -17,7 +17,7 @@ CUTMIX_ALPHA: 1.0
 # Distillation
 METHOD: "asmb"
 T_LR: 2e-4
-S_LR: 5e-4
+S_LR: 3e-4
 T_WD: 0.0003
 S_WD: 0.0005
 CE_ALPHA: 0.5
@@ -25,7 +25,7 @@ KD_ALPHA: 0.5
 CUTMIX_ALPHA_DISTILL: 0.0  # CutMix alpha used during distillation
 
 # Learning rate schedule
-LR_SCHEDULE: "step"       # "step" or "cosine"
+LR_SCHEDULE: "cosine"       # "step" or "cosine"
 TEACHER_STEP_SIZE: 10
 TEACHER_GAMMA: 0.1
 STUDENT_STEP_SIZE: 10
@@ -57,6 +57,6 @@ LABEL_SMOOTHING: 0.1
 # N_STAGE_LIST accepts a space-separated list of stage counts,
 # e.g. "2 3 4 5" to run multiple values in a batch script.
 N_STAGE_LIST: 5
-SC_ALPHA_LIST: "0.3 0.6"
+SC_ALPHA_LIST: "0.6" # 0.3 0.6
 STUDENT_LIST: "resnet_adapter efficientnet_adapter swin_adapter"
-METHOD_LIST: "vanilla_kd" ## asmb at crd dkd fitnet 
+METHOD_LIST: "asmb vanilla_kd" ## asmb at crd dkd fitnet 
