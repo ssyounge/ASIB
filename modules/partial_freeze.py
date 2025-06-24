@@ -242,12 +242,12 @@ def partial_freeze_student_swin(
 
     if freeze_scope == "head_only":
         for name, param in model.named_parameters():
-            if "head." in name:
+            if "head." in name or "fc." in name:
                 param.requires_grad = True
     else:
         # default => "layers.3." + "head."
         for name, param in model.named_parameters():
-            if "layers.3." in name or "head." in name:
+            if "layers.3." in name or "head." in name or "fc." in name:
                 param.requires_grad = True
 
     if use_adapter:
