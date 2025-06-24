@@ -196,14 +196,19 @@ Pass `--dataset` to override the dataset specified in the YAML config (either
 `cifar100` or `imagenet100`).
 Partial freezing is automatically turned off for these methods—`run_single_teacher.py`
 sets `use_partial_freeze: false` when the selected `method` is not `asmb`.
+
 3) Student Baseline (train_student_baseline.py)
 
+### Student Baseline
+
+Run the student alone using the same partial-freeze settings to gauge its standalone performance:
+
 ```bash
-python scripts/train_student_baseline.py --config configs/default.yaml \
+python scripts/train_student_baseline.py --config configs/partial_freeze.yaml \
   --student_type resnet_adapter --epochs 40 --dataset cifar100
 ```
 
-Trains the student model with cross-entropy only. The script applies partial freezing automatically and saves the final checkpoint and accuracy under `results/`.
+The script uses the same optimizer and scheduler configuration as the distillation runs. The resulting accuracy serves as the reference for all distillation experiments and is saved under `results/`.
 
 
 4) Evaluation (eval.py)
