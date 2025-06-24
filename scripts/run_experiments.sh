@@ -35,45 +35,45 @@ generate_config() {
     --hparams configs/hparams.yaml \
     --method "$METHOD" \
     --out "$cfg_tmp" \
-    teacher_lr=${T_LR} \
-    student_lr=${S_LR} \
-    teacher_weight_decay=${T_WD} \
-    student_weight_decay=${S_WD} \
-    ce_alpha=${CE_ALPHA} \
-    kd_alpha=${KD_ALPHA} \
-    lr_schedule=${LR_SCHEDULE} \
-    teacher_step_size=${TEACHER_STEP_SIZE} \
-    teacher_gamma=${TEACHER_GAMMA} \
-    student_step_size=${STUDENT_STEP_SIZE} \
-    student_gamma=${STUDENT_GAMMA} \
-    temperature_schedule=${TEMPERATURE_SCHEDULE} \
-    tau_start=${TAU_START} \
-    tau_end=${TAU_END} \
-    tau_decay_epochs=${TAU_DECAY_EPOCHS} \
-    student_epochs_per_stage=${STUDENT_EPS} \
-    teacher_iters=${TEACHER_ITERS} \
-    student_iters=${STUDENT_ITERS} \
-    mbm_hidden_dim=${MBM_HIDDEN_DIM} \
-    mbm_out_dim=${MBM_OUT_DIM} \
-    mbm_reg_lambda=${MBM_REG} \
-    reg_lambda=${REG_LAMBDA} \
-    mbm_dropout=${MBM_DROPOUT} \
-    synergy_head_dropout=${HEAD_DROPOUT} \
-    use_partial_freeze=${USE_PARTIAL_FREEZE} \
-    teacher1_use_adapter=${TEACHER1_USE_ADAPTER} \
-    teacher1_bn_head_only=${TEACHER1_BN_HEAD_ONLY} \
-    teacher2_use_adapter=${TEACHER2_USE_ADAPTER} \
-    teacher2_bn_head_only=${TEACHER2_BN_HEAD_ONLY} \
-    batch_size=${BATCH_SIZE} \
-    mixup_alpha=${MIXUP_ALPHA} \
-    cutmix_alpha_distill=${CUTMIX_ALPHA_DISTILL} \
-    label_smoothing=${LABEL_SMOOTHING}
+    teacher_lr=${teacher_lr} \
+    student_lr=${student_lr} \
+    teacher_weight_decay=${teacher_weight_decay} \
+    student_weight_decay=${student_weight_decay} \
+    ce_alpha=${ce_alpha} \
+    kd_alpha=${kd_alpha} \
+    lr_schedule=${lr_schedule} \
+    teacher_step_size=${teacher_step_size} \
+    teacher_gamma=${teacher_gamma} \
+    student_step_size=${student_step_size} \
+    student_gamma=${student_gamma} \
+    temperature_schedule=${temperature_schedule} \
+    tau_start=${tau_start} \
+    tau_end=${tau_end} \
+    tau_decay_epochs=${tau_decay_epochs} \
+    student_epochs_per_stage=${student_eps} \
+    teacher_iters=${teacher_iters} \
+    student_iters=${student_iters} \
+    mbm_hidden_dim=${mbm_hidden_dim} \
+    mbm_out_dim=${mbm_out_dim} \
+    mbm_reg_lambda=${mbm_reg} \
+    reg_lambda=${reg_lambda} \
+    mbm_dropout=${mbm_dropout} \
+    synergy_head_dropout=${head_dropout} \
+    use_partial_freeze=${use_partial_freeze} \
+    teacher1_use_adapter=${teacher1_use_adapter} \
+    teacher1_bn_head_only=${teacher1_bn_head_only} \
+    teacher2_use_adapter=${teacher2_use_adapter} \
+    teacher2_bn_head_only=${teacher2_bn_head_only} \
+    batch_size=${batch_size} \
+    mixup_alpha=${mixup_alpha} \
+    cutmix_alpha_distill=${cutmix_alpha_distill} \
+    label_smoothing=${label_smoothing}
   echo "$cfg_tmp"
 }
 
 run_loop() {
   source <(python scripts/load_hparams.py configs/hparams.yaml)
-  METHOD_LIST="${METHOD_LIST:-$METHOD}"
+  METHOD_LIST="${method_list:-$method}"
   mkdir -p checkpoints results
   RESULT_ROOT="results/$(date +%Y%m%d_%H%M%S)"
   mkdir -p "${RESULT_ROOT}"
@@ -85,27 +85,27 @@ run_loop() {
     # 1) Teacher fine-tuning
     for T in "$T1" "$T2"; do
       CKPT="checkpoints/${T}_ft.pth"
-      echo ">>> [run_experiments.sh] fine-tuning teacher=${T}  (epochs=${FT_EPOCHS}, lr=${FT_LR})"
+      echo ">>> [run_experiments.sh] fine-tuning teacher=${T}  (epochs=${ft_epochs}, lr=${ft_lr})"
       if [ ! -f "${CKPT}" ]; then
         python scripts/fine_tuning.py \
           --teacher_type "${T}" \
           --device cuda \
-          --batch_size ${BATCH_SIZE} \
-          --finetune_epochs ${FT_EPOCHS} \
-          --finetune_lr ${FT_LR} \
-          --finetune_weight_decay ${FT_WD} \
-          --cutmix_alpha ${CUTMIX_ALPHA} \
+          --batch_size ${batch_size} \
+          --finetune_epochs ${ft_epochs} \
+          --finetune_lr ${ft_lr} \
+          --finetune_weight_decay ${ft_wd} \
+          --cutmix_alpha ${cutmix_alpha} \
           --finetune_ckpt_path "${CKPT}" \
-          --data_aug ${DATA_AUG}
+          --data_aug ${data_aug}
       fi
     done
 
     # 2) ASMB multi-stage distillation
-    for STUDENT in ${STUDENT_LIST}; do
-      for SC_ALPHA in ${SC_ALPHA_LIST}; do
+    for STUDENT in ${student_list}; do
+      for SC_ALPHA in ${sc_alpha_list}; do
         # N_STAGE_LIST may contain space-separated values like "2 3 4 5"
         # Iterate over each item without quoting to allow word splitting.
-        for STAGE in $N_STAGE_LIST; do
+        for STAGE in $n_stage_list; do
           OUTDIR="${RESULT_ROOT}/${T2}_${STUDENT}_a${SC_ALPHA}_s${STAGE}"
           mkdir -p "${OUTDIR}"
 
@@ -121,19 +121,19 @@ run_loop() {
             --student_type "${STUDENT}" \
             --num_stages ${STAGE} \
             --synergy_ce_alpha ${SC_ALPHA} \
-            --teacher_lr ${T_LR} \
-            --student_lr ${S_LR} \
-            --batch_size ${BATCH_SIZE} \
-            --teacher1_use_adapter ${TEACHER1_USE_ADAPTER} \
-            --teacher1_bn_head_only ${TEACHER1_BN_HEAD_ONLY} \
-            --teacher2_use_adapter ${TEACHER2_USE_ADAPTER} \
-            --teacher2_bn_head_only ${TEACHER2_BN_HEAD_ONLY} \
+            --teacher_lr ${teacher_lr} \
+            --student_lr ${student_lr} \
+            --batch_size ${batch_size} \
+            --teacher1_use_adapter ${teacher1_use_adapter} \
+            --teacher1_bn_head_only ${teacher1_bn_head_only} \
+            --teacher2_use_adapter ${teacher2_use_adapter} \
+            --teacher2_bn_head_only ${teacher2_bn_head_only} \
             --results_dir "${OUTDIR}" \
             --seed 42 \
-            --data_aug ${DATA_AUG} \
-            --mixup_alpha ${MIXUP_ALPHA} \
-            --cutmix_alpha_distill ${CUTMIX_ALPHA_DISTILL} \
-            --label_smoothing ${LABEL_SMOOTHING} \
+            --data_aug ${data_aug} \
+            --mixup_alpha ${mixup_alpha} \
+            --cutmix_alpha_distill ${cutmix_alpha_distill} \
+            --label_smoothing ${label_smoothing} \
             --method ${METHOD}
           else
           python scripts/run_single_teacher.py \
@@ -141,15 +141,15 @@ run_loop() {
             --teacher_type "${T2}" \
             --teacher_ckpt checkpoints/${T2}_ft.pth \
             --student_type "${STUDENT}" \
-            --student_lr ${S_LR} \
-            --batch_size ${BATCH_SIZE} \
-            --epochs ${STUDENT_ITERS} \
+            --student_lr ${student_lr} \
+            --batch_size ${batch_size} \
+            --epochs ${student_iters} \
             --results_dir "${OUTDIR}" \
             --seed 42 \
-            --data_aug ${DATA_AUG} \
-            --mixup_alpha ${MIXUP_ALPHA} \
-            --cutmix_alpha_distill ${CUTMIX_ALPHA_DISTILL} \
-            --label_smoothing ${LABEL_SMOOTHING} \
+            --data_aug ${data_aug} \
+            --mixup_alpha ${mixup_alpha} \
+            --cutmix_alpha_distill ${cutmix_alpha_distill} \
+            --label_smoothing ${label_smoothing} \
             --method ${METHOD}
           fi
         done
@@ -175,15 +175,15 @@ run_sweep() {
       python main.py \
         --config "${CFG_TMP}" \
         --synergy_ce_alpha ${sc_alpha} \
-        --device ${DEVICE} \
-        --data_aug ${DATA_AUG} \
-        --mixup_alpha ${MIXUP_ALPHA} \
-        --cutmix_alpha_distill ${CUTMIX_ALPHA_DISTILL} \
-        --teacher1_use_adapter ${TEACHER1_USE_ADAPTER} \
-        --teacher1_bn_head_only ${TEACHER1_BN_HEAD_ONLY} \
-        --teacher2_use_adapter ${TEACHER2_USE_ADAPTER} \
-        --teacher2_bn_head_only ${TEACHER2_BN_HEAD_ONLY} \
-        --label_smoothing ${LABEL_SMOOTHING} \
+        --device ${device} \
+        --data_aug ${data_aug} \
+        --mixup_alpha ${mixup_alpha} \
+        --cutmix_alpha_distill ${cutmix_alpha_distill} \
+        --teacher1_use_adapter ${teacher1_use_adapter} \
+        --teacher1_bn_head_only ${teacher1_bn_head_only} \
+        --teacher2_use_adapter ${teacher2_use_adapter} \
+        --teacher2_bn_head_only ${teacher2_bn_head_only} \
+        --label_smoothing ${label_smoothing} \
         --method ${METHOD}
     done
   done
