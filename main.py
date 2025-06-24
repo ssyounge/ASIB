@@ -537,6 +537,7 @@ def main():
             test_loader,
             device=device,
             cfg=cfg,
+            mode=cfg.get("disagree_mode", "both_wrong"),
         )
         print(f"[Stage {stage_id}] Teacher disagreement= {dis_rate:.2f}%")
         logger.update_metric(f"stage{stage_id}_disagreement_rate", dis_rate)
