@@ -3,91 +3,91 @@
 # Edit these values and run the bash scripts.
 
 # General
-DEVICE: "cuda"
-BATCH_SIZE: 128
-SEED: 42
-DATA_AUG: 1
+device: "cuda"
+batch_size: 128
+seed: 42
+data_aug: 1
 
 # Teacher fine-tuning
-FT_EPOCHS: 50
-FT_LR: 0.001
-FT_WD: 0.0005
-CUTMIX_ALPHA: 1.0
+ft_epochs: 50
+ft_lr: 0.001
+ft_wd: 0.0005
+cutmix_alpha: 1.0
 
 # Distillation
-METHOD: "asmb"
-T_LR: 2e-4
-S_LR: 3e-4
-T_WD: 0.0003
-S_WD: 0.0005
-CE_ALPHA: 0.5
-KD_ALPHA: 0.5
-CUTMIX_ALPHA_DISTILL: 0.0  # CutMix alpha used during distillation
+method: "asmb"
+teacher_lr: 2e-4
+student_lr: 3e-4
+teacher_weight_decay: 0.0003
+student_weight_decay: 0.0005
+ce_alpha: 0.5
+kd_alpha: 0.5
+cutmix_alpha_distill: 0.0  # CutMix alpha used during distillation
 
 # Learning rate schedule
-LR_SCHEDULE: "cosine"       # "step" or "cosine"
-TEACHER_STEP_SIZE: 10
-TEACHER_GAMMA: 0.1
-STUDENT_STEP_SIZE: 10
-STUDENT_GAMMA: 0.1
+lr_schedule: "cosine"       # "step" or "cosine"
+teacher_step_size: 10
+teacher_gamma: 0.1
+student_step_size: 10
+student_gamma: 0.1
 
 # Temperature scheduling
-TEMPERATURE_SCHEDULE: "linear_decay"
-TAU_START: 10.0
-TAU_END: 2.0
-TAU_DECAY_EPOCHS: 40
-STUDENT_EPS: 10
-TEACHER_ITERS: 20
-STUDENT_ITERS: 40
-MBM_HIDDEN_DIM: 1024
-MBM_OUT_DIM: 2048
-MBM_REG: 5e-5         # default sweep value
-REG_LAMBDA: 1e-5      # teacher L2 regularisation
-MBM_DROPOUT: 0.0      # dropout prob inside MBM
-HEAD_DROPOUT: 0.0     # dropout prob for synergy head
-USE_PARTIAL_FREEZE: true
-TEACHER1_USE_ADAPTER: 0
-TEACHER1_BN_HEAD_ONLY: 0
-TEACHER2_USE_ADAPTER: 0
-TEACHER2_BN_HEAD_ONLY: 0
-MIXUP_ALPHA: 0.2
-LABEL_SMOOTHING: 0.1
+temperature_schedule: "linear_decay"
+tau_start: 10.0
+tau_end: 2.0
+tau_decay_epochs: 40
+student_eps: 10
+teacher_iters: 20
+student_iters: 40
+mbm_hidden_dim: 1024
+mbm_out_dim: 2048
+mbm_reg: 5e-5         # default sweep value
+reg_lambda: 1e-5      # teacher L2 regularisation
+mbm_dropout: 0.0      # dropout prob inside MBM
+head_dropout: 0.0     # dropout prob for synergy head
+use_partial_freeze: true
+teacher1_use_adapter: 0
+teacher1_bn_head_only: 0
+teacher2_use_adapter: 0
+teacher2_bn_head_only: 0
+mixup_alpha: 0.2
+label_smoothing: 0.1
 
 # Sweep/loop variables
 # N_STAGE_LIST accepts a space-separated list of stage counts,
 # e.g. "2 3 4 5" to run multiple values in a batch script.
-N_STAGE_LIST: 5
-SC_ALPHA_LIST: "0.6" # 0.3 0.6
-STUDENT_LIST: "resnet_adapter efficientnet_adapter swin_adapter"
-METHOD_LIST: "asmb vanilla_kd" ## asmb at crd dkd fitnet 
+n_stage_list: 5
+sc_alpha_list: "0.6" # 0.3 0.6
+student_list: "resnet_adapter efficientnet_adapter swin_adapter"
+method_list: "asmb vanilla_kd" ## asmb at crd dkd fitnet
 # Teacher adaptation
-TEACHER_ADAPT_EPOCHS: 5
-TEACHER_ADAPT_ALPHA_KD: 1.0
-MBM_LR_FACTOR: 1.0
-SYNERGY_CE_ALPHA: 0.3
+teacher_adapt_epochs: 5
+teacher_adapt_alpha_kd: 1.0
+mbm_lr_factor: 1.0
+synergy_ce_alpha: 0.3
 
 # Feature KD
-FEAT_KD_ALPHA: 1.0
-FEAT_KD_KEY: "feat_2d"
-FEAT_KD_NORM: "none"
+feat_kd_alpha: 1.0
+feat_kd_key: "feat_2d"
+feat_kd_norm: "none"
 
 # Disagreement weighting
-USE_DISAGREE_WEIGHT: false
-DISAGREE_MODE: "pred"
-DISAGREE_LAMBDA_HIGH: 1.0
-DISAGREE_LAMBDA_LOW: 1.0
+use_disagree_weight: false
+disagree_mode: "pred"
+disagree_lambda_high: 1.0
+disagree_lambda_low: 1.0
 
 # MBM options
-MBM_TYPE: "LA"
-MBM_R: 4
-MBM_N_HEAD: 1
-MBM_LEARNABLE_Q: true
-MBM_IN_DIM: 3456
-MBM_USE_4D: false
-MBM_ATTN_HEADS: 0
-MBM_QUERY_DIM: 0
+mbm_type: "LA"
+mbm_r: 4
+mbm_n_head: 1
+mbm_learnable_q: true
+mbm_in_dim: 3456
+mbm_use_4d: false
+mbm_attn_heads: 0
+mbm_query_dim: 0
 
 # Misc
-GRAD_CLIP_NORM: 2.0
-FINETUNE_USE_CUTMIX: true
-FINETUNE_ALPHA: 1.0
+grad_clip_norm: 2.0
+finetune_use_cutmix: true
+finetune_alpha: 1.0
