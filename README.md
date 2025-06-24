@@ -21,8 +21,18 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 - **Gradient Clipping**: enable by setting `grad_clip_norm` (>0) in configs
 - **Learnable MBM Query**: set `mbm_learnable_q: true` to use a global learnable
   token instead of the student feature as attention query
-- **Feature-Level KD**: align student features with the synergy representation by
-  enabling `feat_kd_alpha` (e.g., `0.1`)
+- **Feature-Level KD**: align student features with the synergy representation.
+  A nonzero `feat_kd_alpha` enables feature alignment during teacher and student
+  updates. Example `hparams.yaml` snippet:
+
+  ```yaml
+  feat_kd_alpha: 1.0
+  feat_kd_key: "feat_2d"
+  feat_kd_norm: "none"
+  ```
+
+  The same values can be overridden via CLI using
+  `--feat_kd_alpha 1.0 --feat_kd_key feat_2d --feat_kd_norm none`.
 - **Custom MBM Query Dim**: `mbm_query_dim` controls the dimension of the
   student features used as the attention query in `LightweightAttnMBM`.
   When omitted or set to `0`, the script automatically falls back to the
