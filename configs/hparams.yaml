@@ -7,12 +7,20 @@ device: "cuda"
 batch_size: 128
 seed: 42
 data_aug: 1
+dataset_name: "cifar100"
+small_input: true
+deterministic: true
+
+# Teacher defaults
+teacher_type: "resnet101"
+finetune_partial_freeze: false
+efficientnet_dropout: 0.3
 
 # Teacher fine-tuning
-ft_epochs: 50
-ft_lr: 0.001
-ft_wd: 0.0005
-cutmix_alpha: 1.0
+finetune_epochs: 50
+finetune_lr: 0.001
+finetune_weight_decay: 0.0005
+finetune_cutmix_alpha: 1.0
 
 # Distillation
 method: "asmb"
