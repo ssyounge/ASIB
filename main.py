@@ -483,7 +483,7 @@ def main():
         )
 
     student_params = [p for p in student_model.parameters() if p.requires_grad]
-    student_optimizer = optim.Adam(
+    student_optimizer = optim.AdamW(
         student_params,
         lr=cfg["student_lr"],
         weight_decay=cfg["student_weight_decay"],
