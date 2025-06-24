@@ -4,10 +4,21 @@ import torch
 from utils.misc import get_amp_components
 
 @torch.no_grad()
-def compute_disagreement_rate(teacher1, teacher2, loader, device="cuda", cfg=None):
-    """
-    Compute the *cross-error rate*, i.e. the percentage of samples on which
-    ``teacher1`` and ``teacher2`` both make an incorrect prediction.
+def compute_disagreement_rate(
+    teacher1,
+    teacher2,
+    loader,
+    device="cuda",
+    cfg=None,
+    mode: str = "both_wrong",
+):
+    """Return the disagreement rate between two teachers.
+
+    The ``mode`` argument controls how disagreement is determined:
+
+    - ``"pred"`` uses a simple prediction mismatch, i.e. ``pred1 != pred2``.
+    - ``"both_wrong"`` (default) measures *cross-error*, counting samples on
+      which **both** teachers are incorrect.
 
     teacher1, teacher2: nn.Module (teacher wrappers)
         Their forward(x) should return a dict containing at least the
@@ -15,13 +26,28 @@ def compute_disagreement_rate(teacher1, teacher2, loader, device="cuda", cfg=Non
     loader: DataLoader
     device: "cuda" or "cpu"
 
-    Returns:
-        float (0~100) indicating the cross-error rate.
+    Parameters
+    ----------
+    teacher1, teacher2 : nn.Module
+        Teacher wrappers. ``forward(x)`` must return a dict with ``"logit"``.
+    loader : DataLoader
+        Loader yielding ``(images, labels)``.
+    device : str
+        Device to run on.
+    cfg : dict, optional
+        Config used for AMP detection.
+    mode : str, optional
+        ``"pred"`` or ``"both_wrong"`` as described above.
+
+    Returns
+    -------
+    float
+        Disagreement rate in ``[0, 100]``.
     """
     teacher1.eval()
     teacher2.eval()
     total_samples = 0
-    both_wrong = 0
+    disagree_count = 0
 
     autocast_ctx, _ = get_amp_components(cfg or {})
     for x, y in loader:
@@ -35,13 +61,18 @@ def compute_disagreement_rate(teacher1, teacher2, loader, device="cuda", cfg=Non
         pred1 = logit1.argmax(dim=1)
         pred2 = logit2.argmax(dim=1)
 
-        # mask of "both teacher preds are wrong"
-        wrong_mask = (pred1 != y) & (pred2 != y)
-        both_wrong += wrong_mask.sum().item()
+        if mode == "pred":
+            disagree_mask = pred1 != pred2
+        elif mode == "both_wrong":
+            disagree_mask = (pred1 != y) & (pred2 != y)
+        else:
+            raise ValueError(f"Unknown disagree_mode: {mode}")
+
+        disagree_count += disagree_mask.sum().item()
         total_samples += y.size(0)
 
-    cross_err_rate = 100.0 * both_wrong / total_samples if total_samples > 0 else 0.0
-    return cross_err_rate
+    dis_rate = 100.0 * disagree_count / total_samples if total_samples > 0 else 0.0
+    return dis_rate
 
 
 @torch.no_grad()
