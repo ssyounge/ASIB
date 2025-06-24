@@ -58,8 +58,8 @@ teacher1_use_adapter: 0
 teacher1_bn_head_only: 0
 teacher2_use_adapter: 0
 teacher2_bn_head_only: 0
-mixup_alpha: 0.2
-label_smoothing: 0.1
+mixup_alpha: 0.0
+label_smoothing: 0.0
 
 # Sweep/loop variables
 # N_STAGE_LIST accepts a space-separated list of stage counts,
