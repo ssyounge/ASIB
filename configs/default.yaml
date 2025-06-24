@@ -20,7 +20,7 @@ teacher2_pretrained: true
 
 # learning rates & weight decay now defined in hparams.yaml
 teacher_adapt_epochs: 5      # Teacher Adaptive Update epochs
-mbm_lr_factor: 5.0           # MBM/Head LR 배수
+mbm_lr_factor: 1.0           # MBM/Head LR 배수
 
 synergy_ce_alpha: 0.3
 teacher_adapt_alpha_kd: 0.2  # Teacher adaptive 시 KL 비중
@@ -37,7 +37,7 @@ student_epochs_per_stage: 15  # Student distill epochs per stage
 
 # --- Feature-KD 옵션 (추가) -------------------------
 # feat_kd_alpha가 0이면 Feature-KD 비활성화
-feat_kd_alpha: 0.1        # λ_feat   (논문 α_feat)
+feat_kd_alpha: 1.0        # λ_feat   (논문 α_feat)
 feat_kd_key: "feat_2d"    # 어느 딕셔너리 key를 쓸지 (feat_4d 도 가능)
 feat_kd_norm: "none"      # "none" | "l2"  (예: 벡터 정규화 후 MSE)
 
