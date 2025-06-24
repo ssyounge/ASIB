@@ -63,6 +63,7 @@ def student_distillation_update(
         distill_loss_sum = 0.0
         cnt = 0
         student_model.train()
+        feat_kd_warned = False
 
         mix_mode = (
             "cutmix"
@@ -167,10 +168,12 @@ def student_distillation_update(
                 if s_flat.size(1) == f_flat.size(1):
                     feat_kd_val = torch.nn.functional.mse_loss(s_flat, f_flat)
                 else:
-                    logger.info(
-                        f"[StudentDistill] skip feat KD: s_feat={s_flat.size(1)}"
-                        f" vs fsyn={f_flat.size(1)}"
-                    )
+                    if not feat_kd_warned:
+                        logger.info(
+                            f"[StudentDistill] skip feat KD: s_feat={s_flat.size(1)}"
+                            f" vs fsyn={f_flat.size(1)}"
+                        )
+                        feat_kd_warned = True
 
             loss = (
                 cfg["ce_alpha"] * ce_loss_val
