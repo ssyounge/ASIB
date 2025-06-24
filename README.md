@@ -80,7 +80,7 @@ METHOD_LIST="asmb fitnet vanilla_kd" bash scripts/run_experiments.sh --mode loop
 The base config merged by `generate_config.py` defaults to
 `configs/default.yaml`. This file only defines universal settings such as
 device and paths. The script can also merge optional fragments such as
-`configs/fine_tune.yaml` or `configs/partial_freeze.yaml`. Pass one or more
+`configs/partial_freeze.yaml`. Pass one or more
 fragment files (or a directory containing them) to assemble a config from
 multiple pieces. Override the selection by setting the `BASE_CONFIG`
 environment variable:
@@ -97,11 +97,11 @@ python scripts/generate_config.py \
   --out combined.yaml
 ```
 
-To combine more than two fragments, simply list them all after `--base`:
+To combine additional fragments, simply list them all after `--base`:
 
 ```bash
 python scripts/generate_config.py \
-  --base configs/default.yaml configs/partial_freeze.yaml configs/fine_tune.yaml \
+  --base configs/default.yaml configs/partial_freeze.yaml extras.yaml \
   --out full.yaml
 ```
 
@@ -318,20 +318,20 @@ Adjust the parameters in `configs/hparams.yaml`:
 
 ```bash
 # configs/hparams.yaml
-ft_epochs=100   # number of fine-tuning epochs
-ft_lr=0.0005    # learning rate
-cutmix_alpha=0  # set to 0 to disable CutMix
+finetune_epochs=100   # number of fine-tuning epochs
+finetune_lr=0.0005    # learning rate
+finetune_cutmix_alpha=0  # set to 0 to disable CutMix
 lr_schedule=step   # step or cosine
 ```
 
 Alternatively edit the YAML file used by `scripts/fine_tuning.py`:
 
 ```yaml
-# configs/fine_tune.yaml
+# configs/hparams.yaml
 teacher_type: resnet101
 finetune_epochs: 100
 finetune_lr: 0.0005
-use_cutmix: false
+finetune_use_cutmix: false
 efficientnet_dropout: 0.3  # dropout probability for EfficientNet teachers
 ```
 
@@ -339,7 +339,7 @@ Set `efficientnet_dropout` to control the dropout rate used in EfficientNet
 teachers. The default value is **0.3**. You can override it on the command line:
 
 ```bash
-python scripts/fine_tuning.py --config configs/fine_tune.yaml \
+python scripts/fine_tuning.py --config configs/hparams.yaml \
   --teacher_type resnet101 --dropout_p 0.5
 ```
 
@@ -397,7 +397,6 @@ Folder Structure
 
 ├── configs
 │   ├── default.yaml
-│   ├── fine_tune.yaml
 │   ├── hparams.yaml        # default hyperparameters for run_experiments.sh
 │   └── partial_freeze.yaml
 

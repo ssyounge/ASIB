@@ -4,7 +4,7 @@ Example: Fine-tuning Teacher (ResNet/EfficientNet/Swin) on either CIFAR-100 or I
 using optional CutMix or standard CE training.
 
 Usage:
-  python fine_tuning.py --config configs/fine_tune.yaml
+  python fine_tuning.py --config configs/hparams.yaml
 """
 
 import argparse
@@ -39,8 +39,12 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Teacher Fine-tuning Script")
 
     # ① YAML 기본값
-    parser.add_argument("--config", type=str, default="configs/fine_tune.yaml",
-                        help="Path to YAML config for fine-tuning")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="configs/hparams.yaml",
+        help="Path to YAML config for fine-tuning",
+    )
 
     # ② run_experiments.sh 가 전달하는 옵션들(없으면 None)
     parser.add_argument("--teacher_type", type=str)
@@ -53,7 +57,7 @@ def parse_args():
     parser.add_argument("--batch_size", type=int)
     parser.add_argument("--finetune_weight_decay", type=float)
     # ↓ run_experiments.sh 에서 CutMix 알파도 변경할 수 있도록
-    parser.add_argument("--cutmix_alpha", type=float)
+    parser.add_argument("--finetune_cutmix_alpha", type=float)
     parser.add_argument("--data_aug", type=int)
     parser.add_argument("--small_input", type=int)
     parser.add_argument("--dropout_p", type=float)
@@ -240,7 +244,7 @@ def main():
         return
 
     # 3) partial freeze or full fine-tune?
-    if cfg.get("fine_tune_partial_freeze", False):
+    if cfg.get("finetune_partial_freeze", False):
         # e.g. freeze backbone, unfreeze head
         freeze_bn = cfg.get("teacher_freeze_bn", True)
         freeze_ln = cfg.get("teacher_freeze_ln", True)
@@ -258,8 +262,8 @@ def main():
         print("[FineTune] full fine-tune => no partial freeze applied.")
 
     # 4) use cutmix or standard CE?
-    use_cutmix = cfg.get("use_cutmix", True)
-    cutmix_alpha = cfg.get("cutmix_alpha", 1.0)
+    use_cutmix = cfg.get("finetune_use_cutmix", True)
+    cutmix_alpha = cfg.get("finetune_cutmix_alpha", 1.0)
 
     finetune_epochs = cfg.get("finetune_epochs", 10)
     lr = cfg.get("finetune_lr", 1e-3)
