@@ -85,16 +85,16 @@ run_loop() {
     # 1) Teacher fine-tuning
     for T in "$T1" "$T2"; do
       CKPT="checkpoints/${T}_ft.pth"
-      echo ">>> [run_experiments.sh] fine-tuning teacher=${T}  (epochs=${ft_epochs}, lr=${ft_lr})"
+      echo ">>> [run_experiments.sh] fine-tuning teacher=${T}  (epochs=${finetune_epochs}, lr=${finetune_lr})"
       if [ ! -f "${CKPT}" ]; then
         python scripts/fine_tuning.py \
           --teacher_type "${T}" \
           --device cuda \
           --batch_size ${batch_size} \
-          --finetune_epochs ${ft_epochs} \
-          --finetune_lr ${ft_lr} \
-          --finetune_weight_decay ${ft_wd} \
-          --cutmix_alpha ${cutmix_alpha} \
+          --finetune_epochs ${finetune_epochs} \
+          --finetune_lr ${finetune_lr} \
+          --finetune_weight_decay ${finetune_weight_decay} \
+          --finetune_cutmix_alpha ${finetune_cutmix_alpha} \
           --finetune_ckpt_path "${CKPT}" \
           --data_aug ${data_aug}
       fi
