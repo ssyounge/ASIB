@@ -27,10 +27,17 @@ class TeacherSwinWrapper(nn.Module):
 
     
     def forward(self, x, y=None):
-        # 1) Swin forward_features => [N, C, H, W]
+        # 1) Swin forward => 4D feature
         # use gradients so that Swin parameters remain trainable during
         # teacher adaptation
-        f4d = self.backbone.forward_features(x)  # [N, C, H, W]
+        if hasattr(self.backbone, "forward_features"):
+            f4d = self.backbone.forward_features(x)  # [N, C, H, W]
+        elif hasattr(self.backbone, "features"):
+            f4d = self.backbone.features(x)  # [N, C, H, W]
+        else:
+            raise AttributeError(
+                "Backbone model must implement forward_features or features"
+            )
 
         # 2) global pool => 2D
         f2d = F.adaptive_avg_pool2d(f4d, (1,1)).flatten(1)  # [N, C]
