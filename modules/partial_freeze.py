@@ -3,12 +3,14 @@
 import torch
 import torch.nn as nn
 
-from utils.freeze import freeze_all, unfreeze_by_regex, apply_bn_ln_policy
+from utils.freeze import apply_bn_ln_policy, freeze_all, unfreeze_by_regex
+
 
 def freeze_all_params(model: nn.Module):
     """모델 내 모든 파라미터를 학습 불가능(requires_grad=False)하게 만든다."""
     for param in model.parameters():
         param.requires_grad = False
+
 
 def freeze_bn_params(module: nn.Module):
     """
@@ -19,6 +21,7 @@ def freeze_bn_params(module: nn.Module):
         for p in module.parameters():
             p.requires_grad = False
 
+
 def freeze_ln_params(module: nn.Module):
     """
     LayerNorm 계열 모듈에서 gamma/beta도 동결한다.
@@ -27,6 +30,7 @@ def freeze_ln_params(module: nn.Module):
     if isinstance(module, nn.LayerNorm):
         for p in module.parameters():
             p.requires_grad = False
+
 
 def partial_freeze_teacher_resnet(
     model: nn.Module,
@@ -49,17 +53,23 @@ def partial_freeze_teacher_resnet(
     freeze_all(model)
 
     if bn_head_only:
-        unfreeze_by_regex(model, r"^fc\.")
+        unfreeze_by_regex(model, r"^backbone\.fc\.")
         apply_bn_ln_policy(model, train_bn=True)
         return
 
     patterns = []
     if freeze_scope == "fc_only":
-        patterns.append(r"^fc\.")
+        patterns.append(r"^backbone\.fc\.")
     elif freeze_scope == "layer4_fc":
-        patterns.extend([r"^layer4\.", r"^fc\.", r"^mbm\."])
+        patterns.extend(
+            [
+                r"^backbone\.layer4\.",
+                r"^backbone\.fc\.",
+                r"^mbm\.",
+            ]
+        )
     else:
-        patterns.extend([r"^fc\.", r"^mbm\."])
+        patterns.extend([r"^backbone\.fc\.", r"^mbm\."])
 
     if use_adapter:
         patterns.append(r"\.adapter_")
@@ -74,7 +84,7 @@ def partial_freeze_teacher_efficientnet(
     freeze_bn: bool = True,
     use_adapter: bool = False,
     bn_head_only: bool = False,
-    freeze_scope: str = None
+    freeze_scope: str = None,
 ):
     """
     Teacher (EfficientNet-B2) partial freeze
@@ -84,17 +94,23 @@ def partial_freeze_teacher_efficientnet(
     freeze_all(model)
 
     if bn_head_only:
-        unfreeze_by_regex(model, r"^classifier\.")
+        unfreeze_by_regex(model, r"^backbone\.classifier\.")
         apply_bn_ln_policy(model, train_bn=True)
         return
 
     patterns = []
     if freeze_scope == "classifier_only":
-        patterns.append(r"^classifier\.")
+        patterns.append(r"^backbone\.classifier\.")
     elif freeze_scope == "features_classifier":
-        patterns.extend([r"^features\.", r"^classifier\.", r"^mbm\."])
+        patterns.extend(
+            [
+                r"^backbone\.features\.",
+                r"^backbone\.classifier\.",
+                r"^mbm\.",
+            ]
+        )
     else:
-        patterns.extend([r"^classifier\.", r"^mbm\."])
+        patterns.extend([r"^backbone\.classifier\.", r"^mbm\."])
 
     if use_adapter:
         patterns.append(r"\.adapter_")
@@ -103,11 +119,12 @@ def partial_freeze_teacher_efficientnet(
 
     apply_bn_ln_policy(model, train_bn=not freeze_bn)
 
+
 def partial_freeze_teacher_swin(
     model: nn.Module,
     freeze_ln: bool = True,
     use_adapter: bool = False,
-    freeze_scope: str = None
+    freeze_scope: str = None,
 ):
     """
     Teacher (Swin Tiny) partial freeze
@@ -119,9 +136,9 @@ def partial_freeze_teacher_swin(
 
     patterns = []
     if freeze_scope == "head_only":
-        patterns.append(r"^head\.")
+        patterns.append(r"^backbone\.head\.")
     else:
-        patterns.extend([r"^head\.", r"^mbm\."])
+        patterns.extend([r"^backbone\.head\.", r"^mbm\."])
 
     if use_adapter:
         patterns.append(r"\.adapter_")
@@ -130,11 +147,12 @@ def partial_freeze_teacher_swin(
 
     apply_bn_ln_policy(model, train_ln=not freeze_ln)
 
+
 def partial_freeze_student_resnet(
     model: nn.Module,
     freeze_bn: bool = True,
     use_adapter: bool = False,
-    freeze_scope: str = None
+    freeze_scope: str = None,
 ):
     """
     Student (ResNet101)
@@ -174,7 +192,7 @@ def partial_freeze_student_efficientnet(
     model: nn.Module,
     freeze_bn: bool = True,
     use_adapter: bool = False,
-    freeze_scope: str = None
+    freeze_scope: str = None,
 ):
     """
     Student (EfficientNet-B2) partial freeze
@@ -210,11 +228,12 @@ def partial_freeze_student_efficientnet(
                 for p in m.parameters():
                     p.requires_grad = True
 
+
 def partial_freeze_student_swin(
     model: nn.Module,
     freeze_ln: bool = True,
     use_adapter: bool = False,
-    freeze_scope: str = None
+    freeze_scope: str = None,
 ):
     """
     Student (Swin Tiny)
