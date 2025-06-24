@@ -23,7 +23,7 @@ teacher_adapt_epochs: 5      # Teacher Adaptive Update epochs
 mbm_lr_factor: 1.0           # MBM/Head LR 배수
 
 synergy_ce_alpha: 0.3
-teacher_adapt_alpha_kd: 0.2  # Teacher adaptive 시 KL 비중
+teacher_adapt_alpha_kd: 1.0  # Teacher adaptive 시 KL 비중
 
 # teacher L2 regularisation, MBM weight decay and
 # dropout probabilities are now defined in hparams.yaml
