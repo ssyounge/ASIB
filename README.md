@@ -143,15 +143,15 @@ T_LR=0.0002 BASE_CONFIG=configs/partial_freeze.yaml bash scripts/run_experiments
 
 ## Testing
 
-Install **PyTorch** and the remaining dependencies using the helper script and
-then run `pytest`:
+Run the helper script to install **PyTorch** and all remaining dependencies,
+then invoke `pytest`:
 
 ```bash
 bash scripts/setup_tests.sh
 pytest
 ```
 
-PyTorch must be available for the unit tests to run.
+Unit tests are skipped unless **PyTorch** is installed.
 
 > **Note**
 > The training and evaluation scripts now call `torch.load(..., weights_only=True)`
