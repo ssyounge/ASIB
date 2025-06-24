@@ -38,6 +38,9 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 - **CIFAR-friendly ResNet/EfficientNet stem**: use `--small_input 1` when
   fine-tuning or evaluating models that modify the conv stem for 32x32 inputs
   (and remove max-pool for ResNet)
+- **Disagreement Metrics**: `compute_disagreement_rate` now accepts
+  `mode="pred"` to measure prediction mismatch or `mode="both_wrong"` for
+  cross-error
 
 ---
 
