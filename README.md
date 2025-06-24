@@ -363,6 +363,11 @@ You can specify several stage counts by setting `n_stage_list="2 3 4 5"`.
 bash scripts/run_experiments.sh --mode loop
 ```
 
+Once the teacher checkpoints are in place you can disable the fine-tuning step
+in subsequent runs. Either set `finetune_epochs: 0` in `configs/hparams.yaml`
+or point `finetune_ckpt1` and `finetune_ckpt2` to the existing `.pth` files so
+`run_experiments.sh` skips the fine-tuning loops.
+
 ### Teacher Adapter & BN-Head-Only Options
 
 With partial freezing you can further restrict the teachers to small
