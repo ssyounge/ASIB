@@ -1,6 +1,6 @@
 # configs/default.yaml
 
-device: "cuda"          # "cuda" or "cpu"
+device: "cuda"
 seed: 42
 deterministic: true
 dataset_name: "cifar100"
@@ -11,68 +11,9 @@ use_amp: false
 amp_dtype: float16
 grad_scaler_init_scale: 1024
 
-# teacher_type -> architecture name for each teacher
-teacher1_type: "resnet101"
-teacher2_type: "efficientnet_b2"
-
-teacher1_pretrained: true
-teacher2_pretrained: true
-
-# learning rates & weight decay now defined in hparams.yaml
-teacher_adapt_epochs: 5      # Teacher Adaptive Update epochs
-mbm_lr_factor: 1.0           # MBM/Head LR 배수
-
-synergy_ce_alpha: 0.3
-teacher_adapt_alpha_kd: 1.0  # Teacher adaptive 시 KL 비중
-
-# teacher L2 regularisation, MBM weight decay and
-# dropout probabilities are now defined in hparams.yaml
-
-student_type: "efficientnet_adapter"
-student_epochs_per_stage: 15  # Student distill epochs per stage
-
-# CE/KL weights now defined in hparams.yaml
-# ----- KD temperature (τ) schedule -----
-# temperature schedule parameters defined in hparams.yaml
-
-# --- Feature-KD 옵션 (추가) -------------------------
-# feat_kd_alpha가 0이면 Feature-KD 비활성화
-feat_kd_alpha: 1.0        # λ_feat   (논문 α_feat)
-feat_kd_key: "feat_2d"    # 어느 딕셔너리 key를 쓸지 (feat_4d 도 가능)
-feat_kd_norm: "none"      # "none" | "l2"  (예: 벡터 정규화 후 MSE)
-
-# disagreement-based sample weighting
-use_disagree_weight: false
-disagree_mode: "pred"       # "pred" | "both_wrong"
-disagree_lambda_high: 1.0
-disagree_lambda_low: 1.0
-
-num_stages: 2
-
-# iteration counts defined in hparams.yaml
-
-# use_partial_freeze defined in hparams.yaml
-
-mbm_in_dim: 3456
-mbm_use_4d: false
-mbm_attn_heads: 0
-mbm_type: "LA"        # "MLP" for old behaviour
-mbm_r: 4
-mbm_n_head: 1
-mbm_learnable_q: true
-mbm_query_dim: 0  # <=0 -> use sum(feat_dims); set to student feat dim to override
-grad_clip_norm: 2.0   # max norm for gradient clipping (0 to disable)
-
-# CutMix/MixUp and label smoothing defined in hparams.yaml
-
 log_filename: "train.log"
 save_checkpoint: true
 ckpt_dir: "./checkpoints"
 
-# Optional teacher fine-tuning before ASMB stages
-# fine-tuning epochs defined in hparams.yaml
-# Fine-tuning lr & weight decay defined in hparams.yaml
-finetune_use_cutmix: true
-finetune_alpha: 1.0
 finetune_ckpt1: "./checkpoints/teacher1_finetuned.pth"
 finetune_ckpt2: "./checkpoints/teacher2_finetuned.pth"

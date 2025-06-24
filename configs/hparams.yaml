@@ -60,3 +60,34 @@ N_STAGE_LIST: 5
 SC_ALPHA_LIST: "0.6" # 0.3 0.6
 STUDENT_LIST: "resnet_adapter efficientnet_adapter swin_adapter"
 METHOD_LIST: "asmb vanilla_kd" ## asmb at crd dkd fitnet 
+# Teacher adaptation
+TEACHER_ADAPT_EPOCHS: 5
+TEACHER_ADAPT_ALPHA_KD: 1.0
+MBM_LR_FACTOR: 1.0
+SYNERGY_CE_ALPHA: 0.3
+
+# Feature KD
+FEAT_KD_ALPHA: 1.0
+FEAT_KD_KEY: "feat_2d"
+FEAT_KD_NORM: "none"
+
+# Disagreement weighting
+USE_DISAGREE_WEIGHT: false
+DISAGREE_MODE: "pred"
+DISAGREE_LAMBDA_HIGH: 1.0
+DISAGREE_LAMBDA_LOW: 1.0
+
+# MBM options
+MBM_TYPE: "LA"
+MBM_R: 4
+MBM_N_HEAD: 1
+MBM_LEARNABLE_Q: true
+MBM_IN_DIM: 3456
+MBM_USE_4D: false
+MBM_ATTN_HEADS: 0
+MBM_QUERY_DIM: 0
+
+# Misc
+GRAD_CLIP_NORM: 2.0
+FINETUNE_USE_CUTMIX: true
+FINETUNE_ALPHA: 1.0
