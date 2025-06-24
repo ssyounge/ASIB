@@ -32,7 +32,7 @@ class ASMBDistiller(nn.Module):
         temperature=4.0,
         reg_lambda=1e-4,
         mbm_reg_lambda=1e-4,
-        feat_align_alpha=0.0,
+        feat_kd_alpha=0.0,       # weight for feature-level KD
         num_stages=2,
         device="cuda",
         config=None
@@ -51,7 +51,7 @@ class ASMBDistiller(nn.Module):
         self.T = temperature
         self.reg_lambda = reg_lambda
         self.mbm_reg_lambda = mbm_reg_lambda
-        self.feat_align_alpha = feat_align_alpha
+        self.feat_kd_alpha = feat_kd_alpha
         self.num_stages = num_stages
         self.device = device
         self.config = config if config is not None else {}
@@ -95,7 +95,7 @@ class ASMBDistiller(nn.Module):
         kd_val = kd_loss_fn(s_logit, zsyn, T=self.T, reduction="batchmean")
 
         feat_loss = torch.tensor(0.0, device=s_feat.device)
-        if self.feat_align_alpha > 0:
+        if self.feat_kd_alpha > 0:
             feat_loss = F.mse_loss(
                 s_feat.view(s_feat.size(0), -1),
                 syn_feat.detach().view(s_feat.size(0), -1),
@@ -104,7 +104,7 @@ class ASMBDistiller(nn.Module):
         total_loss = (
             self.alpha * ce_val
             + (1 - self.alpha) * kd_val
-            + self.feat_align_alpha * feat_loss
+            + self.feat_kd_alpha * feat_loss
         )
 
         return total_loss, s_logit
@@ -247,7 +247,7 @@ class ASMBDistiller(nn.Module):
                 synergy_ce = self.synergy_ce_alpha * ce_val
 
                 feat_loss = torch.tensor(0.0, device=s_feat.device)
-                if self.feat_align_alpha > 0:
+                if self.feat_kd_alpha > 0:
                     feat_loss = F.mse_loss(
                         s_feat.view(s_feat.size(0), -1),
                         syn_feat.detach().view(s_feat.size(0), -1),
@@ -262,7 +262,7 @@ class ASMBDistiller(nn.Module):
                 loss = (
                     (-1.0) * kl_val
                     + synergy_ce
-                    + self.feat_align_alpha * feat_loss
+                    + self.feat_kd_alpha * feat_loss
                     + self.reg_lambda * reg_loss
                 )
 
@@ -354,7 +354,7 @@ class ASMBDistiller(nn.Module):
                 kd_val = kd_loss_fn(s_logit, zsyn, T=cur_tau)
 
                 feat_loss = torch.tensor(0.0, device=s_feat.device)
-                if self.feat_align_alpha > 0:
+                if self.feat_kd_alpha > 0:
                     feat_loss = F.mse_loss(
                         s_feat.view(s_feat.size(0), -1),
                         syn_feat.detach().view(s_feat.size(0), -1),
@@ -363,7 +363,7 @@ class ASMBDistiller(nn.Module):
                 loss = (
                     self.alpha * ce_val
                     + (1 - self.alpha) * kd_val
-                    + self.feat_align_alpha * feat_loss
+                    + self.feat_kd_alpha * feat_loss
                 )
 
                 if logger is not None and attn is not None:
