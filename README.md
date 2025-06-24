@@ -78,7 +78,8 @@ METHOD_LIST="asmb fitnet vanilla_kd" bash scripts/run_experiments.sh --mode loop
 ```
 
 The base config merged by `generate_config.py` defaults to
-`configs/default.yaml`. The script can also merge optional fragments such as
+`configs/default.yaml`. This file only defines universal settings such as
+device and paths. The script can also merge optional fragments such as
 `configs/fine_tune.yaml` or `configs/partial_freeze.yaml`. Pass one or more
 fragment files (or a directory containing them) to assemble a config from
 multiple pieces. Override the selection by setting the `BASE_CONFIG`
@@ -356,21 +357,17 @@ bash scripts/run_experiments.sh --mode loop
 
 With partial freezing you can further restrict the teachers to small
 adapters or only update their batch-norm layers and classifier heads.
-Set the following keys in your config:
+Set the following flags in `configs/hparams.yaml`:
 
 ```yaml
-# configs/partial_freeze.yaml
-teacher1_use_adapter: true
-teacher1_bn_head_only: true
-teacher2_use_adapter: true
-teacher2_bn_head_only: false
+TEACHER1_USE_ADAPTER: 1
+TEACHER1_BN_HEAD_ONLY: 1
+TEACHER2_USE_ADAPTER: 1
+TEACHER2_BN_HEAD_ONLY: 0
 ```
 
-These map to `TEACHER1_USE_ADAPTER`, `TEACHER1_BN_HEAD_ONLY`,
-`TEACHER2_USE_ADAPTER` and `TEACHER2_BN_HEAD_ONLY` in
-`configs/hparams.yaml`. `run_experiments.sh` reads the values from this
-file so you can toggle them for sweeps or batch runs without editing
-every config file.
+`run_experiments.sh` exports these values so you can toggle them for
+sweeps or batch runs without editing every config file.
 
 
 

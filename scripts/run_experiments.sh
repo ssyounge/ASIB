@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # scripts/run_experiments.sh
+# Hyperparameters are loaded from configs/hparams.yaml
 
 set -e
 export PYTHONPATH="$(pwd):${PYTHONPATH}"
