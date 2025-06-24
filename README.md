@@ -143,7 +143,7 @@ For example, run the batch script with the partial-freeze configuration
 and a different teacher learning rate:
 
 ```bash
-T_LR=0.0002 BASE_CONFIG=configs/partial_freeze.yaml bash scripts/run_experiments.sh --mode loop
+teacher_lr=0.0002 BASE_CONFIG=configs/partial_freeze.yaml bash scripts/run_experiments.sh --mode loop
 ```
 
 ## Testing
@@ -309,10 +309,10 @@ Adjust the parameters in `configs/hparams.yaml`:
 
 ```bash
 # configs/hparams.yaml
-FT_EPOCHS=100   # number of fine-tuning epochs
-FT_LR=0.0005    # learning rate
-CUTMIX_ALPHA=0  # set to 0 to disable CutMix
-LR_SCHEDULE=step   # step or cosine
+ft_epochs=100   # number of fine-tuning epochs
+ft_lr=0.0005    # learning rate
+cutmix_alpha=0  # set to 0 to disable CutMix
+lr_schedule=step   # step or cosine
 ```
 
 Alternatively edit the YAML file used by `scripts/fine_tuning.py`:
@@ -347,7 +347,7 @@ After saving the changes, re-run the batch script to generate new teacher
 checkpoints and continue with distillation:
 
 Edit `configs/hparams.yaml` if you want to tweak the default hyperparameters.
-You can specify several stage counts by setting `N_STAGE_LIST="2 3 4 5"`.
+You can specify several stage counts by setting `n_stage_list="2 3 4 5"`.
 
 ```bash
 bash scripts/run_experiments.sh --mode loop
@@ -360,10 +360,10 @@ adapters or only update their batch-norm layers and classifier heads.
 Set the following flags in `configs/hparams.yaml`:
 
 ```yaml
-TEACHER1_USE_ADAPTER: 1
-TEACHER1_BN_HEAD_ONLY: 1
-TEACHER2_USE_ADAPTER: 1
-TEACHER2_BN_HEAD_ONLY: 0
+teacher1_use_adapter: 1
+teacher1_bn_head_only: 1
+teacher2_use_adapter: 1
+teacher2_bn_head_only: 0
 ```
 
 `run_experiments.sh` exports these values so you can toggle them for

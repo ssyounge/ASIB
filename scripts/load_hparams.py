@@ -9,6 +9,7 @@ def main(path: str):
     with open(path, 'r') as f:
         data = yaml.safe_load(f) or {}
     for key, value in data.items():
+        key = key.lower()
         if isinstance(value, bool):
             value = int(value)
         value_str = str(value)
