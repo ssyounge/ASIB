@@ -25,6 +25,7 @@ def test_build_from_teachers_la_auto_query_dim():
         "mbm_query_dim": 0,
         "mbm_out_dim": 8,
         "num_classes": 10,
+        "mbm_learnable_q": False,
     }
     mbm, head = build_from_teachers(teachers, cfg, query_dim=4)
     assert isinstance(mbm, LightweightAttnMBM)

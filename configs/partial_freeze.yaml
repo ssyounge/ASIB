@@ -6,7 +6,7 @@
 mbm_type: "LA"        # "MLP" for old behaviour
 mbm_r: 4
 mbm_n_head: 1
-mbm_learnable_q: false
+mbm_learnable_q: true
 
 # 2) Teacher1 관련
 teacher1_type: "resnet101"          # 혹은 "swin_tiny", "efficientnet_b2"
