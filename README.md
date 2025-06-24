@@ -311,6 +311,7 @@ Swin) to expect 32×32 inputs.
 ### Teacher Fine-Tuning
 
 Fine-tune the individual teachers before running the distillation stages.
+All fine-tuning options live in `configs/hparams.yaml`.
 The bundled `TeacherSwinWrapper` accepts a Swin backbone that implements
 either a `forward_features` or `features` method to produce the intermediate
 feature map.
