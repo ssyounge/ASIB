@@ -133,10 +133,19 @@ the following order:
 2. Variables from `configs/hparams.yaml` (unless overridden)
 3. Command-line overrides passed to `generate_config.py` or `main.py`
 
+Values defined in `configs/hparams.yaml` **supersede** those in
+`configs/default.yaml` or any other fragments included with `--base`.
+For example, if `configs/default.yaml` declares
+`student_epochs_per_stage: 15` but `configs/hparams.yaml` sets
+`student_iters: 40`, the environment variable `STUDENT_ITERS=40` from
+`hparams.yaml` overrides the default 15‑epoch value during training.
+
 `run_experiments.sh` exports the values from `configs/hparams.yaml` as
 environment variables. These variables are fed back into
 `generate_config.py` so they can still override any field defined in the
-YAML fragments.
+YAML fragments. The recommended workflow is to edit
+`configs/hparams.yaml` whenever you need experiment‑specific values and
+then invoke the batch script.
 
 You can override any variable by exporting it before calling the script.
 For example, run the batch script with the partial-freeze configuration
