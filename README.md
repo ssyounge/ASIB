@@ -196,8 +196,17 @@ Pass `--dataset` to override the dataset specified in the YAML config (either
 `cifar100` or `imagenet100`).
 Partial freezing is automatically turned off for these methods—`run_single_teacher.py`
 sets `use_partial_freeze: false` when the selected `method` is not `asmb`.
+3) Student Baseline (train_student_baseline.py)
 
-2) Evaluation (eval.py)
+```bash
+python scripts/train_student_baseline.py --config configs/default.yaml \
+  --student_type resnet_adapter --epochs 40 --dataset cifar100
+```
+
+Trains the student model with cross-entropy only. The script applies partial freezing automatically and saves the final checkpoint and accuracy under `results/`.
+
+
+4) Evaluation (eval.py)
 
 Evaluate a single model or a synergy model (Teacher1 + Teacher2 + MBM + synergy head):
 
