@@ -6,7 +6,7 @@ teacher1_freeze_bn: false
 teacher1_freeze_scope: "layer4_fc"
 
 teacher2_freeze_bn: true
-teacher2_freeze_scope: "classifier_only"
+teacher2_freeze_scope: "features_classifier" # classifier_only
 
 student_freeze_bn: false
 student_freeze_scope: "layer4_fc" # layer3_layer4_fc
