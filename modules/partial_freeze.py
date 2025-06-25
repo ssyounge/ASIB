@@ -6,12 +6,6 @@ import torch.nn as nn
 from utils.freeze import apply_bn_ln_policy, freeze_all, unfreeze_by_regex
 
 
-def freeze_all_params(model: nn.Module):
-    """모델 내 모든 파라미터를 학습 불가능(requires_grad=False)하게 만든다."""
-    for param in model.parameters():
-        param.requires_grad = False
-
-
 def freeze_bn_params(module: nn.Module):
     """
     BatchNorm 계열 모듈(gamma/beta)도 학습하지 않도록 동결한다.
@@ -41,7 +35,7 @@ def partial_freeze_teacher_resnet(
 ):
     """
     Teacher (ResNet101) partial freeze:
-      1) freeze_all_params 먼저
+      1) freeze_all 먼저
       2) freeze_scope에 따라 특정 레이어만 unfreeze
       3) freeze_bn=False 면 BN도 unfreeze
 
@@ -159,7 +153,7 @@ def partial_freeze_student_resnet(
       - freeze_scope에 따라 layer4. / fc. / adapter_ 등 분기
       - 예: "layer4_fc", "fc_only", etc.
     """
-    freeze_all_params(model)
+    freeze_all(model)
 
     if freeze_scope == "fc_only":
         for name, param in model.named_parameters():
@@ -199,7 +193,7 @@ def partial_freeze_student_efficientnet(
       - freeze_scope 예시:
          "classifier_only", "features_classifier", etc.
     """
-    freeze_all_params(model)
+    freeze_all(model)
 
     if freeze_scope == "classifier_only":
         for name, param in model.named_parameters():
@@ -238,7 +232,7 @@ def partial_freeze_student_swin(
     """
     Student (Swin Tiny)
     """
-    freeze_all_params(model)
+    freeze_all(model)
 
     if freeze_scope == "head_only":
         for name, param in model.named_parameters():
