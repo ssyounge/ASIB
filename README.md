@@ -100,10 +100,10 @@ The base config merged by `generate_config.py` defaults to
 device and paths and enables Automatic Mixed Precision (AMP) by default.
 The script can also merge optional fragments such as
 `configs/partial_freeze.yaml`. Freeze levels are now defined in
-`configs/hparams.yaml`. The variables `teacher1_freeze_level`,
+`configs/partial_freeze.yaml`. The variables `teacher1_freeze_level`,
 `teacher2_freeze_level` and `student_freeze_level` control how much of each
-model is unfrozen during training, so this fragment only toggles BN freezing
-and adapter options. Pass one or more
+model is unfrozen during training, so this fragment also sets the freeze levels
+in addition to BN freezing and adapter options. Pass one or more
 fragment files (or a directory containing them) to assemble a config from
 multiple pieces. Override the selection by setting the `BASE_CONFIG`
 environment variable:
@@ -172,7 +172,7 @@ then invoke the batch script.
 
 You can override any variable by exporting it before calling the script.
 For example, run the batch script with the partial-freeze configuration
-(freeze levels come from `configs/hparams.yaml`) and a different teacher
+(freeze levels come from `configs/partial_freeze.yaml`) and a different teacher
 learning rate:
 
 ```bash
@@ -221,7 +221,7 @@ python main.py --config configs/partial_freeze.yaml --device cuda \
   --teacher1_ckpt teacher1.pth --teacher2_ckpt teacher2.pth \
   --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 1
   # Freeze levels (`teacher1_freeze_level`, `teacher2_freeze_level`,
-  # `student_freeze_level`) are loaded from `configs/hparams.yaml`
+  # `student_freeze_level`) are loaded from `configs/partial_freeze.yaml`
   # mbm_query_dim and mbm_out_dim are automatically set to the student feature dimension
         •       Adjust partial-freeze or architecture settings in `configs/*.yaml`.
         •       Edit `configs/hparams.yaml` to change numeric hyperparameters like learning rates or dropout.
@@ -253,7 +253,7 @@ Run the student alone using the same partial-freeze settings to gauge its standa
 ```bash
 python scripts/train_student_baseline.py --config configs/partial_freeze.yaml \
   --student_type resnet_adapter --epochs 40 --dataset cifar100
-# Freeze levels come from `configs/hparams.yaml`
+# Freeze levels come from `configs/partial_freeze.yaml`
 ```
 
 The script uses the same optimizer and scheduler configuration as the distillation runs. The resulting accuracy serves as the reference for all distillation experiments and is saved under `results/`.
@@ -385,7 +385,7 @@ For partial freezing with EfficientNet, a new freeze scope
 along with the MBM:
 
 ```yaml
-# configs/partial_freeze.yaml (freeze levels in hparams.yaml)
+# configs/partial_freeze.yaml
 teacher2_freeze_scope: "features_classifier"
 ```
 
@@ -422,7 +422,7 @@ sweeps or batch runs without editing every config file.
 
 ### Freeze Levels
 
-The amount of each model that remains trainable is controlled by three keys in `configs/hparams.yaml`:
+The amount of each model that remains trainable is controlled by three keys in `configs/partial_freeze.yaml`:
 
 ```yaml
 teacher1_freeze_level: 0
@@ -455,7 +455,7 @@ Folder Structure
 ├── configs
 │   ├── default.yaml
 │   ├── hparams.yaml        # default hyperparameters for run_experiments.sh
-│   └── partial_freeze.yaml    # BN/adapters only; freeze levels in hparams
+│   └── partial_freeze.yaml    # BN/adapters and freeze levels
 
 ├── data
 │   ├── cifar100.py
