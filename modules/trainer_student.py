@@ -229,7 +229,8 @@ def student_distillation_update(
         logger.update_metric(f"ep{ep+1}_mix_mode", mix_mode)
         logger.update_metric(f"epoch{global_ep+ep+1}_tau", cur_tau)
 
-        scheduler.step()
+        if scheduler is not None:
+            scheduler.step()
 
         # (E) best snapshot
         if test_acc > best_acc:
