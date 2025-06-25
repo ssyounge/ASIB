@@ -153,7 +153,19 @@ def partial_freeze_student_resnet(
     use_adapter: bool = False,
     freeze_level: int = 1,
 ):
-    """Partially freeze a ResNet101 student using a numeric level."""
+    """Partially freeze a ResNet101 student.
+
+    ``freeze_all`` is called first and individual blocks are then
+    re-enabled for training based on ``freeze_level``:
+
+    - ``0`` → only the classifier ``fc``
+    - ``1`` → ``layer4`` + ``fc`` (default)
+    - ``2`` → ``layer3`` + ``layer4`` + ``fc``
+
+    Setting ``use_adapter`` will additionally unfreeze any modules whose
+    name contains ``adapter_``. Passing ``freeze_bn=False`` allows the
+    BatchNorm affine parameters to update.
+    """
     freeze_all(model)
 
     unfreeze_patterns = []
@@ -182,7 +194,18 @@ def partial_freeze_student_efficientnet(
     use_adapter: bool = False,
     freeze_level: int = 0,
 ):
-    """Partially freeze an EfficientNet-B2 student using a numeric level."""
+    """Partially freeze an EfficientNet-B2 student.
+
+    All parameters are frozen first. Layers are then unfrozen depending on
+    ``freeze_level``:
+
+    - ``0`` → only the ``classifier`` (default)
+    - ``1`` → blocks ``features[6]``–``features[8]`` and the ``classifier``
+
+    Passing ``use_adapter`` unfreezes modules named ``adapter_*``. If
+    ``freeze_bn`` is ``False`` the BatchNorm parameters will also be
+    trainable.
+    """
     freeze_all(model)
 
     unfreeze_patterns = []
@@ -211,7 +234,18 @@ def partial_freeze_student_swin(
     use_adapter: bool = False,
     freeze_level: int = 1,
 ):
-    """Partially freeze a Swin Tiny student using a numeric level."""
+    """Partially freeze a Swin Tiny student.
+
+    ``freeze_all`` freezes every parameter first. The ``freeze_level``
+    determines which parts of the backbone are unfrozen:
+
+    - ``0`` → only the ``head``/``fc`` layers
+    - ``1`` → ``layers.3`` + ``head``/``fc`` (default)
+
+    When ``use_adapter`` is ``True`` any ``adapter_*`` modules are also
+    unfrozen. Setting ``freeze_ln=False`` allows LayerNorm parameters to be
+    updated.
+    """
     freeze_all(model)
 
     unfreeze_patterns = []
