@@ -24,8 +24,8 @@ def student_distillation_update(
     global_ep: int = 0
 ):
     """
-    - Teacher/MBM 고정 -> synergy logit
-    - Student => CE + KD
+    - Teacher and MBM are frozen to produce synergy logits.
+    - The student is trained with cross-entropy and KD losses.
     """
     # 1) freeze teacher + mbm
     teacher_reqgrad_states = []
@@ -55,7 +55,7 @@ def student_distillation_update(
     best_state = copy.deepcopy(student_model.state_dict())
 
 
-    # 1) student_iters 우선 => 없으면 student_epochs_per_stage
+    # Use ``student_iters`` if provided, otherwise ``student_epochs_per_stage``
     student_epochs = cfg.get("student_iters", cfg.get("student_epochs_per_stage", 15))
     logger.info(f"[StudentDistill] Using student_epochs={student_epochs}")
 

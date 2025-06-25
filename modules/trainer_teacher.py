@@ -11,9 +11,9 @@ from utils.schedule import get_tau
 from utils.misc import get_amp_components
 
 def _cpu_state_dict(module: torch.nn.Module):
-    """
-    주어진 nn.Module의 state_dict() 값을 **CPU Tensor**로 복사해 반환한다.
-    GPU 메모리 사용량을 줄이기 위해 스냅샷을 RAM에 저장할 때 사용.
+    """Return a copy of ``module.state_dict()`` on the CPU.
+
+    Useful when saving snapshots to RAM to reduce GPU memory usage.
     """
     return {k: v.detach().cpu().clone() for k, v in module.state_dict().items()}
 
@@ -75,10 +75,10 @@ def teacher_adaptive_update(
     global_ep: int = 0,
 ):
     """
-    - teacher_wrappers: [teacher1, teacher2]
-    - mbm, synergy_head: partial freeze 포함
-    - student_model: 고정 (KD용)
-    - testloader: (optional) evaluation loader for synergy accuracy
+    - ``teacher_wrappers``: list containing ``teacher1`` and ``teacher2``.
+    - ``mbm`` and ``synergy_head``: assume partial freezing has been applied.
+    - ``student_model``: kept fixed for knowledge distillation.
+    - ``testloader``: optional loader used to evaluate synergy accuracy.
     """
     teacher_params = []
     for tw in teacher_wrappers:
@@ -98,7 +98,7 @@ def teacher_adaptive_update(
 
 
 
-    # 1) teacher_iters 우선 => 없으면 teacher_adapt_epochs
+    # Use ``teacher_iters`` if provided, otherwise ``teacher_adapt_epochs``
     teacher_epochs = cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5))
     logger.info(f"[TeacherAdaptive] Using teacher_epochs={teacher_epochs}")
 
@@ -122,7 +122,7 @@ def teacher_adaptive_update(
             x, y = x.to(cfg["device"]), y.to(cfg["device"])
 
             with autocast_ctx:
-                # (A) Student feature + logit (고정)
+                # (A) Student features and logits (kept fixed)
                 with torch.no_grad():
                     feat_dict, s_logit, _ = student_model(x)
                     if la_mode:
@@ -146,7 +146,7 @@ def teacher_adaptive_update(
                     attn = None
                 zsyn = synergy_head(fsyn)
 
-                # (D) loss 계산 (KL + synergyCE)
+                # (D) compute loss (KL + synergyCE)
                 loss_kd         = kd_loss_fn(zsyn, s_logit, T=cur_tau)
                 loss_ce         = ce_loss_fn(
                     zsyn,
@@ -172,22 +172,22 @@ def teacher_adaptive_update(
                             )
                             feat_kd_warned = True
 
-            # 기본 KD+CE
+            # Standard KD + CE
             total_loss = (
                 cfg["teacher_adapt_alpha_kd"] * loss_kd
                 + synergy_ce_loss
                 + cfg.get("feat_kd_alpha", 0) * feat_kd_loss
             )
 
-            # ── 1) Teacher 파라미터 L2 정규화 ───────────────────────────
+            # --- 1) L2 regularization on teacher parameters ---
             reg_loss = torch.tensor(0.0, device=cfg["device"])
-            for p in teacher_params:                 # 위에서 이미 모아 둠
+            for p in teacher_params:                 # collected above
                 if p.requires_grad:
                     reg_loss = reg_loss + p.pow(2).sum()
             total_loss = total_loss + float(cfg.get("reg_lambda", 0.0)) * reg_loss
             # -----------------------------------------------------------
 
-            # ── 2) MBM + Synergy-Head L2 정규화 ─────────────────────────
+            # --- 2) L2 regularization on MBM and Synergy-Head ---
             mbm_reg_loss = torch.tensor(0.0, device=cfg["device"])
             for p in mbm_params + syn_params:
                 if p.requires_grad:
