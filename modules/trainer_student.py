@@ -1,6 +1,7 @@
 # modules/trainer_student.py
 
 import torch
+import torch.nn.functional as F
 import copy
 from utils.progress import smart_tqdm
 from models.la_mbm import LightweightAttnMBM
@@ -99,7 +100,9 @@ def student_distillation_update(
 
                 if la_mode:
                     s_feat = feat_dict[cfg.get("feat_kd_key", "feat_2d")]
-                    syn_feat, attn = mbm(s_feat, [f1_2d, f2_2d])
+                    syn_feat, attn, student_q_proj, teacher_attn_out = mbm(
+                        s_feat, [f1_2d, f2_2d]
+                    )
                     fsyn = syn_feat
                     attn_sum += attn.mean().item() * x.size(0)
                 else:
@@ -144,35 +147,38 @@ def student_distillation_update(
 
             feat_kd_val = torch.tensor(0.0, device=cfg["device"])
             if cfg.get("feat_kd_alpha", 0) > 0:
-                key = cfg.get("feat_kd_key", "feat_2d")
-
-                s_feat = feat_dict[key]
-                fsyn_use = fsyn
-
-                if fsyn_use.dim() == 4 and s_feat.dim() == 2:
-                    fsyn_use = torch.nn.functional.adaptive_avg_pool2d(
-                        fsyn_use, (1, 1)
-                    ).flatten(1)
-
-                if cfg.get("feat_kd_norm", "none") == "l2":
-                    s_feat = torch.nn.functional.normalize(
-                        s_feat.view(s_feat.size(0), -1), dim=1
-                    )
-                    fsyn_use = torch.nn.functional.normalize(
-                        fsyn_use.view(fsyn_use.size(0), -1), dim=1
-                    )
-
-                s_flat = s_feat.view(s_feat.size(0), -1)
-                f_flat = fsyn_use.detach().view(fsyn_use.size(0), -1)
-                if s_flat.size(1) == f_flat.size(1):
-                    feat_kd_val = torch.nn.functional.mse_loss(s_flat, f_flat)
+                if la_mode:
+                    feat_kd_val = F.mse_loss(student_q_proj, teacher_attn_out.detach())
                 else:
-                    if not feat_kd_warned:
-                        logger.info(
-                            f"[StudentDistill] skip feat KD: s_feat={s_flat.size(1)}"
-                            f" vs fsyn={f_flat.size(1)}"
+                    key = cfg.get("feat_kd_key", "feat_2d")
+
+                    s_feat = feat_dict[key]
+                    fsyn_use = fsyn
+
+                    if fsyn_use.dim() == 4 and s_feat.dim() == 2:
+                        fsyn_use = torch.nn.functional.adaptive_avg_pool2d(
+                            fsyn_use, (1, 1)
+                        ).flatten(1)
+
+                    if cfg.get("feat_kd_norm", "none") == "l2":
+                        s_feat = torch.nn.functional.normalize(
+                            s_feat.view(s_feat.size(0), -1), dim=1
                         )
-                        feat_kd_warned = True
+                        fsyn_use = torch.nn.functional.normalize(
+                            fsyn_use.view(fsyn_use.size(0), -1), dim=1
+                        )
+
+                    s_flat = s_feat.view(s_feat.size(0), -1)
+                    f_flat = fsyn_use.detach().view(fsyn_use.size(0), -1)
+                    if s_flat.size(1) == f_flat.size(1):
+                        feat_kd_val = torch.nn.functional.mse_loss(s_flat, f_flat)
+                    else:
+                        if not feat_kd_warned:
+                            logger.info(
+                                f"[StudentDistill] skip feat KD: s_feat={s_flat.size(1)}"
+                                f" vs fsyn={f_flat.size(1)}"
+                            )
+                            feat_kd_warned = True
 
             loss = (
                 cfg["ce_alpha"] * ce_loss_val

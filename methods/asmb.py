@@ -80,7 +80,7 @@ class ASMBDistiller(nn.Module):
 
         # 2) mbm => synergy with query if available
         if self.la_mode:
-            syn_feat, attn = self.mbm(s_feat, feats_2d)
+            syn_feat, attn, _, _ = self.mbm(s_feat, feats_2d)
         else:
             syn_feat = self.mbm(feats_2d, feats_4d)
             attn = None
@@ -230,7 +230,7 @@ class ASMBDistiller(nn.Module):
 
                 # synergy
                 if self.la_mode:
-                    syn_feat, attn = self.mbm(s_feat, f1)
+                    syn_feat, attn, _, _ = self.mbm(s_feat, f1)
                 else:
                     syn_feat = self.mbm(f1, f2)
                     attn = None
@@ -338,7 +338,7 @@ class ASMBDistiller(nn.Module):
                 s_feat = feat_dict[self.config.get("feat_kd_key", "feat_2d")]
 
                 if self.la_mode:
-                    syn_feat, attn = self.mbm(s_feat, f1)
+                    syn_feat, attn, _, _ = self.mbm(s_feat, f1)
                 else:
                     syn_feat = self.mbm(f1, f2)
                     attn = None

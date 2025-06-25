@@ -49,7 +49,7 @@ def eval_synergy(
             if la_mode:
                 assert student_model is not None, "student_model required for LA MBM"
                 s_feat = student_model(x)[0][cfg.get("feat_kd_key", "feat_2d")]
-                fsyn, _ = mbm(s_feat, [f1_2d, f2_2d])
+                fsyn, _, _, _ = mbm(s_feat, [f1_2d, f2_2d])
             else:
                 fsyn = mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
             zsyn = synergy_head(fsyn)
@@ -136,7 +136,7 @@ def teacher_adaptive_update(
 
                 # (C) MBM + synergy_head
                 if la_mode:
-                    syn_feat, attn = mbm(s_feat, feats_2d)
+                    syn_feat, attn, _, _ = mbm(s_feat, feats_2d)
                     fsyn = syn_feat
                 else:
                     fsyn = mbm(feats_2d, feats_4d)
