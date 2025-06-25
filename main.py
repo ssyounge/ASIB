@@ -11,8 +11,6 @@ Repeated for 'num_stages' times, as in ASMB multi-stage self-training.
 import argparse
 import copy
 import torch
-import torch.optim as optim
-from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR
 import os
 import yaml
 
@@ -454,58 +452,8 @@ def main():
     mbm = mbm.to(device)
     synergy_head = synergy_head.to(device)
 
-    # 7) optimizers (collect params once)
+    # 7) teacher wrappers
     teacher_wrappers = [teacher1, teacher2]
-
-    teacher_params = []
-    for tw in teacher_wrappers:
-        for p in tw.parameters():
-            if p.requires_grad:
-                teacher_params.append(p)
-    mbm_params = [p for p in mbm.parameters() if p.requires_grad]
-    syn_params = [p for p in synergy_head.parameters() if p.requires_grad]
-
-    teacher_optimizer = optim.Adam(
-        [
-            {"params": teacher_params, "lr": cfg["teacher_lr"]},
-            {
-                "params": mbm_params,
-                "lr": cfg["teacher_lr"] * cfg.get("mbm_lr_factor", 1.0),
-            },
-            {
-                "params": syn_params,
-                "lr": cfg["teacher_lr"] * cfg.get("mbm_lr_factor", 1.0),
-            },
-        ],
-        weight_decay=cfg["teacher_weight_decay"],
-    )
-    total_teacher_epochs = cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5)) * cfg.get("num_stages", 2)
-    if cfg.get("lr_schedule", "step") == "cosine":
-        teacher_scheduler = CosineAnnealingLR(teacher_optimizer, T_max=total_teacher_epochs)
-    else:
-        teacher_scheduler = StepLR(
-            teacher_optimizer,
-            step_size=cfg.get("teacher_step_size", 10),
-            gamma=cfg.get("teacher_gamma", 0.1),
-        )
-
-    student_params = [p for p in student_model.parameters() if p.requires_grad]
-    student_optimizer = optim.AdamW(
-        student_params,
-        lr=cfg["student_lr"],
-        weight_decay=cfg["student_weight_decay"],
-        betas=(0.9, 0.999),
-        eps=1e-8,
-    )
-    total_student_epochs = cfg.get("student_iters", cfg.get("student_epochs_per_stage", 15)) * cfg.get("num_stages", 2)
-    if cfg.get("lr_schedule", "step") == "cosine":
-        student_scheduler = CosineAnnealingLR(student_optimizer, T_max=total_student_epochs)
-    else:
-        student_scheduler = StepLR(
-            student_optimizer,
-            step_size=cfg.get("student_step_size", 10),
-            gamma=cfg.get("student_gamma", 0.1),
-        )
 
     # 8) multi-stage distillation
     num_stages = cfg.get("num_stages", 2)
@@ -513,10 +461,6 @@ def main():
     global_ep = 0
     for stage_id in range(1, num_stages + 1):
         print(f"\n=== Stage {stage_id}/{num_stages} ===")
-
-        # restart schedulers each stage
-        teacher_scheduler.last_epoch = -1
-        student_scheduler.last_epoch = -1
 
         teacher_epochs = cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5))
         student_epochs = cfg.get("student_iters", cfg.get("student_epochs_per_stage", 15))
@@ -531,8 +475,6 @@ def main():
             testloader=test_loader,
             cfg=cfg,
             logger=logger,
-            optimizer=teacher_optimizer,
-            scheduler=teacher_scheduler,
             global_ep=global_ep,
         )
 
@@ -559,8 +501,6 @@ def main():
             testloader=test_loader,
             cfg=cfg,
             logger=logger,
-            optimizer=student_optimizer,
-            scheduler=student_scheduler,
             global_ep=global_ep,
         )
         global_ep += student_epochs
