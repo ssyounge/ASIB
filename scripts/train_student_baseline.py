@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# scripts/train_student_baseline.py
 """Train a student model with cross-entropy only."""
 import argparse
 import os
