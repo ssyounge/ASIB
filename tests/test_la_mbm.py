@@ -30,6 +30,6 @@ def test_query_dim_mismatch_raises():
                               learnable_q=False, query_dim=8)
     q = torch.randn(1, 10)
     feats = [torch.randn(1, 16), torch.randn(1, 16)]
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="mbm_query_dim mismatch: expected 8, got 10"):
         mbm(q, feats)
 

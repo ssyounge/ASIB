@@ -88,7 +88,7 @@ class LightweightAttnMBM(nn.Module):
             else:
                 if query_or_feats.size(1) != self.q_proj.in_features:
                     raise ValueError(
-                        "mbm_query_dim must equal the student feature dimension"
+                        f"mbm_query_dim mismatch: expected {self.q_proj.in_features}, got {query_or_feats.size(1)}"
                     )
                 q = self.q_proj(query_or_feats).unsqueeze(1)
             feats = feats_2d
