@@ -23,9 +23,13 @@ def student_distillation_update(
     scheduler,
     global_ep: int = 0
 ):
-    """
-    - Teacher and MBM are frozen to produce synergy logits.
-    - The student is trained with cross-entropy and KD losses.
+    """Train the student model via knowledge distillation.
+
+    The teachers and MBM are frozen to generate synergy logits while the
+    student is optimized using a combination of cross-entropy and KD losses.
+    When a :class:`LightweightAttnMBM` is used, the optional feature-level KD
+    term aligns the student query with the teacher attention output in the
+    MBM latent space ("latent space alignment").
     """
     # 1) freeze teacher + mbm
     teacher_reqgrad_states = []
