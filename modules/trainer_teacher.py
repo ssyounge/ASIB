@@ -105,6 +105,12 @@ def teacher_adaptive_update(
     autocast_ctx, scaler = get_amp_components(cfg)
     la_mode = isinstance(mbm, LightweightAttnMBM) or cfg.get("mbm_type") == "LA"
     for ep in range(teacher_epochs):
+        for tw in teacher_wrappers:
+            tw.train()
+        mbm.train()
+        synergy_head.train()
+        if student_model is not None:
+            student_model.eval()
         cur_tau = get_tau(cfg, global_ep + ep)
         teacher_loss_sum = 0.0
         count = 0
