@@ -42,7 +42,7 @@ def _req_dict(model):
 
 def test_resnet_layer4_fc():
     m = DummyResNetTeacher()
-    partial_freeze_teacher_resnet(m, freeze_scope="layer4_fc")
+    partial_freeze_teacher_resnet(m, freeze_level=2)
     req = _req_dict(m)
     assert req["backbone.layer4.weight"]
     assert req["backbone.fc.weight"]
@@ -52,7 +52,7 @@ def test_resnet_layer4_fc():
 
 def test_efficientnet_features_classifier():
     m = DummyEfficientNetTeacher()
-    partial_freeze_teacher_efficientnet(m, freeze_scope="features_classifier")
+    partial_freeze_teacher_efficientnet(m, freeze_level=2)
     req = _req_dict(m)
     assert req["backbone.features.weight"]
     assert req["backbone.classifier.weight"]
@@ -61,7 +61,7 @@ def test_efficientnet_features_classifier():
 
 def test_swin_head_only():
     m = DummySwinTeacher()
-    partial_freeze_teacher_swin(m, freeze_scope="head_only")
+    partial_freeze_teacher_swin(m, freeze_level=0)
     req = _req_dict(m)
     assert req["backbone.head.weight"]
     assert not req["backbone.features.weight"]
@@ -69,7 +69,7 @@ def test_swin_head_only():
 
 def test_adapter_pattern():
     m = DummyResNetTeacher()
-    partial_freeze_teacher_resnet(m, freeze_scope="fc_only", use_adapter=True)
+    partial_freeze_teacher_resnet(m, freeze_level=0, use_adapter=True)
     req = _req_dict(m)
     assert req["backbone.fc.weight"]
     assert req["backbone.layer4.adapter_conv.weight"]
