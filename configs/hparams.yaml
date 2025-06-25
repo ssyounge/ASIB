@@ -54,14 +54,6 @@ reg_lambda: 1e-5      # teacher L2 regularisation
 mbm_dropout: 0.0      # dropout prob inside MBM
 head_dropout: 0.0     # dropout prob for synergy head
 use_partial_freeze: true
-# freeze_level controls how many layers are unfrozen.
-# 0 -> unfreeze only the classifier/head
-# 1 -> unfreeze the head and last block (default)
-# 2 -> unfreeze additional blocks (e.g. layer4 for ResNet)
-# Actual patterns depend on the architecture; see modules/partial_freeze.py
-student_freeze_level: 2
-student_use_adapter: true
-student_freeze_bn: false
 teacher1_use_adapter: 0
 teacher1_bn_head_only: 0
 teacher2_use_adapter: 0
