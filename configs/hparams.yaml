@@ -54,6 +54,10 @@ reg_lambda: 1e-5      # teacher L2 regularisation
 mbm_dropout: 0.0      # dropout prob inside MBM
 head_dropout: 0.0     # dropout prob for synergy head
 use_partial_freeze: true
+# freeze_level guide: 0=head only, 1=last block+head, 2=two blocks+head
+student_freeze_level: 2  # 0: head only, 1: last block + head, 2: last 2 blocks + head
+student_use_adapter: true
+student_freeze_bn: false
 teacher1_use_adapter: 0
 teacher1_bn_head_only: 0
 teacher2_use_adapter: 0
