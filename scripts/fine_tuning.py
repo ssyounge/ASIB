@@ -31,8 +31,8 @@ from modules.partial_freeze import (
     partial_freeze_teacher_resnet,
     partial_freeze_teacher_efficientnet,
     partial_freeze_teacher_swin,
-    freeze_all_params
 )
+from utils.freeze import freeze_all
 
 # cutmix finetune
 from modules.cutmix_finetune_teacher import finetune_teacher_cutmix, eval_teacher
@@ -260,7 +260,7 @@ def main():
         )
         print("[FineTune] partial freeze mode => only head is trainable (example).")
     else:
-        # full fine-tune => do nothing or freeze_all_params if you want the opposite
+        # full fine-tune => do nothing or freeze_all if you want the opposite
         print("[FineTune] full fine-tune => no partial freeze applied.")
 
     # 4) use cutmix or standard CE?
