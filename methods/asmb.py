@@ -116,7 +116,7 @@ class ASMBDistiller(nn.Module):
         teacher_lr=1e-4,
         student_lr=5e-4,
         weight_decay=1e-4,
-        epochs_per_stage=5,
+        epochs_per_stage=10,
         logger=None
     ):
         """
