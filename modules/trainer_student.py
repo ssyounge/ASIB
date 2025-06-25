@@ -29,12 +29,15 @@ def student_distillation_update(
     """
     # 1) freeze teacher + mbm
     teacher_reqgrad_states = []
+    teacher_train_states = []
     for tw in teacher_wrappers:
+        teacher_train_states.append(tw.training)
         states = []
         for p in tw.parameters():
             states.append(p.requires_grad)
             p.requires_grad = False
         teacher_reqgrad_states.append(states)
+        tw.eval()
 
     mbm_reqgrad_states = []
     for p in mbm.parameters():
@@ -230,10 +233,11 @@ def student_distillation_update(
 
     student_model.load_state_dict(best_state)
 
-    # restore original requires_grad states
-    for tw, states in zip(teacher_wrappers, teacher_reqgrad_states):
+    # restore original requires_grad and training states
+    for tw, states, train_flag in zip(teacher_wrappers, teacher_reqgrad_states, teacher_train_states):
         for p, rg in zip(tw.parameters(), states):
             p.requires_grad = rg
+        tw.train(train_flag)
     for p, rg in zip(mbm.parameters(), mbm_reqgrad_states):
         p.requires_grad = rg
     for p, rg in zip(synergy_head.parameters(), syn_reqgrad_states):
