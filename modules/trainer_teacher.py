@@ -241,7 +241,8 @@ def teacher_adaptive_update(
         if la_mode:
             logger.update_metric(f"teacher_ep{ep+1}_attn", attn_avg)
 
-        scheduler.step()
+        if scheduler is not None:
+            scheduler.step()
 
         # best snapshot
         if synergy_test_acc > best_synergy:
