@@ -58,6 +58,8 @@ teacher1_use_adapter: 0
 teacher1_bn_head_only: 0
 teacher2_use_adapter: 0
 teacher2_bn_head_only: 0
+teacher1_freeze_level: 2
+teacher2_freeze_level: 2
 student_freeze_level: 2
 mixup_alpha: 0.0
 label_smoothing: 0.0
