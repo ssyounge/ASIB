@@ -91,8 +91,9 @@ METHOD_LIST="asmb fitnet vanilla_kd" bash scripts/run_experiments.sh --mode loop
 ```
 
 The base config merged by `generate_config.py` defaults to
-`configs/default.yaml`. This file only defines universal settings such as
-device and paths. The script can also merge optional fragments such as
+`configs/default.yaml`. This file defines universal settings such as
+device and paths and enables Automatic Mixed Precision (AMP) by default.
+The script can also merge optional fragments such as
 `configs/partial_freeze.yaml`. Pass one or more
 fragment files (or a directory containing them) to assemble a config from
 multiple pieces. Override the selection by setting the `BASE_CONFIG`
