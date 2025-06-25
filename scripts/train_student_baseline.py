@@ -33,6 +33,7 @@ def parse_args():
     p.add_argument("--data_aug", type=int)
     p.add_argument("--label_smoothing", type=float)
     p.add_argument("--small_input", type=int)
+    p.add_argument("--student_freeze_level", type=int)
     return p.parse_args()
 
 
