@@ -44,6 +44,9 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
   | `student_efficientnet_adapter` | 1408        |
   | `student_resnet_adapter`       | 2048        |
   | `student_swin_adapter`         | 768         |
+- **Auto MBM Output Dim**: `mbm_out_dim` defaults to the student feature
+  dimension when not provided. This ensures Feature‑level KD works without
+  manual tuning.
 - **Smart Progress Bars**: progress bars hide automatically when stdout isn't a TTY
 - **CIFAR-friendly ResNet/EfficientNet stem**: use `--small_input 1` when
   fine-tuning or evaluating models that modify the conv stem for 32x32 inputs

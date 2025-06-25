@@ -419,6 +419,26 @@ def main():
             use_adapter=cfg.get("student_use_adapter", False)
         )
 
+    # Validate or infer MBM output dimension
+    mbm_out_dim = cfg.get("mbm_out_dim", 0)
+    if mbm_out_dim <= 0:
+        if hasattr(student_model, "get_feat_dim"):
+            mbm_out_dim = student_model.get_feat_dim()
+            cfg["mbm_out_dim"] = mbm_out_dim
+            print(
+                f"[Info] mbm_out_dim not specified; using student feature dimension {mbm_out_dim}"
+            )
+        else:
+            print(
+                "[Warning] Student model does not expose get_feat_dim(); please set mbm_out_dim manually"
+            )
+    elif hasattr(student_model, "get_feat_dim"):
+        s_dim = student_model.get_feat_dim()
+        if mbm_out_dim != s_dim:
+            raise ValueError(
+                f"mbm_out_dim ({mbm_out_dim}) does not match the student feature dimension ({s_dim})."
+            )
+
     # Validate or infer MBM query dimension
     mbm_query_dim = cfg.get("mbm_query_dim", 0)
     if cfg.get("mbm_type", "MLP") == "LA" and mbm_query_dim <= 0:
