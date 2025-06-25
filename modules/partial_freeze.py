@@ -167,6 +167,14 @@ def partial_freeze_student_resnet(
         for name, param in model.named_parameters():
             if "layer4." in name or "fc." in name:
                 param.requires_grad = True
+    elif freeze_scope == "layer3_layer4_fc":
+        for name, param in model.named_parameters():
+            if (
+                "layer3." in name
+                or "layer4." in name
+                or "fc." in name
+            ):
+                param.requires_grad = True
     else:
         # default => layer4 + fc (original logic)
         for name, param in model.named_parameters():
