@@ -117,7 +117,7 @@ class ASMBDistiller(nn.Module):
         student_lr=5e-4,
         weight_decay=1e-4,
         epochs_per_stage=10,
-        logger=None
+        logger=None,
     ):
         """
         ASMB Multi-Stage Self-Training:
@@ -133,6 +133,34 @@ class ASMBDistiller(nn.Module):
         self.synergy_head.to(self.device)
         self.student.to(self.device)
 
+        # create optimizers / schedulers once so that momentum and LR schedule
+        # are carried across stages
+        teacher_params = []
+        for p in self.teacher1.parameters():
+            if p.requires_grad:
+                teacher_params.append(p)
+        for p in self.teacher2.parameters():
+            if p.requires_grad:
+                teacher_params.append(p)
+        for p in self.mbm.parameters():
+            if p.requires_grad:
+                teacher_params.append(p)
+        for p in self.synergy_head.parameters():
+            if p.requires_grad:
+                teacher_params.append(p)
+        teacher_optimizer = optim.Adam(
+            teacher_params, lr=teacher_lr, weight_decay=weight_decay
+        )
+
+        student_params = [p for p in self.student.parameters() if p.requires_grad]
+        student_optimizer = optim.AdamW(
+            student_params, lr=student_lr, weight_decay=weight_decay
+        )
+        total_epochs = epochs_per_stage * self.num_stages
+        student_scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            student_optimizer, T_max=total_epochs
+        )
+
         best_acc = 0.0
         best_student_state = copy.deepcopy(self.student.state_dict())
 
@@ -143,10 +171,9 @@ class ASMBDistiller(nn.Module):
             # (A) Teacher Update
             self._teacher_adaptive_update(
                 train_loader,
-                teacher_lr=teacher_lr,
-                weight_decay=weight_decay,
+                optimizer=teacher_optimizer,
                 epochs=epochs_per_stage,
-                logger=logger
+                logger=logger,
             )
             # (optional) synergy eval
 
@@ -154,8 +181,8 @@ class ASMBDistiller(nn.Module):
             acc = self._student_distill_update(
                 train_loader,
                 test_loader=test_loader,
-                student_lr=student_lr,
-                weight_decay=weight_decay,
+                optimizer=student_optimizer,
+                scheduler=student_scheduler,
                 epochs=epochs_per_stage,
                 logger=logger,
                 label_smoothing=self.config.get("label_smoothing", 0.0),
@@ -173,10 +200,9 @@ class ASMBDistiller(nn.Module):
     def _teacher_adaptive_update(
         self,
         train_loader,
-        teacher_lr,
-        weight_decay,
+        optimizer,
         epochs,
-        logger=None
+        logger=None,
     ):
         """
         Teacher adaptive update (BN/Head + MBM).
@@ -204,7 +230,7 @@ class ASMBDistiller(nn.Module):
             if p.requires_grad:
                 params.append(p)
 
-        optimizer = optim.Adam(params, lr=teacher_lr, weight_decay=weight_decay)
+        # ``optimizer`` is constructed outside and shared across stages
 
         self.teacher1.train()
         self.teacher2.train()
@@ -285,8 +311,8 @@ class ASMBDistiller(nn.Module):
         self,
         train_loader,
         test_loader,
-        student_lr,
-        weight_decay,
+        optimizer,
+        scheduler,
         epochs,
         logger=None,
         label_smoothing: float = 0.0,
@@ -312,10 +338,8 @@ class ASMBDistiller(nn.Module):
         for p in self.synergy_head.parameters():
             p.requires_grad = False
 
-        # student params
-        student_params = [p for p in self.student.parameters() if p.requires_grad]
-        optimizer = optim.AdamW(student_params, lr=student_lr, weight_decay=weight_decay)
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+        # ``optimizer`` and ``scheduler`` are constructed outside so that the
+        # learning rate schedule spans all stages
         best_acc = 0.0
         best_state = copy.deepcopy(self.student.state_dict())
 
