@@ -127,7 +127,15 @@ def main():
     if cfg.get("teacher_ckpt"):
         teacher.load_state_dict(torch.load(cfg["teacher_ckpt"], map_location=device, weights_only=True))
     if cfg.get("use_partial_freeze", True):
-        partial_freeze_teacher_auto(teacher, cfg.get("teacher_type", "resnet101"))
+        partial_freeze_teacher_auto(
+            teacher,
+            cfg.get("teacher_type", "resnet101"),
+            freeze_bn=cfg.get("teacher_freeze_bn", True),
+            freeze_ln=cfg.get("teacher_freeze_ln", True),
+            use_adapter=cfg.get("teacher_use_adapter", False),
+            bn_head_only=cfg.get("teacher_bn_head_only", False),
+            freeze_level=cfg.get("teacher_freeze_level", 1),
+        )
 
     student = create_student_by_name(
         cfg.get("student_type", "resnet_adapter"),
@@ -138,7 +146,14 @@ def main():
     if cfg.get("student_ckpt"):
         student.load_state_dict(torch.load(cfg["student_ckpt"], map_location=device, weights_only=True))
     if cfg.get("use_partial_freeze", True):
-        partial_freeze_student_auto(student, student_name=cfg.get("student_type", "resnet_adapter"))
+        partial_freeze_student_auto(
+            student,
+            student_name=cfg.get("student_type", "resnet_adapter"),
+            freeze_bn=cfg.get("student_freeze_bn", True),
+            freeze_ln=cfg.get("student_freeze_ln", True),
+            use_adapter=cfg.get("student_use_adapter", False),
+            freeze_level=cfg.get("student_freeze_level", 1),
+        )
 
     distiller = build_distiller(method, teacher, student, cfg)
     acc = distiller.train_distillation(
