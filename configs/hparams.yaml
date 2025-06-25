@@ -24,7 +24,7 @@ finetune_cutmix_alpha: 1.0
 
 # Distillation
 method: "asmb"
-teacher_lr: 2e-4
+teacher_lr: 1e-4
 student_lr: 3e-4
 teacher_weight_decay: 0.0003
 student_weight_decay: 0.0005
@@ -96,6 +96,6 @@ mbm_attn_heads: 0
 mbm_query_dim: 0
 
 # Misc
-grad_clip_norm: 2.0
+grad_clip_norm: 1.0
 finetune_use_cutmix: true
 finetune_alpha: 1.0
