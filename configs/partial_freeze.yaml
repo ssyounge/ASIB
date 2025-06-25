@@ -9,5 +9,5 @@ teacher2_freeze_bn: true
 teacher2_freeze_scope: "classifier_only"
 
 student_freeze_bn: false
-student_freeze_scope: "layer4_fc"
-student_use_adapter: false
+student_freeze_scope: "layer4_fc" # layer3_layer4_fc
+student_use_adapter: true
