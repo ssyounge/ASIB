@@ -137,7 +137,11 @@ def mixup_criterion(criterion, pred, y_a, y_b, lam):
 def get_amp_components(cfg):
     """Return autocast context and GradScaler based on config."""
     use_amp = bool(cfg.get("use_amp", False))
+    device = cfg.get("device", "cuda")
     if not use_amp:
+        from contextlib import nullcontext
+        return nullcontext(), None
+    if device != "cuda" or not torch.cuda.is_available():
         from contextlib import nullcontext
         return nullcontext(), None
     amp_dtype = cfg.get("amp_dtype", "float16")
