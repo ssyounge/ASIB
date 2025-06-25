@@ -11,9 +11,9 @@ from utils.misc import cutmix_data, get_amp_components
 
 
 def cutmix_criterion(criterion, pred, y_a, y_b, lam):
-    """
-    cutmix 보정된 CE:
-    lam * CE(pred, y_a) + (1-lam)*CE(pred, y_b)
+    """CutMix-adjusted cross-entropy.
+
+    Computed as ``lam * CE(pred, y_a) + (1 - lam) * CE(pred, y_b)``.
     """
     return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
 
@@ -28,9 +28,11 @@ def train_one_epoch_cutmix(
     cfg=None,
 ):
     """
-    teacher_model: forward(x, y=None)-> dict (must contain ``"logit"``)
-      - ``logit`` 만 사용하여 cross-entropy 계산
-    label_smoothing: amount of label smoothing to apply to CE
+    ``teacher_model`` should implement ``forward(x, y=None)`` and return a
+    dictionary containing ``"logit"``. Only ``"logit"`` is used for the
+    cross-entropy calculation.
+
+    ``label_smoothing`` controls the amount of smoothing applied to the loss.
     """
     teacher_model.train()
     criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
@@ -64,8 +66,8 @@ def train_one_epoch_cutmix(
         bs = x.size(0)
         total_loss += loss.item() * bs
 
-        # cutmix 정확도는 y_a 기준으로 (단순히)
-        # 실제론 mix된 픽셀 때문에 정확도가 약간 가짜일 수 있으나, 통상 y_a로 모니터링
+        # Accuracy is computed against ``y_a`` for simplicity.
+        # The mixed pixels make this slightly optimistic but it is commonly used.
         preds = logits.argmax(dim=1)
         correct += (preds == y_a).sum().item()
         total   += bs
