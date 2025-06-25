@@ -17,7 +17,7 @@ finetune_partial_freeze: false
 efficientnet_dropout: 0.3
 
 # Teacher fine-tuning
-finetune_epochs: 50
+finetune_epochs: 200
 finetune_lr: 0.001
 finetune_weight_decay: 0.0005
 finetune_cutmix_alpha: 1.0
