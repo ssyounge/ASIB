@@ -117,6 +117,7 @@ def partial_freeze_teacher_auto(
     freeze_ln=True,
     use_adapter=False,
     bn_head_only=False,
+    freeze_level=1,
 ):
     """
     If needed, partial freeze for fine-tune. Or you can freeze nothing if you want full fine-tune.
@@ -127,7 +128,7 @@ def partial_freeze_teacher_auto(
             freeze_bn=freeze_bn,
             use_adapter=use_adapter,
             bn_head_only=bn_head_only,
-            freeze_scope=None,
+            freeze_level=freeze_level,
         )
     elif teacher_type == "efficientnet_b2":
         partial_freeze_teacher_efficientnet(
@@ -135,14 +136,14 @@ def partial_freeze_teacher_auto(
             freeze_bn=freeze_bn,
             use_adapter=use_adapter,
             bn_head_only=bn_head_only,
-            freeze_scope=None,
+            freeze_level=freeze_level,
         )
     elif teacher_type == "swin_tiny":
         partial_freeze_teacher_swin(
             model,
             freeze_ln=freeze_ln,
             use_adapter=use_adapter,
-            freeze_scope=None,
+            freeze_level=freeze_level,
         )
     else:
         raise ValueError(f"Unknown teacher_type={teacher_type}")
@@ -257,6 +258,7 @@ def main():
             freeze_ln=freeze_ln,
             use_adapter=cfg.get("teacher_use_adapter", False),
             bn_head_only=cfg.get("teacher_bn_head_only", False),
+            freeze_level=cfg.get("teacher_freeze_level", 1),
         )
         print("[FineTune] partial freeze mode => only head is trainable (example).")
     else:

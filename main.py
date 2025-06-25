@@ -184,7 +184,7 @@ def partial_freeze_teacher_auto(
     freeze_ln=True,
     use_adapter=False,
     bn_head_only=False,
-    freeze_scope=None,
+    freeze_level=1,
 ):
     if teacher_name == "resnet101":
         partial_freeze_teacher_resnet(
@@ -192,7 +192,7 @@ def partial_freeze_teacher_auto(
             freeze_bn=freeze_bn,
             use_adapter=use_adapter,
             bn_head_only=bn_head_only,
-            freeze_scope=freeze_scope,
+            freeze_level=freeze_level,
         )
     elif teacher_name == "efficientnet_b2":
         partial_freeze_teacher_efficientnet(
@@ -200,14 +200,14 @@ def partial_freeze_teacher_auto(
             freeze_bn=freeze_bn,
             use_adapter=use_adapter,
             bn_head_only=bn_head_only,
-            freeze_scope=freeze_scope,
+            freeze_level=freeze_level,
         )
     elif teacher_name == "swin_tiny":
         partial_freeze_teacher_swin(
             model,
             freeze_ln=freeze_ln,
             use_adapter=use_adapter,
-            freeze_scope=freeze_scope,
+            freeze_level=freeze_level,
         )
     else:
         raise ValueError(f"[partial_freeze_teacher_auto] Unknown teacher_name={teacher_name}")
@@ -326,7 +326,7 @@ def main():
             freeze_ln=cfg.get("teacher1_freeze_ln", True),
             use_adapter=cfg.get("teacher1_use_adapter", False),
             bn_head_only=cfg.get("teacher1_bn_head_only", False),
-            freeze_scope=cfg.get("teacher1_freeze_scope", None)
+            freeze_level=cfg.get("teacher1_freeze_level", 1)
         )
 
     teacher2 = create_teacher_by_name(
@@ -349,7 +349,7 @@ def main():
             freeze_ln=cfg.get("teacher2_freeze_ln", True),
             use_adapter=cfg.get("teacher2_use_adapter", False),
             bn_head_only=cfg.get("teacher2_bn_head_only", False),
-            freeze_scope=cfg.get("teacher2_freeze_scope", None)
+            freeze_level=cfg.get("teacher2_freeze_level", 1)
         )
 
     # optional fine-tuning of teachers before ASMB stages
