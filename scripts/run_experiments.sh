@@ -134,6 +134,7 @@ run_loop() {
             --teacher1_bn_head_only ${teacher1_bn_head_only} \
             --teacher2_use_adapter ${teacher2_use_adapter} \
             --teacher2_bn_head_only ${teacher2_bn_head_only} \
+            --student_freeze_level 2 \
             --results_dir "${OUTDIR}" \
             --seed 42 \
             --data_aug ${data_aug} \
@@ -191,6 +192,7 @@ run_sweep() {
         --teacher1_bn_head_only ${teacher1_bn_head_only} \
         --teacher2_use_adapter ${teacher2_use_adapter} \
         --teacher2_bn_head_only ${teacher2_bn_head_only} \
+        --student_freeze_level 2 \
         --label_smoothing ${label_smoothing} \
         --method ${METHOD}
     done
