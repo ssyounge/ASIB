@@ -1,12 +1,9 @@
 # modules/trainer_student.py
 
 import torch
-import torch.nn as nn
 import copy
 from utils.progress import smart_tqdm
 from models.la_mbm import LightweightAttnMBM
-import torch.optim as optim
-from torch.optim.lr_scheduler import CosineAnnealingLR, StepLR
 
 from modules.losses import kd_loss_fn, ce_loss_fn
 from modules.disagreement import sample_weights_from_disagreement
@@ -21,6 +18,8 @@ def student_distillation_update(
     testloader,
     cfg,
     logger,
+    optimizer,
+    scheduler,
     global_ep: int = 0
 ):
     """
@@ -49,23 +48,7 @@ def student_distillation_update(
         syn_reqgrad_states.append(p.requires_grad)
         p.requires_grad = False
 
-    optimizer = optim.AdamW(
-        student_model.parameters(),
-        lr=cfg["student_lr"],
-        weight_decay=cfg["student_weight_decay"],
-        betas=(0.9, 0.999),
-        eps=1e-8,
-    )
-
     student_epochs = cfg.get("student_iters", cfg.get("student_epochs_per_stage", 15))
-    if cfg.get("lr_schedule", "step") == "cosine":
-        scheduler = CosineAnnealingLR(optimizer, T_max=student_epochs)
-    else:
-        scheduler = StepLR(
-            optimizer,
-            step_size=cfg.get("student_step_size", 10),
-            gamma=cfg.get("student_gamma", 0.1),
-        )
 
     best_acc = 0.0
     best_state = copy.deepcopy(student_model.state_dict())
