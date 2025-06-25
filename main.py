@@ -141,6 +141,7 @@ def parse_args():
     parser.add_argument("--use_amp", type=int)
     parser.add_argument("--amp_dtype", type=str)
     parser.add_argument("--grad_scaler_init_scale", type=int)
+    parser.add_argument("--student_freeze_level", type=int)
 
     # MBM options
     parser.add_argument("--mbm_type", type=str)
