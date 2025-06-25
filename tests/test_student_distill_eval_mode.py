@@ -68,7 +68,21 @@ def test_teachers_are_eval_during_distill():
     t1.train()
     t2.train()
 
-    student_distillation_update([t1, t2], mbm, head, student, loader, loader, cfg, logger)
+    opt = torch.optim.SGD(student.parameters(), lr=0.1)
+    sched = torch.optim.lr_scheduler.StepLR(opt, step_size=1)
+
+    student_distillation_update(
+        [t1, t2],
+        mbm,
+        head,
+        student,
+        loader,
+        loader,
+        cfg,
+        logger,
+        optimizer=opt,
+        scheduler=sched,
+    )
 
     assert t1.record_training is False
     assert t2.record_training is False
