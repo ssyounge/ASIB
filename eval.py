@@ -163,7 +163,9 @@ def main():
     small_input = cfg.get("small_input")
     if small_input is None:
         small_input = dataset_name == "cifar100"
-    n_classes = 100
+    n_classes = len(train_loader.dataset.classes)
+    cfg["num_classes"] = n_classes
+    logger.update_metric("num_classes", n_classes)
 
     if cfg["eval_mode"] == "single":
         # single model eval

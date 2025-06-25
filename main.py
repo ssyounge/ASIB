@@ -297,6 +297,8 @@ def main():
         raise ValueError(f"Unknown dataset_name={dataset}")
 
     num_classes = len(train_loader.dataset.classes)
+    cfg["num_classes"] = num_classes
+    logger.update_metric("num_classes", num_classes)
     check_label_range(train_loader.dataset, num_classes)
     check_label_range(test_loader.dataset, num_classes)
 
