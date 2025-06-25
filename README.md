@@ -210,7 +210,7 @@ python main.py --config configs/partial_freeze.yaml --device cuda \
         •       Edit `configs/hparams.yaml` to change numeric hyperparameters like learning rates or dropout.
         •       Set `LR_SCHEDULE` to "step" or "cosine" to choose the learning rate scheduler.
 	•	Optionally load pre-finetuned teacher checkpoints via `--teacher1_ckpt` and `--teacher2_ckpt`.
-        •       Optimizers and schedulers are instantiated once before stages and reset before each stage.
+        •       Each trainer creates its own optimizer and scheduler at the start of every stage.
 
 2) Single-Teacher Distillation (run_single_teacher.py)
 
