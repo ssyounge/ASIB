@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# scripts/load_hparams.py
 """Load hyperparameters from a YAML file and emit shell-compatible exports."""
 import sys
 import yaml
