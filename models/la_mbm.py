@@ -106,4 +106,4 @@ class LightweightAttnMBM(nn.Module):
         out = self.out_proj(attn_out.squeeze(1))
         if isinstance(query_or_feats, list):
             return out
-        return out, attn, q, attn_out.squeeze(1)
+        return out, attn, q.squeeze(1), attn_out.squeeze(1)
