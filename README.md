@@ -100,8 +100,10 @@ The base config merged by `generate_config.py` defaults to
 device and paths and enables Automatic Mixed Precision (AMP) by default.
 The script can also merge optional fragments such as
 `configs/partial_freeze.yaml`. Freeze levels are now defined in
-`configs/hparams.yaml`, so this fragment only toggles BN freezing and
-adapter options. Pass one or more
+`configs/hparams.yaml`. The variables `teacher1_freeze_level`,
+`teacher2_freeze_level` and `student_freeze_level` control how much of each
+model is unfrozen during training, so this fragment only toggles BN freezing
+and adapter options. Pass one or more
 fragment files (or a directory containing them) to assemble a config from
 multiple pieces. Override the selection by setting the `BASE_CONFIG`
 environment variable:
@@ -218,7 +220,8 @@ Baseline runs (e.g., `vanilla_kd`) produce their own logs such as `VanillaKD => 
 python main.py --config configs/partial_freeze.yaml --device cuda \
   --teacher1_ckpt teacher1.pth --teacher2_ckpt teacher2.pth \
   --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 1
-  # Freeze levels are loaded from `configs/hparams.yaml`
+  # Freeze levels (`teacher1_freeze_level`, `teacher2_freeze_level`,
+  # `student_freeze_level`) are loaded from `configs/hparams.yaml`
   # mbm_query_dim and mbm_out_dim are automatically set to the student feature dimension
         •       Adjust partial-freeze or architecture settings in `configs/*.yaml`.
         •       Edit `configs/hparams.yaml` to change numeric hyperparameters like learning rates or dropout.
@@ -416,6 +419,21 @@ teacher2_bn_head_only: 0
 
 `run_experiments.sh` exports these values so you can toggle them for
 sweeps or batch runs without editing every config file.
+
+### Freeze Levels
+
+The amount of each model that remains trainable is controlled by three keys in `configs/hparams.yaml`:
+
+```yaml
+teacher1_freeze_level: 0
+teacher2_freeze_level: 1
+student_freeze_level: 0
+```
+
+Lower numbers unfreeze fewer layers. In the example above, only teacher&nbsp;2's
+final block and the classifier heads remain trainable. After editing the YAML
+file, rerun `bash scripts/run_experiments.sh --mode loop` to generate new
+configs with your chosen freeze levels.
 
 
 
