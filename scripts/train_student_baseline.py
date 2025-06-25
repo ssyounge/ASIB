@@ -144,7 +144,14 @@ def main():
             torch.load(cfg["student_ckpt"], map_location=device, weights_only=True)
         )
 
-    partial_freeze_student_auto(student, student_name=cfg.get("student_type", "resnet_adapter"))
+    partial_freeze_student_auto(
+        student,
+        student_name=cfg.get("student_type", "resnet_adapter"),
+        freeze_bn=cfg.get("student_freeze_bn", True),
+        freeze_ln=cfg.get("student_freeze_ln", True),
+        use_adapter=cfg.get("student_use_adapter", False),
+        freeze_level=cfg.get("student_freeze_level", 1),
+    )
 
     os.makedirs(cfg.get("results_dir", "results"), exist_ok=True)
     ckpt = os.path.join(cfg["results_dir"], "student_baseline.pth")
