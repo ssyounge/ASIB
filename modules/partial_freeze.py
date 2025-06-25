@@ -33,19 +33,16 @@ def partial_freeze_teacher_resnet(
     freeze_bn: bool = True,
     use_adapter: bool = False,
     bn_head_only: bool = False,
-    freeze_scope: str = None,
+    freeze_level: int = 1,
 ):
-    """Partially freeze a ResNet101 teacher.
+    """Partially freeze a ResNet101 teacher using a numeric level.
 
-    1) ``freeze_all`` is called first.
-    2) Layers are unfrozen based on ``freeze_scope``.
-    3) When ``freeze_bn`` is ``False`` the BatchNorm layers are also unfrozen.
+    ``freeze_all`` is called first and layers are selectively unfrozen based on
+    ``freeze_level``:
 
-    Example ``freeze_scope`` values:
-      - ``"fc_only"``: only the fully-connected layer is unfrozen.
-      - ``"layer4_fc"``: unfreeze ``layer4`` and the fully-connected layer
-        (and ``mbm`` if present).
-      - ``None`` (default): unfreeze the fully-connected layer and ``mbm`` only.
+    - ``0`` → only ``fc``
+    - ``1`` → ``fc`` + ``mbm`` (default)
+    - ``2`` → ``layer4`` + ``fc`` + ``mbm``
     """
     freeze_all(model)
 
@@ -55,9 +52,9 @@ def partial_freeze_teacher_resnet(
         return
 
     patterns = []
-    if freeze_scope == "fc_only":
+    if freeze_level == 0:
         patterns.append(r"^backbone\.fc\.")
-    elif freeze_scope == "layer4_fc":
+    elif freeze_level == 2:
         patterns.extend(
             [
                 r"^backbone\.layer4\.",
@@ -81,12 +78,16 @@ def partial_freeze_teacher_efficientnet(
     freeze_bn: bool = True,
     use_adapter: bool = False,
     bn_head_only: bool = False,
-    freeze_scope: str = None,
+    freeze_level: int = 1,
 ):
-    """Partially freeze an EfficientNet-B2 teacher.
+    """Partially freeze an EfficientNet-B2 teacher using a numeric level.
 
-    Example ``freeze_scope`` values:
-       ``"classifier_only"``, ``"features_classifier"``, etc.
+    ``freeze_all`` is called first and layers are unfrozen based on
+    ``freeze_level``:
+
+    - ``0`` or ``3`` → only ``classifier``
+    - ``1`` → ``classifier`` + ``mbm`` (default)
+    - ``2`` → ``features`` + ``classifier`` + ``mbm``
     """
     freeze_all(model)
 
@@ -96,9 +97,9 @@ def partial_freeze_teacher_efficientnet(
         return
 
     patterns = []
-    if freeze_scope == "classifier_only":
+    if freeze_level in (0, 3):
         patterns.append(r"^backbone\.classifier\.")
-    elif freeze_scope == "features_classifier":
+    elif freeze_level == 2:
         patterns.extend(
             [
                 r"^backbone\.features\.",
@@ -121,18 +122,19 @@ def partial_freeze_teacher_swin(
     model: nn.Module,
     freeze_ln: bool = True,
     use_adapter: bool = False,
-    freeze_scope: str = None,
+    freeze_level: int = 1,
 ):
-    """Partially freeze a Swin Tiny teacher.
+    """Partially freeze a Swin Tiny teacher using a numeric level.
 
-    - Example ``freeze_scope``: ``"head_only"``.
-    - Default behaviour unfreezes the classification head and ``mbm``.
-    - When ``freeze_ln=True`` the LayerNorms remain frozen.
+    ``freeze_all`` is called first. ``freeze_level`` controls what to unfreeze:
+
+    - ``0`` → only ``head``
+    - ``1`` → ``head`` + ``mbm`` (default)
     """
     freeze_all(model)
 
     patterns = []
-    if freeze_scope == "head_only":
+    if freeze_level == 0:
         patterns.append(r"^backbone\.head\.")
     else:
         patterns.extend([r"^backbone\.head\.", r"^mbm\."])
@@ -237,7 +239,7 @@ def freeze_teacher_params(
     freeze_ln: bool = True,
     use_adapter: bool = False,
     bn_head_only: bool = False,
-    freeze_scope: str = None,
+    freeze_level: int = 1,
 ) -> None:
     """Wrapper that partially freezes a teacher model by type."""
     if teacher_name == "resnet101":
@@ -246,7 +248,7 @@ def freeze_teacher_params(
             freeze_bn=freeze_bn,
             use_adapter=use_adapter,
             bn_head_only=bn_head_only,
-            freeze_scope=freeze_scope,
+            freeze_level=freeze_level,
         )
     elif teacher_name == "efficientnet_b2":
         partial_freeze_teacher_efficientnet(
@@ -254,14 +256,14 @@ def freeze_teacher_params(
             freeze_bn=freeze_bn,
             use_adapter=use_adapter,
             bn_head_only=bn_head_only,
-            freeze_scope=freeze_scope,
+            freeze_level=freeze_level,
         )
     elif teacher_name == "swin_tiny":
         partial_freeze_teacher_swin(
             model,
             freeze_ln=freeze_ln,
             use_adapter=use_adapter,
-            freeze_scope=freeze_scope,
+            freeze_level=freeze_level,
         )
     else:
         freeze_all(model)
