@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # scripts/run_experiments.sh
-# Hyperparameters are loaded from configs/hparams.yaml
+# Hyperparameters are loaded from configs/hparams.yaml and configs/partial_freeze.yaml
 
 set -e
 export PYTHONPATH="$(pwd):${PYTHONPATH}"
@@ -76,6 +76,7 @@ generate_config() {
 
 run_loop() {
   source <(python scripts/load_hparams.py configs/hparams.yaml)
+  source <(python scripts/load_hparams.py configs/partial_freeze.yaml)
   METHOD_LIST="${method_list:-$method}"
   mkdir -p checkpoints results
   RESULT_ROOT="results/$(date +%Y%m%d_%H%M%S)"
@@ -169,6 +170,7 @@ run_loop() {
 
 run_sweep() {
   source <(python scripts/load_hparams.py configs/hparams.yaml)
+  source <(python scripts/load_hparams.py configs/partial_freeze.yaml)
   echo ">>> [run_experiments.sh] running METHOD=${METHOD}"
 
   for teacher_lr in 0.0001 0.0002 0.0005; do

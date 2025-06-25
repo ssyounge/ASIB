@@ -15,3 +15,7 @@ teacher2_freeze_bn: true
 
 student_freeze_bn: false
 student_use_adapter: true
+teacher1_freeze_level: 2
+teacher2_freeze_level: 2
+student_freeze_level: 2
+
