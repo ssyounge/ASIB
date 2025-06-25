@@ -39,6 +39,9 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
   feature dimension reported by the student model (if available).
   The MBM output dimension (`mbm_out_dim`) now defaults to this student
   feature size as well.
+- **Requires Student Features**: `LightweightAttnMBM` needs the student
+  features as the attention query, so the student model must be provided
+  when using this module.
   Common student feature dimensions are:
 
   | Student model                | Feature dim |
@@ -255,6 +258,8 @@ python eval.py --eval_mode synergy \
   --teacher2_ckpt teacher2.pth \
   --mbm_ckpt mbm.pth \
   --head_ckpt synergy_head.pth \
+  --student_type resnet_adapter \
+  --student_ckpt student.pth \
   --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 1
   # mbm_query_dim and mbm_out_dim are automatically set to the student feature dimension
 
