@@ -22,7 +22,7 @@ def _req_dict(model):
 
 def test_swin_student_unfreeze_default():
     m = DummyStudentSwin()
-    partial_freeze_student_swin(m)
+    partial_freeze_student_swin(m, freeze_level=1)
     req = _req_dict(m)
     assert req["swin.layers.3.weight"]
     assert req["fc.weight"]
