@@ -174,6 +174,13 @@ and a different teacher learning rate:
 teacher_lr=0.0002 BASE_CONFIG=configs/partial_freeze.yaml bash scripts/run_experiments.sh --mode loop
 ```
 
+When launching jobs via `run.sh`, the script saves a copy of
+`configs/hparams.yaml` to `logs/asmb_${SLURM_JOB_ID}_hparams.yaml` (or to a
+timestamped file when run outside Slurm). During the batch loop, each generated
+configuration is copied to both `${OUTDIR}/config.yaml` and
+`logs/asmb_${SLURM_JOB_ID}_<experiment>.yaml` so you can recover the exact
+settings used for every run.
+
 ## Testing
 
 Run the helper script to install **PyTorch** and all remaining dependencies,
