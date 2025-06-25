@@ -10,6 +10,13 @@
 JOB_ID=${SLURM_JOB_ID:-manual}
 mkdir -p logs
 cp configs/hparams.yaml "logs/asmb_${JOB_ID}_hparams.yaml"
+BASE_CFG_PATH=${BASE_CONFIG:-configs/default.yaml}
+cp "$BASE_CFG_PATH" "logs/asmb_${JOB_ID}_base.yaml"
+# Save a fully merged YAML with all hyperparameters
+python scripts/generate_config.py \
+  --base "$BASE_CFG_PATH" \
+  --hparams configs/hparams.yaml \
+  --out "logs/asmb_${JOB_ID}_full.yaml"
 
 source ~/.bashrc
 conda activate facil_env
