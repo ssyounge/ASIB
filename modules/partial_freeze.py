@@ -7,9 +7,10 @@ from utils.freeze import apply_bn_ln_policy, freeze_all, unfreeze_by_regex
 
 
 def freeze_bn_params(module: nn.Module):
-    """
-    BatchNorm 계열 모듈(gamma/beta)도 학습하지 않도록 동결한다.
-    model.apply(freeze_bn_params) 형태로 호출 가능.
+    """Freeze the affine parameters of any BatchNorm modules.
+
+    Call via ``model.apply(freeze_bn_params)`` to disable training of the
+    gamma/beta parameters.
     """
     if isinstance(module, (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)):
         for p in module.parameters():
@@ -17,9 +18,10 @@ def freeze_bn_params(module: nn.Module):
 
 
 def freeze_ln_params(module: nn.Module):
-    """
-    LayerNorm 계열 모듈에서 gamma/beta도 동결한다.
-    (Swin/ViT 등에서 사용)
+    """Freeze the affine parameters of LayerNorm modules.
+
+    Used by architectures such as Swin/ViT to keep the gamma/beta
+    parameters fixed during training.
     """
     if isinstance(module, nn.LayerNorm):
         for p in module.parameters():
@@ -33,16 +35,17 @@ def partial_freeze_teacher_resnet(
     bn_head_only: bool = False,
     freeze_scope: str = None,
 ):
-    """
-    Teacher (ResNet101) partial freeze:
-      1) freeze_all 먼저
-      2) freeze_scope에 따라 특정 레이어만 unfreeze
-      3) freeze_bn=False 면 BN도 unfreeze
+    """Partially freeze a ResNet101 teacher.
 
-    예시 freeze_scope:
-      - "fc_only": fc 만 unfreeze
-      - "layer4_fc": layer4 + fc (그리고 mbm.?) unfreeze
-      - None (default): fc + mbm 만 unfreeze
+    1) ``freeze_all`` is called first.
+    2) Layers are unfrozen based on ``freeze_scope``.
+    3) When ``freeze_bn`` is ``False`` the BatchNorm layers are also unfrozen.
+
+    Example ``freeze_scope`` values:
+      - ``"fc_only"``: only the fully-connected layer is unfrozen.
+      - ``"layer4_fc"``: unfreeze ``layer4`` and the fully-connected layer
+        (and ``mbm`` if present).
+      - ``None`` (default): unfreeze the fully-connected layer and ``mbm`` only.
     """
     freeze_all(model)
 
@@ -80,10 +83,10 @@ def partial_freeze_teacher_efficientnet(
     bn_head_only: bool = False,
     freeze_scope: str = None,
 ):
-    """
-    Teacher (EfficientNet-B2) partial freeze
-      - freeze_scope 예시:
-         "classifier_only", "features_classifier", etc.
+    """Partially freeze an EfficientNet-B2 teacher.
+
+    Example ``freeze_scope`` values:
+       ``"classifier_only"``, ``"features_classifier"``, etc.
     """
     freeze_all(model)
 
@@ -120,11 +123,11 @@ def partial_freeze_teacher_swin(
     use_adapter: bool = False,
     freeze_scope: str = None,
 ):
-    """
-    Teacher (Swin Tiny) partial freeze
-      - freeze_scope 예: "head_only"
-      - default: head. + mbm.
-      - freeze_ln=True => LN 동결
+    """Partially freeze a Swin Tiny teacher.
+
+    - Example ``freeze_scope``: ``"head_only"``.
+    - Default behaviour unfreezes the classification head and ``mbm``.
+    - When ``freeze_ln=True`` the LayerNorms remain frozen.
     """
     freeze_all(model)
 
@@ -148,10 +151,11 @@ def partial_freeze_student_resnet(
     use_adapter: bool = False,
     freeze_scope: str = None,
 ):
-    """
-    Student (ResNet101)
-      - freeze_scope에 따라 layer4. / fc. / adapter_ 등 분기
-      - 예: "layer4_fc", "fc_only", etc.
+    """Partially freeze a ResNet101 student.
+
+    - Layers to unfreeze depend on ``freeze_scope`` (e.g. ``layer4``,
+      ``fc`` or the adapters).
+    - Example values: ``"layer4_fc"``, ``"fc_only"``, etc.
     """
     freeze_all(model)
 
@@ -164,12 +168,12 @@ def partial_freeze_student_resnet(
             if "layer4." in name or "fc." in name:
                 param.requires_grad = True
     else:
-        # default => layer4. + fc. (기존 로직)
+        # default => layer4 + fc (original logic)
         for name, param in model.named_parameters():
             if "layer4." in name or "fc." in name:
                 param.requires_grad = True
 
-    # adapter
+    # adapters
     if use_adapter:
         for name, param in model.named_parameters():
             if "adapter_" in name:
@@ -188,10 +192,10 @@ def partial_freeze_student_efficientnet(
     use_adapter: bool = False,
     freeze_scope: str = None,
 ):
-    """
-    Student (EfficientNet-B2) partial freeze
-      - freeze_scope 예시:
-         "classifier_only", "features_classifier", etc.
+    """Partially freeze an EfficientNet-B2 student.
+
+    - Example ``freeze_scope`` values:
+       ``"classifier_only"``, ``"features_classifier"``, etc.
     """
     freeze_all(model)
 
@@ -205,12 +209,12 @@ def partial_freeze_student_efficientnet(
             if "features." in name or "classifier." in name:
                 param.requires_grad = True
     else:
-        # default => classifier. (기존)
+        # default => classifier (original)
         for name, param in model.named_parameters():
             if "classifier." in name:
                 param.requires_grad = True
 
-    # adapter
+    # adapters
     if use_adapter:
         for name, param in model.named_parameters():
             if "adapter_" in name:
