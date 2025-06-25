@@ -2,6 +2,13 @@
 
 # use_partial_freeze defined in hparams.yaml
 
+# freeze_level controls how many layers are unfrozen.
+# 0 -> unfreeze only the classifier/head
+# 1 -> unfreeze the head and last block (default)
+# 2 -> unfreeze additional blocks (e.g. layer4 for ResNet)
+# Actual patterns depend on the architecture; see modules/partial_freeze.py
+
+
 teacher1_freeze_bn: false
 teacher1_freeze_level: 2
 
