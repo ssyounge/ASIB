@@ -33,7 +33,7 @@ def test_build_from_teachers_la_auto_query_dim():
 
     q = torch.randn(2, 4)
     feats = [torch.randn(2, 4), torch.randn(2, 4)]
-    out, _ = mbm(q, feats)
+    out, _, _, _ = mbm(q, feats)
     logits = head(out)
     assert out.shape == (2, 8)
     assert logits.shape == (2, 10)
