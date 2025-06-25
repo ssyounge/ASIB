@@ -42,13 +42,46 @@ def load_checkpoint(model, optimizer, load_path):
     return start_epoch
 
 def cutmix_data(inputs, targets, alpha=1.0):
-    """
-    Simple example of CutMix, if you want it here.
+    """Apply CutMix to a batch of inputs/targets.
+
+    Args:
+        inputs (Tensor): input images of shape ``[N, C, H, W]``.
+        targets (Tensor): corresponding labels ``[N]``.
+        alpha (float): beta distribution parameter. ``alpha<=0`` disables CutMix.
+
+    Returns:
+        Tuple of ``(inputs_clone, target_a, target_b, lam)`` where ``inputs_clone``
+        contains mixed images, ``target_a`` and ``target_b`` are the original and
+        permuted targets and ``lam`` is the mixing coefficient.
     """
     if alpha <= 0.0:
+        # no cutmix
         return inputs, targets, targets, 1.0
-    # ... (이전에도 썼던 cutmix 코드)
-    # ...
+
+    batch_size = inputs.size(0)
+    indices = torch.randperm(batch_size, device=inputs.device)
+    lam = random.betavariate(alpha, alpha)
+
+    # crop box
+    W, H = inputs.size(2), inputs.size(3)
+    cut_w = int(W * (1 - lam))
+    cut_h = int(H * (1 - lam))
+    cx = random.randint(0, W)
+    cy = random.randint(0, H)
+
+    x1 = max(cx - cut_w // 2, 0)
+    y1 = max(cy - cut_h // 2, 0)
+    x2 = min(cx + cut_w // 2, W)
+    y2 = min(cy + cut_h // 2, H)
+
+    # clone and apply patch
+    inputs_clone = inputs.clone()
+    inputs_clone[:, :, x1:x2, y1:y2] = inputs[indices, :, x1:x2, y1:y2]
+
+    lam = 1.0 - ((x2 - x1) * (y2 - y1) / (W * H))
+
+    target_a = targets
+    target_b = targets[indices]
     return inputs_clone, target_a, target_b, lam
 
 
