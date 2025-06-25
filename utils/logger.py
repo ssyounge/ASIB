@@ -61,8 +61,8 @@ class ExperimentLogger:
 
         self.exp_name = exp_name
 
-        # Generate exp_id (e.g. "eval_experiment_single_20240805_153210")
-        self.exp_id = self._generate_exp_id()
+        # Generate exp_id using provided value or timestamp
+        self.exp_id = self.config.get("exp_id") or self._generate_exp_id(exp_name)
         self.config["exp_id"] = self.exp_id
 
         # Where to save results
@@ -72,14 +72,14 @@ class ExperimentLogger:
         # For timing
         self.start_time = time.time()
 
-    def _generate_exp_id(self):
+    def _generate_exp_id(self, exp_name="exp"):
         """
         Creates an experiment ID like 'eval_experiment_synergy_20240805_153210'
         using exp_name, eval_mode, and timestamp
         """
         eval_mode = self.config.get("eval_mode", "noeval")
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        return f"{self.exp_name}_{eval_mode}_{ts}"
+        return f"{exp_name}_{eval_mode}_{ts}"
 
     def update_metric(self, key, value):
         """

@@ -110,7 +110,10 @@ run_loop() {
         # N_STAGE_LIST may contain space-separated values like "2 3 4 5"
         # Iterate over each item without quoting to allow word splitting.
         for STAGE in $n_stage_list; do
-          OUTDIR="${RESULT_ROOT}/${T2}_${STUDENT}_a${SC_ALPHA}_s${STAGE}"
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          EXP_ID="${METHOD}_${T2}_vs_${T1}_${STUDENT}_s${STAGE}_a${SC_ALPHA}_${TIMESTAMP}"
+
+          OUTDIR="${RESULT_ROOT}/${EXP_ID}"
           mkdir -p "${OUTDIR}"
 
           CFG_TMP=$(generate_config)
@@ -137,6 +140,7 @@ run_loop() {
             --teacher2_bn_head_only ${teacher2_bn_head_only} \
             --student_freeze_level ${student_freeze_level} \
             --results_dir "${OUTDIR}" \
+            --exp_id "${EXP_ID}" \
             --seed 42 \
             --data_aug ${data_aug} \
             --mixup_alpha ${mixup_alpha} \
