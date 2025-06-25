@@ -214,20 +214,39 @@ def partial_freeze_teacher_auto(
 
 def partial_freeze_student_auto(
     model,
-    student_name="resnet_adapter", 
-    freeze_bn=True, 
+    student_name="resnet_adapter",
+    freeze_bn=True,
     freeze_ln=True,
     use_adapter=False,
-    freeze_scope=None
+    freeze_level=1,
 ):
     if student_name == "resnet_adapter":
-        partial_freeze_student_resnet(model, freeze_bn=freeze_bn, use_adapter=use_adapter, freeze_scope=freeze_scope)
+        partial_freeze_student_resnet(
+            model,
+            freeze_bn=freeze_bn,
+            use_adapter=use_adapter,
+            freeze_level=freeze_level,
+        )
     elif student_name == "efficientnet_adapter":
-        partial_freeze_student_efficientnet(model, freeze_bn=freeze_bn, use_adapter=use_adapter, freeze_scope=freeze_scope)
+        partial_freeze_student_efficientnet(
+            model,
+            freeze_bn=freeze_bn,
+            use_adapter=use_adapter,
+            freeze_level=freeze_level,
+        )
     elif student_name == "swin_adapter":
-        partial_freeze_student_swin(model, freeze_ln=freeze_ln, use_adapter=use_adapter, freeze_scope=freeze_scope)
+        partial_freeze_student_swin(
+            model,
+            freeze_ln=freeze_ln,
+            use_adapter=use_adapter,
+            freeze_level=freeze_level,
+        )
     else:
-        partial_freeze_student_resnet(model, freeze_bn=freeze_bn, freeze_scope=freeze_scope)
+        partial_freeze_student_resnet(
+            model,
+            freeze_bn=freeze_bn,
+            freeze_level=freeze_level,
+        )
 
 def main():
     # 1) parse args
@@ -415,8 +434,8 @@ def main():
             student_name=student_name,
             freeze_bn=cfg.get("student_freeze_bn", True),
             freeze_ln=cfg.get("student_freeze_ln", True),
-            freeze_scope=cfg.get("student_freeze_scope", None),
-            use_adapter=cfg.get("student_use_adapter", False)
+            use_adapter=cfg.get("student_use_adapter", False),
+            freeze_level=cfg.get("student_freeze_level", 1),
         )
 
     # Obtain and store student feature dimension
