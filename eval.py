@@ -15,6 +15,7 @@ from models.mbm import ManifoldBridgingModule, SynergyHead, build_from_teachers
 from models.la_mbm import LightweightAttnMBM
 from utils.logger import ExperimentLogger
 from utils.misc import set_random_seed, get_amp_components
+from main import create_student_by_name
 
 # Teacher Factory
 # Import the three teacher creation functions:
@@ -55,6 +56,8 @@ def parse_args():
     parser.add_argument("--teacher2_ckpt", type=str, default=None)
     parser.add_argument("--mbm_ckpt", type=str, default=None)
     parser.add_argument("--head_ckpt", type=str, default=None)
+    parser.add_argument("--student_type", type=str, default="resnet_adapter")
+    parser.add_argument("--student_ckpt", type=str, default=None)
 
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--device", type=str, default="cuda")
@@ -240,13 +243,31 @@ def main():
             )
             synergy_head.load_state_dict(head_ck)
 
+        # 5) student for LA MBM or optional synergy
+        student_name = cfg.get("student_type", "resnet_adapter")
+        student = create_student_by_name(
+            student_name,
+            pretrained=False,
+            small_input=small_input,
+            num_classes=n_classes,
+        ).to(device)
+
+        if cfg.get("student_ckpt"):
+            s_ck = torch.load(
+                cfg["student_ckpt"], map_location=device, weights_only=True
+            )
+            if "model_state" in s_ck:
+                student.load_state_dict(s_ck["model_state"])
+            else:
+                student.load_state_dict(s_ck)
+
         # synergy ensemble
         synergy_model = SynergyEnsemble(
             teacher1,
             teacher2,
             mbm,
             synergy_head,
-            student=None,
+            student=student,
             cfg=cfg,
         ).to(device)
 
