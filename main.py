@@ -108,6 +108,7 @@ def parse_args():
     parser.add_argument("--student_epochs_per_stage", type=int)
     parser.add_argument("--epochs",     type=int)            # 예: teacher_iters
     parser.add_argument("--results_dir", type=str)
+    parser.add_argument("--exp_id", type=str, default=None, help="Unique experiment ID")
     parser.add_argument("--seed", type=int, default=42)
 
     # optional fine-tune params
