@@ -151,6 +151,7 @@ run_loop() {
             --student_lr ${student_lr} \
             --batch_size ${batch_size} \
             --epochs ${student_iters} \
+            --student_freeze_level ${student_freeze_level} \
             --results_dir "${OUTDIR}" \
             --seed 42 \
             --data_aug ${data_aug} \
