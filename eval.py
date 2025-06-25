@@ -130,7 +130,7 @@ class SynergyEnsemble(nn.Module):
             feat_dict, _, _ = self.student(x)
             key = self.cfg.get("feat_kd_key", "feat_2d")
             s_feat = feat_dict[key]
-            fsyn, _ = self.mbm(s_feat, [f1_2d, f2_2d])
+            fsyn, _, _, _ = self.mbm(s_feat, [f1_2d, f2_2d])
         else:
             fsyn = self.mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
 

@@ -53,7 +53,7 @@ class LightweightAttnMBM(nn.Module):
         self,
         query_or_feats: Union[torch.Tensor, List[torch.Tensor]],
         feats_2d: Optional[List[torch.Tensor]] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]]:
         """Forward pass.
 
         Parameters
@@ -70,6 +70,10 @@ class LightweightAttnMBM(nn.Module):
             The fused feature.
         attn : Tensor
             Attention weights from the multi-head attention layer.
+        q : Tensor
+            Query tensor after projection.
+        attn_out : Tensor
+            Raw attention output before the final linear projection.
         """
 
         if isinstance(query_or_feats, list):
@@ -102,4 +106,4 @@ class LightweightAttnMBM(nn.Module):
         out = self.out_proj(attn_out.squeeze(1))
         if isinstance(query_or_feats, list):
             return out
-        return out, attn
+        return out, attn, q, attn_out.squeeze(1)
