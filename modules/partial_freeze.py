@@ -151,25 +151,15 @@ def partial_freeze_student_resnet(
     model: nn.Module,
     freeze_bn: bool = True,
     use_adapter: bool = False,
-    # 함수가 받는 인자 이름을 일부러 옛날 이름으로 되돌려서,
-    # 쉘 스크립트가 여전히 옛날 인자를 쓰고 있는지 확인합니다.
-    freeze_scope: str = "DEFAULT_VALUE_FOR_DEBUGGING",
+    freeze_level: int = 1,
 ):
-    """ResNet Student를 부분 동결합니다."""
-
-    # --- 이 디버깅 코드를 함수 맨 처음에 추가합니다 ---
-    print("\n" + "=" * 50)
-    print("!!! DEBUGGING partial_freeze_student_resnet !!!")
-    print(f"    Function received freeze_scope = '{freeze_scope}'")
-    print("=" * 50 + "\n")
-    # ----------------------------------------------------
-
+    """Partially freeze a ResNet101 student using a numeric level."""
     freeze_all(model)
 
     unfreeze_patterns = []
-    if freeze_scope == 0:  # only the classifier head
+    if freeze_level == 0:  # only the classifier head
         unfreeze_patterns.append(r"\.fc\.")
-    elif freeze_scope == 2:  # layer3 + layer4 + classifier
+    elif freeze_level == 2:  # layer3 + layer4 + classifier
         unfreeze_patterns.extend([r"\.layer3\.", r"\.layer4\.", r"\.fc\."])
     else:  # default & level 1 => layer4 + classifier
         unfreeze_patterns.extend([r"\.layer4\.", r"\.fc\."])
