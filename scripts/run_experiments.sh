@@ -5,6 +5,9 @@
 set -e
 export PYTHONPATH="$(pwd):${PYTHONPATH}"
 
+LOG_ID=${SLURM_JOB_ID:-$(date +%Y%m%d_%H%M%S)}
+mkdir -p logs
+
 BASE_CONFIG=${BASE_CONFIG:-configs/default.yaml}
 USE_CONDA=${USE_CONDA:-1}
 CONDA_ENV=${CONDA_ENV:-facil_env}
@@ -110,6 +113,8 @@ run_loop() {
           mkdir -p "${OUTDIR}"
 
           CFG_TMP=$(generate_config)
+          cp "$CFG_TMP" "${OUTDIR}/config.yaml"
+          cp "$CFG_TMP" "logs/asmb_${LOG_ID}_$(basename "$OUTDIR").yaml"
 
           if [ "$METHOD" = "asmb" ]; then
           python main.py \
@@ -172,6 +177,7 @@ run_sweep() {
 
       T_LR=${teacher_lr}
       CFG_TMP=$(generate_config)
+      cp "$CFG_TMP" "logs/asmb_${LOG_ID}_sweep_lr${teacher_lr}_a${sc_alpha}.yaml"
 
       python main.py \
         --config "${CFG_TMP}" \
