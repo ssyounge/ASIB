@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# scripts/run_single_teacher.py
 """Single-teacher KD runner."""
 import argparse
 import os
