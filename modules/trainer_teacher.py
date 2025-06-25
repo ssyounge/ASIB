@@ -1,12 +1,9 @@
 # modules/trainer_teacher.py
 
 import torch
-import torch.nn as nn
 import copy
 from utils.progress import smart_tqdm
 from models.la_mbm import LightweightAttnMBM
-import torch.optim as optim
-from torch.optim.lr_scheduler import CosineAnnealingLR, StepLR
 
 from modules.losses import kd_loss_fn, ce_loss_fn
 from utils.schedule import get_tau
@@ -72,6 +69,8 @@ def teacher_adaptive_update(
     testloader,
     cfg,
     logger,
+    optimizer,
+    scheduler,
     global_ep: int = 0,
 ):
     """
@@ -88,30 +87,7 @@ def teacher_adaptive_update(
     mbm_params = [p for p in mbm.parameters() if p.requires_grad]
     syn_params = [p for p in synergy_head.parameters() if p.requires_grad]
 
-    optimizer = optim.Adam(
-        [
-            {"params": teacher_params, "lr": cfg["teacher_lr"]},
-            {
-                "params": mbm_params,
-                "lr": cfg["teacher_lr"] * cfg.get("mbm_lr_factor", 1.0),
-            },
-            {
-                "params": syn_params,
-                "lr": cfg["teacher_lr"] * cfg.get("mbm_lr_factor", 1.0),
-            },
-        ],
-        weight_decay=cfg["teacher_weight_decay"],
-    )
-
     teacher_epochs = cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5))
-    if cfg.get("lr_schedule", "step") == "cosine":
-        scheduler = CosineAnnealingLR(optimizer, T_max=teacher_epochs)
-    else:
-        scheduler = StepLR(
-            optimizer,
-            step_size=cfg.get("teacher_step_size", 10),
-            gamma=cfg.get("teacher_gamma", 0.1),
-        )
 
 
     best_synergy = -1

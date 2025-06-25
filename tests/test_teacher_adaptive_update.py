@@ -91,6 +91,13 @@ def test_teacher_adaptive_update_preserves_freeze():
 
     frozen_before = [p.requires_grad for p in t1.frozen.parameters()]
 
+    params = [p for p in t1.parameters() if p.requires_grad]
+    params += [p for p in t2.parameters() if p.requires_grad]
+    params += [p for p in mbm.parameters() if p.requires_grad]
+    params += [p for p in head.parameters() if p.requires_grad]
+    opt = torch.optim.SGD(params, lr=0.1)
+    sched = torch.optim.lr_scheduler.StepLR(opt, step_size=1)
+
     teacher_adaptive_update(
         teacher_wrappers=[t1, t2],
         mbm=mbm,
@@ -100,6 +107,8 @@ def test_teacher_adaptive_update_preserves_freeze():
         testloader=None,
         cfg=cfg,
         logger=logger,
+        optimizer=opt,
+        scheduler=sched,
         global_ep=0,
     )
 
@@ -124,6 +133,13 @@ def test_teacher_adaptive_update_trains_modules():
     for m in [t1, t2, mbm, head, student]:
         m.eval()
 
+    params = [p for p in t1.parameters() if p.requires_grad]
+    params += [p for p in t2.parameters() if p.requires_grad]
+    params += [p for p in mbm.parameters() if p.requires_grad]
+    params += [p for p in head.parameters() if p.requires_grad]
+    opt = torch.optim.SGD(params, lr=0.1)
+    sched = torch.optim.lr_scheduler.StepLR(opt, step_size=1)
+
     teacher_adaptive_update(
         teacher_wrappers=[t1, t2],
         mbm=mbm,
@@ -133,6 +149,8 @@ def test_teacher_adaptive_update_trains_modules():
         testloader=None,
         cfg=cfg,
         logger=logger,
+        optimizer=opt,
+        scheduler=sched,
         global_ep=0,
     )
 
