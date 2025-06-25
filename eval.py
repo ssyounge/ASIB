@@ -12,6 +12,7 @@ import os
 
 from data.cifar100 import get_cifar100_loaders
 from models.mbm import ManifoldBridgingModule, SynergyHead, build_from_teachers
+from models.la_mbm import LightweightAttnMBM
 from utils.logger import ExperimentLogger
 from utils.misc import set_random_seed, get_amp_components
 
@@ -101,12 +102,15 @@ def evaluate_acc(model, loader, device="cuda", cfg=None):
 
 # Synergy Ensemble
 class SynergyEnsemble(nn.Module):
-    def __init__(self, teacher1, teacher2, mbm, synergy_head):
+    def __init__(self, teacher1, teacher2, mbm, synergy_head, student=None, cfg=None):
         super().__init__()
         self.teacher1 = teacher1
         self.teacher2 = teacher2
         self.mbm = mbm
         self.synergy_head = synergy_head
+        self.student = student
+        self.cfg = cfg or {}
+        self.la_mode = isinstance(mbm, LightweightAttnMBM) or self.cfg.get("mbm_type") == "LA"
 
     def forward(self, x):
         with torch.no_grad():
@@ -118,7 +122,15 @@ class SynergyEnsemble(nn.Module):
         f1_4d = f1_dict.get("feat_4d")
         f2_4d = f2_dict.get("feat_4d")
 
-        fsyn = self.mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
+        if self.la_mode:
+            assert self.student is not None, "student required for LA MBM"
+            feat_dict, _, _ = self.student(x)
+            key = self.cfg.get("feat_kd_key", "feat_2d")
+            s_feat = feat_dict[key]
+            fsyn, _ = self.mbm(s_feat, [f1_2d, f2_2d])
+        else:
+            fsyn = self.mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
+
         zsyn = self.synergy_head(fsyn)
         return zsyn
 
@@ -229,7 +241,14 @@ def main():
             synergy_head.load_state_dict(head_ck)
 
         # synergy ensemble
-        synergy_model = SynergyEnsemble(teacher1, teacher2, mbm, synergy_head).to(device)
+        synergy_model = SynergyEnsemble(
+            teacher1,
+            teacher2,
+            mbm,
+            synergy_head,
+            student=None,
+            cfg=cfg,
+        ).to(device)
 
         # evaluate
         train_acc = evaluate_acc(synergy_model, train_loader, device, cfg)
