@@ -83,9 +83,8 @@ def test_feature_kd_term_in_student_distill():
     }
 
     logger = DummyLogger()
-    opt = torch.optim.SGD(student.parameters(), lr=0.1)
 
-    student_distillation_update([t1, t2], mbm, head, student, loader, loader, cfg, logger, opt)
+    student_distillation_update([t1, t2], mbm, head, student, loader, loader, cfg, logger)
 
     ep_loss = logger.metrics["student_ep1_loss"]
 

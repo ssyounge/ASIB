@@ -87,12 +87,6 @@ def test_teacher_adaptive_update_preserves_freeze():
 
     cfg = {"device": "cpu", "synergy_ce_alpha": 0.1, "teacher_iters": 1}
 
-    params = []
-    for m in [t1, t2, mbm, head]:
-        for p in m.parameters():
-            if p.requires_grad:
-                params.append(p)
-    opt = torch.optim.SGD(params, lr=0.1)
     logger = DummyLogger()
 
     frozen_before = [p.requires_grad for p in t1.frozen.parameters()]
@@ -106,8 +100,6 @@ def test_teacher_adaptive_update_preserves_freeze():
         testloader=None,
         cfg=cfg,
         logger=logger,
-        optimizer=opt,
-        scheduler=None,
         global_ep=0,
     )
 
@@ -126,12 +118,6 @@ def test_teacher_adaptive_update_trains_modules():
 
     cfg = {"device": "cpu", "synergy_ce_alpha": 0.1, "teacher_iters": 1}
 
-    params = []
-    for m in [t1, t2, mbm, head]:
-        for p in m.parameters():
-            if p.requires_grad:
-                params.append(p)
-    opt = torch.optim.SGD(params, lr=0.1)
     logger = DummyLogger()
 
     # start all modules in eval mode
@@ -147,8 +133,6 @@ def test_teacher_adaptive_update_trains_modules():
         testloader=None,
         cfg=cfg,
         logger=logger,
-        optimizer=opt,
-        scheduler=None,
         global_ep=0,
     )
 

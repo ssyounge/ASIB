@@ -64,12 +64,11 @@ def test_teachers_are_eval_during_distill():
     cfg = {"device": "cpu", "ce_alpha": 1.0, "kd_alpha": 1.0, "student_iters": 1}
 
     logger = DummyLogger()
-    opt = torch.optim.SGD(student.parameters(), lr=0.1)
 
     t1.train()
     t2.train()
 
-    student_distillation_update([t1, t2], mbm, head, student, loader, loader, cfg, logger, opt)
+    student_distillation_update([t1, t2], mbm, head, student, loader, loader, cfg, logger)
 
     assert t1.record_training is False
     assert t2.record_training is False
