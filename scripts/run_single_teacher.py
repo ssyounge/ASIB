@@ -165,6 +165,7 @@ def main():
         weight_decay=cfg.get("weight_decay", cfg.get("student_weight_decay", 1e-4)),
         epochs=cfg.get("epochs", 10),
         device=device,
+        cfg=cfg,
     )
 
     os.makedirs(cfg.get("results_dir", "results"), exist_ok=True)

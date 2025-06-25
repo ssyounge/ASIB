@@ -63,7 +63,8 @@ class VanillaKDDistiller(nn.Module):
         lr=1e-3,
         weight_decay=1e-4,
         epochs=10,
-        device="cuda"
+        device="cuda",
+        cfg=None,
     ):
         """
         Basic KD training loop:
@@ -71,12 +72,30 @@ class VanillaKDDistiller(nn.Module):
           - Evaluate optionally each epoch
         """
         self.to(device)
-        optimizer = optim.SGD(
+
+        if cfg is not None:
+            lr = cfg.get("student_lr", lr)
+            weight_decay = cfg.get("student_weight_decay", weight_decay)
+            lr_schedule = cfg.get("lr_schedule", "cosine")
+            step_size = cfg.get("student_step_size", 10)
+            gamma = cfg.get("student_gamma", 0.1)
+        else:
+            lr_schedule = "cosine"
+            step_size = 10
+            gamma = 0.1
+
+        optimizer = optim.AdamW(
             self.student.parameters(),
             lr=lr,
-            momentum=0.9,
-            weight_decay=weight_decay
+            weight_decay=weight_decay,
+            betas=(0.9, 0.999),
+            eps=1e-8,
         )
+
+        if lr_schedule == "cosine":
+            scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+        else:
+            scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
 
         best_acc = 0.0
         best_state = None
@@ -95,10 +114,13 @@ class VanillaKDDistiller(nn.Module):
                 loss.backward()
                 optimizer.step()
 
+
                 total_loss += loss.item() * x.size(0)
                 total_num  += x.size(0)
 
             avg_loss = total_loss / total_num
+
+            scheduler.step()
 
             if test_loader is not None:
                 acc = self.evaluate(test_loader, device)
