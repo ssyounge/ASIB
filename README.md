@@ -37,6 +37,8 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
   student features used as the attention query in `LightweightAttnMBM`.
   When omitted or set to `0`, the script automatically falls back to the
   feature dimension reported by the student model (if available).
+  The MBM output dimension (`mbm_out_dim`) now defaults to this student
+  feature size as well.
   Common student feature dimensions are:
 
   | Student model                | Feature dim |
@@ -203,7 +205,7 @@ Baseline runs (e.g., `vanilla_kd`) produce their own logs such as `VanillaKD => 
 python main.py --config configs/partial_freeze.yaml --device cuda \
   --teacher1_ckpt teacher1.pth --teacher2_ckpt teacher2.pth \
   --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 1
-  # mbm_query_dim is automatically set to the student feature dimension
+  # mbm_query_dim and mbm_out_dim are automatically set to the student feature dimension
         •       Adjust partial-freeze or architecture settings in `configs/*.yaml`.
         •       Edit `configs/hparams.yaml` to change numeric hyperparameters like learning rates or dropout.
         •       Set `LR_SCHEDULE` to "step" or "cosine" to choose the learning rate scheduler.
@@ -254,7 +256,7 @@ python eval.py --eval_mode synergy \
   --mbm_ckpt mbm.pth \
   --head_ckpt synergy_head.pth \
   --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 1
-  # mbm_query_dim is automatically set to the student feature dimension
+  # mbm_query_dim and mbm_out_dim are automatically set to the student feature dimension
 
 	•	Prints Train/Test accuracy, optionally logs to CSV if configured.
 

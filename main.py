@@ -419,6 +419,13 @@ def main():
             use_adapter=cfg.get("student_use_adapter", False)
         )
 
+    # Obtain and store student feature dimension
+    if hasattr(student_model, "get_feat_dim"):
+        feat_dim = student_model.get_feat_dim()
+        cfg["mbm_out_dim"] = feat_dim
+        logger.update_metric("mbm_out_dim", feat_dim)
+        print(f"[Info] mbm_out_dim set to student feature dimension {feat_dim}")
+
     # Validate or infer MBM query dimension
     mbm_query_dim = cfg.get("mbm_query_dim", 0)
     if cfg.get("mbm_type", "MLP") == "LA" and mbm_query_dim <= 0:
