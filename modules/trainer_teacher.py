@@ -41,8 +41,9 @@ def eval_synergy(
             t1_dict = teacher_wrappers[0](x)
             t2_dict = teacher_wrappers[1](x)
 
-            f1_2d = t1_dict["feat_2d"]
-            f2_2d = t2_dict["feat_2d"]
+            key = "distill_feat" if (cfg or {}).get("use_distillation_adapter", False) else "feat_2d"
+            f1_2d = t1_dict[key]
+            f2_2d = t2_dict[key]
             f1_4d = t1_dict.get("feat_4d")
             f2_4d = t2_dict.get("feat_4d")
 
@@ -80,8 +81,14 @@ def teacher_adaptive_update(
     - ``testloader``: optional loader used to evaluate synergy accuracy.
     """
     teacher_params = []
+    use_da = cfg.get("use_distillation_adapter", False)
     for tw in teacher_wrappers:
-        for p in tw.parameters():
+        param_src = (
+            tw.distillation_adapter.parameters()
+            if use_da and hasattr(tw, "distillation_adapter")
+            else tw.parameters()
+        )
+        for p in param_src:
             if p.requires_grad:
                 teacher_params.append(p)
     mbm_params = [p for p in mbm.parameters() if p.requires_grad]
@@ -129,9 +136,10 @@ def teacher_adaptive_update(
                 # (B) Teacher features
                 feats_2d = []
                 feats_4d = []
+                feat_key = "distill_feat" if cfg.get("use_distillation_adapter", False) else "feat_2d"
                 for tw in teacher_wrappers:
                     t_dict = tw(x)
-                    feats_2d.append(t_dict["feat_2d"])
+                    feats_2d.append(t_dict[feat_key])
                     feats_4d.append(t_dict.get("feat_4d"))
 
                 # (C) MBM + synergy_head

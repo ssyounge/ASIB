@@ -3,6 +3,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from .adapters import DistillationAdapter
 from torchvision.models import efficientnet_b2, EfficientNet_B2_Weights
 
 class TeacherEfficientNetWrapper(nn.Module):
@@ -23,6 +24,10 @@ class TeacherEfficientNetWrapper(nn.Module):
         # 추가: EffNet-B2의 글로벌 피처 차원(1408)
         self.feat_dim = 1408
         self.feat_channels = 1408
+
+        # distillation adapter
+        self.distillation_adapter = DistillationAdapter(self.feat_dim)
+        self.distill_dim = self.distillation_adapter.out_dim
     
     def forward(self, x, y=None):
         # 1) 4D feature from backbone.features
@@ -36,6 +41,9 @@ class TeacherEfficientNetWrapper(nn.Module):
         # 3) feat_2d: f4d를 adaptive pooling => flatten
         fpool = F.adaptive_avg_pool2d(f4d, (1,1)).flatten(1)  # [N, 1408]
 
+        # distillation adapter feature
+        distill_feat = self.distillation_adapter(fpool)
+
         # (optional) CE loss
         ce_loss = None
         if y is not None:
@@ -45,6 +53,7 @@ class TeacherEfficientNetWrapper(nn.Module):
         return {
             "feat_4d": f4d,       # [N, 1408, h, w]
             "feat_2d": fpool,     # [N, 1408]
+            "distill_feat": distill_feat,
             "logit": logit,
             "ce_loss": ce_loss,
         }
