@@ -200,6 +200,7 @@ def partial_freeze_teacher_auto(
     use_adapter=False,
     bn_head_only=False,
     freeze_level=1,
+    train_distill_adapter_only=False,
 ):
     if teacher_name == "resnet101" or teacher_name == "resnet152":
         partial_freeze_teacher_resnet(
@@ -208,6 +209,7 @@ def partial_freeze_teacher_auto(
             use_adapter=use_adapter,
             bn_head_only=bn_head_only,
             freeze_level=freeze_level,
+            train_distill_adapter_only=train_distill_adapter_only,
         )
     elif teacher_name == "efficientnet_b2":
         partial_freeze_teacher_efficientnet(
@@ -216,6 +218,7 @@ def partial_freeze_teacher_auto(
             use_adapter=use_adapter,
             bn_head_only=bn_head_only,
             freeze_level=freeze_level,
+            train_distill_adapter_only=train_distill_adapter_only,
         )
     elif teacher_name == "swin_tiny":
         partial_freeze_teacher_swin(
@@ -223,6 +226,7 @@ def partial_freeze_teacher_auto(
             freeze_ln=freeze_ln,
             use_adapter=use_adapter,
             freeze_level=freeze_level,
+            train_distill_adapter_only=train_distill_adapter_only,
         )
     else:
         raise ValueError(f"[partial_freeze_teacher_auto] Unknown teacher_name={teacher_name}")
@@ -343,7 +347,8 @@ def main():
             freeze_ln=cfg.get("teacher1_freeze_ln", True),
             use_adapter=cfg.get("teacher1_use_adapter", False),
             bn_head_only=cfg.get("teacher1_bn_head_only", False),
-            freeze_level=cfg.get("teacher1_freeze_level", 1)
+            freeze_level=cfg.get("teacher1_freeze_level", 1),
+            train_distill_adapter_only=cfg.get("use_distillation_adapter", False),
         )
 
     teacher2 = create_teacher_by_name(
@@ -366,7 +371,8 @@ def main():
             freeze_ln=cfg.get("teacher2_freeze_ln", True),
             use_adapter=cfg.get("teacher2_use_adapter", False),
             bn_head_only=cfg.get("teacher2_bn_head_only", False),
-            freeze_level=cfg.get("teacher2_freeze_level", 1)
+            freeze_level=cfg.get("teacher2_freeze_level", 1),
+            train_distill_adapter_only=cfg.get("use_distillation_adapter", False),
         )
 
     # optional fine-tuning of teachers before ASMB stages
@@ -497,8 +503,14 @@ def main():
     num_stages = cfg.get("num_stages", 2)
 
     teacher_params = []
+    use_da = cfg.get("use_distillation_adapter", False)
     for tw in teacher_wrappers:
-        for p in tw.parameters():
+        src = (
+            tw.distillation_adapter.parameters()
+            if use_da and hasattr(tw, "distillation_adapter")
+            else tw.parameters()
+        )
+        for p in src:
             if p.requires_grad:
                 teacher_params.append(p)
     mbm_params = [p for p in mbm.parameters() if p.requires_grad]
