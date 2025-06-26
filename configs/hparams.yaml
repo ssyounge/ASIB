@@ -73,6 +73,7 @@ teacher_adapt_epochs: 5
 teacher_adapt_alpha_kd: 1.0
 mbm_lr_factor: 1.0
 synergy_ce_alpha: 0.3
+use_distillation_adapter: false
 
 # Feature KD
 feat_kd_alpha: 1.0
