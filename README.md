@@ -233,7 +233,7 @@ python main.py --config configs/partial_freeze.yaml --device cuda \
 
 ```bash
 python scripts/run_single_teacher.py --config configs/default.yaml \
-  --method vanilla_kd --teacher_type resnet101 --teacher_ckpt teacher.pth \
+  --method vanilla_kd --teacher_type resnet152 --teacher_ckpt teacher.pth \
   --student_type resnet_adapter --epochs 40 \
   --dataset imagenet100
 ```
@@ -365,7 +365,7 @@ Alternatively edit the YAML file used by `scripts/fine_tuning.py`:
 
 ```yaml
 # configs/hparams.yaml
-teacher_type: resnet101
+teacher_type: resnet152
 finetune_epochs: 100
 finetune_lr: 0.0005
 finetune_use_cutmix: false
@@ -377,7 +377,7 @@ teachers. The default value is **0.3**. You can override it on the command line:
 
 ```bash
 python scripts/fine_tuning.py --config configs/hparams.yaml \
-  --teacher_type resnet101 --dropout_p 0.5
+  --teacher_type resnet152 --dropout_p 0.5
 ```
 
 For partial freezing with EfficientNet, a new freeze scope

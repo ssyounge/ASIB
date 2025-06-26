@@ -268,7 +268,7 @@ def partial_freeze_student_swin(
 
 def freeze_teacher_params(
     model: nn.Module,
-    teacher_name: str = "resnet101",
+    teacher_name: str = "resnet152",
     freeze_bn: bool = True,
     freeze_ln: bool = True,
     use_adapter: bool = False,
@@ -276,7 +276,7 @@ def freeze_teacher_params(
     freeze_level: int = 1,
 ) -> None:
     """Wrapper that partially freezes a teacher model by type."""
-    if teacher_name == "resnet101":
+    if teacher_name in ("resnet101", "resnet152"):
         partial_freeze_teacher_resnet(
             model,
             freeze_bn=freeze_bn,

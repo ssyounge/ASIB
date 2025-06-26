@@ -3,7 +3,12 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchvision.models import resnet101, ResNet101_Weights
+from torchvision.models import (
+    resnet101,
+    ResNet101_Weights,
+    resnet152,
+    ResNet152_Weights,
+)
 
 class TeacherResNetWrapper(nn.Module):
     """
@@ -80,6 +85,24 @@ def create_resnet101(num_classes=100, pretrained=True, small_input=False):
 
     if small_input:
         # 32x32 input 등에 맞게 3x3 conv + stride1, maxpool 제거
+        model.conv1 = nn.Conv2d(3, 64, 3, stride=1, padding=1, bias=False)
+        model.maxpool = nn.Identity()
+
+    in_feats = model.fc.in_features
+    model.fc = nn.Linear(in_feats, num_classes)
+
+    teacher_model = TeacherResNetWrapper(model)
+    return teacher_model
+
+
+def create_resnet152(num_classes=100, pretrained=True, small_input=False):
+    """Create a ResNet152 teacher wrapped with ``TeacherResNetWrapper``."""
+    if pretrained:
+        model = resnet152(weights=ResNet152_Weights.IMAGENET1K_V2)
+    else:
+        model = resnet152(weights=None)
+
+    if small_input:
         model.conv1 = nn.Conv2d(3, 64, 3, stride=1, padding=1, bias=False)
         model.maxpool = nn.Identity()
 
