@@ -37,6 +37,12 @@ def kd_loss_fn(student_logits, teacher_logits, T=4.0, reduction="batchmean"):
 
     Returns scalar tensor (KD loss).
     """
+    # average spatial dimensions if present
+    if student_logits.dim() > 2:
+        student_logits = student_logits.mean(dim=tuple(range(2, student_logits.dim())))
+    if teacher_logits.dim() > 2:
+        teacher_logits = teacher_logits.mean(dim=tuple(range(2, teacher_logits.dim())))
+
     # student prob (with log) under temperature
     s_log_probs = F.log_softmax(student_logits / T, dim=1)
     # teacher prob under temperature
