@@ -37,6 +37,11 @@ def kd_loss_fn(student_logits, teacher_logits, T=4.0, reduction="batchmean"):
 
     Returns scalar tensor (KD loss).
     """
+    if student_logits.shape != teacher_logits.shape:
+        raise ValueError(
+            f"Mismatched logit shapes: student {student_logits.shape} vs teacher {teacher_logits.shape}"
+        )
+
     # student prob (with log) under temperature
     s_log_probs = F.log_softmax(student_logits / T, dim=1)
     # teacher prob under temperature
