@@ -35,7 +35,7 @@ from modules.partial_freeze import (
 )
 
 # Teacher creation (factory):
-from models.teachers.teacher_resnet import create_resnet101
+from models.teachers.teacher_resnet import create_resnet101, create_resnet152
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from models.teachers.teacher_swin import create_swin_t
 
@@ -168,6 +168,9 @@ def load_config(cfg_path):
 def create_teacher_by_name(teacher_name, num_classes=100, pretrained=True, small_input=False):
     if teacher_name == "resnet101":
         return create_resnet101(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
+    elif teacher_name == "resnet152":
+        from models.teachers.teacher_resnet import create_resnet152
+        return create_resnet152(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
     elif teacher_name == "efficientnet_b2":
         return create_efficientnet_b2(
             num_classes=num_classes,
@@ -188,7 +191,7 @@ def partial_freeze_teacher_auto(
     bn_head_only=False,
     freeze_level=1,
 ):
-    if teacher_name == "resnet101":
+    if teacher_name == "resnet101" or teacher_name == "resnet152":
         partial_freeze_teacher_resnet(
             model,
             freeze_bn=freeze_bn,
@@ -307,7 +310,7 @@ def main():
         small_input = dataset == "cifar100"
 
     # 4) Create teacher1, teacher2
-    teacher1_type = cfg.get("teacher1_type", "resnet101")
+    teacher1_type = cfg.get("teacher1_type", "resnet152")
     teacher2_type = cfg.get("teacher2_type", "efficientnet_b2")
 
     teacher1 = create_teacher_by_name(
