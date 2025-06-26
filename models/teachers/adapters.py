@@ -1,10 +1,16 @@
 import torch
 import torch.nn as nn
+from typing import Optional
 
 class DistillationAdapter(nn.Module):
     """Simple MLP used to refine teacher features for distillation."""
 
-    def __init__(self, in_dim: int, hidden_dim: int | None = None, out_dim: int | None = None) -> None:
+    def __init__(
+        self,
+        in_dim: int,
+        hidden_dim: Optional[int] = None,
+        out_dim: Optional[int] = None,
+    ) -> None:
         super().__init__()
         if hidden_dim is None:
             hidden_dim = max(1, in_dim // 2)
