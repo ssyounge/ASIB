@@ -12,7 +12,7 @@ small_input: true
 deterministic: true
 
 # Teacher defaults
-teacher_type: "resnet101"
+teacher_type: "resnet152"
 finetune_partial_freeze: false
 efficientnet_dropout: 0.3
 
