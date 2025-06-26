@@ -121,7 +121,7 @@ def main():
         small_input = dataset == "cifar100"
 
     teacher = create_teacher_by_name(
-        cfg.get("teacher_type", "resnet101"),
+        cfg.get("teacher_type", "resnet152"),
         pretrained=cfg.get("teacher_pretrained", True),
         small_input=small_input,
         num_classes=num_classes,
@@ -131,7 +131,7 @@ def main():
     if cfg.get("use_partial_freeze", True):
         partial_freeze_teacher_auto(
             teacher,
-            cfg.get("teacher_type", "resnet101"),
+            cfg.get("teacher_type", "resnet152"),
             freeze_bn=cfg.get("teacher_freeze_bn", True),
             freeze_ln=cfg.get("teacher_freeze_ln", True),
             use_adapter=cfg.get("teacher_use_adapter", False),
