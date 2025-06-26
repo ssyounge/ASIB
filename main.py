@@ -59,6 +59,16 @@ def create_student_by_name(
             small_input=small_input,
         )
 
+    elif student_name == "resnet152_adapter":
+        from models.students.student_resnet152_adapter import (
+            create_resnet152_with_extended_adapter,
+        )
+        return create_resnet152_with_extended_adapter(
+            pretrained=pretrained,
+            num_classes=num_classes,
+            small_input=small_input,
+        )
+
     elif student_name == "efficientnet_adapter":
         from models.students.student_efficientnet_adapter import (
             create_efficientnet_b2_with_adapter,
