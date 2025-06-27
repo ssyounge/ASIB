@@ -97,7 +97,13 @@ def build_from_teachers(
     cfg: dict,
     query_dim: Optional[int] = None,
 ) -> Tuple[ManifoldBridgingModule, SynergyHead]:
-    feat_dims = [t.get_feat_dim() for t in teachers]
+    use_da = bool(cfg.get("use_distillation_adapter", False))
+    feat_dims = []
+    for t in teachers:
+        if use_da and hasattr(t, "distill_dim"):
+            feat_dims.append(getattr(t, "distill_dim"))
+        else:
+            feat_dims.append(t.get_feat_dim())
     in_dim = sum(feat_dims)
 
     use_4d = bool(cfg.get("mbm_use_4d", False))
