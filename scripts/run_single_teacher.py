@@ -127,7 +127,10 @@ def main():
         num_classes=num_classes,
     ).to(device)
     if cfg.get("teacher_ckpt"):
-        teacher.load_state_dict(torch.load(cfg["teacher_ckpt"], map_location=device, weights_only=True))
+        teacher.load_state_dict(
+            torch.load(cfg["teacher_ckpt"], map_location=device, weights_only=True),
+            strict=False,
+        )
     if cfg.get("use_partial_freeze", True):
         partial_freeze_teacher_auto(
             teacher,
@@ -146,7 +149,10 @@ def main():
         num_classes=num_classes,
     ).to(device)
     if cfg.get("student_ckpt"):
-        student.load_state_dict(torch.load(cfg["student_ckpt"], map_location=device, weights_only=True))
+        student.load_state_dict(
+            torch.load(cfg["student_ckpt"], map_location=device, weights_only=True),
+            strict=False,
+        )
     if cfg.get("use_partial_freeze", True):
         partial_freeze_student_auto(
             student,

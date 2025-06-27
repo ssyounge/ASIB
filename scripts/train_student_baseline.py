@@ -62,7 +62,10 @@ def train_student_ce(
 
     if os.path.exists(ckpt_path):
         print(f"[StudentCE] Found checkpoint => load {ckpt_path}")
-        student_model.load_state_dict(torch.load(ckpt_path, weights_only=True))
+        student_model.load_state_dict(
+            torch.load(ckpt_path, map_location=device, weights_only=True),
+            strict=False,
+        )
         test_acc = eval_teacher(student_model, test_loader, device=device, cfg=cfg)
         print(f"[StudentCE] loaded => testAcc={test_acc:.2f}")
         return test_acc
@@ -143,7 +146,8 @@ def main():
     ).to(device)
     if cfg.get("student_ckpt"):
         student.load_state_dict(
-            torch.load(cfg["student_ckpt"], map_location=device, weights_only=True)
+            torch.load(cfg["student_ckpt"], map_location=device, weights_only=True),
+            strict=False,
         )
 
     partial_freeze_student_auto(

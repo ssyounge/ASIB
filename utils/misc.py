@@ -52,7 +52,7 @@ def load_checkpoint(model, optimizer, load_path):
         return 0  # or -1, indicating failure
 
     ckpt = torch.load(load_path)
-    model.load_state_dict(ckpt["model_state"])
+    model.load_state_dict(ckpt["model_state"], strict=False)
     optimizer.load_state_dict(ckpt["optim_state"])
     start_epoch = ckpt["epoch"]
     return start_epoch
