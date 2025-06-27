@@ -33,6 +33,8 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 
   The same values can be overridden via CLI using
   `--feat_kd_alpha 1.0 --feat_kd_key feat_2d --feat_kd_norm none`.
+- **Hybrid Guidance**: set `hybrid_beta` (>0) to blend vanilla KD from the
+  average teacher logits with the default ASMB loss.
 - **Custom MBM Query Dim**: `mbm_query_dim` controls the dimension of the
   student features used as the attention query in `LightweightAttnMBM`.
   When omitted or set to `0`, the script automatically falls back to the
