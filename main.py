@@ -442,6 +442,16 @@ def main():
                 ckpt_path=ckpt2,
             )
 
+    # Evaluate teacher performance before distillation begins
+    from modules.cutmix_finetune_teacher import eval_teacher
+
+    te1_acc = eval_teacher(teacher1, test_loader, device=device, cfg=cfg)
+    te2_acc = eval_teacher(teacher2, test_loader, device=device, cfg=cfg)
+    print(f"[Main] Teacher1 ({teacher1_type}) testAcc={te1_acc:.2f}%")
+    print(f"[Main] Teacher2 ({teacher2_type}) testAcc={te2_acc:.2f}%")
+    logger.update_metric("teacher1_test_acc", te1_acc)
+    logger.update_metric("teacher2_test_acc", te2_acc)
+
     # 5) Student
     student_name  = cfg.get("student_type", "resnet_adapter")   # e.g. resnet_adapter / efficientnet_adapter / swin_adapter
     student_model = create_student_by_name(
