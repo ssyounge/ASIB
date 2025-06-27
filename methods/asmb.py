@@ -345,6 +345,7 @@ class ASMBDistiller(nn.Module):
          - Freeze teacher + MBM
          - Student upper layers만 업데이트
          - CE + KL(student vs synergy)
+         - Optional vanilla KD blending when ``hybrid_beta > 0``
         """
         # freeze teacher
         self.teacher1.eval()
@@ -400,6 +401,10 @@ class ASMBDistiller(nn.Module):
                 # KL
                 kd_val = kd_loss_fn(s_logit, zsyn, T=cur_tau)
 
+                # vanilla KD using teacher logits
+                avg_t_logit = 0.5 * (t1["logit"] + t2["logit"])
+                kd_vanilla = kd_loss_fn(s_logit, avg_t_logit, T=cur_tau)
+
                 feat_loss = torch.tensor(0.0, device=s_feat.device)
                 if self.feat_kd_alpha > 0:
                     feat_loss = F.mse_loss(
@@ -407,11 +412,13 @@ class ASMBDistiller(nn.Module):
                         syn_feat.detach().view(s_feat.size(0), -1),
                     )
 
-                loss = (
+                loss_asmb = (
                     self.alpha * ce_val
                     + (1 - self.alpha) * kd_val
                     + self.feat_kd_alpha * feat_loss
                 )
+                beta = self.config.get("hybrid_beta", 0.0)
+                loss = (1 - beta) * loss_asmb + beta * kd_vanilla
 
                 if logger is not None and attn is not None:
                     logger.debug(f"attn_mean={attn.mean().item():.4f}")
