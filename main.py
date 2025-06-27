@@ -336,7 +336,10 @@ def main():
 
     if cfg.get("teacher1_ckpt"):
         teacher1.load_state_dict(
-            torch.load(cfg["teacher1_ckpt"], map_location=device, weights_only=True)
+            torch.load(
+                cfg["teacher1_ckpt"], map_location=device, weights_only=True
+            ),
+            strict=False,
         )
         print(f"[Main] Loaded teacher1 from {cfg['teacher1_ckpt']}")
 
@@ -360,7 +363,10 @@ def main():
 
     if cfg.get("teacher2_ckpt"):
         teacher2.load_state_dict(
-            torch.load(cfg["teacher2_ckpt"], map_location=device, weights_only=True)
+            torch.load(
+                cfg["teacher2_ckpt"], map_location=device, weights_only=True
+            ),
+            strict=False,
         )
         print(f"[Main] Loaded teacher2 from {cfg['teacher2_ckpt']}")
 
@@ -447,7 +453,10 @@ def main():
 
     if cfg.get("student_ckpt"):
         student_model.load_state_dict(
-            torch.load(cfg["student_ckpt"], map_location=device, weights_only=True)
+            torch.load(
+                cfg["student_ckpt"], map_location=device, weights_only=True
+            ),
+            strict=False,
         )
         print(f"[Main] Loaded student from {cfg['student_ckpt']}")
 
