@@ -16,6 +16,17 @@ class DummyBackbone(torch.nn.Module):
         return x
 
 
+class TokenBackbone(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        # expects pooled dim of 3
+        self.head = torch.nn.Linear(3, 2)
+
+    def forward_features(self, x):
+        # return token tensor [N, L, C]
+        return x
+
+
 def test_forward_outputs_feature_keys():
     backbone = DummyBackbone()
     wrapper = TeacherSwinWrapper(backbone)
@@ -25,4 +36,14 @@ def test_forward_outputs_feature_keys():
 
     assert "feat_4d" in out
     assert "feat_2d" in out
+
+
+def test_forward_accepts_token_tensor():
+    token_backbone = TokenBackbone()
+    wrapper = TeacherSwinWrapper(token_backbone)
+    x = torch.randn(2, 4, 3)  # [N, L, C]
+
+    out = wrapper(x)
+
+    assert out["feat_2d"].shape[1] == 3
 

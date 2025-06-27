@@ -31,13 +31,25 @@ class TeacherSwinWrapper(nn.Module):
         # use gradients so that Swin parameters remain trainable during
         # teacher adaptation
         if hasattr(self.backbone, "forward_features"):
-            f4d = self.backbone.forward_features(x)  # [N, C, H, W]
+            f4d = self.backbone.forward_features(x)
         elif hasattr(self.backbone, "features"):
-            f4d = self.backbone.features(x)  # [N, C, H, W]
+            f4d = self.backbone.features(x)
         else:
             raise AttributeError(
                 "Backbone model must implement forward_features or features"
             )
+
+        # ``forward_features`` may return either a 4D tensor ``[N, C, H, W]`` or
+        # a token tensor ``[N, L, C]`` depending on the Swin implementation.
+        # Convert all cases to ``[N, C, H, W]`` so the pooling below works
+        # consistently.
+        if f4d.dim() == 3:  # [N, L, C]
+            b, l, c = f4d.shape
+            h = int(l**0.5)
+            w = l // h
+            f4d = f4d.permute(0, 2, 1).reshape(b, c, h, w)
+        elif f4d.dim() == 2:  # [N, C]
+            f4d = f4d[:, :, None, None]
 
         # 2) global pool => 2D
         f2d = F.adaptive_avg_pool2d(f4d, (1,1)).flatten(1)  # [N, C]
