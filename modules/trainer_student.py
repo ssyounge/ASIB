@@ -97,8 +97,13 @@ def student_distillation_update(
                     t1_dict = teacher_wrappers[0](x_mixed)
                     t2_dict = teacher_wrappers[1](x_mixed)
 
-                    f1_2d = t1_dict["feat_2d"]
-                    f2_2d = t2_dict["feat_2d"]
+                    feat_key = (
+                        "distill_feat"
+                        if cfg.get("use_distillation_adapter", False)
+                        else "feat_2d"
+                    )
+                    f1_2d = t1_dict[feat_key]
+                    f2_2d = t2_dict[feat_key]
                     f1_4d = t1_dict.get("feat_4d")
                     f2_4d = t2_dict.get("feat_4d")
 
