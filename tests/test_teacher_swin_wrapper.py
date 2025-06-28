@@ -16,6 +16,16 @@ class DummyBackbone(torch.nn.Module):
         return x
 
 
+class Dummy2DBackbone(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.head = torch.nn.Linear(1, 2)
+
+    def forward_features(self, x):
+        # return a pooled 2D feature
+        return x.mean(dim=(2, 3))
+
+
 def test_forward_outputs_feature_keys():
     backbone = DummyBackbone()
     wrapper = TeacherSwinWrapper(backbone)
@@ -25,4 +35,17 @@ def test_forward_outputs_feature_keys():
 
     assert "feat_4d" in out
     assert "feat_2d" in out
+
+
+def test_forward_accepts_2d_output():
+    backbone = Dummy2DBackbone()
+    wrapper = TeacherSwinWrapper(backbone)
+    x = torch.randn(2, 1, 2, 2)
+
+    out = wrapper(x)
+
+    assert out["feat_4d"].dim() == 4
+    expected_f2d = x.mean(dim=(2, 3))
+    assert torch.allclose(out["feat_2d"], expected_f2d)
+    assert out["feat_4d"].shape == (*expected_f2d.shape, 1, 1)
 
