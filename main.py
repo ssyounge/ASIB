@@ -118,6 +118,7 @@ def parse_args():
     parser.add_argument("--student_epochs_per_stage", type=int)
     parser.add_argument("--epochs",     type=int)            # 예: teacher_iters
     parser.add_argument("--results_dir", type=str)
+    parser.add_argument("--ckpt_dir", type=str, default=None)
     parser.add_argument("--exp_id", type=str, default=None, help="Unique experiment ID")
     parser.add_argument("--seed", type=int, default=42)
 
@@ -634,8 +635,9 @@ def main():
         logger.update_metric(f"stage{stage_id}_student_acc", final_acc)
 
     # 8) save final
-    student_ckpt_path = f"{cfg['results_dir']}/final_student_asmb.pth"
-    os.makedirs(os.path.dirname(student_ckpt_path), exist_ok=True)
+    ckpt_dir = cfg.get("ckpt_dir", cfg["results_dir"])
+    os.makedirs(ckpt_dir, exist_ok=True)
+    student_ckpt_path = os.path.join(ckpt_dir, "student_final.pth")
     torch.save(student_model.state_dict(), student_ckpt_path)
     print(f"[main] Distillation done => {student_ckpt_path}")
     logger.update_metric("final_student_ckpt", student_ckpt_path)
