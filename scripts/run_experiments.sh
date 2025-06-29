@@ -6,7 +6,7 @@ set -e
 export PYTHONPATH="$(pwd):${PYTHONPATH}"
 
 LOG_ID=${SLURM_JOB_ID:-$(date +%Y%m%d_%H%M%S)}
-mkdir -p logs
+OUTPUT_DIR=""
 
 BASE_CONFIG=${BASE_CONFIG:-configs/default.yaml}
 USE_CONDA=${USE_CONDA:-1}
@@ -78,9 +78,9 @@ run_loop() {
   source <(python scripts/load_hparams.py configs/hparams.yaml)
   source <(python scripts/load_hparams.py configs/partial_freeze.yaml)
   METHOD_LIST="${method_list:-$method}"
-  mkdir -p checkpoints results
-  RESULT_ROOT="results/$(date +%Y%m%d_%H%M%S)"
-  mkdir -p "${RESULT_ROOT}"
+  OUTPUT_DIR=${OUTPUT_DIR:-results/$(date +%Y%m%d_%H%M%S)}
+  mkdir -p "${OUTPUT_DIR}/checkpoints"
+  RESULT_ROOT="${OUTPUT_DIR}"
 
   local T1=${TEACHER1_TYPE:-resnet152}
   for METHOD in $METHOD_LIST; do
@@ -88,7 +88,7 @@ run_loop() {
   for T2 in efficientnet_b2 swin_tiny; do
     # 1) Teacher fine-tuning
     for T in "$T1" "$T2"; do
-      CKPT="checkpoints/${T}_ft.pth"
+      CKPT="${OUTPUT_DIR}/checkpoints/${T}_ft.pth"
       if [ ! -f "${CKPT}" ]; then
         echo ">>> [run_experiments.sh] fine-tuning teacher=${T}  (epochs=${finetune_epochs}, lr=${finetune_lr})"
         python scripts/fine_tuning.py \
@@ -114,19 +114,20 @@ run_loop() {
           EXP_ID="${METHOD}_${T2}_vs_${T1}_${STUDENT}_s${STAGE}_a${SC_ALPHA}_${TIMESTAMP}"
 
           OUTDIR="${RESULT_ROOT}/${EXP_ID}"
+          CKPT_DIR="${OUTDIR}/checkpoints"
+          mkdir -p "${CKPT_DIR}"
           mkdir -p "${OUTDIR}"
 
           CFG_TMP=$(generate_config)
           cp "$CFG_TMP" "${OUTDIR}/config.yaml"
-          cp "$CFG_TMP" "logs/asmb_${LOG_ID}_$(basename "$OUTDIR").yaml"
 
           if [ "$METHOD" = "asmb" ]; then
           python main.py \
             --config "${CFG_TMP}" \
             --teacher1_type "${T1}" \
             --teacher2_type "${T2}" \
-            --teacher1_ckpt checkpoints/${T1}_ft.pth \
-            --teacher2_ckpt checkpoints/${T2}_ft.pth \
+            --teacher1_ckpt ${OUTPUT_DIR}/checkpoints/${T1}_ft.pth \
+            --teacher2_ckpt ${OUTPUT_DIR}/checkpoints/${T2}_ft.pth \
             --finetune_epochs 0 \
             --student_type "${STUDENT}" \
             --num_stages ${STAGE} \
@@ -140,6 +141,7 @@ run_loop() {
             --teacher2_bn_head_only ${teacher2_bn_head_only} \
             --student_freeze_level ${student_freeze_level} \
             --results_dir "${OUTDIR}" \
+            --ckpt_dir "${CKPT_DIR}" \
             --exp_id "${EXP_ID}" \
             --seed 42 \
             --data_aug ${data_aug} \
@@ -151,13 +153,14 @@ run_loop() {
           python scripts/run_single_teacher.py \
             --config "${CFG_TMP}" \
             --teacher_type "${T2}" \
-            --teacher_ckpt checkpoints/${T2}_ft.pth \
+            --teacher_ckpt ${OUTPUT_DIR}/checkpoints/${T2}_ft.pth \
             --student_type "${STUDENT}" \
             --student_lr ${student_lr} \
             --batch_size ${batch_size} \
             --epochs ${student_iters} \
             --student_freeze_level ${student_freeze_level} \
             --results_dir "${OUTDIR}" \
+            --ckpt_dir "${CKPT_DIR}" \
             --seed 42 \
             --data_aug ${data_aug} \
             --mixup_alpha ${mixup_alpha} \
@@ -185,7 +188,7 @@ run_sweep() {
 
       T_LR=${teacher_lr}
       CFG_TMP=$(generate_config)
-      cp "$CFG_TMP" "logs/asmb_${LOG_ID}_sweep_lr${teacher_lr}_a${sc_alpha}.yaml"
+      cp "$CFG_TMP" "${OUTPUT_DIR}/sweep_lr${teacher_lr}_a${sc_alpha}.yaml"
 
       python main.py \
         --config "${CFG_TMP}" \
@@ -213,6 +216,10 @@ while [[ $# -gt 0 ]]; do
       MODE="$2"
       shift 2
       ;;
+    --output_dir)
+      OUTPUT_DIR="$2"
+      shift 2
+      ;;
     *)
       echo "Unknown argument: $1" >&2
       exit 1
@@ -221,7 +228,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [ -z "$MODE" ]; then
-  echo "Usage: run_experiments.sh --mode {loop,sweep}" >&2
+  echo "Usage: run_experiments.sh --mode {loop,sweep} [--output_dir DIR]" >&2
   exit 1
 fi
 
