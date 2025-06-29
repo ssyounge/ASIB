@@ -34,6 +34,7 @@ def partial_freeze_teacher_resnet(
     use_adapter: bool = False,
     bn_head_only: bool = False,
     freeze_level: int = 1,
+    train_distill_adapter_only: bool = False,
 ):
     """Partially freeze a ResNet101 teacher using a numeric level.
 
@@ -45,6 +46,11 @@ def partial_freeze_teacher_resnet(
     - ``2`` → ``layer4`` + ``fc`` + ``mbm``
     """
     freeze_all(model)
+
+    if train_distill_adapter_only:
+        unfreeze_by_regex(model, r"\.distillation_adapter\.")
+        apply_bn_ln_policy(model, train_bn=not freeze_bn)
+        return
 
     if bn_head_only:
         unfreeze_by_regex(model, r"^backbone\.fc\.")
@@ -79,6 +85,7 @@ def partial_freeze_teacher_efficientnet(
     use_adapter: bool = False,
     bn_head_only: bool = False,
     freeze_level: int = 1,
+    train_distill_adapter_only: bool = False,
 ):
     """Partially freeze an EfficientNet-B2 teacher using a numeric level.
 
@@ -90,6 +97,11 @@ def partial_freeze_teacher_efficientnet(
     - ``2`` → ``features`` + ``classifier`` + ``mbm``
     """
     freeze_all(model)
+
+    if train_distill_adapter_only:
+        unfreeze_by_regex(model, r"\.distillation_adapter\.")
+        apply_bn_ln_policy(model, train_bn=not freeze_bn)
+        return
 
     if bn_head_only:
         unfreeze_by_regex(model, r"^backbone\.classifier\.")
@@ -123,6 +135,7 @@ def partial_freeze_teacher_swin(
     freeze_ln: bool = True,
     use_adapter: bool = False,
     freeze_level: int = 1,
+    train_distill_adapter_only: bool = False,
 ):
     """Partially freeze a Swin Tiny teacher using a numeric level.
 
@@ -132,6 +145,11 @@ def partial_freeze_teacher_swin(
     - ``1`` → ``head`` + ``mbm`` (default)
     """
     freeze_all(model)
+
+    if train_distill_adapter_only:
+        unfreeze_by_regex(model, r"\.distillation_adapter\.")
+        apply_bn_ln_policy(model, train_ln=not freeze_ln)
+        return
 
     patterns = []
     if freeze_level == 0:
@@ -268,21 +286,23 @@ def partial_freeze_student_swin(
 
 def freeze_teacher_params(
     model: nn.Module,
-    teacher_name: str = "resnet101",
+    teacher_name: str = "resnet152",
     freeze_bn: bool = True,
     freeze_ln: bool = True,
     use_adapter: bool = False,
     bn_head_only: bool = False,
     freeze_level: int = 1,
+    train_distill_adapter_only: bool = False,
 ) -> None:
     """Wrapper that partially freezes a teacher model by type."""
-    if teacher_name == "resnet101":
+    if teacher_name in ("resnet101", "resnet152"):
         partial_freeze_teacher_resnet(
             model,
             freeze_bn=freeze_bn,
             use_adapter=use_adapter,
             bn_head_only=bn_head_only,
             freeze_level=freeze_level,
+            train_distill_adapter_only=train_distill_adapter_only,
         )
     elif teacher_name == "efficientnet_b2":
         partial_freeze_teacher_efficientnet(
@@ -291,6 +311,7 @@ def freeze_teacher_params(
             use_adapter=use_adapter,
             bn_head_only=bn_head_only,
             freeze_level=freeze_level,
+            train_distill_adapter_only=train_distill_adapter_only,
         )
     elif teacher_name == "swin_tiny":
         partial_freeze_teacher_swin(
@@ -298,6 +319,7 @@ def freeze_teacher_params(
             freeze_ln=freeze_ln,
             use_adapter=use_adapter,
             freeze_level=freeze_level,
+            train_distill_adapter_only=train_distill_adapter_only,
         )
     else:
         freeze_all(model)

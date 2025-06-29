@@ -19,7 +19,7 @@ from main import create_student_by_name
 
 # Teacher Factory
 # Import the three teacher creation functions:
-from models.teachers.teacher_resnet import create_resnet101
+from models.teachers.teacher_resnet import create_resnet101, create_resnet152
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from models.teachers.teacher_swin import create_swin_t
 
@@ -27,6 +27,8 @@ def create_teacher_by_name(teacher_name, num_classes=100, pretrained=False, smal
     """Creates a teacher model based on teacher_name."""
     if teacher_name == "resnet101":
         return create_resnet101(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
+    elif teacher_name == "resnet152":
+        return create_resnet152(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
     elif teacher_name == "efficientnet_b2":
         return create_efficientnet_b2(
             num_classes=num_classes,
@@ -177,10 +179,10 @@ def main():
             ckpt = torch.load(
                 cfg["ckpt_path"], map_location=device, weights_only=True
             )
-            if "model_state" in ckpt:
-                model.load_state_dict(ckpt["model_state"])
-            else:
-                model.load_state_dict(ckpt)
+                if "model_state" in ckpt:
+                    model.load_state_dict(ckpt["model_state"], strict=False)
+                else:
+                    model.load_state_dict(ckpt, strict=False)
             print(f"[Eval single] loaded from {cfg['ckpt_path']}")
         else:
             print("[Eval single] no ckpt => random init")
@@ -196,7 +198,7 @@ def main():
     else:
         # synergy mode
         # 1) YAML: teacher1_type, teacher2_type
-        teacher1_type = cfg.get("teacher1_type", "resnet101")
+        teacher1_type = cfg.get("teacher1_type", "resnet152")
         teacher2_type = cfg.get("teacher2_type", "efficientnet_b2")
 
         # 2) create teachers
@@ -218,12 +220,12 @@ def main():
             t1_ck = torch.load(
                 cfg["teacher1_ckpt"], map_location=device, weights_only=True
             )
-            teacher1.load_state_dict(t1_ck)
+            teacher1.load_state_dict(t1_ck, strict=False)
         if cfg["teacher2_ckpt"]:
             t2_ck = torch.load(
                 cfg["teacher2_ckpt"], map_location=device, weights_only=True
             )
-            teacher2.load_state_dict(t2_ck)
+            teacher2.load_state_dict(t2_ck, strict=False)
 
         # 4) MBM and synergy head
         mbm_query_dim = cfg.get("mbm_query_dim")
@@ -238,12 +240,12 @@ def main():
             mbm_ck = torch.load(
                 cfg["mbm_ckpt"], map_location=device, weights_only=True
             )
-            mbm.load_state_dict(mbm_ck)
+            mbm.load_state_dict(mbm_ck, strict=False)
         if cfg["head_ckpt"]:
             head_ck = torch.load(
                 cfg["head_ckpt"], map_location=device, weights_only=True
             )
-            synergy_head.load_state_dict(head_ck)
+            synergy_head.load_state_dict(head_ck, strict=False)
 
         # 5) student for LA MBM or optional synergy
         student_name = cfg.get("student_type", "resnet_adapter")
@@ -259,9 +261,9 @@ def main():
                 cfg["student_ckpt"], map_location=device, weights_only=True
             )
             if "model_state" in s_ck:
-                student.load_state_dict(s_ck["model_state"])
+                student.load_state_dict(s_ck["model_state"], strict=False)
             else:
-                student.load_state_dict(s_ck)
+                student.load_state_dict(s_ck, strict=False)
 
         # synergy ensemble
         synergy_model = SynergyEnsemble(

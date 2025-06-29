@@ -3,6 +3,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from .adapters import DistillationAdapter
 from torchvision.models import swin_t, Swin_T_Weights
 
 class TeacherSwinWrapper(nn.Module):
@@ -11,8 +12,8 @@ class TeacherSwinWrapper(nn.Module):
      => dict 반환 {"feat_4d", "feat_2d", "logit", "ce_loss"}
     feature_dict 예시:
       {
-        "feat_4d": [N, C, H, W],  # backbone.forward_features(x)
-        "feat_2d": [N, C],       # global pooled
+        "feat_4d": [N, C, H, W],  # backbone.forward_features(x) or unsqueezed
+        "feat_2d": [N, C],       # global pooled or direct features
       }
     """
     def __init__(self, backbone: nn.Module):
@@ -25,22 +26,34 @@ class TeacherSwinWrapper(nn.Module):
         self.feat_dim = self.backbone.head.in_features
         self.feat_channels = self.feat_dim
 
+        # distillation adapter
+        self.distillation_adapter = DistillationAdapter(self.feat_dim)
+        self.distill_dim = self.distillation_adapter.out_dim
+
     
     def forward(self, x, y=None):
         # 1) Swin forward => 4D feature
         # use gradients so that Swin parameters remain trainable during
         # teacher adaptation
         if hasattr(self.backbone, "forward_features"):
-            f4d = self.backbone.forward_features(x)  # [N, C, H, W]
+            f4d = self.backbone.forward_features(x)
         elif hasattr(self.backbone, "features"):
-            f4d = self.backbone.features(x)  # [N, C, H, W]
+            f4d = self.backbone.features(x)
         else:
             raise AttributeError(
                 "Backbone model must implement forward_features or features"
             )
 
-        # 2) global pool => 2D
-        f2d = F.adaptive_avg_pool2d(f4d, (1,1)).flatten(1)  # [N, C]
+        # 2) handle feature shape
+        if f4d.dim() == 2:
+            f2d = f4d
+            feat_4d = f2d.unsqueeze(-1).unsqueeze(-1)
+        else:
+            feat_4d = f4d
+            f2d = F.adaptive_avg_pool2d(f4d, (1, 1)).flatten(1)
+
+        # distillation adapter feature
+        distill_feat = self.distillation_adapter(f2d)
 
         # 3) head => logit
         logit = self.backbone.head(f2d)
@@ -52,8 +65,9 @@ class TeacherSwinWrapper(nn.Module):
 
         # Dict
         return {
-            "feat_4d": f4d,  # [N, C, H, W]
+            "feat_4d": feat_4d,  # [N, C, H, W]
             "feat_2d": f2d,  # [N, C]
+            "distill_feat": distill_feat,
             "logit": logit,
             "ce_loss": ce_loss,
         }

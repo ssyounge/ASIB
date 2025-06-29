@@ -35,7 +35,7 @@ from modules.partial_freeze import (
 )
 
 # Teacher creation (factory):
-from models.teachers.teacher_resnet import create_resnet101
+from models.teachers.teacher_resnet import create_resnet101, create_resnet152
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from models.teachers.teacher_swin import create_swin_t
 
@@ -54,6 +54,16 @@ def create_student_by_name(
             create_resnet101_with_extended_adapter,
         )
         return create_resnet101_with_extended_adapter(
+            pretrained=pretrained,
+            num_classes=num_classes,
+            small_input=small_input,
+        )
+
+    elif student_name == "resnet152_adapter":
+        from models.students.student_resnet152_adapter import (
+            create_resnet152_with_extended_adapter,
+        )
+        return create_resnet152_with_extended_adapter(
             pretrained=pretrained,
             num_classes=num_classes,
             small_input=small_input,
@@ -168,6 +178,9 @@ def load_config(cfg_path):
 def create_teacher_by_name(teacher_name, num_classes=100, pretrained=True, small_input=False):
     if teacher_name == "resnet101":
         return create_resnet101(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
+    elif teacher_name == "resnet152":
+        from models.teachers.teacher_resnet import create_resnet152
+        return create_resnet152(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
     elif teacher_name == "efficientnet_b2":
         return create_efficientnet_b2(
             num_classes=num_classes,
@@ -187,14 +200,16 @@ def partial_freeze_teacher_auto(
     use_adapter=False,
     bn_head_only=False,
     freeze_level=1,
+    train_distill_adapter_only=False,
 ):
-    if teacher_name == "resnet101":
+    if teacher_name == "resnet101" or teacher_name == "resnet152":
         partial_freeze_teacher_resnet(
             model,
             freeze_bn=freeze_bn,
             use_adapter=use_adapter,
             bn_head_only=bn_head_only,
             freeze_level=freeze_level,
+            train_distill_adapter_only=train_distill_adapter_only,
         )
     elif teacher_name == "efficientnet_b2":
         partial_freeze_teacher_efficientnet(
@@ -203,6 +218,7 @@ def partial_freeze_teacher_auto(
             use_adapter=use_adapter,
             bn_head_only=bn_head_only,
             freeze_level=freeze_level,
+            train_distill_adapter_only=train_distill_adapter_only,
         )
     elif teacher_name == "swin_tiny":
         partial_freeze_teacher_swin(
@@ -210,6 +226,7 @@ def partial_freeze_teacher_auto(
             freeze_ln=freeze_ln,
             use_adapter=use_adapter,
             freeze_level=freeze_level,
+            train_distill_adapter_only=train_distill_adapter_only,
         )
     else:
         raise ValueError(f"[partial_freeze_teacher_auto] Unknown teacher_name={teacher_name}")
@@ -307,7 +324,7 @@ def main():
         small_input = dataset == "cifar100"
 
     # 4) Create teacher1, teacher2
-    teacher1_type = cfg.get("teacher1_type", "resnet101")
+    teacher1_type = cfg.get("teacher1_type", "resnet152")
     teacher2_type = cfg.get("teacher2_type", "efficientnet_b2")
 
     teacher1 = create_teacher_by_name(
@@ -319,7 +336,10 @@ def main():
 
     if cfg.get("teacher1_ckpt"):
         teacher1.load_state_dict(
-            torch.load(cfg["teacher1_ckpt"], map_location=device, weights_only=True)
+            torch.load(
+                cfg["teacher1_ckpt"], map_location=device, weights_only=True
+            ),
+            strict=False,
         )
         print(f"[Main] Loaded teacher1 from {cfg['teacher1_ckpt']}")
 
@@ -330,7 +350,8 @@ def main():
             freeze_ln=cfg.get("teacher1_freeze_ln", True),
             use_adapter=cfg.get("teacher1_use_adapter", False),
             bn_head_only=cfg.get("teacher1_bn_head_only", False),
-            freeze_level=cfg.get("teacher1_freeze_level", 1)
+            freeze_level=cfg.get("teacher1_freeze_level", 1),
+            train_distill_adapter_only=cfg.get("use_distillation_adapter", False),
         )
 
     teacher2 = create_teacher_by_name(
@@ -342,7 +363,10 @@ def main():
 
     if cfg.get("teacher2_ckpt"):
         teacher2.load_state_dict(
-            torch.load(cfg["teacher2_ckpt"], map_location=device, weights_only=True)
+            torch.load(
+                cfg["teacher2_ckpt"], map_location=device, weights_only=True
+            ),
+            strict=False,
         )
         print(f"[Main] Loaded teacher2 from {cfg['teacher2_ckpt']}")
 
@@ -353,7 +377,8 @@ def main():
             freeze_ln=cfg.get("teacher2_freeze_ln", True),
             use_adapter=cfg.get("teacher2_use_adapter", False),
             bn_head_only=cfg.get("teacher2_bn_head_only", False),
-            freeze_level=cfg.get("teacher2_freeze_level", 1)
+            freeze_level=cfg.get("teacher2_freeze_level", 1),
+            train_distill_adapter_only=cfg.get("use_distillation_adapter", False),
         )
 
     # optional fine-tuning of teachers before ASMB stages
@@ -417,6 +442,16 @@ def main():
                 ckpt_path=ckpt2,
             )
 
+    # Evaluate teacher performance before distillation begins
+    from modules.cutmix_finetune_teacher import eval_teacher
+
+    te1_acc = eval_teacher(teacher1, test_loader, device=device, cfg=cfg)
+    te2_acc = eval_teacher(teacher2, test_loader, device=device, cfg=cfg)
+    print(f"[Main] Teacher1 ({teacher1_type}) testAcc={te1_acc:.2f}%")
+    print(f"[Main] Teacher2 ({teacher2_type}) testAcc={te2_acc:.2f}%")
+    logger.update_metric("teacher1_test_acc", te1_acc)
+    logger.update_metric("teacher2_test_acc", te2_acc)
+
     # 5) Student
     student_name  = cfg.get("student_type", "resnet_adapter")   # e.g. resnet_adapter / efficientnet_adapter / swin_adapter
     student_model = create_student_by_name(
@@ -428,7 +463,10 @@ def main():
 
     if cfg.get("student_ckpt"):
         student_model.load_state_dict(
-            torch.load(cfg["student_ckpt"], map_location=device, weights_only=True)
+            torch.load(
+                cfg["student_ckpt"], map_location=device, weights_only=True
+            ),
+            strict=False,
         )
         print(f"[Main] Loaded student from {cfg['student_ckpt']}")
 
@@ -484,8 +522,14 @@ def main():
     num_stages = cfg.get("num_stages", 2)
 
     teacher_params = []
+    use_da = cfg.get("use_distillation_adapter", False)
     for tw in teacher_wrappers:
-        for p in tw.parameters():
+        src = (
+            tw.distillation_adapter.parameters()
+            if use_da and hasattr(tw, "distillation_adapter")
+            else tw.parameters()
+        )
+        for p in src:
             if p.requires_grad:
                 teacher_params.append(p)
     mbm_params = [p for p in mbm.parameters() if p.requires_grad]

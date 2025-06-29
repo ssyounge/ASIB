@@ -22,7 +22,7 @@ from data.cifar100 import get_cifar100_loaders
 from data.imagenet100 import get_imagenet100_loaders
 
 # teacher factories
-from models.teachers.teacher_resnet import create_resnet101
+from models.teachers.teacher_resnet import create_resnet101, create_resnet152
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from models.teachers.teacher_swin import create_swin_t
 
@@ -94,10 +94,12 @@ def create_teacher_by_name(
     dropout_p=0.3,
 ):
     """
-    Extends to handle resnet101, efficientnet_b2, swin_tiny, etc.
+    Extends to handle resnet152, resnet101, efficientnet_b2, swin_tiny, etc.
     """
     if teacher_type == "resnet101":
         return create_resnet101(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
+    elif teacher_type == "resnet152":
+        return create_resnet152(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
     elif teacher_type == "efficientnet_b2":
         return create_efficientnet_b2(
             num_classes=num_classes,
@@ -122,7 +124,7 @@ def partial_freeze_teacher_auto(
     """
     If needed, partial freeze for fine-tune. Or you can freeze nothing if you want full fine-tune.
     """
-    if teacher_type == "resnet101":
+    if teacher_type in ("resnet101", "resnet152"):
         partial_freeze_teacher_resnet(
             model,
             freeze_bn=freeze_bn,
@@ -223,7 +225,7 @@ def main():
         small_input = dataset_name == "cifar100"
 
     # 2) teacher
-    teacher_type = cfg.get("teacher_type", "resnet101")  # e.g. "resnet101", "efficientnet_b2", "swin_tiny"
+    teacher_type = cfg.get("teacher_type", "resnet152")  # e.g. "resnet152", "efficientnet_b2", "swin_tiny"
     print(f"[FineTune] ===== Now fine-tuning teacher: {teacher_type} =====")
     teacher_model = create_teacher_by_name(
         teacher_type,
@@ -238,7 +240,8 @@ def main():
         teacher_model.load_state_dict(
             torch.load(
                 cfg["finetune_ckpt_path"], map_location=device, weights_only=True
-            )
+            ),
+            strict=False,
         )
         print(f"[FineTune] ckpt exists → fine-tune 스킵 ({cfg['finetune_ckpt_path']})")
         # 평가만 한 번 찍고 바로 반환
