@@ -79,7 +79,9 @@ run_loop() {
   source <(python scripts/load_hparams.py configs/partial_freeze.yaml)
   METHOD_LIST="${method_list:-$method}"
   OUTPUT_DIR=${OUTPUT_DIR:-results/$(date +%Y%m%d_%H%M%S)}
-  mkdir -p "${OUTPUT_DIR}/checkpoints"
+  mkdir -p "${OUTPUT_DIR}"
+  # Always store teacher fine-tune checkpoints in the shared top-level folder
+  mkdir -p checkpoints
   RESULT_ROOT="${OUTPUT_DIR}"
 
   local T1=${TEACHER1_TYPE:-resnet152}
@@ -88,7 +90,8 @@ run_loop() {
   for T2 in efficientnet_b2 swin_tiny; do
     # 1) Teacher fine-tuning
     for T in "$T1" "$T2"; do
-      CKPT="${OUTPUT_DIR}/checkpoints/${T}_ft.pth"
+      # Teacher checkpoints are shared across experiments
+      CKPT="checkpoints/${T}_ft.pth"
       if [ ! -f "${CKPT}" ]; then
         echo ">>> [run_experiments.sh] fine-tuning teacher=${T}  (epochs=${finetune_epochs}, lr=${finetune_lr})"
         python scripts/fine_tuning.py \
@@ -126,8 +129,8 @@ run_loop() {
             --config "${CFG_TMP}" \
             --teacher1_type "${T1}" \
             --teacher2_type "${T2}" \
-            --teacher1_ckpt ${OUTPUT_DIR}/checkpoints/${T1}_ft.pth \
-            --teacher2_ckpt ${OUTPUT_DIR}/checkpoints/${T2}_ft.pth \
+            --teacher1_ckpt checkpoints/${T1}_ft.pth \
+            --teacher2_ckpt checkpoints/${T2}_ft.pth \
             --finetune_epochs 0 \
             --student_type "${STUDENT}" \
             --num_stages ${STAGE} \
@@ -153,7 +156,7 @@ run_loop() {
           python scripts/run_single_teacher.py \
             --config "${CFG_TMP}" \
             --teacher_type "${T2}" \
-            --teacher_ckpt ${OUTPUT_DIR}/checkpoints/${T2}_ft.pth \
+            --teacher_ckpt checkpoints/${T2}_ft.pth \
             --student_type "${STUDENT}" \
             --student_lr ${student_lr} \
             --batch_size ${batch_size} \
