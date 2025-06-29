@@ -43,6 +43,7 @@ def parse_args():
     p.add_argument("--weight_decay", type=float)
     p.add_argument("--epochs", type=int)
     p.add_argument("--results_dir", type=str, default="results")
+    p.add_argument("--ckpt_dir", type=str, default=None)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--device", type=str)
     p.add_argument("--dataset", "--dataset_name", dest="dataset_name", type=str,
@@ -174,8 +175,9 @@ def main():
         cfg=cfg,
     )
 
-    os.makedirs(cfg.get("results_dir", "results"), exist_ok=True)
-    ckpt = os.path.join(cfg["results_dir"], f"final_student_{method}.pth")
+    ckpt_dir = cfg.get("ckpt_dir", cfg.get("results_dir", "results"))
+    os.makedirs(ckpt_dir, exist_ok=True)
+    ckpt = os.path.join(ckpt_dir, f"final_student_{method}.pth")
     torch.save(student.state_dict(), ckpt)
     print(f"[run_single_teacher] final_acc={acc:.2f}% -> {ckpt}")
 
