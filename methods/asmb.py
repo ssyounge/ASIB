@@ -136,10 +136,21 @@ class ASMBDistiller(nn.Module):
         # create optimizers / schedulers once so that momentum and LR schedule
         # are carried across stages
         teacher_params = []
-        for p in self.teacher1.parameters():
+        use_da = self.config.get("use_distillation_adapter", False)
+        src1 = (
+            self.teacher1.distillation_adapter.parameters()
+            if use_da and hasattr(self.teacher1, "distillation_adapter")
+            else self.teacher1.parameters()
+        )
+        for p in src1:
             if p.requires_grad:
                 teacher_params.append(p)
-        for p in self.teacher2.parameters():
+        src2 = (
+            self.teacher2.distillation_adapter.parameters()
+            if use_da and hasattr(self.teacher2, "distillation_adapter")
+            else self.teacher2.parameters()
+        )
+        for p in src2:
             if p.requires_grad:
                 teacher_params.append(p)
         for p in self.mbm.parameters():
@@ -214,12 +225,23 @@ class ASMBDistiller(nn.Module):
         # 1) Teacher/MBM 파라미터만 requires_grad=True 여야 함
         #    (partial freeze는 이미 외부에서 했다고 가정, 또는 여기서 처리)
         params = []
+        use_da = self.config.get("use_distillation_adapter", False)
         # teacher1
-        for p in self.teacher1.parameters():
+        param_src = (
+            self.teacher1.distillation_adapter.parameters()
+            if use_da and hasattr(self.teacher1, "distillation_adapter")
+            else self.teacher1.parameters()
+        )
+        for p in param_src:
             if p.requires_grad:
                 params.append(p)
         # teacher2
-        for p in self.teacher2.parameters():
+        param_src = (
+            self.teacher2.distillation_adapter.parameters()
+            if use_da and hasattr(self.teacher2, "distillation_adapter")
+            else self.teacher2.parameters()
+        )
+        for p in param_src:
             if p.requires_grad:
                 params.append(p)
         # mbm, synergy_head
@@ -251,7 +273,8 @@ class ASMBDistiller(nn.Module):
                     # teacher feats
                     t1 = self.teacher1(x)
                     t2 = self.teacher2(x)
-                    f1 = [t1["feat_2d"], t2["feat_2d"]]
+                    key = "distill_feat" if self.config.get("use_distillation_adapter", False) else "feat_2d"
+                    f1 = [t1[key], t2[key]]
                     f2 = [t1.get("feat_4d"), t2.get("feat_4d")]
 
                 # synergy
@@ -322,6 +345,7 @@ class ASMBDistiller(nn.Module):
          - Freeze teacher + MBM
          - Student upper layers만 업데이트
          - CE + KL(student vs synergy)
+         - Optional vanilla KD blending when ``hybrid_beta > 0``
         """
         # freeze teacher
         self.teacher1.eval()
@@ -377,6 +401,10 @@ class ASMBDistiller(nn.Module):
                 # KL
                 kd_val = kd_loss_fn(s_logit, zsyn, T=cur_tau)
 
+                # vanilla KD using teacher logits
+                avg_t_logit = 0.5 * (t1["logit"] + t2["logit"])
+                kd_vanilla = kd_loss_fn(s_logit, avg_t_logit, T=cur_tau)
+
                 feat_loss = torch.tensor(0.0, device=s_feat.device)
                 if self.feat_kd_alpha > 0:
                     feat_loss = F.mse_loss(
@@ -384,11 +412,13 @@ class ASMBDistiller(nn.Module):
                         syn_feat.detach().view(s_feat.size(0), -1),
                     )
 
-                loss = (
+                loss_asmb = (
                     self.alpha * ce_val
                     + (1 - self.alpha) * kd_val
                     + self.feat_kd_alpha * feat_loss
                 )
+                beta = self.config.get("hybrid_beta", 0.0)
+                loss = (1 - beta) * loss_asmb + beta * kd_vanilla
 
                 if logger is not None and attn is not None:
                     logger.debug(f"attn_mean={attn.mean().item():.4f}")

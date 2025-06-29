@@ -82,7 +82,7 @@ run_loop() {
   RESULT_ROOT="results/$(date +%Y%m%d_%H%M%S)"
   mkdir -p "${RESULT_ROOT}"
 
-  local T1=resnet101
+  local T1=${TEACHER1_TYPE:-resnet152}
   for METHOD in $METHOD_LIST; do
     echo ">>> [run_experiments.sh] running METHOD=${METHOD}"
   for T2 in efficientnet_b2 swin_tiny; do

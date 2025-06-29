@@ -33,6 +33,8 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 
   The same values can be overridden via CLI using
   `--feat_kd_alpha 1.0 --feat_kd_key feat_2d --feat_kd_norm none`.
+- **Hybrid Guidance**: set `hybrid_beta` (>0) to blend vanilla KD from the
+  average teacher logits with the default ASMB loss.
 - **Custom MBM Query Dim**: `mbm_query_dim` controls the dimension of the
   student features used as the attention query in `LightweightAttnMBM`.
   When omitted or set to `0`, the script automatically falls back to the
@@ -233,7 +235,7 @@ python main.py --config configs/partial_freeze.yaml --device cuda \
 
 ```bash
 python scripts/run_single_teacher.py --config configs/default.yaml \
-  --method vanilla_kd --teacher_type resnet101 --teacher_ckpt teacher.pth \
+  --method vanilla_kd --teacher_type resnet152 --teacher_ckpt teacher.pth \
   --student_type resnet_adapter --epochs 40 \
   --dataset imagenet100
 ```
@@ -365,7 +367,7 @@ Alternatively edit the YAML file used by `scripts/fine_tuning.py`:
 
 ```yaml
 # configs/hparams.yaml
-teacher_type: resnet101
+teacher_type: resnet152
 finetune_epochs: 100
 finetune_lr: 0.0005
 finetune_use_cutmix: false
@@ -377,7 +379,7 @@ teachers. The default value is **0.3**. You can override it on the command line:
 
 ```bash
 python scripts/fine_tuning.py --config configs/hparams.yaml \
-  --teacher_type resnet101 --dropout_p 0.5
+  --teacher_type resnet152 --dropout_p 0.5
 ```
 
 For partial freezing with EfficientNet, a new freeze scope
