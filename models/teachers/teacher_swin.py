@@ -46,9 +46,15 @@ class TeacherSwinWrapper(nn.Module):
 
         # 2) handle feature shape
         if f4d.dim() == 2:
+            # already pooled -> treat as 2D feature
             f2d = f4d
             feat_4d = f2d.unsqueeze(-1).unsqueeze(-1)
+        elif f4d.dim() == 3:
+            # Swin Tiny from timm sometimes returns [N, seq_len, C]
+            f2d = f4d.mean(dim=1)
+            feat_4d = f2d.unsqueeze(-1).unsqueeze(-1)
         else:
+            # standard 4D [N, C, H, W]
             feat_4d = f4d
             f2d = F.adaptive_avg_pool2d(f4d, (1, 1)).flatten(1)
 
