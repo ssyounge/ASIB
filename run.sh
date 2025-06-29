@@ -11,11 +11,9 @@
 JOB_ID=${SLURM_JOB_ID:-manual}
 OUTPUT_DIR="outputs/asmb_${JOB_ID}"
 mkdir -p "$OUTPUT_DIR"
-# Path to the base configuration
-BASE_CFG_PATH=${BASE_CONFIG:-configs/default.yaml}
 # Save a fully merged YAML with all hyperparameters
 python scripts/generate_config.py \
-  --base "$BASE_CFG_PATH" \
+  --base configs/default.yaml configs/partial_freeze.yaml \
   --hparams configs/hparams.yaml \
   --out "${OUTPUT_DIR}/config.yaml"
 
