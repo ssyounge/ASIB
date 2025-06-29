@@ -70,6 +70,10 @@ class TeacherSwinWrapper(nn.Module):
             "distill_feat": distill_feat,
             "logit": logit,
             "ce_loss": ce_loss,
+            # expose identical keys for compatibility
+            "feat_4d_layer1": feat_4d,
+            "feat_4d_layer2": feat_4d,
+            "feat_4d_layer3": feat_4d,
         }
         
     def get_feat_dim(self):
