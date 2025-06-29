@@ -325,8 +325,8 @@ def main():
         small_input = dataset == "cifar100"
 
     # 4) Create teacher1, teacher2
-    teacher1_type = cfg.get("teacher1_type", "resnet152")
-    teacher2_type = cfg.get("teacher2_type", "efficientnet_b2")
+    teacher1_type = cfg["teacher1_type"]
+    teacher2_type = cfg["teacher2_type"]
 
     teacher1 = create_teacher_by_name(
         teacher_name=teacher1_type,
