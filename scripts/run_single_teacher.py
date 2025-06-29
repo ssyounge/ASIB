@@ -71,7 +71,11 @@ def build_distiller(method, teacher, student, cfg):
     if method == "vanilla_kd":
         return cls(teacher, student, alpha=cfg.get("kd_alpha", 0.5), temperature=cfg.get("tau_start", 4.0), config=cfg)
     if method == "fitnet":
-        return cls(teacher, student)
+        # FitNet에 필요한 채널 수를 지정합니다.
+        # (Teacher: EfficientNet-B2, Student: ResNet-Adapter, layer2 기준)
+        s_channels = 512
+        t_channels = 48  # EfficientNet-B2의 layer2 출력 채널 수
+        return cls(teacher, student, s_channels=s_channels, t_channels=t_channels)
     if method == "dkd":
         return cls(teacher, student)
     if method == "at":

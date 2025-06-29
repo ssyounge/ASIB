@@ -20,6 +20,8 @@ class FitNetDistiller(nn.Module):
         student_model,
         hint_key="feat_4d_layer2",    # teacher가 반환하는 key
         guided_key="feat_4d_layer2",  # student가 반환하는 key
+        s_channels=512,              # 학생 특징맵의 채널 수
+        t_channels=88,               # 스승 특징맵의 채널 수
         alpha_hint=1.0,
         alpha_ce=1.0,
         label_smoothing: float = 0.0,
@@ -36,6 +38,9 @@ class FitNetDistiller(nn.Module):
         self.alpha_ce = alpha_ce
         self.label_smoothing = label_smoothing
 
+        # 학생 특징맵을 스승 특징맵 채널로 변환하는 1x1 convolution
+        self.regressor = nn.Conv2d(s_channels, t_channels, kernel_size=1)
+
     def forward(self, x, y):
         """
         1) teacher => dict_out
@@ -51,9 +56,14 @@ class FitNetDistiller(nn.Module):
         s_dict, s_logit, _ = self.student(x)      # (feat_dict, logit, ce_loss(opt))
 
         # 1) hint/guided MSE
-        t_feat = t_dict[self.hint_key]  # e.g. [N, C, H, W] 
+        t_feat = t_dict[self.hint_key]  # e.g. [N, C_t, H_t, W_t] 
         s_feat = s_dict[self.guided_key]
-        hint_loss = F.mse_loss(s_feat, t_feat)
+        # 학생 특징맵을 변환기의 채널로 변환 후, 스승의 공간 크기에 맞춰 풀링
+        s_feat_regressed = self.regressor(s_feat)
+        s_feat_resized = F.adaptive_avg_pool2d(
+            s_feat_regressed, (t_feat.shape[2], t_feat.shape[3])
+        )
+        hint_loss = F.mse_loss(s_feat_resized, t_feat)
 
         # 2) CE
         ce_loss = ce_loss_fn(
