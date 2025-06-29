@@ -51,10 +51,8 @@ generate_config() {
     tau_start=${tau_start} \
     tau_end=${tau_end} \
     tau_decay_epochs=${tau_decay_epochs} \
-    student_epochs_per_stage=${student_eps} \
-    teacher_iters=${teacher_iters} \
-    student_iters=${student_iters} \
-    mbm_hidden_dim=${mbm_hidden_dim} \
+    student_epochs_per_stage=${student_epochs_per_stage} \
+    teacher_adapt_epochs=${teacher_adapt_epochs} \
     mbm_out_dim=${mbm_out_dim} \
     mbm_reg_lambda=${mbm_reg} \
     reg_lambda=${reg_lambda} \
@@ -158,7 +156,7 @@ run_loop() {
             --student_type "${STUDENT}" \
             --student_lr ${student_lr} \
             --batch_size ${batch_size} \
-            --epochs ${student_iters} \
+            --epochs ${student_epochs_per_stage} \
             --student_freeze_level ${student_freeze_level} \
             --results_dir "${OUTDIR}" \
             --ckpt_dir "${CKPT_DIR}" \
