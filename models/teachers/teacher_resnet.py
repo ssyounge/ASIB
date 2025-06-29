@@ -43,8 +43,11 @@ class TeacherResNetWrapper(nn.Module):
 
         # 2) layers
         x = self.backbone.layer1(x)
+        feat_layer1 = x
         x = self.backbone.layer2(x)
+        feat_layer2 = x
         x = self.backbone.layer3(x)
+        feat_layer3 = x
         f4d = self.backbone.layer4(x)  # [N, 2048, H, W]
 
         # 3) global pool => 2D
@@ -69,6 +72,9 @@ class TeacherResNetWrapper(nn.Module):
             "distill_feat": distill_feat,
             "logit": logit,
             "ce_loss": ce_loss,
+            "feat_4d_layer1": feat_layer1,
+            "feat_4d_layer2": feat_layer2,
+            "feat_4d_layer3": feat_layer3,
         }
 
     def get_feat_dim(self):

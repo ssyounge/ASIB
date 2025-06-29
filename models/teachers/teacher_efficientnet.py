@@ -30,16 +30,25 @@ class TeacherEfficientNetWrapper(nn.Module):
         self.distill_dim = self.distillation_adapter.out_dim
     
     def forward(self, x, y=None):
-        # 1) 4D feature from backbone.features
-        # compute features with gradient support so that the teacher can be
-        # fine-tuned during adaptive updates
-        f4d = self.backbone.features(x)  # shape: [N, 1408, h, w]
+        # 1) compute intermediate 4D features
+        feat_layer1 = None
+        feat_layer2 = None
+        feat_layer3 = None
+        out = x
+        for idx, block in enumerate(self.backbone.features):
+            out = block(out)
+            if idx == 2:
+                feat_layer1 = out
+            elif idx == 4:
+                feat_layer2 = out
+            elif idx == 6:
+                feat_layer3 = out
+        f4d = out  # final feature map [N, 1408, h, w]
 
-        # 2) 최종 로짓(이미지 x 그대로 -> self.backbone(x))
-        logit = self.backbone(x)
-
-        # 3) feat_2d: f4d를 adaptive pooling => flatten
+        # 2) final logits
         fpool = F.adaptive_avg_pool2d(f4d, (1,1)).flatten(1)  # [N, 1408]
+        logit = self.backbone.classifier(fpool)
+        # 3) feat_2d from pooled feature
 
         # distillation adapter feature
         distill_feat = self.distillation_adapter(fpool)
@@ -56,6 +65,9 @@ class TeacherEfficientNetWrapper(nn.Module):
             "distill_feat": distill_feat,
             "logit": logit,
             "ce_loss": ce_loss,
+            "feat_4d_layer1": feat_layer1,
+            "feat_4d_layer2": feat_layer2,
+            "feat_4d_layer3": feat_layer3,
         }
 
     def get_feat_dim(self):
