@@ -70,7 +70,7 @@ label_smoothing: 0.0
 n_stage_list: 5
 sc_alpha_list: "0.6" # 0.3 0.6
 student_list: "resnet_adapter" # resnet_adapter efficientnet_adapter swin_adapter
-method_list: "asmb vanilla_kd at crd dkd fitnet" ## asmb at crd dkd fitnet
+method_list: "asmb vanilla_kd at crd dkd fitnet" ## asmb vanilla_kd at crd dkd fitnet
 # Teacher adaptation
 teacher_adapt_epochs: 5
 teacher_adapt_alpha_kd: 1.0
