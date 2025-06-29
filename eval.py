@@ -198,8 +198,8 @@ def main():
     else:
         # synergy mode
         # 1) YAML: teacher1_type, teacher2_type
-        teacher1_type = cfg.get("teacher1_type", "resnet152")
-        teacher2_type = cfg.get("teacher2_type", "efficientnet_b2")
+        teacher1_type = cfg["teacher1_type"]
+        teacher2_type = cfg["teacher2_type"]
 
         # 2) create teachers
         teacher1 = create_teacher_by_name(

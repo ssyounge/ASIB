@@ -365,7 +365,7 @@ Alternatively edit the YAML file used by `scripts/fine_tuning.py`:
 
 ```yaml
 # configs/hparams.yaml
-teacher_type: resnet152
+default_teacher_type: resnet152
 finetune_epochs: 100
 finetune_lr: 0.0005
 finetune_use_cutmix: false

@@ -225,7 +225,7 @@ def main():
         small_input = dataset_name == "cifar100"
 
     # 2) teacher
-    teacher_type = cfg.get("teacher_type", "resnet152")  # e.g. "resnet152", "efficientnet_b2", "swin_tiny"
+    teacher_type = cfg.get("teacher_type", cfg.get("default_teacher_type"))  # e.g. "resnet152", "efficientnet_b2", "swin_tiny"
     print(f"[FineTune] ===== Now fine-tuning teacher: {teacher_type} =====")
     teacher_model = create_teacher_by_name(
         teacher_type,
