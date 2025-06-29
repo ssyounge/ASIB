@@ -12,7 +12,13 @@ small_input: true
 deterministic: true
 
 # Teacher defaults
-teacher_type: "resnet152"
+# For ASMB (main experiment)
+teacher1_type: "resnet152"
+teacher2_type: "efficientnet_b2"
+
+# For single-teacher scripts (fine_tuning.py, etc.)
+default_teacher_type: "resnet152"
+
 teacher1_ckpt: "./checkpoints/teacher1_finetuned.pth"
 teacher2_ckpt: "./checkpoints/teacher2_finetuned.pth"
 finetune_partial_freeze: false

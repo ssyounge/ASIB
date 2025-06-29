@@ -90,7 +90,7 @@ def main():
     method = cfg.get("method", args.method)
     if method != "asmb":
         cfg["use_partial_freeze"] = False
-    teacher_type = cfg.get("teacher_type", args.teacher_type)
+    teacher_type = cfg.get("teacher_type", cfg.get("default_teacher_type"))
     student_type = cfg.get("student_type", args.student_type)
     print(
         f">>> [run_single_teacher.py] method={method} teacher={teacher_type} student={student_type}"
@@ -122,7 +122,7 @@ def main():
         small_input = dataset == "cifar100"
 
     teacher = create_teacher_by_name(
-        cfg.get("teacher_type", "resnet152"),
+        cfg.get("teacher_type", cfg.get("default_teacher_type")),
         pretrained=cfg.get("teacher_pretrained", True),
         small_input=small_input,
         num_classes=num_classes,
@@ -135,7 +135,7 @@ def main():
     if cfg.get("use_partial_freeze", True):
         partial_freeze_teacher_auto(
             teacher,
-            cfg.get("teacher_type", "resnet152"),
+            cfg.get("teacher_type", cfg.get("default_teacher_type")),
             freeze_bn=cfg.get("teacher_freeze_bn", True),
             freeze_ln=cfg.get("teacher_freeze_ln", True),
             use_adapter=cfg.get("teacher_use_adapter", False),
