@@ -43,7 +43,7 @@ def get_loader():
     "distiller_cls, kwargs",
     [
         (ATDistiller, {}),
-        (FitNetDistiller, {"hint_key": "feat_4d_layer3", "guided_key": "feat_4d_layer3"}),
+        (FitNetDistiller, {"hint_key": "feat_4d_layer3", "guided_key": "feat_4d_layer3", "s_channels": 1, "t_channels": 1}),
         (DKDDistiller, {}),
         (CRDDistiller, {}),
     ],
