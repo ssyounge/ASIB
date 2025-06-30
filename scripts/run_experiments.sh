@@ -90,7 +90,8 @@ run_loop() {
           for T in "$T1" "$T2"; do
         mkdir -p checkpoints # Ensure global checkpoint dir exists
         CKPT="checkpoints/${T}_ft.pth"
-        if [ ! -f "${CKPT}" ]; then
+        # Only fine-tune when epochs>0 and checkpoint doesn't already exist
+        if [ ${finetune_epochs} -gt 0 ] && [ ! -f "${CKPT}" ]; then
         echo ">>> [run_experiments.sh] fine-tuning teacher=${T}  (epochs=${finetune_epochs}, lr=${finetune_lr})"
         python scripts/fine_tuning.py \
           --teacher_type "${T}" \
@@ -102,7 +103,7 @@ run_loop() {
           --finetune_cutmix_alpha ${finetune_cutmix_alpha} \
           --finetune_ckpt_path "${CKPT}" \
           --data_aug ${data_aug}
-          fi
+        fi
         done
 
         # 2) ASMB multi-stage distillation

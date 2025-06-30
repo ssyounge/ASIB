@@ -16,9 +16,10 @@ class DistillationAdapter(nn.Module):
         if cfg is not None:
             hidden_dim = cfg.get("distill_hidden_dim", hidden_dim)
             out_dim = cfg.get("distill_out_dim", out_dim)
-        if hidden_dim is None:
+        # allow 0 or None to trigger automatic dimension selection
+        if not hidden_dim:
             hidden_dim = max(1, in_dim // 2)
-        if out_dim is None:
+        if not out_dim:
             out_dim = max(1, in_dim // 4)
         self.mlp = nn.Sequential(
             nn.Linear(in_dim, hidden_dim),
