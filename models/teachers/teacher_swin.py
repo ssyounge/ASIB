@@ -40,15 +40,11 @@ class TeacherSwinWrapper(nn.Module):
         """Standard forward pass for a Swin Transformer teacher."""
 
         # 1. Swin 모델의 백본 특징 추출 모듈을 직접 호출합니다.
-        #    이것이 torchvision Swin 모델의 권장 방식입니다.
-        x_features = self.backbone.features(x)
+        #    [N, C, H, W] 형태의 4D 텐서를 반환합니다.
+        f4d = self.backbone.features(x)
 
-        # 2. 3D 텐서를 2D 벡터로 올바르게 변환합니다.
-        #    norm 레이어를 거친 뒤 [N, L, C] -> [N, C, L] 형태로 바꾼 뒤
-        #    avgpool을 적용해 최종 벡터를 얻습니다.
-        x_features = self.backbone.norm(x_features)
-        x_features = x_features.permute(0, 2, 1)
-        f2d = self.backbone.avgpool(x_features)
+        # 2. 4D 특징맵을 2D 벡터로 변환합니다.
+        f2d = self.backbone.avgpool(f4d)
         f2d = torch.flatten(f2d, 1)
 
         # 3. 어댑터와 헤드에 전달합니다.
@@ -60,17 +56,16 @@ class TeacherSwinWrapper(nn.Module):
         if y is not None:
             ce_loss = self.criterion_ce(logit, y)
 
-        # 호환성 유지를 위한 더미 4D 특징맵 생성
-        dummy_4d = f2d.unsqueeze(-1).unsqueeze(-1)
+        # 최종 반환 딕셔너리
         return {
-            "feat_4d": dummy_4d,
+            "feat_4d": f4d,
             "feat_2d": f2d,
             "distill_feat": distill_feat,
             "logit": logit,
             "ce_loss": ce_loss,
-            "feat_4d_layer1": dummy_4d,
-            "feat_4d_layer2": dummy_4d,
-            "feat_4d_layer3": dummy_4d,
+            "feat_4d_layer1": f4d,
+            "feat_4d_layer2": f4d,
+            "feat_4d_layer3": f4d,
         }
         
     def get_feat_dim(self):
