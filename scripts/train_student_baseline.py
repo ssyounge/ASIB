@@ -34,6 +34,8 @@ def parse_args():
     p.add_argument("--label_smoothing", type=float)
     p.add_argument("--small_input", type=int)
     p.add_argument("--student_freeze_level", type=int)
+    p.add_argument("--adam_beta1", type=float)
+    p.add_argument("--adam_beta2", type=float)
     return p.parse_args()
 
 
@@ -70,8 +72,14 @@ def train_student_ce(
         print(f"[StudentCE] loaded => testAcc={test_acc:.2f}")
         return test_acc
 
-    optimizer = optim.SGD(
-        student_model.parameters(), lr=lr, momentum=0.9, weight_decay=weight_decay
+    optimizer = optim.AdamW(
+        student_model.parameters(),
+        lr=lr,
+        weight_decay=weight_decay,
+        betas=(
+            cfg.get("adam_beta1", 0.9) if cfg is not None else 0.9,
+            cfg.get("adam_beta2", 0.999) if cfg is not None else 0.999,
+        ),
     )
     criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
 
@@ -123,11 +131,17 @@ def main():
     data_root = cfg.get("data_root", "./data")
     if dataset == "cifar100":
         train_loader, test_loader = get_cifar100_loaders(
-            root=data_root, batch_size=batch_size, augment=cfg.get("data_aug", True)
+            root=data_root,
+            batch_size=batch_size,
+            num_workers=cfg.get("num_workers", 2),
+            augment=cfg.get("data_aug", True),
         )
     else:
         train_loader, test_loader = get_imagenet100_loaders(
-            root=data_root, batch_size=batch_size, augment=cfg.get("data_aug", True)
+            root=data_root,
+            batch_size=batch_size,
+            num_workers=cfg.get("num_workers", 2),
+            augment=cfg.get("data_aug", True),
         )
 
     num_classes = len(train_loader.dataset.classes)
@@ -143,6 +157,7 @@ def main():
         pretrained=cfg.get("student_pretrained", True),
         small_input=small_input,
         num_classes=num_classes,
+        cfg=cfg,
     ).to(device)
     if cfg.get("student_ckpt"):
         student.load_state_dict(

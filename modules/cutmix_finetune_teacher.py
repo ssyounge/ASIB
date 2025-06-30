@@ -101,6 +101,7 @@ def finetune_teacher_cutmix(
     device="cuda",
     ckpt_path="teacher_finetuned_cutmix.pth",
     label_smoothing: float = 0.0,
+    cfg=None,
 ):
     """
     teacher_model: must produce a dict containing "logit". Only the
@@ -122,7 +123,15 @@ def finetune_teacher_cutmix(
         print(f"[CutMix] loaded => testAcc={test_acc:.2f}")
         return teacher_model, test_acc
 
-    optimizer = optim.SGD(teacher_model.parameters(), lr=lr, momentum=0.9, weight_decay=weight_decay)
+    optimizer = optim.AdamW(
+        teacher_model.parameters(),
+        lr=lr,
+        weight_decay=weight_decay,
+        betas=(
+            cfg.get("adam_beta1", 0.9) if cfg is not None else 0.9,
+            cfg.get("adam_beta2", 0.999) if cfg is not None else 0.999,
+        ),
+    )
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
     best_acc = 0.0
@@ -189,8 +198,14 @@ def standard_ce_finetune(
         print(f"[CEFineTune] loaded => testAcc={test_acc:.2f}")
         return teacher_model, test_acc
 
-    optimizer = optim.SGD(
-        teacher_model.parameters(), lr=lr, momentum=0.9, weight_decay=weight_decay
+    optimizer = optim.AdamW(
+        teacher_model.parameters(),
+        lr=lr,
+        weight_decay=weight_decay,
+        betas=(
+            cfg.get("adam_beta1", 0.9) if cfg is not None else 0.9,
+            cfg.get("adam_beta2", 0.999) if cfg is not None else 0.999,
+        ),
     )
     criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
 

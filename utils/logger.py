@@ -67,7 +67,6 @@ class ExperimentLogger:
 
         # Where to save results
         self.results_dir = self.config.get("results_dir", "results")
-        os.makedirs(self.results_dir, exist_ok=True)
 
         # For timing
         self.start_time = time.time()
@@ -107,12 +106,12 @@ class ExperimentLogger:
         total_time = time.time() - self.start_time
         self.config["total_time_sec"] = total_time
 
-        # 2) JSON file path
-        json_path = os.path.join(self.results_dir, f"{self.exp_id}.json")
+        # 2) JSON file path (fixed name within results_dir)
+        json_path = os.path.join(self.results_dir, "summary.json")
 
-        # 3) CSV file path (unique for each experiment)
-        csv_filename = f"{self.exp_id}.csv"
-        self.config["csv_filename"] = csv_filename  # store in JSON as well
+        # 3) CSV file path (fixed name)
+        csv_filename = "summary.csv"
+        self.config["csv_filename"] = csv_filename
         csv_path = os.path.join(self.results_dir, csv_filename)
 
         # Save the JSON (all info)

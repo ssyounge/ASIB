@@ -43,6 +43,7 @@ def parse_args():
     p.add_argument("--weight_decay", type=float)
     p.add_argument("--epochs", type=int)
     p.add_argument("--results_dir", type=str, default="results")
+    p.add_argument("--ckpt_dir", type=str, default=None)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--device", type=str)
     p.add_argument("--dataset", "--dataset_name", dest="dataset_name", type=str,
@@ -70,7 +71,11 @@ def build_distiller(method, teacher, student, cfg):
     if method == "vanilla_kd":
         return cls(teacher, student, alpha=cfg.get("kd_alpha", 0.5), temperature=cfg.get("tau_start", 4.0), config=cfg)
     if method == "fitnet":
-        return cls(teacher, student)
+        # FitNet에 필요한 채널 수를 지정합니다.
+        # (Teacher: EfficientNet-B2, Student: ResNet-Adapter, layer2 기준)
+        s_channels = 512
+        t_channels = 88  # EfficientNet-B2의 'feat_4d_layer2' 출력 채널 수
+        return cls(teacher, student, s_channels=s_channels, t_channels=t_channels)
     if method == "dkd":
         return cls(teacher, student)
     if method == "at":
@@ -89,7 +94,7 @@ def main():
     method = cfg.get("method", args.method)
     if method != "asmb":
         cfg["use_partial_freeze"] = False
-    teacher_type = cfg.get("teacher_type", args.teacher_type)
+    teacher_type = cfg.get("teacher_type", cfg.get("default_teacher_type"))
     student_type = cfg.get("student_type", args.student_type)
     print(
         f">>> [run_single_teacher.py] method={method} teacher={teacher_type} student={student_type}"
@@ -105,11 +110,17 @@ def main():
     data_root = cfg.get("data_root", "./data")
     if dataset == "cifar100":
         train_loader, test_loader = get_cifar100_loaders(
-            root=data_root, batch_size=batch_size, augment=cfg.get("data_aug", True)
+            root=data_root,
+            batch_size=batch_size,
+            num_workers=cfg.get("num_workers", 2),
+            augment=cfg.get("data_aug", True),
         )
     else:
         train_loader, test_loader = get_imagenet100_loaders(
-            root=data_root, batch_size=batch_size, augment=cfg.get("data_aug", True)
+            root=data_root,
+            batch_size=batch_size,
+            num_workers=cfg.get("num_workers", 2),
+            augment=cfg.get("data_aug", True),
         )
 
     num_classes = len(train_loader.dataset.classes)
@@ -121,10 +132,11 @@ def main():
         small_input = dataset == "cifar100"
 
     teacher = create_teacher_by_name(
-        cfg.get("teacher_type", "resnet152"),
+        cfg.get("teacher_type", cfg.get("default_teacher_type")),
         pretrained=cfg.get("teacher_pretrained", True),
         small_input=small_input,
         num_classes=num_classes,
+        cfg=cfg,
     ).to(device)
     if cfg.get("teacher_ckpt"):
         teacher.load_state_dict(
@@ -134,7 +146,7 @@ def main():
     if cfg.get("use_partial_freeze", True):
         partial_freeze_teacher_auto(
             teacher,
-            cfg.get("teacher_type", "resnet152"),
+            cfg.get("teacher_type", cfg.get("default_teacher_type")),
             freeze_bn=cfg.get("teacher_freeze_bn", True),
             freeze_ln=cfg.get("teacher_freeze_ln", True),
             use_adapter=cfg.get("teacher_use_adapter", False),
@@ -147,6 +159,7 @@ def main():
         pretrained=cfg.get("student_pretrained", True),
         small_input=small_input,
         num_classes=num_classes,
+        cfg=cfg,
     ).to(device)
     if cfg.get("student_ckpt"):
         student.load_state_dict(
@@ -174,8 +187,9 @@ def main():
         cfg=cfg,
     )
 
-    os.makedirs(cfg.get("results_dir", "results"), exist_ok=True)
-    ckpt = os.path.join(cfg["results_dir"], f"final_student_{method}.pth")
+    ckpt_dir = cfg.get("ckpt_dir", cfg.get("results_dir", "results"))
+    os.makedirs(ckpt_dir, exist_ok=True)
+    ckpt = os.path.join(ckpt_dir, f"final_student_{method}.pth")
     torch.save(student.state_dict(), ckpt)
     print(f"[run_single_teacher] final_acc={acc:.2f}% -> {ckpt}")
 

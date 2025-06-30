@@ -160,7 +160,10 @@ def main():
 
     # 4) Data
     dataset_name = cfg.get("dataset_name", "cifar100")
-    train_loader, test_loader = get_cifar100_loaders(batch_size=cfg["batch_size"])
+    train_loader, test_loader = get_cifar100_loaders(
+        batch_size=cfg["batch_size"],
+        num_workers=cfg.get("num_workers", 2),
+    )
     device = cfg["device"]
     small_input = cfg.get("small_input")
     if small_input is None:
@@ -198,8 +201,8 @@ def main():
     else:
         # synergy mode
         # 1) YAML: teacher1_type, teacher2_type
-        teacher1_type = cfg.get("teacher1_type", "resnet152")
-        teacher2_type = cfg.get("teacher2_type", "efficientnet_b2")
+        teacher1_type = cfg["teacher1_type"]
+        teacher2_type = cfg["teacher2_type"]
 
         # 2) create teachers
         teacher1 = create_teacher_by_name(
@@ -254,6 +257,7 @@ def main():
             pretrained=False,
             small_input=small_input,
             num_classes=n_classes,
+            cfg=cfg,
         ).to(device)
 
         if cfg.get("student_ckpt"):

@@ -13,6 +13,7 @@ import copy
 import torch
 import os
 import yaml
+from typing import Optional
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR, StepLR
 
@@ -44,6 +45,7 @@ def create_student_by_name(
     pretrained: bool = True,
     small_input: bool = False,
     num_classes: int = 100,
+    cfg: Optional[dict] = None,
 ):
     """
     Returns a student model that follows the common interface
@@ -83,10 +85,15 @@ def create_student_by_name(
         from models.students.student_swin_adapter import (
             create_swin_adapter_student,
         )
+        adapter_dim = 64
+        if cfg is not None:
+            adapter_dim = cfg.get("swin_adapter_dim", adapter_dim)
         return create_swin_adapter_student(
             pretrained=pretrained,
             small_input=small_input,
             num_classes=num_classes,
+            adapter_dim=adapter_dim,
+            cfg=cfg,
         )
 
     else:
@@ -118,6 +125,7 @@ def parse_args():
     parser.add_argument("--student_epochs_per_stage", type=int)
     parser.add_argument("--epochs",     type=int)            # 예: teacher_iters
     parser.add_argument("--results_dir", type=str)
+    parser.add_argument("--ckpt_dir", type=str, default=None)
     parser.add_argument("--exp_id", type=str, default=None, help="Unique experiment ID")
     parser.add_argument("--seed", type=int, default=42)
 
@@ -151,6 +159,8 @@ def parse_args():
     parser.add_argument("--teacher2_bn_head_only", type=int)
     parser.add_argument("--use_amp", type=int)
     parser.add_argument("--amp_dtype", type=str)
+    parser.add_argument("--adam_beta1", type=float)
+    parser.add_argument("--adam_beta2", type=float)
     parser.add_argument("--grad_scaler_init_scale", type=int)
     parser.add_argument("--student_freeze_level", type=int)
 
@@ -175,20 +185,41 @@ def load_config(cfg_path):
             return yaml.safe_load(f)
     return {}
 
-def create_teacher_by_name(teacher_name, num_classes=100, pretrained=True, small_input=False):
+def create_teacher_by_name(
+    teacher_name,
+    num_classes=100,
+    pretrained=True,
+    small_input=False,
+    cfg: Optional[dict] = None,
+):
     if teacher_name == "resnet101":
-        return create_resnet101(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
+        return create_resnet101(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            small_input=small_input,
+            cfg=cfg,
+        )
     elif teacher_name == "resnet152":
         from models.teachers.teacher_resnet import create_resnet152
-        return create_resnet152(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
+        return create_resnet152(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            small_input=small_input,
+            cfg=cfg,
+        )
     elif teacher_name == "efficientnet_b2":
         return create_efficientnet_b2(
             num_classes=num_classes,
             pretrained=pretrained,
             small_input=small_input,
+            cfg=cfg,
         )
     elif teacher_name == "swin_tiny":
-        return create_swin_t(num_classes=num_classes, pretrained=pretrained)
+        return create_swin_t(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            cfg=cfg,
+        )
     else:
         raise ValueError(f"[create_teacher_by_name] Unknown teacher_name={teacher_name}")
 
@@ -302,12 +333,14 @@ def main():
         train_loader, test_loader = get_cifar100_loaders(
             root=data_root,
             batch_size=batch_size,
+            num_workers=cfg.get("num_workers", 2),
             augment=cfg.get("data_aug", True),
         )
     elif dataset == "imagenet100":
         train_loader, test_loader = get_imagenet100_loaders(
             root=data_root,
             batch_size=batch_size,
+            num_workers=cfg.get("num_workers", 2),
             augment=cfg.get("data_aug", True),
         )
     else:
@@ -324,14 +357,15 @@ def main():
         small_input = dataset == "cifar100"
 
     # 4) Create teacher1, teacher2
-    teacher1_type = cfg.get("teacher1_type", "resnet152")
-    teacher2_type = cfg.get("teacher2_type", "efficientnet_b2")
+    teacher1_type = cfg["teacher1_type"]
+    teacher2_type = cfg["teacher2_type"]
 
     teacher1 = create_teacher_by_name(
         teacher_name=teacher1_type,
         num_classes=num_classes,
         pretrained=cfg.get("teacher1_pretrained", True),
         small_input=small_input,
+        cfg=cfg,
     ).to(device)
 
     if cfg.get("teacher1_ckpt"):
@@ -359,6 +393,7 @@ def main():
         num_classes=num_classes,
         pretrained=cfg.get("teacher2_pretrained", True),
         small_input=small_input,
+        cfg=cfg,
     ).to(device)
 
     if cfg.get("teacher2_ckpt"):
@@ -459,6 +494,7 @@ def main():
         pretrained=cfg.get("student_pretrained", True),
         small_input=small_input,
         num_classes=num_classes,
+        cfg=cfg,
     ).to(device)
 
     if cfg.get("student_ckpt"):
@@ -548,6 +584,10 @@ def main():
             },
         ],
         weight_decay=cfg["teacher_weight_decay"],
+        betas=(
+            cfg.get("adam_beta1", 0.9),
+            cfg.get("adam_beta2", 0.999),
+        ),
     )
 
     teacher_total_epochs = num_stages * cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5))
@@ -564,7 +604,10 @@ def main():
         student_model.parameters(),
         lr=cfg["student_lr"],
         weight_decay=cfg["student_weight_decay"],
-        betas=(0.9, 0.999),
+        betas=(
+            cfg.get("adam_beta1", 0.9),
+            cfg.get("adam_beta2", 0.999),
+        ),
         eps=1e-8,
     )
 
@@ -634,8 +677,9 @@ def main():
         logger.update_metric(f"stage{stage_id}_student_acc", final_acc)
 
     # 8) save final
-    student_ckpt_path = f"{cfg['results_dir']}/final_student_asmb.pth"
-    os.makedirs(os.path.dirname(student_ckpt_path), exist_ok=True)
+    ckpt_dir = cfg.get("ckpt_dir", cfg["results_dir"])
+    os.makedirs(ckpt_dir, exist_ok=True)
+    student_ckpt_path = os.path.join(ckpt_dir, "student_final.pth")
     torch.save(student_model.state_dict(), student_ckpt_path)
     print(f"[main] Distillation done => {student_ckpt_path}")
     logger.update_metric("final_student_ckpt", student_ckpt_path)

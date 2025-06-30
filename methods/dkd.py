@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from modules.losses import ce_loss_fn
+from modules.losses import ce_loss_fn, dkd_loss
 
 class DKDDistiller(nn.Module):
     """
@@ -111,7 +111,10 @@ class DKDDistiller(nn.Module):
             self.student.parameters(),
             lr=lr,
             weight_decay=weight_decay,
-            betas=(0.9, 0.999),
+            betas=(
+                self.cfg.get("adam_beta1", 0.9),
+                self.cfg.get("adam_beta2", 0.999),
+            ),
             eps=1e-8,
         )
 

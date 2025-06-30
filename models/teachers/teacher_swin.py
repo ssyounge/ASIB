@@ -3,6 +3,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Optional
 from .adapters import DistillationAdapter
 from torchvision.models import swin_t, Swin_T_Weights
 
@@ -16,7 +17,7 @@ class TeacherSwinWrapper(nn.Module):
         "feat_2d": [N, C],       # global pooled or direct features
       }
     """
-    def __init__(self, backbone: nn.Module):
+    def __init__(self, backbone: nn.Module, cfg: Optional[dict] = None):
         super().__init__()
         self.backbone = backbone
         self.criterion_ce = nn.CrossEntropyLoss()
@@ -27,7 +28,9 @@ class TeacherSwinWrapper(nn.Module):
         self.feat_channels = self.feat_dim
 
         # distillation adapter
-        self.distillation_adapter = DistillationAdapter(self.feat_dim)
+        self.distillation_adapter = DistillationAdapter(
+            self.feat_dim, cfg=cfg
+        )
         self.distill_dim = self.distillation_adapter.out_dim
 
     
@@ -46,9 +49,15 @@ class TeacherSwinWrapper(nn.Module):
 
         # 2) handle feature shape
         if f4d.dim() == 2:
+            # already pooled -> treat as 2D feature
             f2d = f4d
             feat_4d = f2d.unsqueeze(-1).unsqueeze(-1)
+        elif f4d.dim() == 3:
+            # Swin Tiny from timm sometimes returns [N, seq_len, C]
+            f2d = f4d.mean(dim=1)
+            feat_4d = f2d.unsqueeze(-1).unsqueeze(-1)
         else:
+            # standard 4D [N, C, H, W]
             feat_4d = f4d
             f2d = F.adaptive_avg_pool2d(f4d, (1, 1)).flatten(1)
 
@@ -70,6 +79,10 @@ class TeacherSwinWrapper(nn.Module):
             "distill_feat": distill_feat,
             "logit": logit,
             "ce_loss": ce_loss,
+            # expose identical keys for compatibility
+            "feat_4d_layer1": feat_4d,
+            "feat_4d_layer2": feat_4d,
+            "feat_4d_layer3": feat_4d,
         }
         
     def get_feat_dim(self):
@@ -82,7 +95,11 @@ class TeacherSwinWrapper(nn.Module):
         """Channel dimension of the 4D feature."""
         return self.feat_channels
 
-def create_swin_t(num_classes=100, pretrained=True):
+def create_swin_t(
+    num_classes=100,
+    pretrained=True,
+    cfg: Optional[dict] = None,
+):
     """
     Swin Tiny 로드 후, head 교체 => TeacherSwinWrapper
     => (feature_dict, logit, ce_loss)
@@ -95,5 +112,5 @@ def create_swin_t(num_classes=100, pretrained=True):
     in_ch = model.head.in_features
     model.head = nn.Linear(in_ch, num_classes)
 
-    teacher_model = TeacherSwinWrapper(model)
+    teacher_model = TeacherSwinWrapper(model, cfg=cfg)
     return teacher_model

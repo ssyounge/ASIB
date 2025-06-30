@@ -18,3 +18,4 @@ teacher2_freeze_level: 2
 student_freeze_bn: false
 student_freeze_level: 2
 student_use_adapter: true
+num_workers: 2
