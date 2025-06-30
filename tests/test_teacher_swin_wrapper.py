@@ -9,7 +9,8 @@ class DummySwin(torch.nn.Module):
         self.head = torch.nn.Linear(1, 2)
         self.norm = torch.nn.Identity()
 
-    def forward_features(self, x):
+    # mimic torchvision Swin interface
+    def features(self, x):
         b, c, h, w = x.shape
         return x.view(b, h * w, 1)
 
