@@ -7,14 +7,15 @@ from .adapters import DistillationAdapter
 from torchvision.models import swin_t, Swin_T_Weights
 
 class TeacherSwinWrapper(nn.Module):
-    """
-    Teacher 모델(Swin Tiny) forward:
-     => dict 반환 {"feat_4d", "feat_2d", "logit", "ce_loss"}
-    feature_dict 예시:
-      {
-        "feat_4d": [N, C, H, W],  # backbone.forward_features(x) or unsqueezed
-        "feat_2d": [N, C],       # global pooled or direct features
-      }
+    """Wrap a torchvision Swin Tiny model for distillation.
+
+    The official ``forward`` for a Swin Transformer is::
+
+        features -> norm -> permute -> avgpool -> flatten -> head
+
+    This wrapper follows that sequence and also exposes the feature map
+    just before pooling as ``feat_4d`` ([N, C, H, W]) for compatibility with
+    the other teachers.
     """
     def __init__(self, backbone: nn.Module, cfg: Optional[dict] = None):
         super().__init__()
@@ -37,35 +38,36 @@ class TeacherSwinWrapper(nn.Module):
 
     
     def forward(self, x, y=None):
-        """Standard forward pass for a Swin Transformer teacher."""
+        """Forward pass following the official torchvision Swin order."""
 
-        # 1. Swin 모델의 백본 특징 추출 모듈을 직접 호출합니다.
-        #    [N, C, H, W] 형태의 4D 텐서를 반환합니다.
-        f4d = self.backbone.features(x)
+        # Official Swin forward: features -> norm -> permute -> avgpool -> flatten
+        out = self.backbone.features(x)
+        out = self.backbone.norm(out)
+        out = self.backbone.permute(out)
+        out = self.backbone.avgpool(out)
+        feat_2d = self.backbone.flatten(out)
 
-        # 2. 4D 특징맵을 2D 벡터로 변환합니다.
-        f2d = self.backbone.avgpool(f4d)
-        f2d = torch.flatten(f2d, 1)
+        distill_feat = self.distillation_adapter(feat_2d)
+        logit = self.backbone.head(feat_2d)
 
-        # 3. 어댑터와 헤드에 전달합니다.
-        distill_feat = self.distillation_adapter(f2d)
-        logit = self.backbone.head(f2d)
-
-        # (선택적) CE 손실 계산
         ce_loss = None
         if y is not None:
             ce_loss = self.criterion_ce(logit, y)
 
-        # 최종 반환 딕셔너리
+        # Recompute 4D feature before pooling for compatibility
+        feat_4d_for_compat = self.backbone.features(x)
+        feat_4d_for_compat = self.backbone.norm(feat_4d_for_compat)
+        feat_4d_for_compat = self.backbone.permute(feat_4d_for_compat)
+
         return {
-            "feat_4d": f4d,
-            "feat_2d": f2d,
+            "feat_4d": feat_4d_for_compat,
+            "feat_2d": feat_2d,
             "distill_feat": distill_feat,
             "logit": logit,
             "ce_loss": ce_loss,
-            "feat_4d_layer1": f4d,
-            "feat_4d_layer2": f4d,
-            "feat_4d_layer3": f4d,
+            "feat_4d_layer1": feat_4d_for_compat,
+            "feat_4d_layer2": feat_4d_for_compat,
+            "feat_4d_layer3": feat_4d_for_compat,
         }
         
     def get_feat_dim(self):
