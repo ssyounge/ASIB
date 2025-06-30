@@ -21,7 +21,7 @@ class TeacherResNetWrapper(nn.Module):
         "feat_2d": [N, 2048],        # global pooled
       }
     """
-    def __init__(self, backbone: nn.Module):
+    def __init__(self, backbone: nn.Module, cfg: dict | None = None):
         super().__init__()
         self.backbone = backbone
         self.criterion_ce = nn.CrossEntropyLoss()
@@ -31,7 +31,9 @@ class TeacherResNetWrapper(nn.Module):
         self.feat_channels = 2048
 
         # distillation adapter
-        self.distillation_adapter = DistillationAdapter(self.feat_dim)
+        self.distillation_adapter = DistillationAdapter(
+            self.feat_dim, cfg=cfg
+        )
         self.distill_dim = self.distillation_adapter.out_dim
     
     def forward(self, x, y=None):
@@ -88,7 +90,12 @@ class TeacherResNetWrapper(nn.Module):
         """Channel dimension of the 4D feature."""
         return self.feat_channels
 
-def create_resnet101(num_classes=100, pretrained=True, small_input=False):
+def create_resnet101(
+    num_classes=100,
+    pretrained=True,
+    small_input=False,
+    cfg: dict | None = None,
+):
     """
     ResNet101 로드 후 stem을 optional로 CIFAR-friendly 형태로 바꾸고,
     마지막 FC 교체 => TeacherResNetWrapper
@@ -106,11 +113,16 @@ def create_resnet101(num_classes=100, pretrained=True, small_input=False):
     in_feats = model.fc.in_features
     model.fc = nn.Linear(in_feats, num_classes)
 
-    teacher_model = TeacherResNetWrapper(model)
+    teacher_model = TeacherResNetWrapper(model, cfg=cfg)
     return teacher_model
 
 
-def create_resnet152(num_classes=100, pretrained=True, small_input=False):
+def create_resnet152(
+    num_classes=100,
+    pretrained=True,
+    small_input=False,
+    cfg: dict | None = None,
+):
     """Create a ResNet152 teacher wrapped with ``TeacherResNetWrapper``."""
     if pretrained:
         model = resnet152(weights=ResNet152_Weights.IMAGENET1K_V2)
@@ -124,5 +136,5 @@ def create_resnet152(num_classes=100, pretrained=True, small_input=False):
     in_feats = model.fc.in_features
     model.fc = nn.Linear(in_feats, num_classes)
 
-    teacher_model = TeacherResNetWrapper(model)
+    teacher_model = TeacherResNetWrapper(model, cfg=cfg)
     return teacher_model
