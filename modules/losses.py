@@ -112,8 +112,18 @@ def rkd_distance_loss(student_feat, teacher_feat, eps: float = 1e-12):
     dist_s = diff_s.pow(2).sum(dim=2).sqrt()
     dist_t = diff_t.pow(2).sum(dim=2).sqrt()
 
-    mean_s = dist_s[dist_s > 0].mean()
-    mean_t = dist_t[dist_t > 0].mean()
+    pos_s = dist_s > 0
+    pos_t = dist_t > 0
+
+    if pos_s.any():
+        mean_s = dist_s[pos_s].mean()
+    else:
+        mean_s = dist_s.new_tensor(1.0)
+
+    if pos_t.any():
+        mean_t = dist_t[pos_t].mean()
+    else:
+        mean_t = dist_t.new_tensor(1.0)
 
     dist_s = dist_s / (mean_s + eps)
     dist_t = dist_t / (mean_t + eps)
