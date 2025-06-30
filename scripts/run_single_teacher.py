@@ -78,13 +78,19 @@ def build_distiller(method, teacher, student, cfg):
         # (Teacher: EfficientNet-B2, Student: ResNet-Adapter, layer2 기준)
         s_channels = 512
         t_channels = 88  # EfficientNet-B2의 'feat_4d_layer2' 출력 채널 수
-        return cls(teacher, student, s_channels=s_channels, t_channels=t_channels)
+        return cls(
+            teacher,
+            student,
+            s_channels=s_channels,
+            t_channels=t_channels,
+            config=cfg,
+        )
     if method == "dkd":
-        return cls(teacher, student)
+        return cls(teacher, student, config=cfg)
     if method == "at":
-        return cls(teacher, student)
+        return cls(teacher, student, config=cfg)
     if method == "crd":
-        return cls(teacher, student)
+        return cls(teacher, student, config=cfg)
     raise ValueError(method)
 
 
