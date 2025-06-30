@@ -2,7 +2,6 @@
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from typing import Optional
 from .adapters import DistillationAdapter
 from torchvision.models import swin_t, Swin_T_Weights
@@ -38,63 +37,32 @@ class TeacherSwinWrapper(nn.Module):
 
     
     def forward(self, x, y=None):
-        # 1) backbone forward => feature tensor
-        # keep gradients so Swin parameters remain trainable during teacher adaptation
-        if hasattr(self.backbone, "forward_features"):
-            x_features = self.backbone.forward_features(x)
-        elif hasattr(self.backbone, "features"):
-            x_features = self.backbone.features(x)
-        else:
-            raise AttributeError(
-                "Backbone model must implement forward_features or features"
-            )
+        # 1) Swin 모델의 백본을 통과시켜 특징 추출
+        x_features = self.backbone.forward_features(x)
 
-        # 2) handle feature shape
-        if x_features.dim() == 2:
-            # already pooled -> treat as 2D feature
-            f2d = x_features
-            feat_4d = f2d.unsqueeze(-1).unsqueeze(-1)
-        elif x_features.dim() == 3:
-            # Swin Tiny may return [N, seq_len, C] or [N, C, seq_len]
-            x_features = (
-                self.backbone.norm(x_features)
-                if hasattr(self.backbone, "norm")
-                else x_features
-            )
-            if x_features.shape[1] == self.feat_dim:
-                # [N, C, seq_len] => average over sequence dimension
-                f2d = x_features.mean(dim=2)
-            else:
-                # [N, seq_len, C] => average over sequence dimension
-                f2d = x_features.mean(dim=1)
-            feat_4d = f2d.unsqueeze(-1).unsqueeze(-1)
-        else:
-            # standard 4D [N, C, H, W]
-            feat_4d = x_features
-            f2d = F.adaptive_avg_pool2d(x_features, (1, 1)).flatten(1)
+        # 2) 3D 텐서를 2D 벡터로 올바르게 변환 (Global Average Pooling)
+        f2d = self.backbone.norm(x_features)
+        f2d = f2d.mean(dim=1)
 
-        # distillation adapter feature
+        # 3) 어댑터 및 헤드 통과
         distill_feat = self.distillation_adapter(f2d)
-
-        # 3) head => logit
         logit = self.backbone.head(f2d)
 
-        # (optional) CE loss
         ce_loss = None
         if y is not None:
             ce_loss = self.criterion_ce(logit, y)
 
-        # Dict
+        # 더미 4D 특징맵 생성 (호환성 유지용)
+        dummy_4d = f2d.unsqueeze(-1).unsqueeze(-1)
         return {
-            "feat_4d": feat_4d,  # [N, C, H, W]
-            "feat_2d": f2d,  # [N, C]
+            "feat_4d": dummy_4d,
+            "feat_2d": f2d,
             "distill_feat": distill_feat,
             "logit": logit,
             "ce_loss": ce_loss,
-            # expose identical keys for compatibility
-            "feat_4d_layer1": feat_4d,
-            "feat_4d_layer2": feat_4d,
-            "feat_4d_layer3": feat_4d,
+            "feat_4d_layer1": dummy_4d,
+            "feat_4d_layer2": dummy_4d,
+            "feat_4d_layer3": dummy_4d,
         }
         
     def get_feat_dim(self):
