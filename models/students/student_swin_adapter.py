@@ -14,7 +14,9 @@ class StudentSwinAdapter(nn.Module):
       => returns (feature_dict, logit, ce_loss)
     """
     def __init__(self, pretrained=True, adapter_dim=64, num_classes=100,
-                 small_input: bool = False):
+                 small_input: bool = False, cfg: dict | None = None):
+        if cfg is not None:
+            adapter_dim = cfg.get("swin_adapter_dim", adapter_dim)
         super().__init__()
         self.criterion_ce = nn.CrossEntropyLoss()
 
@@ -81,7 +83,9 @@ class StudentSwinAdapter(nn.Module):
 
 
 def create_swin_adapter_student(pretrained=True, adapter_dim=64, num_classes=100,
-                                small_input: bool = False):
+                                small_input: bool = False, cfg: dict | None = None):
+    if cfg is not None:
+        adapter_dim = cfg.get("swin_adapter_dim", adapter_dim)
     """
     Creates the Student Swin model w/ adapter => (dict, logit, ce_loss)
     """

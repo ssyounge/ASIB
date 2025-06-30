@@ -254,6 +254,7 @@ def main():
             pretrained=False,
             small_input=small_input,
             num_classes=n_classes,
+            cfg=cfg,
         ).to(device)
 
         if cfg.get("student_ckpt"):
