@@ -221,7 +221,9 @@ def finetune_teacher_cutmix(
 
     print(f"[CutMix] Fine-tune done => bestAcc={best_acc:.2f}, saved={ckpt_path}")
     # reload the best checkpoint (already saved during training)
-    teacher_model.load_state_dict(torch.load(ckpt_path, map_location=device))
+    teacher_model.load_state_dict(
+        torch.load(ckpt_path, map_location=device, weights_only=True)
+    )
     return teacher_model, best_acc
 
 def standard_ce_finetune(
@@ -295,5 +297,7 @@ def standard_ce_finetune(
         print(f"[CE FineTune|ep={ep}/{epochs}] testAcc={te_acc:.2f}, best={best_acc:.2f}")
 
     print(f"[CEFineTune] done => bestAcc={best_acc:.2f}, saved={ckpt_path}")
-    teacher_model.load_state_dict(torch.load(ckpt_path, map_location=device))
+    teacher_model.load_state_dict(
+        torch.load(ckpt_path, map_location=device, weights_only=True)
+    )
     return teacher_model, best_acc
