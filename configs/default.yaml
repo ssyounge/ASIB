@@ -7,6 +7,7 @@ dataset_name: "cifar100"
 small_input: true
 data_root: "./data"
 batch_size: 128
+num_workers: 2
 use_amp: true
 amp_dtype: float16
 grad_scaler_init_scale: 1024

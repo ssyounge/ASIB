@@ -110,11 +110,17 @@ def main():
     data_root = cfg.get("data_root", "./data")
     if dataset == "cifar100":
         train_loader, test_loader = get_cifar100_loaders(
-            root=data_root, batch_size=batch_size, augment=cfg.get("data_aug", True)
+            root=data_root,
+            batch_size=batch_size,
+            num_workers=cfg.get("num_workers", 2),
+            augment=cfg.get("data_aug", True),
         )
     else:
         train_loader, test_loader = get_imagenet100_loaders(
-            root=data_root, batch_size=batch_size, augment=cfg.get("data_aug", True)
+            root=data_root,
+            batch_size=batch_size,
+            num_workers=cfg.get("num_workers", 2),
+            augment=cfg.get("data_aug", True),
         )
 
     num_classes = len(train_loader.dataset.classes)
