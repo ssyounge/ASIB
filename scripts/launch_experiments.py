@@ -50,6 +50,38 @@ def generate_temp_config(method: str) -> str:
     return tmp.name
 
 
+def collect_teachers(setup: dict) -> set:
+    """Collect unique teacher types from the setup dictionary."""
+    teachers = set()
+    for t1, t2 in setup.get("asmb_teacher_pairs", []):
+        teachers.add(t1)
+        teachers.add(t2)
+    for cfg in setup.get("baseline_setups", []):
+        teachers.add(cfg.get("teacher"))
+    return teachers
+
+
+def finetune_teachers(setup: dict):
+    """Fine-tune all required teachers before running distillation."""
+    teachers = collect_teachers(setup)
+    if not teachers:
+        return
+    print(">>> [Phase 1] Starting Teacher Fine-tuning...")
+    os.makedirs("checkpoints", exist_ok=True)
+    for teacher in teachers:
+        ckpt_path = f"checkpoints/{teacher}_ft.pth"
+        if os.path.exists(ckpt_path):
+            print(
+                f"[launch_experiments.py] Checkpoint for {teacher} already exists. Skipping fine-tuning."
+            )
+            continue
+        cmd = (
+            f"python scripts/fine_tuning.py --config configs/hparams.yaml "
+            f"--teacher_type {teacher} --finetune_ckpt_path {ckpt_path}"
+        )
+        run_command(cmd)
+    print(">>> [Phase 1] Teacher Fine-tuning complete.\n")
+
 def run_asmb_experiments(setup: dict):
     pairs = setup.get("asmb_teacher_pairs", [])
     student_list = setup.get("student_list", ["resnet_adapter"])
@@ -59,6 +91,8 @@ def run_asmb_experiments(setup: dict):
             cmd = (
                 f"python main.py --config {cfg_path} "
                 f"--teacher1_type {t1} --teacher2_type {t2} "
+                f"--teacher1_ckpt checkpoints/{t1}_ft.pth "
+                f"--teacher2_ckpt checkpoints/{t2}_ft.pth "
                 f"--student_type {student}"
             )
             try:
@@ -79,7 +113,9 @@ def run_baseline_experiments(setup: dict):
             cmd = (
                 "python scripts/run_single_teacher.py "
                 f"--config {cfg_path} --method {method} "
-                f"--teacher_type {teacher} --student_type {student}"
+                f"--teacher_type {teacher} "
+                f"--teacher_ckpt checkpoints/{teacher}_ft.pth "
+                f"--student_type {student}"
             )
             try:
                 run_command(cmd)
@@ -99,8 +135,20 @@ def parse_args():
     return p.parse_args()
 
 
-if __name__ == "__main__":
+def main() -> None:
     args = parse_args()
     setup = load_yaml(args.setup)
+
+    # Phase 1: teacher fine-tuning
+    finetune_teachers(setup)
+
+    # Phase 2: ASMB multi-teacher distillation
+    print(">>> [Phase 2] Starting ASMB Distillation...")
     run_asmb_experiments(setup)
+
+    # Baseline single-teacher experiments
     run_baseline_experiments(setup)
+
+
+if __name__ == "__main__":
+    main()
