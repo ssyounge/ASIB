@@ -160,7 +160,10 @@ def main():
 
     # 4) Data
     dataset_name = cfg.get("dataset_name", "cifar100")
-    train_loader, test_loader = get_cifar100_loaders(batch_size=cfg["batch_size"])
+    train_loader, test_loader = get_cifar100_loaders(
+        batch_size=cfg["batch_size"],
+        num_workers=cfg.get("num_workers", 2),
+    )
     device = cfg["device"]
     small_input = cfg.get("small_input")
     if small_input is None:
