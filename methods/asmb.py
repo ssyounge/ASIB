@@ -133,8 +133,8 @@ class ASMBDistiller(nn.Module):
         self.synergy_head.to(self.device)
         self.student.to(self.device)
 
-        # create optimizers / schedulers once so that momentum and LR schedule
-        # are carried across stages
+        # create optimizers / schedulers once so that optimizer state (e.g.,
+        # Adam moments) and LR schedule are carried across stages
         teacher_params = []
         use_da = self.config.get("use_distillation_adapter", False)
         src1 = (
