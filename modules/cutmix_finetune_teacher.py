@@ -78,16 +78,38 @@ def train_one_epoch_cutmix(
 
 @torch.no_grad()
 def eval_teacher(teacher_model, loader, device="cuda", cfg=None):
+    """Evaluate classification accuracy of a model.
+
+    This mirrors :func:`evaluate_acc` in ``eval.py`` but lives here so the
+    training utilities can depend on it without a circular import.
+    ``teacher_model`` may return either a dict containing ``"logit"``, a tuple
+    of ``(..., logits, ...)`` or logits directly.
+    """
+
     autocast_ctx, _ = get_amp_components(cfg or {})
     teacher_model.eval()
     correct, total = 0, 0
+
     for x, y in loader:
         x, y = x.to(device), y.to(device)
         with autocast_ctx:
-            out = teacher_model(x)  # dict with "logit"
-            preds = out["logit"].argmax(dim=1)
+            out = teacher_model(x)
+
+            if isinstance(out, tuple):
+                logits = out[1]
+            elif isinstance(out, dict):
+                logits = out["logit"]
+            else:
+                logits = out
+
+            if logits.dim() > 2:
+                logits = logits.mean(dim=tuple(range(2, logits.dim())))
+
+            preds = logits.argmax(dim=1)
+
         correct += (preds == y).sum().item()
-        total   += y.size(0)
+        total += y.size(0)
+
     return 100.0 * correct / total
 
 def finetune_teacher_cutmix(
