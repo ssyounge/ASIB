@@ -22,6 +22,12 @@ def cutmix_criterion(criterion, pred, y_a, y_b, lam):
     """
     if pred.dim() > 2:
         pred = pred.mean(dim=tuple(range(2, pred.dim())))
+
+    # Clamp labels to avoid invalid class indices from CutMix augmentation
+    num_classes = pred.size(1)
+    y_a = torch.clamp(y_a, 0, num_classes - 1)
+    y_b = torch.clamp(y_b, 0, num_classes - 1)
+
     return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
 
 
