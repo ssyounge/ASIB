@@ -101,6 +101,7 @@ def finetune_teacher_cutmix(
     device="cuda",
     ckpt_path="teacher_finetuned_cutmix.pth",
     label_smoothing: float = 0.0,
+    cfg=None,
 ):
     """
     teacher_model: must produce a dict containing "logit". Only the
@@ -126,6 +127,10 @@ def finetune_teacher_cutmix(
         teacher_model.parameters(),
         lr=lr,
         weight_decay=weight_decay,
+        betas=(
+            cfg.get("adam_beta1", 0.9) if cfg is not None else 0.9,
+            cfg.get("adam_beta2", 0.999) if cfg is not None else 0.999,
+        ),
     )
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
@@ -197,6 +202,10 @@ def standard_ce_finetune(
         teacher_model.parameters(),
         lr=lr,
         weight_decay=weight_decay,
+        betas=(
+            cfg.get("adam_beta1", 0.9) if cfg is not None else 0.9,
+            cfg.get("adam_beta2", 0.999) if cfg is not None else 0.999,
+        ),
     )
     criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
 
