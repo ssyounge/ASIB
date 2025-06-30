@@ -134,18 +134,21 @@ def main():
     if small_input is None:
         small_input = dataset == "cifar100"
 
+    teacher_type = cfg.get("teacher_type", cfg.get("default_teacher_type"))
+    teacher_ckpt_path = cfg.get("teacher_ckpt", f"./checkpoints/{teacher_type}_ft.pth")
     teacher = create_teacher_by_name(
-        cfg.get("teacher_type", cfg.get("default_teacher_type")),
+        teacher_type,
         pretrained=cfg.get("teacher_pretrained", True),
         small_input=small_input,
         num_classes=num_classes,
         cfg=cfg,
     ).to(device)
-    if cfg.get("teacher_ckpt"):
+    if os.path.exists(teacher_ckpt_path):
         teacher.load_state_dict(
-            torch.load(cfg["teacher_ckpt"], map_location=device, weights_only=True),
+            torch.load(teacher_ckpt_path, map_location=device, weights_only=True),
             strict=False,
         )
+        print(f"[run_single_teacher.py] Loaded teacher from {teacher_ckpt_path}")
     if cfg.get("use_partial_freeze", True):
         partial_freeze_teacher_auto(
             teacher,

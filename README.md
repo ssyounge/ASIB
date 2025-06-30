@@ -220,7 +220,6 @@ Baseline runs (e.g., `vanilla_kd`) produce their own logs such as `VanillaKD => 
 1) Multi-Stage Distillation (main.py)
 
 python main.py --config configs/partial_freeze.yaml --device cuda \
-  --teacher1_ckpt teacher1.pth --teacher2_ckpt teacher2.pth \
   --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 1
   # Freeze levels (`teacher1_freeze_level`, `teacher2_freeze_level`,
   # `student_freeze_level`) are loaded from `configs/partial_freeze.yaml`
@@ -228,7 +227,7 @@ python main.py --config configs/partial_freeze.yaml --device cuda \
         •       Adjust partial-freeze or architecture settings in `configs/*.yaml`.
         •       Edit `configs/hparams.yaml` to change numeric hyperparameters like learning rates or dropout.
         •       Set `LR_SCHEDULE` to "step" or "cosine" to choose the learning rate scheduler.
-	•	Optionally load pre-finetuned teacher checkpoints via `--teacher1_ckpt` and `--teacher2_ckpt`.
+	•	Teacher checkpoints load automatically from `checkpoints/{teacher_type}_ft.pth` when available.
         •       Each trainer creates its own optimizer and scheduler at the start of every stage.
 
 2) Single-Teacher Distillation (run_single_teacher.py)
@@ -271,8 +270,7 @@ python eval.py --eval_mode single \
 
 # Synergy model
 python eval.py --eval_mode synergy \
-  --teacher1_ckpt teacher1.pth \
-  --teacher2_ckpt teacher2.pth \
+  # uses checkpoints/{teacher_type}_ft.pth if available \
   --mbm_ckpt mbm.pth \
   --head_ckpt synergy_head.pth \
   --student_type resnet_adapter \
