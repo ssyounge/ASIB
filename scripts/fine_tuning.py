@@ -65,6 +65,8 @@ def parse_args():
     parser.add_argument("--dropout_p", type=float)
     parser.add_argument("--use_amp", type=int)
     parser.add_argument("--amp_dtype", type=str)
+    parser.add_argument("--adam_beta1", type=float)
+    parser.add_argument("--adam_beta2", type=float)
     parser.add_argument("--grad_scaler_init_scale", type=int)
 
     return parser.parse_args()
@@ -184,6 +186,7 @@ def standard_ce_finetune(
     device,
     ckpt_path,
     label_smoothing: float = 0.0,
+    cfg=None,
 ):
     """Simple fine-tune loop using cross-entropy loss.
 
@@ -197,6 +200,10 @@ def standard_ce_finetune(
         model.parameters(),
         lr=lr,
         weight_decay=weight_decay,
+        betas=(
+            cfg.get("adam_beta1", 0.9) if cfg is not None else 0.9,
+            cfg.get("adam_beta2", 0.999) if cfg is not None else 0.999,
+        ),
     )
     crit  = torch.nn.CrossEntropyLoss(label_smoothing=label_smoothing)
     best_acc = 0.0
@@ -323,6 +330,7 @@ def main():
             device=device,
             ckpt_path=ckpt_path,
             label_smoothing=cfg.get("label_smoothing", 0.0),
+            cfg=cfg,
         )
     else:
         # => implement your own standard CE fine-tune loop or reuse a function
@@ -336,6 +344,7 @@ def main():
             device=device,
             ckpt_path=ckpt_path,
             label_smoothing=cfg.get("label_smoothing", 0.0),
+            cfg=cfg,
         )
 
     print(f"[FineTune] done => bestAcc={best_acc:.2f}, final ckpt={ckpt_path}")

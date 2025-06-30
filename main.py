@@ -158,6 +158,8 @@ def parse_args():
     parser.add_argument("--teacher2_bn_head_only", type=int)
     parser.add_argument("--use_amp", type=int)
     parser.add_argument("--amp_dtype", type=str)
+    parser.add_argument("--adam_beta1", type=float)
+    parser.add_argument("--adam_beta2", type=float)
     parser.add_argument("--grad_scaler_init_scale", type=int)
     parser.add_argument("--student_freeze_level", type=int)
 
@@ -581,6 +583,10 @@ def main():
             },
         ],
         weight_decay=cfg["teacher_weight_decay"],
+        betas=(
+            cfg.get("adam_beta1", 0.9),
+            cfg.get("adam_beta2", 0.999),
+        ),
     )
 
     teacher_total_epochs = num_stages * cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5))
@@ -597,7 +603,10 @@ def main():
         student_model.parameters(),
         lr=cfg["student_lr"],
         weight_decay=cfg["student_weight_decay"],
-        betas=(0.9, 0.999),
+        betas=(
+            cfg.get("adam_beta1", 0.9),
+            cfg.get("adam_beta2", 0.999),
+        ),
         eps=1e-8,
     )
 
