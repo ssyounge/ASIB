@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+from typing import Optional
 from modules.losses import kd_loss_fn, ce_loss_fn
 
 class CRDLoss(nn.Module):
@@ -41,8 +42,16 @@ class CRDDistiller(nn.Module):
       - CE = cross entropy with s_logit
       - total_loss = alpha * CRD + (1 - alpha) * CE
     """
-    def __init__(self, teacher_model, student_model, feat_key="feat_2d",
-                 alpha=0.5, temperature=0.07, label_smoothing: float = 0.0):
+    def __init__(
+        self,
+        teacher_model,
+        student_model,
+        feat_key="feat_2d",
+        alpha=0.5,
+        temperature=0.07,
+        label_smoothing: float = 0.0,
+        config: Optional[dict] = None,
+    ):
         super().__init__()
         self.teacher = teacher_model
         self.student = student_model
@@ -50,6 +59,7 @@ class CRDDistiller(nn.Module):
         self.alpha = alpha
         self.crd_loss_fn = CRDLoss(temperature=temperature)
         self.label_smoothing = label_smoothing
+        self.cfg = config if config is not None else {}
 
         s_dim = student_model.get_feat_dim()
         t_dim = teacher_model.get_feat_dim()
