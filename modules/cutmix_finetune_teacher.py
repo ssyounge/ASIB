@@ -158,7 +158,7 @@ def finetune_teacher_cutmix(
     logits are used to do classification during fine-tuning.
     train_loader, test_loader: standard classification dataset
     alpha: cutmix alpha
-    lr, weight_decay, epochs, etc. for standard SGD
+    lr, weight_decay, epochs, etc. for AdamW optimizer
     label_smoothing: passed to ``CrossEntropyLoss`` during training
     """
     teacher_model = teacher_model.to(device)
@@ -182,10 +182,6 @@ def finetune_teacher_cutmix(
         teacher_model.parameters(),
         lr=lr,
         weight_decay=weight_decay,
-        betas=(
-            cfg.get("adam_beta1", 0.9) if cfg is not None else 0.9,
-            cfg.get("adam_beta2", 0.999) if cfg is not None else 0.999,
-        ),
     )
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
