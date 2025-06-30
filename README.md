@@ -290,6 +290,9 @@ Use the `--data_aug` flag to control dataset transforms. When set to `1` (defaul
 python main.py --config configs/default.yaml --data_aug 0
 ```
 
+Set `num_workers` in your YAML file to control how many processes each
+`DataLoader` uses (defaults to `2`).
+
 | Flag | Purpose |
 | ---- | ------- |
 | `--mixup_alpha` | MixUp alpha for distillation |

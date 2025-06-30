@@ -11,6 +11,7 @@ deterministic: true
 dataset_name: "cifar100"
 data_root: "./data"
 batch_size: 128
+num_workers: 2
 data_aug: 1
 small_input: true
 

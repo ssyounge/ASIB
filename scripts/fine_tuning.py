@@ -75,14 +75,22 @@ def load_config(cfg_path):
             return yaml.safe_load(f)
     return {}
 
-def get_data_loaders(dataset_name, batch_size=128, augment=True):
+def get_data_loaders(dataset_name, batch_size=128, num_workers=2, augment=True):
     """
     Returns train_loader, test_loader based on dataset_name.
     """
     if dataset_name == "cifar100":
-        return get_cifar100_loaders(batch_size=batch_size, augment=augment)
+        return get_cifar100_loaders(
+            batch_size=batch_size,
+            num_workers=num_workers,
+            augment=augment,
+        )
     elif dataset_name == "imagenet100":
-        return get_imagenet100_loaders(batch_size=batch_size, augment=augment)
+        return get_imagenet100_loaders(
+            batch_size=batch_size,
+            num_workers=num_workers,
+            augment=augment,
+        )
     else:
         raise ValueError(f"Unknown dataset_name={dataset_name}")
 
@@ -229,7 +237,8 @@ def main():
     train_loader, test_loader = get_data_loaders(
         dataset_name,
         batch_size=batch_size,
-        augment=cfg.get("data_aug", True)
+        num_workers=cfg.get("num_workers", 2),
+        augment=cfg.get("data_aug", True),
     )
 
     num_classes = len(train_loader.dataset.classes)
