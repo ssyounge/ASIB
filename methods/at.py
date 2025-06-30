@@ -62,6 +62,7 @@ class ATDistiller(nn.Module):
         self.p = p
         self.layer_key = layer_key
         self.label_smoothing = label_smoothing
+        # optional runtime configuration for training loops
         self.cfg = config if config is not None else {}
 
     def forward(self, x, y):

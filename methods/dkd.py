@@ -43,6 +43,7 @@ class DKDDistiller(nn.Module):
         self.temperature = temperature
         self.warmup = warmup
         self.label_smoothing = label_smoothing
+        # optional runtime configuration for training loops
         self.cfg = config if config is not None else {}
 
     def forward(self, x, y, epoch=1):
