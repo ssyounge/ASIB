@@ -14,7 +14,13 @@ def cutmix_criterion(criterion, pred, y_a, y_b, lam):
     """CutMix-adjusted cross-entropy.
 
     Computed as ``lam * CE(pred, y_a) + (1 - lam) * CE(pred, y_b)``.
+
+    ``pred`` can have spatial dimensions. In that case, the predictions are
+    averaged across all non-batch, non-class dimensions before calculating the
+    loss.
     """
+    if pred.dim() > 2:
+        pred = pred.mean(dim=tuple(range(2, pred.dim())))
     return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
 
 
