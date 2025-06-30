@@ -16,7 +16,7 @@ class TeacherSwinWrapper(nn.Module):
         "feat_2d": [N, C],       # global pooled or direct features
       }
     """
-    def __init__(self, backbone: nn.Module):
+    def __init__(self, backbone: nn.Module, cfg: dict | None = None):
         super().__init__()
         self.backbone = backbone
         self.criterion_ce = nn.CrossEntropyLoss()
@@ -27,7 +27,9 @@ class TeacherSwinWrapper(nn.Module):
         self.feat_channels = self.feat_dim
 
         # distillation adapter
-        self.distillation_adapter = DistillationAdapter(self.feat_dim)
+        self.distillation_adapter = DistillationAdapter(
+            self.feat_dim, cfg=cfg
+        )
         self.distill_dim = self.distillation_adapter.out_dim
 
     
@@ -92,7 +94,11 @@ class TeacherSwinWrapper(nn.Module):
         """Channel dimension of the 4D feature."""
         return self.feat_channels
 
-def create_swin_t(num_classes=100, pretrained=True):
+def create_swin_t(
+    num_classes=100,
+    pretrained=True,
+    cfg: dict | None = None,
+):
     """
     Swin Tiny 로드 후, head 교체 => TeacherSwinWrapper
     => (feature_dict, logit, ce_loss)
@@ -105,5 +111,5 @@ def create_swin_t(num_classes=100, pretrained=True):
     in_ch = model.head.in_features
     model.head = nn.Linear(in_ch, num_classes)
 
-    teacher_model = TeacherSwinWrapper(model)
+    teacher_model = TeacherSwinWrapper(model, cfg=cfg)
     return teacher_model

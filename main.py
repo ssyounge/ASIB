@@ -182,20 +182,41 @@ def load_config(cfg_path):
             return yaml.safe_load(f)
     return {}
 
-def create_teacher_by_name(teacher_name, num_classes=100, pretrained=True, small_input=False):
+def create_teacher_by_name(
+    teacher_name,
+    num_classes=100,
+    pretrained=True,
+    small_input=False,
+    cfg: dict | None = None,
+):
     if teacher_name == "resnet101":
-        return create_resnet101(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
+        return create_resnet101(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            small_input=small_input,
+            cfg=cfg,
+        )
     elif teacher_name == "resnet152":
         from models.teachers.teacher_resnet import create_resnet152
-        return create_resnet152(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
+        return create_resnet152(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            small_input=small_input,
+            cfg=cfg,
+        )
     elif teacher_name == "efficientnet_b2":
         return create_efficientnet_b2(
             num_classes=num_classes,
             pretrained=pretrained,
             small_input=small_input,
+            cfg=cfg,
         )
     elif teacher_name == "swin_tiny":
-        return create_swin_t(num_classes=num_classes, pretrained=pretrained)
+        return create_swin_t(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            cfg=cfg,
+        )
     else:
         raise ValueError(f"[create_teacher_by_name] Unknown teacher_name={teacher_name}")
 
@@ -339,6 +360,7 @@ def main():
         num_classes=num_classes,
         pretrained=cfg.get("teacher1_pretrained", True),
         small_input=small_input,
+        cfg=cfg,
     ).to(device)
 
     if cfg.get("teacher1_ckpt"):
@@ -366,6 +388,7 @@ def main():
         num_classes=num_classes,
         pretrained=cfg.get("teacher2_pretrained", True),
         small_input=small_input,
+        cfg=cfg,
     ).to(device)
 
     if cfg.get("teacher2_ckpt"):

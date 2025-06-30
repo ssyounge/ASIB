@@ -92,6 +92,8 @@ student_epochs_per_stage: 40
 teacher_adapt_alpha_kd: 1.0
 mbm_lr_factor: 1.0
 use_distillation_adapter: true
+distill_hidden_dim: 0  # 0 -> use half of teacher feature dim
+distill_out_dim: 0     # 0 -> use quarter of teacher feature dim
 
 # MBM options
 mbm_type: "LA"
