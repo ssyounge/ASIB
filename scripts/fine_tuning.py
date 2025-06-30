@@ -14,6 +14,7 @@ import os
 import copy
 import torch
 import yaml
+from typing import Optional
 
 from utils.misc import set_random_seed, check_label_range
 
@@ -102,7 +103,7 @@ def create_teacher_by_name(
     pretrained=True,
     small_input=False,
     dropout_p=0.3,
-    cfg: dict | None = None,
+    cfg: Optional[dict] = None,
 ):
     """
     Extends to handle resnet152, resnet101, efficientnet_b2, swin_tiny, etc.

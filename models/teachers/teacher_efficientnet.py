@@ -3,6 +3,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Optional
 from .adapters import DistillationAdapter
 from torchvision.models import efficientnet_b2, EfficientNet_B2_Weights
 
@@ -16,7 +17,7 @@ class TeacherEfficientNetWrapper(nn.Module):
         "feat_2d": [N, 1408],         # global pooled
       }
     """
-    def __init__(self, backbone, cfg: dict | None = None):
+    def __init__(self, backbone, cfg: Optional[dict] = None):
         super().__init__()
         self.backbone = backbone
         self.criterion_ce = nn.CrossEntropyLoss()
@@ -88,7 +89,7 @@ def create_efficientnet_b2(
     pretrained: bool = True,
     small_input: bool = False,
     dropout_p: float = 0.3,
-    cfg: dict | None = None,
+    cfg: Optional[dict] = None,
 ):
     """
     EfficientNet-B2를 로드한 뒤, (in_feats->num_classes) 교체
