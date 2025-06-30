@@ -189,7 +189,6 @@ run_sweep() {
       echo "[RUN] teacher_lr=$teacher_lr synergy_ce_alpha=$sc_alpha"
       echo "=========================================="
 
-      T_LR=${teacher_lr}
       CFG_TMP=$(generate_config)
 
       python main.py \
