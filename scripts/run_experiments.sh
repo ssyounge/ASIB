@@ -75,18 +75,19 @@ run_loop() {
   source <(python scripts/load_hparams.py configs/partial_freeze.yaml)
   
   METHOD_LIST="${method_list:-$method}"
-  T1_LIST="${teacher1_type_list:-$teacher1_type}"
-  T2_LIST="${teacher2_type_list:-$teacher2_type}"
+  T1_LIST="${teacher1_list}"
+  T2_LIST="${teacher2_list}"
   mkdir -p "${OUTPUT_DIR}"
   mkdir -p checkpoints
 
   for T1 in $T1_LIST; do
-    for METHOD in $METHOD_LIST; do
-      echo ">>> [run_experiments.sh] running METHOD=${METHOD}"
-      for T2 in $T2_LIST; do
-      # 1) Teacher fine-tuning
-      # Checkpoints are now saved to a global checkpoints folder
-      for T in "$T1" "$T2"; do
+    for T2 in $T2_LIST; do
+      for STUDENT in ${student_list}; do
+        for METHOD in $METHOD_LIST; do
+          echo ">>> [run_experiments.sh] running METHOD=${METHOD}"
+          # 1) Teacher fine-tuning
+          # Checkpoints are now saved to a global checkpoints folder
+          for T in "$T1" "$T2"; do
         mkdir -p checkpoints # Ensure global checkpoint dir exists
         CKPT="checkpoints/${T}_ft.pth"
         if [ ! -f "${CKPT}" ]; then
@@ -101,14 +102,13 @@ run_loop() {
           --finetune_cutmix_alpha ${finetune_cutmix_alpha} \
           --finetune_ckpt_path "${CKPT}" \
           --data_aug ${data_aug}
-      fi
-    done
+          fi
+        done
 
-    # 2) ASMB multi-stage distillation
-    for STUDENT in ${student_list}; do
-      for SC_ALPHA in ${sc_alpha_list}; do
-        # N_STAGE_LIST may contain space-separated values like "2 3 4 5"
-        # Iterate over each item without quoting to allow word splitting.
+        # 2) ASMB multi-stage distillation
+        for SC_ALPHA in ${sc_alpha_list}; do
+          # N_STAGE_LIST may contain space-separated values like "2 3 4 5"
+          # Iterate over each item without quoting to allow word splitting.
         for STAGE in $n_stage_list; do
           EXP_ID="${METHOD}_${T2}_vs_${T1}_${STUDENT}_s${STAGE}_a${SC_ALPHA}"
           # Use the directory passed from run.sh as the final output location
@@ -168,7 +168,6 @@ run_loop() {
         done
       done
     done
-  done
   done
   done
 }

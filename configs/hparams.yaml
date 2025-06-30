@@ -20,16 +20,11 @@ small_input: true
 # ===============================================================
 # For ASMB Multi-Teacher
 # Available teacher architectures: resnet101, resnet152, efficientnet_b2, swin_tiny
-teacher1_type: "resnet152"         # default first teacher model type
-teacher2_type: "efficientnet_b2"   # default second teacher model type
 # Lists used by run_experiments.sh when looping
-teacher1_type_list: ["resnet152"]
-teacher2_type_list: ["efficientnet_b2", "swin_tiny"]
+teacher1_list: ["resnet152"]
+teacher2_list: ["efficientnet_b2", "swin_tiny"]
 student_list: ["resnet_adapter", "resnet152_adapter"]
 method_list: ["asmb", "vanilla_kd", "dkd", "crd", "at", "fitnet"]
-
-# For single-teacher scripts (fine_tuning.py, etc.)
-default_teacher_type: "resnet152"
 
 # Partial-freeze / adapter options
 use_partial_freeze: true
