@@ -78,7 +78,7 @@ class LightweightAttnMBM(nn.Module):
 
         if isinstance(query_or_feats, list):
             # backward compatible: original API mbm(feats_2d)
-            feats = query_or_feats
+            feats = [f.flatten(1) if f.dim() > 2 else f for f in query_or_feats]
             batch_size = feats[0].size(0)
             if self.learnable_q:
                 q = self.q.expand(batch_size, -1, -1)
@@ -86,6 +86,8 @@ class LightweightAttnMBM(nn.Module):
                 q = self.q_proj(torch.cat(feats, dim=1)).unsqueeze(1)
         else:
             assert feats_2d is not None, "Teacher features must be provided"
+            if query_or_feats.dim() > 2:
+                query_or_feats = query_or_feats.flatten(1)
             batch_size = query_or_feats.size(0)
             if self.learnable_q:
                 q = self.q.expand(batch_size, -1, -1)
@@ -95,7 +97,7 @@ class LightweightAttnMBM(nn.Module):
                         f"mbm_query_dim mismatch: expected {self.q_proj.in_features}, got {query_or_feats.size(1)}"
                     )
                 q = self.q_proj(query_or_feats).unsqueeze(1)
-            feats = feats_2d
+            feats = [f.flatten(1) if f.dim() > 2 else f for f in feats_2d]
 
         keys = [proj(f).unsqueeze(1) for f, proj in zip(feats, self.k_proj)]
         values = [proj(f).unsqueeze(1) for f, proj in zip(feats, self.v_proj)]
