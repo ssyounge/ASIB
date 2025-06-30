@@ -34,13 +34,23 @@ class ConstStudent(torch.nn.Module):
         return 1
 
 
-class AvgMBM(torch.nn.Module):
+class RecordMBM(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.record_training = None
+
     def forward(self, feats_2d, feats_4d=None):
+        self.record_training = self.training
         return sum(feats_2d) / len(feats_2d)
 
 
-class ConstHead(torch.nn.Module):
+class RecordHead(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.record_training = None
+
     def forward(self, x):
+        self.record_training = self.training
         return torch.zeros(x.size(0), 2)
 
 
@@ -56,8 +66,8 @@ def test_teachers_are_eval_during_distill():
     t1 = RecordTeacher()
     t2 = RecordTeacher()
     student = ConstStudent()
-    mbm = AvgMBM()
-    head = ConstHead()
+    mbm = RecordMBM()
+    head = RecordHead()
 
     loader = [(torch.zeros(1, 3), torch.tensor([1]))]
 
@@ -86,5 +96,9 @@ def test_teachers_are_eval_during_distill():
 
     assert t1.record_training is False
     assert t2.record_training is False
+    assert mbm.record_training is False
+    assert head.record_training is False
     assert t1.training
     assert t2.training
+    assert mbm.training
+    assert head.training
