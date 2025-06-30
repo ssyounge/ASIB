@@ -3,6 +3,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Optional
 from .adapters import DistillationAdapter
 from torchvision.models import (
     resnet101,
@@ -21,7 +22,7 @@ class TeacherResNetWrapper(nn.Module):
         "feat_2d": [N, 2048],        # global pooled
       }
     """
-    def __init__(self, backbone: nn.Module, cfg: dict | None = None):
+    def __init__(self, backbone: nn.Module, cfg: Optional[dict] = None):
         super().__init__()
         self.backbone = backbone
         self.criterion_ce = nn.CrossEntropyLoss()
@@ -94,7 +95,7 @@ def create_resnet101(
     num_classes=100,
     pretrained=True,
     small_input=False,
-    cfg: dict | None = None,
+    cfg: Optional[dict] = None,
 ):
     """
     ResNet101 로드 후 stem을 optional로 CIFAR-friendly 형태로 바꾸고,
@@ -121,7 +122,7 @@ def create_resnet152(
     num_classes=100,
     pretrained=True,
     small_input=False,
-    cfg: dict | None = None,
+    cfg: Optional[dict] = None,
 ):
     """Create a ResNet152 teacher wrapped with ``TeacherResNetWrapper``."""
     if pretrained:
