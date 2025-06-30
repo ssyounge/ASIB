@@ -92,23 +92,39 @@ def create_teacher_by_name(
     pretrained=True,
     small_input=False,
     dropout_p=0.3,
+    cfg: dict | None = None,
 ):
     """
     Extends to handle resnet152, resnet101, efficientnet_b2, swin_tiny, etc.
     """
     if teacher_type == "resnet101":
-        return create_resnet101(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
+        return create_resnet101(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            small_input=small_input,
+            cfg=cfg,
+        )
     elif teacher_type == "resnet152":
-        return create_resnet152(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
+        return create_resnet152(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            small_input=small_input,
+            cfg=cfg,
+        )
     elif teacher_type == "efficientnet_b2":
         return create_efficientnet_b2(
             num_classes=num_classes,
             pretrained=pretrained,
             small_input=small_input,
             dropout_p=dropout_p,
+            cfg=cfg,
         )
     elif teacher_type == "swin_tiny":
-        return create_swin_t(num_classes=num_classes, pretrained=pretrained)
+        return create_swin_t(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            cfg=cfg,
+        )
     else:
         raise ValueError(f"[fine_tuning.py] Unknown teacher_type={teacher_type}")
 
@@ -233,6 +249,7 @@ def main():
         pretrained=cfg.get("teacher_pretrained", True),
         small_input=small_input,
         dropout_p=cfg.get("efficientnet_dropout", 0.3),
+        cfg=cfg,
     ).to(device)
 
     # optional load ckpt

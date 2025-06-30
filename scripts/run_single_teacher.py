@@ -130,6 +130,7 @@ def main():
         pretrained=cfg.get("teacher_pretrained", True),
         small_input=small_input,
         num_classes=num_classes,
+        cfg=cfg,
     ).to(device)
     if cfg.get("teacher_ckpt"):
         teacher.load_state_dict(
