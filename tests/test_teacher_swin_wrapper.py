@@ -21,10 +21,22 @@ class DummySwin(torch.nn.Module):
 
         # modules used in the official forward sequence
         self.features = _Add(1)
-        self.norm = _Add(2)
-        self.permute = _Add(3)
         self.avgpool = torch.nn.AdaptiveAvgPool2d(1)
-        self.flatten = torch.nn.Flatten(1)
+
+        # identity operations mimicking the real backbone methods
+        self._norm = torch.nn.Identity()
+        self._permute = torch.nn.Identity()
+        self._flatten = torch.nn.Flatten(1)
+
+    # simple wrappers so ``TeacherSwinWrapper`` can call them like the real model
+    def norm(self, x):
+        return self._norm(x)
+
+    def permute(self, x):
+        return self._permute(x)
+
+    def flatten(self, x):
+        return self._flatten(x)
 
 def test_forward_basic():
     backbone = DummySwin()
@@ -35,6 +47,6 @@ def test_forward_basic():
 
     expected_f2d = backbone.flatten(backbone.avgpool(backbone.permute(backbone.norm(backbone.features(x)))))
     assert torch.allclose(out["feat_2d"], expected_f2d)
-    # features -> norm -> permute produces x + 6 with this dummy
+    # norm and permute are identities so this reduces to ``features(x)``
     expected_f4d = backbone.permute(backbone.norm(backbone.features(x)))
     assert torch.allclose(out["feat_4d"], expected_f4d)
