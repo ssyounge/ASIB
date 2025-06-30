@@ -177,6 +177,10 @@ run_sweep() {
   source <(python scripts/load_hparams.py configs/partial_freeze.yaml)
   echo ">>> [run_experiments.sh] running METHOD=${METHOD}"
 
+  # Use the first entry from the teacher lists for sweeps
+  local T1="${teacher1_list%% *}"
+  local T2="${teacher2_list%% *}"
+
   for teacher_lr in 0.0001 0.0002 0.0005; do
     for sc_alpha in 0.2 0.3 0.5; do
       echo "=========================================="
@@ -188,6 +192,8 @@ run_sweep() {
 
       python main.py \
         --config "${CFG_TMP}" \
+        --teacher1_type "${T1}" \
+        --teacher2_type "${T2}" \
         --synergy_ce_alpha ${sc_alpha} \
         --device ${device} \
         --finetune_epochs 0 \
