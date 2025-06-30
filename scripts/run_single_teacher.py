@@ -152,6 +152,7 @@ def main():
         pretrained=cfg.get("student_pretrained", True),
         small_input=small_input,
         num_classes=num_classes,
+        cfg=cfg,
     ).to(device)
     if cfg.get("student_ckpt"):
         student.load_state_dict(

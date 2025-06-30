@@ -51,6 +51,8 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
   | `student_efficientnet_adapter` | 1408        |
   | `student_resnet_adapter`       | 2048        |
   | `student_swin_adapter`         | 768         |
+- **Swin Adapter Dim**: `swin_adapter_dim` sets the hidden size of the MLP
+  adapter used by `student_swin_adapter` (default `64`)
 - **Smart Progress Bars**: progress bars hide automatically when stdout isn't a TTY
 - **CIFAR-friendly ResNet/EfficientNet stem**: use `--small_input 1` when
   fine-tuning or evaluating models that modify the conv stem for 32x32 inputs
