@@ -1,0 +1,22 @@
+# configs/run_setup.yaml
+# Experimental combinations for running ASMB and baseline experiments.
+
+# List of teacher pairs for ASMB multi-teacher runs.
+# Each entry is [Teacher1, Teacher2].
+asmb_teacher_pairs:
+  - ["resnet152", "efficientnet_b2"]
+  - ["resnet152", "swin_tiny"]
+
+# Baseline (single-teacher) setups.
+baseline_setups:
+  - {teacher: "efficientnet_b2", student: "resnet_adapter"}
+  - {teacher: "swin_tiny", student: "resnet_adapter"}
+  - {teacher: "resnet152", student: "resnet_adapter"}
+
+# Distillation methods to run for each baseline setup.
+baseline_methods_to_run:
+  - "vanilla_kd"
+  - "dkd"
+  - "crd"
+  - "at"
+  - "fitnet"
