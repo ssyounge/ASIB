@@ -44,6 +44,10 @@ def compute_disagreement_rate(
     float
         Disagreement rate in ``[0, 100]``.
     """
+    # record current training modes to restore them later
+    teacher1_train_state = teacher1.training
+    teacher2_train_state = teacher2.training
+
     teacher1.eval()
     teacher2.eval()
     total_samples = 0
@@ -72,6 +76,11 @@ def compute_disagreement_rate(
         total_samples += y.size(0)
 
     dis_rate = 100.0 * disagree_count / total_samples if total_samples > 0 else 0.0
+
+    # restore original training modes
+    teacher1.train(teacher1_train_state)
+    teacher2.train(teacher2_train_state)
+
     return dis_rate
 
 
