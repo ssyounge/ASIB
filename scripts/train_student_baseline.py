@@ -34,6 +34,8 @@ def parse_args():
     p.add_argument("--label_smoothing", type=float)
     p.add_argument("--small_input", type=int)
     p.add_argument("--student_freeze_level", type=int)
+    p.add_argument("--adam_beta1", type=float)
+    p.add_argument("--adam_beta2", type=float)
     return p.parse_args()
 
 
@@ -74,6 +76,10 @@ def train_student_ce(
         student_model.parameters(),
         lr=lr,
         weight_decay=weight_decay,
+        betas=(
+            cfg.get("adam_beta1", 0.9) if cfg is not None else 0.9,
+            cfg.get("adam_beta2", 0.999) if cfg is not None else 0.999,
+        ),
     )
     criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
 
