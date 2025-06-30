@@ -11,7 +11,9 @@ def main(path: str):
         data = yaml.safe_load(f) or {}
     for key, value in data.items():
         key = key.lower()
-        if isinstance(value, bool):
+        if isinstance(value, (list, tuple)):
+            value = " ".join(str(v) for v in value)
+        elif isinstance(value, bool):
             value = int(value)
         value_str = str(value)
         quoted = shlex.quote(value_str)

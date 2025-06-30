@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 # scripts/train_student_baseline.py
 """Train a student model with cross-entropy only."""
-import argparse
+import sys
 import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+import argparse
 import copy
 import torch
 import torch.nn as nn

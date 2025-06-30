@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 # scripts/run_single_teacher.py
 """Single-teacher KD runner."""
-import argparse
+import sys
 import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+import argparse
 import yaml
 import torch
 from utils.misc import set_random_seed, check_label_range
@@ -75,13 +78,19 @@ def build_distiller(method, teacher, student, cfg):
         # (Teacher: EfficientNet-B2, Student: ResNet-Adapter, layer2 기준)
         s_channels = 512
         t_channels = 88  # EfficientNet-B2의 'feat_4d_layer2' 출력 채널 수
-        return cls(teacher, student, s_channels=s_channels, t_channels=t_channels)
+        return cls(
+            teacher,
+            student,
+            s_channels=s_channels,
+            t_channels=t_channels,
+            config=cfg,
+        )
     if method == "dkd":
-        return cls(teacher, student)
+        return cls(teacher, student, config=cfg)
     if method == "at":
-        return cls(teacher, student)
+        return cls(teacher, student, config=cfg)
     if method == "crd":
-        return cls(teacher, student)
+        return cls(teacher, student, config=cfg)
     raise ValueError(method)
 
 
@@ -131,18 +140,21 @@ def main():
     if small_input is None:
         small_input = dataset == "cifar100"
 
+    teacher_type = cfg.get("teacher_type", cfg.get("default_teacher_type"))
+    teacher_ckpt_path = cfg.get("teacher_ckpt", f"./checkpoints/{teacher_type}_ft.pth")
     teacher = create_teacher_by_name(
-        cfg.get("teacher_type", cfg.get("default_teacher_type")),
+        teacher_type,
         pretrained=cfg.get("teacher_pretrained", True),
         small_input=small_input,
         num_classes=num_classes,
         cfg=cfg,
     ).to(device)
-    if cfg.get("teacher_ckpt"):
+    if os.path.exists(teacher_ckpt_path):
         teacher.load_state_dict(
-            torch.load(cfg["teacher_ckpt"], map_location=device, weights_only=True),
+            torch.load(teacher_ckpt_path, map_location=device, weights_only=True),
             strict=False,
         )
+        print(f"[run_single_teacher.py] Loaded teacher from {teacher_ckpt_path}")
     if cfg.get("use_partial_freeze", True):
         partial_freeze_teacher_auto(
             teacher,

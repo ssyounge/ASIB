@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+from typing import Optional
 from modules.losses import ce_loss_fn
 
 class FitNetDistiller(nn.Module):
@@ -25,6 +26,7 @@ class FitNetDistiller(nn.Module):
         alpha_hint=1.0,
         alpha_ce=1.0,
         label_smoothing: float = 0.0,
+        config: Optional[dict] = None,
     ):
         super().__init__()
         self.teacher = teacher_model
@@ -37,6 +39,8 @@ class FitNetDistiller(nn.Module):
         self.alpha_hint = alpha_hint
         self.alpha_ce = alpha_ce
         self.label_smoothing = label_smoothing
+        # optional runtime configuration for training loops
+        self.cfg = config if config is not None else {}
 
         # 학생 특징맵을 스승 특징맵 채널로 변환하는 1x1 convolution
         self.regressor = nn.Conv2d(s_channels, t_channels, kernel_size=1)
