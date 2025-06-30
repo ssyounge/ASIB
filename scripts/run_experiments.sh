@@ -169,7 +169,6 @@ run_loop() {
       done
     done
   done
-  done
 }
 
 run_sweep() {
