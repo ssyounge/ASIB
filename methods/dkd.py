@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+from typing import Optional
 from modules.losses import ce_loss_fn, dkd_loss
 
 class DKDDistiller(nn.Module):
@@ -14,15 +15,18 @@ class DKDDistiller(nn.Module):
       student(x)->(s_dict, s_logit, _)
     => total_loss = CE + warmup_factor * DKD
     """
-    def __init__(self, 
-                 teacher_model, 
-                 student_model,
-                 ce_weight=1.0,
-                 alpha=1.0,
-                 beta=1.0,
-                 temperature=4.0,
-                 warmup=5,
-                 label_smoothing: float = 0.0):
+    def __init__(
+        self,
+        teacher_model,
+        student_model,
+        ce_weight=1.0,
+        alpha=1.0,
+        beta=1.0,
+        temperature=4.0,
+        warmup=5,
+        label_smoothing: float = 0.0,
+        config: Optional[dict] = None,
+    ):
         """
         Args:
           ce_weight: CE 손실 가중치
@@ -39,6 +43,7 @@ class DKDDistiller(nn.Module):
         self.temperature = temperature
         self.warmup = warmup
         self.label_smoothing = label_smoothing
+        self.cfg = config if config is not None else {}
 
     def forward(self, x, y, epoch=1):
         """
