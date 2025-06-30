@@ -37,6 +37,7 @@ teacher2_bn_head_only: 0
 # Additional teacher options
 finetune_partial_freeze: false
 efficientnet_dropout: 0.3
+swin_adapter_dim: 64  # hidden size for student_swin_adapter
 
 # ===============================================================
 # 3. Fine-tuning Hyperparameters

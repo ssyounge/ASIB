@@ -44,6 +44,7 @@ def create_student_by_name(
     pretrained: bool = True,
     small_input: bool = False,
     num_classes: int = 100,
+    cfg: dict | None = None,
 ):
     """
     Returns a student model that follows the common interface
@@ -83,10 +84,15 @@ def create_student_by_name(
         from models.students.student_swin_adapter import (
             create_swin_adapter_student,
         )
+        adapter_dim = 64
+        if cfg is not None:
+            adapter_dim = cfg.get("swin_adapter_dim", adapter_dim)
         return create_swin_adapter_student(
             pretrained=pretrained,
             small_input=small_input,
             num_classes=num_classes,
+            adapter_dim=adapter_dim,
+            cfg=cfg,
         )
 
     else:
@@ -460,6 +466,7 @@ def main():
         pretrained=cfg.get("student_pretrained", True),
         small_input=small_input,
         num_classes=num_classes,
+        cfg=cfg,
     ).to(device)
 
     if cfg.get("student_ckpt"):
