@@ -22,7 +22,7 @@ def test_train_one_epoch_cutmix_label_range():
     x = torch.randn(1, 3, 4, 4)
     y = torch.tensor([2])  # out of range for 2 classes
     loader = [(x, y)]
-    with pytest.raises(ValueError, match="min=2, max=2"):
+    with pytest.raises(ValueError, match=r"Dataset labels must be within.*min=2, max=2"):
         train_one_epoch_cutmix(
             model,
             loader,
