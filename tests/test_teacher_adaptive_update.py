@@ -95,7 +95,7 @@ def test_teacher_adaptive_update_preserves_freeze():
     params += [p for p in t2.parameters() if p.requires_grad]
     params += [p for p in mbm.parameters() if p.requires_grad]
     params += [p for p in head.parameters() if p.requires_grad]
-    opt = torch.optim.SGD(params, lr=0.1)
+    opt = torch.optim.Adam(params, lr=0.1)
     sched = torch.optim.lr_scheduler.StepLR(opt, step_size=1)
 
     teacher_adaptive_update(
@@ -137,7 +137,7 @@ def test_teacher_adaptive_update_trains_modules():
     params += [p for p in t2.parameters() if p.requires_grad]
     params += [p for p in mbm.parameters() if p.requires_grad]
     params += [p for p in head.parameters() if p.requires_grad]
-    opt = torch.optim.SGD(params, lr=0.1)
+    opt = torch.optim.Adam(params, lr=0.1)
     sched = torch.optim.lr_scheduler.StepLR(opt, step_size=1)
 
     teacher_adaptive_update(

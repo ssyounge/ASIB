@@ -10,8 +10,12 @@ class DistillationAdapter(nn.Module):
         in_dim: int,
         hidden_dim: Optional[int] = None,
         out_dim: Optional[int] = None,
+        cfg: Optional[dict] = None,
     ) -> None:
         super().__init__()
+        if cfg is not None:
+            hidden_dim = cfg.get("distill_hidden_dim", hidden_dim)
+            out_dim = cfg.get("distill_out_dim", out_dim)
         if hidden_dim is None:
             hidden_dim = max(1, in_dim // 2)
         if out_dim is None:

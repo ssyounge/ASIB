@@ -14,6 +14,7 @@ import os
 import copy
 import torch
 import yaml
+from typing import Optional
 
 from utils.misc import set_random_seed, check_label_range
 
@@ -65,6 +66,8 @@ def parse_args():
     parser.add_argument("--dropout_p", type=float)
     parser.add_argument("--use_amp", type=int)
     parser.add_argument("--amp_dtype", type=str)
+    parser.add_argument("--adam_beta1", type=float)
+    parser.add_argument("--adam_beta2", type=float)
     parser.add_argument("--grad_scaler_init_scale", type=int)
 
     return parser.parse_args()
@@ -75,14 +78,22 @@ def load_config(cfg_path):
             return yaml.safe_load(f)
     return {}
 
-def get_data_loaders(dataset_name, batch_size=128, augment=True):
+def get_data_loaders(dataset_name, batch_size=128, num_workers=2, augment=True):
     """
     Returns train_loader, test_loader based on dataset_name.
     """
     if dataset_name == "cifar100":
-        return get_cifar100_loaders(batch_size=batch_size, augment=augment)
+        return get_cifar100_loaders(
+            batch_size=batch_size,
+            num_workers=num_workers,
+            augment=augment,
+        )
     elif dataset_name == "imagenet100":
-        return get_imagenet100_loaders(batch_size=batch_size, augment=augment)
+        return get_imagenet100_loaders(
+            batch_size=batch_size,
+            num_workers=num_workers,
+            augment=augment,
+        )
     else:
         raise ValueError(f"Unknown dataset_name={dataset_name}")
 
@@ -92,23 +103,39 @@ def create_teacher_by_name(
     pretrained=True,
     small_input=False,
     dropout_p=0.3,
+    cfg: Optional[dict] = None,
 ):
     """
     Extends to handle resnet152, resnet101, efficientnet_b2, swin_tiny, etc.
     """
     if teacher_type == "resnet101":
-        return create_resnet101(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
+        return create_resnet101(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            small_input=small_input,
+            cfg=cfg,
+        )
     elif teacher_type == "resnet152":
-        return create_resnet152(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
+        return create_resnet152(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            small_input=small_input,
+            cfg=cfg,
+        )
     elif teacher_type == "efficientnet_b2":
         return create_efficientnet_b2(
             num_classes=num_classes,
             pretrained=pretrained,
             small_input=small_input,
             dropout_p=dropout_p,
+            cfg=cfg,
         )
     elif teacher_type == "swin_tiny":
-        return create_swin_t(num_classes=num_classes, pretrained=pretrained)
+        return create_swin_t(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            cfg=cfg,
+        )
     else:
         raise ValueError(f"[fine_tuning.py] Unknown teacher_type={teacher_type}")
 
@@ -160,6 +187,7 @@ def standard_ce_finetune(
     device,
     ckpt_path,
     label_smoothing: float = 0.0,
+    cfg=None,
 ):
     """Simple fine-tune loop using cross-entropy loss.
 
@@ -169,8 +197,15 @@ def standard_ce_finetune(
         Passed to ``CrossEntropyLoss``.
     """
     model = model.to(device)
-    optim = torch.optim.SGD(model.parameters(), lr=lr,
-                            momentum=0.9, weight_decay=weight_decay)
+    optim = torch.optim.AdamW(
+        model.parameters(),
+        lr=lr,
+        weight_decay=weight_decay,
+        betas=(
+            cfg.get("adam_beta1", 0.9) if cfg is not None else 0.9,
+            cfg.get("adam_beta2", 0.999) if cfg is not None else 0.999,
+        ),
+    )
     crit  = torch.nn.CrossEntropyLoss(label_smoothing=label_smoothing)
     best_acc = 0.0
     for ep in range(1, epochs+1):
@@ -213,7 +248,8 @@ def main():
     train_loader, test_loader = get_data_loaders(
         dataset_name,
         batch_size=batch_size,
-        augment=cfg.get("data_aug", True)
+        num_workers=cfg.get("num_workers", 2),
+        augment=cfg.get("data_aug", True),
     )
 
     num_classes = len(train_loader.dataset.classes)
@@ -225,7 +261,7 @@ def main():
         small_input = dataset_name == "cifar100"
 
     # 2) teacher
-    teacher_type = cfg.get("teacher_type", "resnet152")  # e.g. "resnet152", "efficientnet_b2", "swin_tiny"
+    teacher_type = cfg.get("teacher_type", cfg.get("default_teacher_type"))  # e.g. "resnet152", "efficientnet_b2", "swin_tiny"
     print(f"[FineTune] ===== Now fine-tuning teacher: {teacher_type} =====")
     teacher_model = create_teacher_by_name(
         teacher_type,
@@ -233,6 +269,7 @@ def main():
         pretrained=cfg.get("teacher_pretrained", True),
         small_input=small_input,
         dropout_p=cfg.get("efficientnet_dropout", 0.3),
+        cfg=cfg,
     ).to(device)
 
     # optional load ckpt
@@ -294,6 +331,7 @@ def main():
             device=device,
             ckpt_path=ckpt_path,
             label_smoothing=cfg.get("label_smoothing", 0.0),
+            cfg=cfg,
         )
     else:
         # => implement your own standard CE fine-tune loop or reuse a function
@@ -307,6 +345,7 @@ def main():
             device=device,
             ckpt_path=ckpt_path,
             label_smoothing=cfg.get("label_smoothing", 0.0),
+            cfg=cfg,
         )
 
     print(f"[FineTune] done => bestAcc={best_acc:.2f}, final ckpt={ckpt_path}")

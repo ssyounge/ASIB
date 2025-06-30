@@ -51,6 +51,8 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
   | `student_efficientnet_adapter` | 1408        |
   | `student_resnet_adapter`       | 2048        |
   | `student_swin_adapter`         | 768         |
+- **Swin Adapter Dim**: `swin_adapter_dim` sets the hidden size of the MLP
+  adapter used by `student_swin_adapter` (default `64`)
 - **Smart Progress Bars**: progress bars hide automatically when stdout isn't a TTY
 - **CIFAR-friendly ResNet/EfficientNet stem**: use `--small_input 1` when
   fine-tuning or evaluating models that modify the conv stem for 32x32 inputs
@@ -181,12 +183,10 @@ learning rate:
 teacher_lr=0.0002 BASE_CONFIG=configs/partial_freeze.yaml bash scripts/run_experiments.sh --mode loop
 ```
 
-When launching jobs via `run.sh`, the script saves a copy of
-`configs/hparams.yaml` to `logs/asmb_${SLURM_JOB_ID}_hparams.yaml` (or to a
-timestamped file when run outside Slurm). During the batch loop, each generated
-configuration is copied to both `${OUTDIR}/config.yaml` and
-`logs/asmb_${SLURM_JOB_ID}_<experiment>.yaml` so you can recover the exact
-settings used for every run.
+When launching jobs via `run.sh`, the script writes the merged configuration to
+`outputs/asmb_${SLURM_JOB_ID}/config.yaml`. During the batch loop, this file is
+copied into each experiment directory so you can recover the exact settings used
+for every run.
 
 ## Testing
 
@@ -290,6 +290,9 @@ Use the `--data_aug` flag to control dataset transforms. When set to `1` (defaul
 python main.py --config configs/default.yaml --data_aug 0
 ```
 
+Set `num_workers` in your YAML file to control how many processes each
+`DataLoader` uses (defaults to `2`).
+
 | Flag | Purpose |
 | ---- | ------- |
 | `--mixup_alpha` | MixUp alpha for distillation |
@@ -367,7 +370,7 @@ Alternatively edit the YAML file used by `scripts/fine_tuning.py`:
 
 ```yaml
 # configs/hparams.yaml
-teacher_type: resnet152
+default_teacher_type: resnet152
 finetune_epochs: 100
 finetune_lr: 0.0005
 finetune_use_cutmix: false
@@ -496,10 +499,6 @@ Folder Structure
 │   ├── losses.py
 │   └── __init__.py
 
-├── results
-│   ├── cifar100_asmb.csv
-│   └── summary.csv
-
 ├── scripts
 │   ├── fine_tuning.py
 │   └── run_experiments.sh
@@ -512,7 +511,6 @@ Folder Structure
 	• configs/: YAML config files for partial-freeze settings, hyperparameters
 	• methods/: KD implementations (ASMB, FitNet, CRD, DKD, etc.)
 	• modules/: Partial freeze utility, trainers, custom losses
-	• results/: CSV logs, outputs from training/evaluation
         • scripts/: Shell scripts for multiple or batch experiments
             ◦ Edit `configs/hparams.yaml` to change the default hyperparameters consumed by `run_experiments.sh`
 

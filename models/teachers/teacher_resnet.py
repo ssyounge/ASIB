@@ -3,6 +3,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Optional
 from .adapters import DistillationAdapter
 from torchvision.models import (
     resnet101,
@@ -21,7 +22,7 @@ class TeacherResNetWrapper(nn.Module):
         "feat_2d": [N, 2048],        # global pooled
       }
     """
-    def __init__(self, backbone: nn.Module):
+    def __init__(self, backbone: nn.Module, cfg: Optional[dict] = None):
         super().__init__()
         self.backbone = backbone
         self.criterion_ce = nn.CrossEntropyLoss()
@@ -31,7 +32,9 @@ class TeacherResNetWrapper(nn.Module):
         self.feat_channels = 2048
 
         # distillation adapter
-        self.distillation_adapter = DistillationAdapter(self.feat_dim)
+        self.distillation_adapter = DistillationAdapter(
+            self.feat_dim, cfg=cfg
+        )
         self.distill_dim = self.distillation_adapter.out_dim
     
     def forward(self, x, y=None):
@@ -43,8 +46,11 @@ class TeacherResNetWrapper(nn.Module):
 
         # 2) layers
         x = self.backbone.layer1(x)
+        feat_layer1 = x
         x = self.backbone.layer2(x)
+        feat_layer2 = x
         x = self.backbone.layer3(x)
+        feat_layer3 = x
         f4d = self.backbone.layer4(x)  # [N, 2048, H, W]
 
         # 3) global pool => 2D
@@ -69,6 +75,9 @@ class TeacherResNetWrapper(nn.Module):
             "distill_feat": distill_feat,
             "logit": logit,
             "ce_loss": ce_loss,
+            "feat_4d_layer1": feat_layer1,
+            "feat_4d_layer2": feat_layer2,
+            "feat_4d_layer3": feat_layer3,
         }
 
     def get_feat_dim(self):
@@ -82,7 +91,12 @@ class TeacherResNetWrapper(nn.Module):
         """Channel dimension of the 4D feature."""
         return self.feat_channels
 
-def create_resnet101(num_classes=100, pretrained=True, small_input=False):
+def create_resnet101(
+    num_classes=100,
+    pretrained=True,
+    small_input=False,
+    cfg: Optional[dict] = None,
+):
     """
     ResNet101 로드 후 stem을 optional로 CIFAR-friendly 형태로 바꾸고,
     마지막 FC 교체 => TeacherResNetWrapper
@@ -100,11 +114,16 @@ def create_resnet101(num_classes=100, pretrained=True, small_input=False):
     in_feats = model.fc.in_features
     model.fc = nn.Linear(in_feats, num_classes)
 
-    teacher_model = TeacherResNetWrapper(model)
+    teacher_model = TeacherResNetWrapper(model, cfg=cfg)
     return teacher_model
 
 
-def create_resnet152(num_classes=100, pretrained=True, small_input=False):
+def create_resnet152(
+    num_classes=100,
+    pretrained=True,
+    small_input=False,
+    cfg: Optional[dict] = None,
+):
     """Create a ResNet152 teacher wrapped with ``TeacherResNetWrapper``."""
     if pretrained:
         model = resnet152(weights=ResNet152_Weights.IMAGENET1K_V2)
@@ -118,5 +137,5 @@ def create_resnet152(num_classes=100, pretrained=True, small_input=False):
     in_feats = model.fc.in_features
     model.fc = nn.Linear(in_feats, num_classes)
 
-    teacher_model = TeacherResNetWrapper(model)
+    teacher_model = TeacherResNetWrapper(model, cfg=cfg)
     return teacher_model

@@ -4,8 +4,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from modules.losses import ce_loss_fn
-
 from modules.losses import kd_loss_fn, ce_loss_fn
 
 class CRDLoss(nn.Module):
@@ -53,6 +51,13 @@ class CRDDistiller(nn.Module):
         self.crd_loss_fn = CRDLoss(temperature=temperature)
         self.label_smoothing = label_smoothing
 
+        s_dim = student_model.get_feat_dim()
+        t_dim = teacher_model.get_feat_dim()
+        if s_dim != t_dim:
+            self.projection = nn.Linear(s_dim, t_dim)
+        else:
+            self.projection = nn.Identity()
+
     def forward(self, x, y):
         # 1) teacher
         with torch.no_grad():
@@ -61,8 +66,9 @@ class CRDDistiller(nn.Module):
         s_dict, s_logit, _ = self.student(x)
 
         # CRD
-        t_feat = t_dict[self.feat_key]  # [N, D]
+        t_feat = t_dict[self.feat_key]  # [N, D_t]
         s_feat = s_dict[self.feat_key]
+        s_feat = self.projection(s_feat)  # match dims
         crd_loss_val = self.crd_loss_fn(s_feat, t_feat)
 
         # CE
@@ -102,7 +108,10 @@ class CRDDistiller(nn.Module):
             self.student.parameters(),
             lr=lr,
             weight_decay=weight_decay,
-            betas=(0.9, 0.999),
+            betas=(
+                self.cfg.get("adam_beta1", 0.9),
+                self.cfg.get("adam_beta2", 0.999),
+            ),
             eps=1e-8,
         )
 

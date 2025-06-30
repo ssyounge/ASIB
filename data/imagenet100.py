@@ -5,7 +5,7 @@ import torch
 import torchvision
 import torchvision.transforms as T
 
-def get_imagenet100_loaders(root="./data/imagenet100", batch_size=128, num_workers=4, augment=True):
+def get_imagenet100_loaders(root="./data/imagenet100", batch_size=128, num_workers=2, augment=True):
     """    
     ImageNet100 size = (224×224)
     Returns:

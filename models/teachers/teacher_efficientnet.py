@@ -3,6 +3,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Optional
 from .adapters import DistillationAdapter
 from torchvision.models import efficientnet_b2, EfficientNet_B2_Weights
 
@@ -16,7 +17,7 @@ class TeacherEfficientNetWrapper(nn.Module):
         "feat_2d": [N, 1408],         # global pooled
       }
     """
-    def __init__(self, backbone):
+    def __init__(self, backbone, cfg: Optional[dict] = None):
         super().__init__()
         self.backbone = backbone
         self.criterion_ce = nn.CrossEntropyLoss()
@@ -26,20 +27,31 @@ class TeacherEfficientNetWrapper(nn.Module):
         self.feat_channels = 1408
 
         # distillation adapter
-        self.distillation_adapter = DistillationAdapter(self.feat_dim)
+        self.distillation_adapter = DistillationAdapter(
+            self.feat_dim, cfg=cfg
+        )
         self.distill_dim = self.distillation_adapter.out_dim
     
     def forward(self, x, y=None):
-        # 1) 4D feature from backbone.features
-        # compute features with gradient support so that the teacher can be
-        # fine-tuned during adaptive updates
-        f4d = self.backbone.features(x)  # shape: [N, 1408, h, w]
+        # 1) compute intermediate 4D features
+        feat_layer1 = None
+        feat_layer2 = None
+        feat_layer3 = None
+        out = x
+        for idx, block in enumerate(self.backbone.features):
+            out = block(out)
+            if idx == 2:
+                feat_layer1 = out
+            elif idx == 4:
+                feat_layer2 = out
+            elif idx == 6:
+                feat_layer3 = out
+        f4d = out  # final feature map [N, 1408, h, w]
 
-        # 2) 최종 로짓(이미지 x 그대로 -> self.backbone(x))
-        logit = self.backbone(x)
-
-        # 3) feat_2d: f4d를 adaptive pooling => flatten
+        # 2) final logits
         fpool = F.adaptive_avg_pool2d(f4d, (1,1)).flatten(1)  # [N, 1408]
+        logit = self.backbone.classifier(fpool)
+        # 3) feat_2d from pooled feature
 
         # distillation adapter feature
         distill_feat = self.distillation_adapter(fpool)
@@ -56,6 +68,9 @@ class TeacherEfficientNetWrapper(nn.Module):
             "distill_feat": distill_feat,
             "logit": logit,
             "ce_loss": ce_loss,
+            "feat_4d_layer1": feat_layer1,
+            "feat_4d_layer2": feat_layer2,
+            "feat_4d_layer3": feat_layer3,
         }
 
     def get_feat_dim(self):
@@ -74,6 +89,7 @@ def create_efficientnet_b2(
     pretrained: bool = True,
     small_input: bool = False,
     dropout_p: float = 0.3,
+    cfg: Optional[dict] = None,
 ):
     """
     EfficientNet-B2를 로드한 뒤, (in_feats->num_classes) 교체
@@ -110,5 +126,5 @@ def create_efficientnet_b2(
     model.classifier[0] = nn.Dropout(p=dropout_p)
     model.classifier[1] = nn.Linear(in_feats, num_classes)
 
-    teacher_model = TeacherEfficientNetWrapper(model)
+    teacher_model = TeacherEfficientNetWrapper(model, cfg=cfg)
     return teacher_model

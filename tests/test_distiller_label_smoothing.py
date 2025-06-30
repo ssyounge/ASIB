@@ -39,7 +39,7 @@ class ConstStudent(torch.nn.Module):
     "distiller_cls, kwargs",
     [
         (ATDistiller, {"alpha": 0.0}),
-        (FitNetDistiller, {"alpha_hint": 0.0, "alpha_ce": 1.0}),
+        (FitNetDistiller, {"alpha_hint": 0.0, "alpha_ce": 1.0, "s_channels": 1, "t_channels": 1}),
         (DKDDistiller, {"alpha": 0.0, "beta": 0.0, "warmup": 1}),
         (CRDDistiller, {"alpha": 0.0}),
     ],

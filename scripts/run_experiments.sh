@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
 # scripts/run_experiments.sh
-# Hyperparameters are loaded from configs/hparams.yaml and configs/partial_freeze.yaml
-
 set -e
 export PYTHONPATH="$(pwd):${PYTHONPATH}"
 
 LOG_ID=${SLURM_JOB_ID:-$(date +%Y%m%d_%H%M%S)}
-mkdir -p logs
+OUTPUT_DIR="" # This will be populated by the --output_dir argument
 
 BASE_CONFIG=${BASE_CONFIG:-configs/default.yaml}
 USE_CONDA=${USE_CONDA:-1}
@@ -53,10 +51,8 @@ generate_config() {
     tau_start=${tau_start} \
     tau_end=${tau_end} \
     tau_decay_epochs=${tau_decay_epochs} \
-    student_epochs_per_stage=${student_eps} \
-    teacher_iters=${teacher_iters} \
-    student_iters=${student_iters} \
-    mbm_hidden_dim=${mbm_hidden_dim} \
+    student_epochs_per_stage=${student_epochs_per_stage} \
+    teacher_adapt_epochs=${teacher_adapt_epochs} \
     mbm_out_dim=${mbm_out_dim} \
     mbm_reg_lambda=${mbm_reg} \
     reg_lambda=${reg_lambda} \
@@ -77,19 +73,22 @@ generate_config() {
 run_loop() {
   source <(python scripts/load_hparams.py configs/hparams.yaml)
   source <(python scripts/load_hparams.py configs/partial_freeze.yaml)
+  
   METHOD_LIST="${method_list:-$method}"
-  mkdir -p checkpoints results
-  RESULT_ROOT="results/$(date +%Y%m%d_%H%M%S)"
-  mkdir -p "${RESULT_ROOT}"
+  mkdir -p "${OUTPUT_DIR}"
+  # Always store teacher fine-tune checkpoints in the shared top-level folder
+  mkdir -p checkpoints
 
   local T1=${TEACHER1_TYPE:-resnet152}
   for METHOD in $METHOD_LIST; do
     echo ">>> [run_experiments.sh] running METHOD=${METHOD}"
-  for T2 in efficientnet_b2 swin_tiny; do
-    # 1) Teacher fine-tuning
-    for T in "$T1" "$T2"; do
-      CKPT="checkpoints/${T}_ft.pth"
-      if [ ! -f "${CKPT}" ]; then
+    for T2 in efficientnet_b2 swin_tiny; do
+      # 1) Teacher fine-tuning
+      # Checkpoints are now saved to a global checkpoints folder
+      for T in "$T1" "$T2"; do
+        mkdir -p checkpoints # Ensure global checkpoint dir exists
+        CKPT="checkpoints/${T}_ft.pth"
+        if [ ! -f "${CKPT}" ]; then
         echo ">>> [run_experiments.sh] fine-tuning teacher=${T}  (epochs=${finetune_epochs}, lr=${finetune_lr})"
         python scripts/fine_tuning.py \
           --teacher_type "${T}" \
@@ -110,15 +109,16 @@ run_loop() {
         # N_STAGE_LIST may contain space-separated values like "2 3 4 5"
         # Iterate over each item without quoting to allow word splitting.
         for STAGE in $n_stage_list; do
-          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-          EXP_ID="${METHOD}_${T2}_vs_${T1}_${STUDENT}_s${STAGE}_a${SC_ALPHA}_${TIMESTAMP}"
-
-          OUTDIR="${RESULT_ROOT}/${EXP_ID}"
-          mkdir -p "${OUTDIR}"
+          EXP_ID="${METHOD}_${T2}_vs_${T1}_${STUDENT}_s${STAGE}_a${SC_ALPHA}"
+          # Use the directory passed from run.sh as the final output location
+          # No more nested directories
+          OUTDIR="${OUTPUT_DIR}"
+          CKPT_DIR="${OUTDIR}/checkpoints"
+          mkdir -p "${CKPT_DIR}"
 
           CFG_TMP=$(generate_config)
+          # Save the one true config file for this job
           cp "$CFG_TMP" "${OUTDIR}/config.yaml"
-          cp "$CFG_TMP" "logs/asmb_${LOG_ID}_$(basename "$OUTDIR").yaml"
 
           if [ "$METHOD" = "asmb" ]; then
           python main.py \
@@ -140,6 +140,7 @@ run_loop() {
             --teacher2_bn_head_only ${teacher2_bn_head_only} \
             --student_freeze_level ${student_freeze_level} \
             --results_dir "${OUTDIR}" \
+            --ckpt_dir "${CKPT_DIR}" \
             --exp_id "${EXP_ID}" \
             --seed 42 \
             --data_aug ${data_aug} \
@@ -155,9 +156,10 @@ run_loop() {
             --student_type "${STUDENT}" \
             --student_lr ${student_lr} \
             --batch_size ${batch_size} \
-            --epochs ${student_iters} \
+            --epochs ${student_epochs_per_stage} \
             --student_freeze_level ${student_freeze_level} \
             --results_dir "${OUTDIR}" \
+            --ckpt_dir "${CKPT_DIR}" \
             --seed 42 \
             --data_aug ${data_aug} \
             --mixup_alpha ${mixup_alpha} \
@@ -185,7 +187,6 @@ run_sweep() {
 
       T_LR=${teacher_lr}
       CFG_TMP=$(generate_config)
-      cp "$CFG_TMP" "logs/asmb_${LOG_ID}_sweep_lr${teacher_lr}_a${sc_alpha}.yaml"
 
       python main.py \
         --config "${CFG_TMP}" \
@@ -213,6 +214,10 @@ while [[ $# -gt 0 ]]; do
       MODE="$2"
       shift 2
       ;;
+    --output_dir)
+      OUTPUT_DIR="$2"
+      shift 2
+      ;;
     *)
       echo "Unknown argument: $1" >&2
       exit 1
@@ -221,7 +226,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [ -z "$MODE" ]; then
-  echo "Usage: run_experiments.sh --mode {loop,sweep}" >&2
+  echo "Usage: $0 --mode {loop,sweep} [--output_dir DIR]" >&2
   exit 1
 fi
 

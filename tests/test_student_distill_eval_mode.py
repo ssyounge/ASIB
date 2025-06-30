@@ -68,7 +68,7 @@ def test_teachers_are_eval_during_distill():
     t1.train()
     t2.train()
 
-    opt = torch.optim.SGD(student.parameters(), lr=0.1)
+    opt = torch.optim.Adam(student.parameters(), lr=0.1)
     sched = torch.optim.lr_scheduler.StepLR(opt, step_size=1)
 
     student_distillation_update(
