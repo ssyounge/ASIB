@@ -5,6 +5,7 @@ import copy
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from typing import Optional
 from utils.progress import smart_tqdm
 
 from utils.misc import cutmix_data, get_amp_components
@@ -31,6 +32,7 @@ def train_one_epoch_cutmix(
     alpha=1.0,
     device="cuda",
     label_smoothing: float = 0.0,
+    num_classes: Optional[int] = None,
     cfg=None,
 ):
     """
@@ -56,7 +58,8 @@ def train_one_epoch_cutmix(
         with autocast_ctx:
             out = teacher_model(x_cm)  # we only need `logits` for classification
             logits = out["logit"]
-            num_classes = logits.size(1)
+            if num_classes is None:
+                num_classes = logits.size(1)
             min_label = int(torch.cat((y_a, y_b)).min())
             max_label = int(torch.cat((y_a, y_b)).max())
             if min_label < 0 or max_label >= num_classes:
@@ -159,6 +162,11 @@ def finetune_teacher_cutmix(
         print(f"[CutMix] loaded => testAcc={test_acc:.2f}")
         return teacher_model, test_acc
 
+    num_classes = len(getattr(train_loader.dataset, "classes", []))
+    if num_classes == 0:
+        from utils.misc import get_model_num_classes
+        num_classes = get_model_num_classes(teacher_model)
+
     optimizer = optim.AdamW(
         teacher_model.parameters(),
         lr=lr,
@@ -181,6 +189,7 @@ def finetune_teacher_cutmix(
             alpha=alpha,
             device=device,
             label_smoothing=label_smoothing,
+            num_classes=num_classes,
             cfg=None,
         )
         te_acc = eval_teacher(teacher_model, test_loader, device=device, cfg=None)
