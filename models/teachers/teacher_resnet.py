@@ -32,8 +32,11 @@ class TeacherResNetWrapper(nn.Module):
         self.feat_channels = 2048
 
         # distillation adapter
+        cfg = cfg or {}
+        hidden_dim = cfg.get("distill_hidden_dim")
+        out_dim = cfg.get("distill_out_dim")
         self.distillation_adapter = DistillationAdapter(
-            self.feat_dim, cfg=cfg
+            self.feat_dim, hidden_dim=hidden_dim, out_dim=out_dim
         )
         self.distill_dim = self.distillation_adapter.out_dim
     
