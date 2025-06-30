@@ -6,7 +6,12 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
-from modules.losses import kd_loss_fn, ce_loss_fn
+from modules.losses import (
+    kd_loss_fn,
+    ce_loss_fn,
+    rkd_distance_loss,
+    rkd_angle_loss,
+)
 from utils.schedule import get_tau
 from models import LightweightAttnMBM
 
@@ -412,10 +417,19 @@ class ASMBDistiller(nn.Module):
                         syn_feat.detach().view(s_feat.size(0), -1),
                     )
 
+                rkd_val = torch.tensor(0.0, device=s_feat.device)
+                if self.config.get("rkd_loss_weight", 0.0) > 0:
+                    syn_detach = syn_feat.detach()
+                    rkd_val = (
+                        rkd_distance_loss(s_feat, syn_detach)
+                        + rkd_angle_loss(s_feat, syn_detach)
+                    )
+
                 loss_asmb = (
                     self.alpha * ce_val
                     + (1 - self.alpha) * kd_val
                     + self.feat_kd_alpha * feat_loss
+                    + self.config.get("rkd_loss_weight", 0.0) * rkd_val
                 )
                 beta = self.config.get("hybrid_beta", 0.0)
                 loss = (1 - beta) * loss_asmb + beta * kd_vanilla

@@ -94,3 +94,59 @@ def dkd_loss(student_logits, teacher_logits, labels, alpha=1.0, beta=1.0, temper
 
     loss = (alpha * loss_pos + beta * loss_neg) * (temperature ** 2)
     return loss
+
+
+def rkd_distance_loss(student_feat, teacher_feat, eps: float = 1e-12):
+    """Relational KD distance loss."""
+    if student_feat.dim() > 2:
+        student_feat = student_feat.view(student_feat.size(0), -1)
+    if teacher_feat.dim() > 2:
+        teacher_feat = teacher_feat.view(teacher_feat.size(0), -1)
+
+    if student_feat.size(0) < 2:
+        return torch.tensor(0.0, device=student_feat.device)
+
+    diff_s = student_feat.unsqueeze(0) - student_feat.unsqueeze(1)
+    diff_t = teacher_feat.unsqueeze(0) - teacher_feat.unsqueeze(1)
+
+    dist_s = diff_s.pow(2).sum(dim=2).sqrt()
+    dist_t = diff_t.pow(2).sum(dim=2).sqrt()
+
+    mean_s = dist_s[dist_s > 0].mean()
+    mean_t = dist_t[dist_t > 0].mean()
+
+    dist_s = dist_s / (mean_s + eps)
+    dist_t = dist_t / (mean_t + eps)
+
+    return F.smooth_l1_loss(dist_s, dist_t)
+
+
+def rkd_angle_loss(student_feat, teacher_feat, eps: float = 1e-12):
+    """Relational KD angle loss."""
+    if student_feat.dim() > 2:
+        student_feat = student_feat.view(student_feat.size(0), -1)
+    if teacher_feat.dim() > 2:
+        teacher_feat = teacher_feat.view(teacher_feat.size(0), -1)
+
+    if student_feat.size(0) < 3:
+        return torch.tensor(0.0, device=student_feat.device)
+
+    diff_s = student_feat.unsqueeze(0) - student_feat.unsqueeze(1)
+    diff_t = teacher_feat.unsqueeze(0) - teacher_feat.unsqueeze(1)
+
+    n = student_feat.size(0)
+    mask = ~torch.eye(n, dtype=torch.bool, device=student_feat.device)
+    diff_s = diff_s[mask].view(n, n - 1, -1)
+    diff_t = diff_t[mask].view(n, n - 1, -1)
+
+    norm_s = F.normalize(diff_s, p=2, dim=2)
+    norm_t = F.normalize(diff_t, p=2, dim=2)
+
+    angle_s = torch.bmm(norm_s, norm_s.transpose(1, 2))
+    angle_t = torch.bmm(norm_t, norm_t.transpose(1, 2))
+
+    diag_mask = ~torch.eye(n - 1, dtype=torch.bool, device=student_feat.device)
+    angle_s = angle_s[:, diag_mask].view(-1)
+    angle_t = angle_t[:, diag_mask].view(-1)
+
+    return F.smooth_l1_loss(angle_s, angle_t)
