@@ -499,10 +499,6 @@ Folder Structure
 │   ├── losses.py
 │   └── __init__.py
 
-├── results
-│   ├── cifar100_asmb.csv
-│   └── summary.csv
-
 ├── scripts
 │   ├── fine_tuning.py
 │   └── run_experiments.sh
@@ -515,7 +511,6 @@ Folder Structure
 	• configs/: YAML config files for partial-freeze settings, hyperparameters
 	• methods/: KD implementations (ASMB, FitNet, CRD, DKD, etc.)
 	• modules/: Partial freeze utility, trainers, custom losses
-	• results/: CSV logs, outputs from training/evaluation
         • scripts/: Shell scripts for multiple or batch experiments
             ◦ Edit `configs/hparams.yaml` to change the default hyperparameters consumed by `run_experiments.sh`
 
