@@ -25,6 +25,7 @@ def parse_args():
     p.add_argument("--batch_size", type=int)
     p.add_argument("--student_lr", type=float)
     p.add_argument("--weight_decay", type=float)
+    p.add_argument("--sgd_momentum", type=float)
     p.add_argument("--epochs", type=int)
     p.add_argument("--results_dir", type=str, default="results")
     p.add_argument("--seed", type=int, default=42)
@@ -71,7 +72,10 @@ def train_student_ce(
         return test_acc
 
     optimizer = optim.SGD(
-        student_model.parameters(), lr=lr, momentum=0.9, weight_decay=weight_decay
+        student_model.parameters(),
+        lr=lr,
+        momentum=cfg.get("sgd_momentum", 0.9) if cfg else 0.9,
+        weight_decay=weight_decay,
     )
     criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
 
