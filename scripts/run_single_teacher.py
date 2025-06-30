@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 # scripts/run_single_teacher.py
 """Single-teacher KD runner."""
-import argparse
+import sys
 import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+import argparse
 import yaml
 import torch
 from utils.misc import set_random_seed, check_label_range
