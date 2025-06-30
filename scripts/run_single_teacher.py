@@ -8,7 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import argparse
 import yaml
 import torch
-from utils.misc import set_random_seed, check_label_range
+from utils.misc import set_random_seed, check_label_range, get_model_num_classes
 from data.cifar100 import get_cifar100_loaders
 from data.imagenet100 import get_imagenet100_loaders
 from main import (
@@ -149,6 +149,11 @@ def main():
         num_classes=num_classes,
         cfg=cfg,
     ).to(device)
+    model_classes = get_model_num_classes(teacher)
+    if model_classes != num_classes:
+        raise ValueError(
+            f"Teacher head expects {model_classes} classes but dataset provides {num_classes}"
+        )
     if os.path.exists(teacher_ckpt_path):
         teacher.load_state_dict(
             torch.load(teacher_ckpt_path, map_location=device, weights_only=True),
