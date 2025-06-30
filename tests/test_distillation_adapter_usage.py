@@ -56,7 +56,7 @@ def test_student_distill_uses_distill_feat():
     cfg = {"device": "cpu", "ce_alpha": 1.0, "kd_alpha": 1.0, "student_iters": 1,
            "mbm_type": "LA", "use_distillation_adapter": True}
     logger = DummyLogger()
-    opt = torch.optim.SGD(student.parameters(), lr=0.1)
+    opt = torch.optim.Adam(student.parameters(), lr=0.1)
     sched = torch.optim.lr_scheduler.StepLR(opt, step_size=1)
     student_distillation_update([t1, t2], mbm, head, student, loader, loader, cfg,
                                 logger, optimizer=opt, scheduler=sched)
