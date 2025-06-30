@@ -53,8 +53,13 @@ class TeacherSwinWrapper(nn.Module):
             f2d = f4d
             feat_4d = f2d.unsqueeze(-1).unsqueeze(-1)
         elif f4d.dim() == 3:
-            # Swin Tiny from timm sometimes returns [N, seq_len, C]
-            f2d = f4d.mean(dim=1)
+            # Swin Tiny from timm may return [N, seq_len, C] or [N, C, seq_len]
+            if f4d.shape[1] == self.feat_dim:
+                # [N, C, seq_len] => average over sequence dimension
+                f2d = f4d.mean(dim=2)
+            else:
+                # [N, seq_len, C] => average over sequence dimension
+                f2d = f4d.mean(dim=1)
             feat_4d = f2d.unsqueeze(-1).unsqueeze(-1)
         else:
             # standard 4D [N, C, H, W]
