@@ -59,6 +59,7 @@ class CRDDistiller(nn.Module):
         self.alpha = alpha
         self.crd_loss_fn = CRDLoss(temperature=temperature)
         self.label_smoothing = label_smoothing
+        # optional runtime configuration for training loops
         self.cfg = config if config is not None else {}
 
         s_dim = student_model.get_feat_dim()
