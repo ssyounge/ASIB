@@ -185,3 +185,21 @@ def check_label_range(dataset, num_classes: int) -> None:
             f"Dataset labels must be within [0, {num_classes - 1}], "
             f"got min={min_label}, max={max_label}"
         )
+
+
+def get_model_num_classes(model):
+    """Return the classifier output dimension for a variety of models."""
+    module = getattr(model, "backbone", model)
+    if hasattr(module, "fc"):
+        return module.fc.out_features
+    if hasattr(module, "classifier"):
+        cls = module.classifier
+        if isinstance(cls, torch.nn.Linear):
+            return cls.out_features
+        if isinstance(cls, torch.nn.Sequential):
+            for layer in reversed(cls):
+                if isinstance(layer, torch.nn.Linear):
+                    return layer.out_features
+    if hasattr(module, "head"):
+        return module.head.out_features
+    raise AttributeError("Unable to infer num_classes from model")
