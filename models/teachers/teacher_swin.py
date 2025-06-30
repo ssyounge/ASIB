@@ -39,16 +39,19 @@ class TeacherSwinWrapper(nn.Module):
     def forward(self, x, y=None):
         """Standard forward pass for a Swin Transformer teacher."""
 
-        # 1) Swin 모델의 백본 특징 추출 모듈을 직접 호출합니다.
-        #    torchvision 모델에서 권장되는 방식입니다.
+        # 1. Swin 모델의 백본 특징 추출 모듈을 직접 호출합니다.
+        #    이것이 torchvision Swin 모델의 권장 방식입니다.
         x_features = self.backbone.features(x)
 
-        # 2) 3D 텐서를 2D 벡터로 변환합니다.
-        #    norm 레이어 통과 후 패치 차원(dim=1)에 대해 평균을 냅니다.
-        f2d = self.backbone.norm(x_features)
-        f2d = f2d.mean(dim=1)
+        # 2. 3D 텐서를 2D 벡터로 올바르게 변환합니다.
+        #    norm 레이어를 거친 뒤 [N, L, C] -> [N, C, L] 형태로 바꾼 뒤
+        #    avgpool을 적용해 최종 벡터를 얻습니다.
+        x_features = self.backbone.norm(x_features)
+        x_features = x_features.permute(0, 2, 1)
+        f2d = self.backbone.avgpool(x_features)
+        f2d = torch.flatten(f2d, 1)
 
-        # 3) 어댑터와 헤드에 전달합니다.
+        # 3. 어댑터와 헤드에 전달합니다.
         distill_feat = self.distillation_adapter(f2d)
         logit = self.backbone.head(f2d)
 
