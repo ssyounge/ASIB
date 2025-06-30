@@ -96,11 +96,13 @@ class ATDistiller(nn.Module):
             step_size = 10
             gamma = 0.1
 
+        beta1 = cfg.get("adam_beta1", 0.9) if cfg else 0.9
+        beta2 = cfg.get("adam_beta2", 0.999) if cfg else 0.999
         optimizer = optim.AdamW(
             self.student.parameters(),
             lr=lr,
             weight_decay=weight_decay,
-            betas=(0.9, 0.999),
+            betas=(beta1, beta2),
             eps=1e-8,
         )
 

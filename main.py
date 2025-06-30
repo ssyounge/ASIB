@@ -568,6 +568,8 @@ def main():
     mbm_params = [p for p in mbm.parameters() if p.requires_grad]
     syn_params = [p for p in synergy_head.parameters() if p.requires_grad]
 
+    beta1 = cfg.get("adam_beta1", 0.9)
+    beta2 = cfg.get("adam_beta2", 0.999)
     teacher_optimizer = optim.Adam(
         [
             {"params": teacher_params, "lr": cfg["teacher_lr"]},
@@ -581,6 +583,7 @@ def main():
             },
         ],
         weight_decay=cfg["teacher_weight_decay"],
+        betas=(beta1, beta2),
     )
 
     teacher_total_epochs = num_stages * cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5))
@@ -597,7 +600,7 @@ def main():
         student_model.parameters(),
         lr=cfg["student_lr"],
         weight_decay=cfg["student_weight_decay"],
-        betas=(0.9, 0.999),
+        betas=(beta1, beta2),
         eps=1e-8,
     )
 
