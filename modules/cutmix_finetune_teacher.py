@@ -174,6 +174,9 @@ def finetune_teacher_cutmix(
         if te_acc > best_acc:
             best_acc = te_acc
             best_state = copy.deepcopy(teacher_model.state_dict())
+            # --- save best checkpoint whenever best accuracy is updated ---
+            os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
+            torch.save(best_state, ckpt_path)
 
         scheduler.step()
 
@@ -182,10 +185,9 @@ def finetune_teacher_cutmix(
             f"trainAcc={tr_acc:.2f}, testAcc={te_acc:.2f}, best={best_acc:.2f}"
         )
 
-    teacher_model.load_state_dict(best_state)
-    os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
-    torch.save(teacher_model.state_dict(), ckpt_path)
     print(f"[CutMix] Fine-tune done => bestAcc={best_acc:.2f}, saved={ckpt_path}")
+    # reload the best checkpoint (already saved during training)
+    teacher_model.load_state_dict(torch.load(ckpt_path, map_location=device))
     return teacher_model, best_acc
 
 def standard_ce_finetune(
@@ -253,10 +255,11 @@ def standard_ce_finetune(
         if te_acc > best_acc:
             best_acc = te_acc
             best_state = copy.deepcopy(teacher_model.state_dict())
+            # save checkpoint whenever best accuracy improves
+            os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
+            torch.save(best_state, ckpt_path)
         print(f"[CE FineTune|ep={ep}/{epochs}] testAcc={te_acc:.2f}, best={best_acc:.2f}")
 
-    teacher_model.load_state_dict(best_state)
-    os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
-    torch.save(teacher_model.state_dict(), ckpt_path)
     print(f"[CEFineTune] done => bestAcc={best_acc:.2f}, saved={ckpt_path}")
+    teacher_model.load_state_dict(torch.load(ckpt_path, map_location=device))
     return teacher_model, best_acc
