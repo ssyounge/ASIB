@@ -3,6 +3,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Optional
 from .adapters import DistillationAdapter
 from torchvision.models import swin_t, Swin_T_Weights
 
@@ -16,7 +17,7 @@ class TeacherSwinWrapper(nn.Module):
         "feat_2d": [N, C],       # global pooled or direct features
       }
     """
-    def __init__(self, backbone: nn.Module, cfg: dict | None = None):
+    def __init__(self, backbone: nn.Module, cfg: Optional[dict] = None):
         super().__init__()
         self.backbone = backbone
         self.criterion_ce = nn.CrossEntropyLoss()
@@ -97,7 +98,7 @@ class TeacherSwinWrapper(nn.Module):
 def create_swin_t(
     num_classes=100,
     pretrained=True,
-    cfg: dict | None = None,
+    cfg: Optional[dict] = None,
 ):
     """
     Swin Tiny 로드 후, head 교체 => TeacherSwinWrapper

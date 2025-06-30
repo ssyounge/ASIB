@@ -13,6 +13,7 @@ import copy
 import torch
 import os
 import yaml
+from typing import Optional
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR, StepLR
 
@@ -44,7 +45,7 @@ def create_student_by_name(
     pretrained: bool = True,
     small_input: bool = False,
     num_classes: int = 100,
-    cfg: dict | None = None,
+    cfg: Optional[dict] = None,
 ):
     """
     Returns a student model that follows the common interface
@@ -189,7 +190,7 @@ def create_teacher_by_name(
     num_classes=100,
     pretrained=True,
     small_input=False,
-    cfg: dict | None = None,
+    cfg: Optional[dict] = None,
 ):
     if teacher_name == "resnet101":
         return create_resnet101(
