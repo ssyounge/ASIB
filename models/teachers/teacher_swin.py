@@ -35,36 +35,40 @@ class TeacherSwinWrapper(nn.Module):
 
     
     def forward(self, x, y=None):
-        # 1) Swin forward => 4D feature
-        # use gradients so that Swin parameters remain trainable during
-        # teacher adaptation
+        # 1) backbone forward => feature tensor
+        # keep gradients so Swin parameters remain trainable during teacher adaptation
         if hasattr(self.backbone, "forward_features"):
-            f4d = self.backbone.forward_features(x)
+            x_features = self.backbone.forward_features(x)
         elif hasattr(self.backbone, "features"):
-            f4d = self.backbone.features(x)
+            x_features = self.backbone.features(x)
         else:
             raise AttributeError(
                 "Backbone model must implement forward_features or features"
             )
 
         # 2) handle feature shape
-        if f4d.dim() == 2:
+        if x_features.dim() == 2:
             # already pooled -> treat as 2D feature
-            f2d = f4d
+            f2d = x_features
             feat_4d = f2d.unsqueeze(-1).unsqueeze(-1)
-        elif f4d.dim() == 3:
-            # Swin Tiny from timm may return [N, seq_len, C] or [N, C, seq_len]
-            if f4d.shape[1] == self.feat_dim:
+        elif x_features.dim() == 3:
+            # Swin Tiny may return [N, seq_len, C] or [N, C, seq_len]
+            x_features = (
+                self.backbone.norm(x_features)
+                if hasattr(self.backbone, "norm")
+                else x_features
+            )
+            if x_features.shape[1] == self.feat_dim:
                 # [N, C, seq_len] => average over sequence dimension
-                f2d = f4d.mean(dim=2)
+                f2d = x_features.mean(dim=2)
             else:
                 # [N, seq_len, C] => average over sequence dimension
-                f2d = f4d.mean(dim=1)
+                f2d = x_features.mean(dim=1)
             feat_4d = f2d.unsqueeze(-1).unsqueeze(-1)
         else:
             # standard 4D [N, C, H, W]
-            feat_4d = f4d
-            f2d = F.adaptive_avg_pool2d(f4d, (1, 1)).flatten(1)
+            feat_4d = x_features
+            f2d = F.adaptive_avg_pool2d(x_features, (1, 1)).flatten(1)
 
         # distillation adapter feature
         distill_feat = self.distillation_adapter(f2d)
