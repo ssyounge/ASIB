@@ -12,6 +12,14 @@ def test_rkd_distance_zero_when_relative_same():
     assert loss.item() == pytest.approx(0.0)
 
 
+def test_rkd_distance_zero_when_identical():
+    s = torch.tensor([[1.0, 1.0], [1.0, 1.0]], dtype=torch.float32)
+    t = torch.tensor([[2.0, 2.0], [2.0, 2.0]], dtype=torch.float32)
+    loss = rkd_distance_loss(s, t)
+    assert torch.isfinite(loss)
+    assert loss.item() == pytest.approx(0.0)
+
+
 def test_rkd_distance_nonzero():
     s = torch.tensor([[0.0, 0.0], [1.0, 0.0], [3.0, 0.0]], dtype=torch.float32)
     t = torch.tensor([[0.0, 0.0], [1.0, 0.0], [2.0, 0.0]], dtype=torch.float32)
