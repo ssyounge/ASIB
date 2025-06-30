@@ -15,5 +15,5 @@ mkdir -p "$OUTPUT_DIR"
 source ~/.bashrc
 conda activate facil_env
 
-# Pass the unique output directory to the main experiment script
-bash scripts/run_experiments.sh --mode loop --output_dir "$OUTPUT_DIR"
+# Launch experiments defined in configs/run_setup.yaml
+python scripts/launch_experiments.py --setup configs/run_setup.yaml
