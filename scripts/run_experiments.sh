@@ -168,7 +168,9 @@ run_loop() {
         done
       done
     done
-  done
+      done  # closes 'for STUDENT' loop
+    done    # closes 'for T2' loop
+  done      # closes 'for T1' loop
 }
 
 run_sweep() {
@@ -207,7 +209,6 @@ run_sweep() {
         --label_smoothing ${label_smoothing} \
         --method ${METHOD}
     done
-  done
   done
 }
 
