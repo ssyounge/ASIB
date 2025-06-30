@@ -8,6 +8,7 @@ class DummySwin(torch.nn.Module):
         super().__init__()
         self.head = torch.nn.Linear(1, 2)
         self.norm = torch.nn.Identity()
+        self.avgpool = torch.nn.AdaptiveAvgPool1d(1)
 
     # mimic torchvision Swin interface
     def features(self, x):
@@ -21,6 +22,9 @@ def test_forward_basic():
 
     out = wrapper(x)
 
-    expected_f2d = x.view(2, -1, 1).mean(dim=1)
+    x_feat = x.view(2, -1, 1)
+    x_feat = backbone.norm(x_feat)
+    x_feat = x_feat.permute(0, 2, 1)
+    expected_f2d = backbone.avgpool(x_feat).flatten(1)
     assert torch.allclose(out["feat_2d"], expected_f2d)
     assert out["feat_4d"].shape == (*expected_f2d.shape, 1, 1)
