@@ -39,6 +39,7 @@ class FitNetDistiller(nn.Module):
         self.alpha_hint = alpha_hint
         self.alpha_ce = alpha_ce
         self.label_smoothing = label_smoothing
+        # optional runtime configuration for training loops
         self.cfg = config if config is not None else {}
 
         # 학생 특징맵을 스승 특징맵 채널로 변환하는 1x1 convolution
