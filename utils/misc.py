@@ -51,7 +51,7 @@ def load_checkpoint(model, optimizer, load_path):
         print(f"[Warning] No checkpoint found at {load_path}")
         return 0  # or -1, indicating failure
 
-    ckpt = torch.load(load_path)
+    ckpt = torch.load(load_path, weights_only=True)
     model.load_state_dict(ckpt["model_state"], strict=False)
     optimizer.load_state_dict(ckpt["optim_state"])
     start_epoch = ckpt["epoch"]
