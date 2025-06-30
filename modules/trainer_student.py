@@ -44,14 +44,18 @@ def student_distillation_update(
         tw.eval()
 
     mbm_reqgrad_states = []
+    mbm_train_state = mbm.training
     for p in mbm.parameters():
         mbm_reqgrad_states.append(p.requires_grad)
         p.requires_grad = False
+    mbm.eval()
 
     syn_reqgrad_states = []
+    syn_train_state = synergy_head.training
     for p in synergy_head.parameters():
         syn_reqgrad_states.append(p.requires_grad)
         p.requires_grad = False
+    synergy_head.eval()
 
     student_epochs = cfg.get("student_iters", cfg.get("student_epochs_per_stage", 15))
 
@@ -251,8 +255,10 @@ def student_distillation_update(
         tw.train(train_flag)
     for p, rg in zip(mbm.parameters(), mbm_reqgrad_states):
         p.requires_grad = rg
+    mbm.train(mbm_train_state)
     for p, rg in zip(synergy_head.parameters(), syn_reqgrad_states):
         p.requires_grad = rg
+    synergy_head.train(syn_train_state)
 
     logger.info(f"[StudentDistill] bestAcc={best_acc:.2f}")
     return best_acc
