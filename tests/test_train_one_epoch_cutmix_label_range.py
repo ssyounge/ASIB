@@ -23,5 +23,12 @@ def test_train_one_epoch_cutmix_label_range():
     y = torch.tensor([2])  # out of range for 2 classes
     loader = [(x, y)]
     with pytest.raises(ValueError, match="min=2, max=2"):
-        train_one_epoch_cutmix(model, loader, optimizer, alpha=0.0, device="cpu")
+        train_one_epoch_cutmix(
+            model,
+            loader,
+            optimizer,
+            alpha=0.0,
+            device="cpu",
+            num_classes=2,
+        )
 
