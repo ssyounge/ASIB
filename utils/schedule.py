@@ -11,7 +11,7 @@ def get_tau(cfg: dict, epoch: int) -> float:
     decay = max(int(cfg.get("tau_decay_epochs", 1)), 1)
     t = min(epoch, decay) / decay
 
-    if sched == "linear":
+    if sched in ("linear", "linear_decay"):
         tau = T0 + (Tend - T0) * t
     elif sched == "cosine":
         tau = Tend + 0.5 * (T0 - Tend) * (1 + math.cos(math.pi * t))
