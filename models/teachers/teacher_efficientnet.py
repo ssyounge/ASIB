@@ -16,7 +16,7 @@ class TeacherEfficientNetWrapper(nn.Module):
         "feat_2d": [N, 1408],         # global pooled
       }
     """
-    def __init__(self, backbone):
+    def __init__(self, backbone, cfg: dict | None = None):
         super().__init__()
         self.backbone = backbone
         self.criterion_ce = nn.CrossEntropyLoss()
@@ -26,7 +26,9 @@ class TeacherEfficientNetWrapper(nn.Module):
         self.feat_channels = 1408
 
         # distillation adapter
-        self.distillation_adapter = DistillationAdapter(self.feat_dim)
+        self.distillation_adapter = DistillationAdapter(
+            self.feat_dim, cfg=cfg
+        )
         self.distill_dim = self.distillation_adapter.out_dim
     
     def forward(self, x, y=None):
@@ -86,6 +88,7 @@ def create_efficientnet_b2(
     pretrained: bool = True,
     small_input: bool = False,
     dropout_p: float = 0.3,
+    cfg: dict | None = None,
 ):
     """
     EfficientNet-B2를 로드한 뒤, (in_feats->num_classes) 교체
@@ -122,5 +125,5 @@ def create_efficientnet_b2(
     model.classifier[0] = nn.Dropout(p=dropout_p)
     model.classifier[1] = nn.Linear(in_feats, num_classes)
 
-    teacher_model = TeacherEfficientNetWrapper(model)
+    teacher_model = TeacherEfficientNetWrapper(model, cfg=cfg)
     return teacher_model
