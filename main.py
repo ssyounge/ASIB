@@ -18,7 +18,7 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR, StepLR
 
 from utils.logger import ExperimentLogger
-from utils.misc import set_random_seed, check_label_range
+from utils.misc import set_random_seed, check_label_range, get_model_num_classes
 from modules.disagreement import compute_disagreement_rate
 from modules.trainer_teacher import teacher_adaptive_update
 from modules.trainer_student import student_distillation_update
@@ -369,6 +369,11 @@ def main():
         small_input=small_input,
         cfg=cfg,
     ).to(device)
+    model_classes = get_model_num_classes(teacher1)
+    if model_classes != num_classes:
+        raise ValueError(
+            f"Teacher1 head expects {model_classes} classes but dataset provides {num_classes}"
+        )
 
     if os.path.exists(teacher1_ckpt_path):
         teacher1.load_state_dict(
@@ -396,6 +401,11 @@ def main():
         small_input=small_input,
         cfg=cfg,
     ).to(device)
+    model_classes = get_model_num_classes(teacher2)
+    if model_classes != num_classes:
+        raise ValueError(
+            f"Teacher2 head expects {model_classes} classes but dataset provides {num_classes}"
+        )
 
     if os.path.exists(teacher2_ckpt_path):
         teacher2.load_state_dict(
