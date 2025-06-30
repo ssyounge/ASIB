@@ -116,6 +116,7 @@ def parse_args():
     parser.add_argument("--teacher2_ckpt", type=str)
     parser.add_argument("--num_stages",   type=int)
     parser.add_argument("--synergy_ce_alpha", type=float)    # α
+    parser.add_argument("--hybrid_beta", type=float)
     parser.add_argument("--student_type", type=str)
     
     # 편의용 하이퍼파라미터
