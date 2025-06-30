@@ -1,7 +1,8 @@
 # eval.py
 """
-Evaluates either a single model or a synergy model (Teacher1+2 + MBM + synergy head),
+Evaluates either a single model or a synergy model (Teacher1+2 + MBM + synergy head)
 and logs the results (train_acc, test_acc, etc.) using ExperimentLogger.
+Supports evaluation on the CIFAR-100 and ImageNet-100 datasets.
 """
 
 import argparse
@@ -11,6 +12,7 @@ import torch.nn as nn
 import os
 
 from data.cifar100 import get_cifar100_loaders
+from data.imagenet100 import get_imagenet100_loaders
 from models.mbm import ManifoldBridgingModule, SynergyHead, build_from_teachers
 from models.la_mbm import LightweightAttnMBM
 from utils.logger import ExperimentLogger
@@ -158,12 +160,18 @@ def main():
     logger.update_metric("mbm_n_head", cfg.get("mbm_n_head"))
     logger.update_metric("mbm_learnable_q", cfg.get("mbm_learnable_q"))
 
-    # 4) Data
+    # 4) Data (CIFAR-100 or ImageNet-100)
     dataset_name = cfg.get("dataset_name", "cifar100")
-    train_loader, test_loader = get_cifar100_loaders(
-        batch_size=cfg["batch_size"],
-        num_workers=cfg.get("num_workers", 2),
-    )
+    if dataset_name == "imagenet100":
+        train_loader, test_loader = get_imagenet100_loaders(
+            batch_size=cfg["batch_size"],
+            num_workers=cfg.get("num_workers", 2),
+        )
+    else:
+        train_loader, test_loader = get_cifar100_loaders(
+            batch_size=cfg["batch_size"],
+            num_workers=cfg.get("num_workers", 2),
+        )
     device = cfg["device"]
     small_input = cfg.get("small_input")
     if small_input is None:
@@ -182,11 +190,11 @@ def main():
             ckpt = torch.load(
                 cfg["ckpt_path"], map_location=device, weights_only=True
             )
-                if "model_state" in ckpt:
-                    model.load_state_dict(ckpt["model_state"], strict=False)
-                else:
-                    model.load_state_dict(ckpt, strict=False)
-            print(f"[Eval single] loaded from {cfg['ckpt_path']}")
+        if "model_state" in ckpt:
+            model.load_state_dict(ckpt["model_state"], strict=False)
+        else:
+            model.load_state_dict(ckpt, strict=False)
+        print(f"[Eval single] loaded from {cfg['ckpt_path']}")
         else:
             print("[Eval single] no ckpt => random init")
 

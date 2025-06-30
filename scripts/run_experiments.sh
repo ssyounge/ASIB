@@ -58,6 +58,8 @@ generate_config() {
     reg_lambda=${reg_lambda} \
     mbm_dropout=${mbm_dropout} \
     synergy_head_dropout=${head_dropout} \
+    synergy_ce_alpha=${synergy_ce_alpha} \
+    hybrid_beta=${hybrid_beta} \
     use_partial_freeze=${use_partial_freeze} \
     teacher1_use_adapter=${teacher1_use_adapter} \
     teacher1_bn_head_only=${teacher1_bn_head_only} \
@@ -75,20 +77,27 @@ run_loop() {
   source <(python scripts/load_hparams.py configs/partial_freeze.yaml)
   
   METHOD_LIST="${method_list:-$method}"
+  T1_LIST="${teacher1_list}"
+  T2_LIST="${teacher2_list}"
   mkdir -p "${OUTPUT_DIR}"
-  # Always store teacher fine-tune checkpoints in the shared top-level folder
   mkdir -p checkpoints
 
-  local T1=${TEACHER1_TYPE:-resnet152}
-  for METHOD in $METHOD_LIST; do
-    echo ">>> [run_experiments.sh] running METHOD=${METHOD}"
-    for T2 in efficientnet_b2 swin_tiny; do
-      # 1) Teacher fine-tuning
-      # Checkpoints are now saved to a global checkpoints folder
-      for T in "$T1" "$T2"; do
+  for TEACH_EP in ${teacher_adapt_epochs_list}; do
+    for STUD_EP in ${student_epochs_per_stage_list}; do
+      teacher_adapt_epochs=${TEACH_EP}
+      student_epochs_per_stage=${STUD_EP}
+      for T1 in $T1_LIST; do
+        for T2 in $T2_LIST; do
+          for STUDENT in ${student_list}; do
+            for METHOD in $METHOD_LIST; do
+          echo ">>> [run_experiments.sh] running METHOD=${METHOD}"
+          # 1) Teacher fine-tuning
+          # Checkpoints are now saved to a global checkpoints folder
+          for T in "$T1" "$T2"; do
         mkdir -p checkpoints # Ensure global checkpoint dir exists
         CKPT="checkpoints/${T}_ft.pth"
-        if [ ! -f "${CKPT}" ]; then
+        # Only fine-tune when epochs>0 and checkpoint doesn't already exist
+        if [ ${finetune_epochs} -gt 0 ] && [ ! -f "${CKPT}" ]; then
         echo ">>> [run_experiments.sh] fine-tuning teacher=${T}  (epochs=${finetune_epochs}, lr=${finetune_lr})"
         python scripts/fine_tuning.py \
           --teacher_type "${T}" \
@@ -100,14 +109,16 @@ run_loop() {
           --finetune_cutmix_alpha ${finetune_cutmix_alpha} \
           --finetune_ckpt_path "${CKPT}" \
           --data_aug ${data_aug}
-      fi
-    done
+        fi
+        done
 
-    # 2) ASMB multi-stage distillation
-    for STUDENT in ${student_list}; do
-      for SC_ALPHA in ${sc_alpha_list}; do
-        # N_STAGE_LIST may contain space-separated values like "2 3 4 5"
-        # Iterate over each item without quoting to allow word splitting.
+        # 2) ASMB multi-stage distillation
+        for SC_ALPHA in ${sc_alpha_list}; do
+          for H_BETA in ${hybrid_beta_list}; do
+            synergy_ce_alpha=${SC_ALPHA}
+            hybrid_beta=${H_BETA}
+            # N_STAGE_LIST may contain space-separated values like "2 3 4 5"
+            # Iterate over each item without quoting to allow word splitting.
         for STAGE in $n_stage_list; do
           EXP_ID="${METHOD}_${T2}_vs_${T1}_${STUDENT}_s${STAGE}_a${SC_ALPHA}"
           # Use the directory passed from run.sh as the final output location
@@ -125,12 +136,11 @@ run_loop() {
             --config "${CFG_TMP}" \
             --teacher1_type "${T1}" \
             --teacher2_type "${T2}" \
-            --teacher1_ckpt checkpoints/${T1}_ft.pth \
-            --teacher2_ckpt checkpoints/${T2}_ft.pth \
             --finetune_epochs 0 \
             --student_type "${STUDENT}" \
             --num_stages ${STAGE} \
             --synergy_ce_alpha ${SC_ALPHA} \
+            --hybrid_beta ${H_BETA} \
             --teacher_lr ${teacher_lr} \
             --student_lr ${student_lr} \
             --batch_size ${batch_size} \
@@ -152,7 +162,6 @@ run_loop() {
           python scripts/run_single_teacher.py \
             --config "${CFG_TMP}" \
             --teacher_type "${T2}" \
-            --teacher_ckpt checkpoints/${T2}_ft.pth \
             --student_type "${STUDENT}" \
             --student_lr ${student_lr} \
             --batch_size ${batch_size} \
@@ -167,11 +176,15 @@ run_loop() {
             --label_smoothing ${label_smoothing} \
             --method ${METHOD}
           fi
-        done
-      done
-    done
-  done
-  done
+                done            # closes STAGE loop
+              done              # closes 'for H_BETA' loop
+            done                # closes 'for SC_ALPHA' loop
+          done                  # closes 'for METHOD' loop
+        done                    # closes 'for STUDENT' loop
+      done                      # closes 'for T2' loop
+    done                        # closes 'for T1' loop
+  done                          # closes 'for STUD_EP' loop
+done                            # closes 'for TEACH_EP' loop
 }
 
 run_sweep() {
@@ -179,18 +192,27 @@ run_sweep() {
   source <(python scripts/load_hparams.py configs/partial_freeze.yaml)
   echo ">>> [run_experiments.sh] running METHOD=${METHOD}"
 
+  # Use the first entry from the teacher lists for sweeps
+  local T1="${teacher1_list%% *}"
+  local T2="${teacher2_list%% *}"
+
   for teacher_lr in 0.0001 0.0002 0.0005; do
     for sc_alpha in 0.2 0.3 0.5; do
+      for h_beta in 0.1 0.5 0.9; do
       echo "=========================================="
-      echo "[RUN] teacher_lr=$teacher_lr synergy_ce_alpha=$sc_alpha"
+      echo "[RUN] teacher_lr=$teacher_lr synergy_ce_alpha=$sc_alpha hybrid_beta=$h_beta"
       echo "=========================================="
 
-      T_LR=${teacher_lr}
+      synergy_ce_alpha=${sc_alpha}
+      hybrid_beta=${h_beta}
       CFG_TMP=$(generate_config)
 
       python main.py \
         --config "${CFG_TMP}" \
+        --teacher1_type "${T1}" \
+        --teacher2_type "${T2}" \
         --synergy_ce_alpha ${sc_alpha} \
+        --hybrid_beta ${h_beta} \
         --device ${device} \
         --finetune_epochs 0 \
         --data_aug ${data_aug} \
@@ -203,6 +225,7 @@ run_sweep() {
         --student_freeze_level ${student_freeze_level} \
         --label_smoothing ${label_smoothing} \
         --method ${METHOD}
+      done
     done
   done
 }

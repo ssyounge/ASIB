@@ -106,6 +106,10 @@ class ExperimentLogger:
         total_time = time.time() - self.start_time
         self.config["total_time_sec"] = total_time
 
+
+        # Ensure results directory exists
+        os.makedirs(self.results_dir, exist_ok=True)
+
         # 2) JSON file path (fixed name within results_dir)
         json_path = os.path.join(self.results_dir, "summary.json")
 

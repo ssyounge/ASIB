@@ -44,14 +44,18 @@ def student_distillation_update(
         tw.eval()
 
     mbm_reqgrad_states = []
+    mbm_train_state = mbm.training
     for p in mbm.parameters():
         mbm_reqgrad_states.append(p.requires_grad)
         p.requires_grad = False
+    mbm.eval()
 
     syn_reqgrad_states = []
+    syn_train_state = synergy_head.training
     for p in synergy_head.parameters():
         syn_reqgrad_states.append(p.requires_grad)
         p.requires_grad = False
+    synergy_head.eval()
 
     student_epochs = cfg.get("student_iters", cfg.get("student_epochs_per_stage", 15))
 
@@ -66,6 +70,7 @@ def student_distillation_update(
         cur_tau = get_tau(cfg, global_ep + ep)
         distill_loss_sum = 0.0
         cnt = 0
+        feat_kd_sum = 0.0
         student_model.train()
         feat_kd_warned = False
 
@@ -215,9 +220,11 @@ def student_distillation_update(
 
             bs = x.size(0)
             distill_loss_sum += loss.item()*bs
+            feat_kd_sum += feat_kd_val.item() * bs
             cnt += bs
 
         ep_loss = distill_loss_sum / cnt
+        avg_feat_kd = feat_kd_sum / cnt if cnt > 0 else 0.0
         attn_avg = attn_sum / cnt if la_mode and cnt > 0 else 0.0
 
         # (C) validate
@@ -230,7 +237,7 @@ def student_distillation_update(
         logger.update_metric(f"student_ep{ep+1}_loss", ep_loss)
         if la_mode:
             logger.update_metric(f"student_ep{ep+1}_attn", attn_avg)
-        logger.update_metric(f"ep{ep+1}_feat_kd", feat_kd_val.item())
+        logger.update_metric(f"ep{ep+1}_feat_kd", avg_feat_kd)
         logger.update_metric(f"ep{ep+1}_mix_mode", mix_mode)
         logger.update_metric(f"epoch{global_ep+ep+1}_tau", cur_tau)
 
@@ -251,8 +258,10 @@ def student_distillation_update(
         tw.train(train_flag)
     for p, rg in zip(mbm.parameters(), mbm_reqgrad_states):
         p.requires_grad = rg
+    mbm.train(mbm_train_state)
     for p, rg in zip(synergy_head.parameters(), syn_reqgrad_states):
         p.requires_grad = rg
+    synergy_head.train(syn_train_state)
 
     logger.info(f"[StudentDistill] bestAcc={best_acc:.2f}")
     return best_acc

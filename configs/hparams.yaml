@@ -20,14 +20,11 @@ small_input: true
 # ===============================================================
 # For ASMB Multi-Teacher
 # Available teacher architectures: resnet101, resnet152, efficientnet_b2, swin_tiny
-teacher1_type: "resnet152"         # first teacher model type
-teacher1_ckpt: "./checkpoints/resnet152_ft.pth"  # path to teacher1 weights
-teacher2_type: "efficientnet_b2"   # second teacher model type
-teacher2_ckpt: "./checkpoints/efficientnet_b2_ft.pth"  # path to teacher2 weights
-student_list: "resnet_adapter"  # resnet_adapter, resnet152_adapter, etc.
-
-# For single-teacher scripts (fine_tuning.py, etc.)
-default_teacher_type: "resnet152"
+# Lists used by run_experiments.sh when looping
+teacher1_list: ["resnet152"]
+teacher2_list: ["efficientnet_b2", "swin_tiny"]
+student_list: ["resnet_adapter", "resnet152_adapter"]
+method_list: ["asmb", "vanilla_kd", "dkd", "crd", "at", "fitnet"]
 
 # Partial-freeze / adapter options
 use_partial_freeze: true
@@ -87,6 +84,11 @@ head_dropout: 0.0     # dropout prob for synergy head
 # e.g. "2 3 4 5" to run multiple values in a batch script.
 n_stage_list: 5
 sc_alpha_list: "0.6" # 0.3 0.6
+# Additional sweep lists
+hybrid_beta_list: "0.2"       # e.g. "0.1 0.5 0.9"
+# Epoch sweep lists
+teacher_adapt_epochs_list: "20"
+student_epochs_per_stage_list: "40"
 # Teacher adaptation
 teacher_adapt_epochs: 20
 student_epochs_per_stage: 40
