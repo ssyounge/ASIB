@@ -360,6 +360,7 @@ def main():
     teacher1_type = cfg["teacher1_type"]
     teacher2_type = cfg["teacher2_type"]
 
+    teacher1_ckpt_path = cfg.get("teacher1_ckpt", f"./checkpoints/{teacher1_type}_ft.pth")
     teacher1 = create_teacher_by_name(
         teacher_name=teacher1_type,
         num_classes=num_classes,
@@ -368,14 +369,12 @@ def main():
         cfg=cfg,
     ).to(device)
 
-    if cfg.get("teacher1_ckpt"):
+    if os.path.exists(teacher1_ckpt_path):
         teacher1.load_state_dict(
-            torch.load(
-                cfg["teacher1_ckpt"], map_location=device, weights_only=True
-            ),
+            torch.load(teacher1_ckpt_path, map_location=device, weights_only=True),
             strict=False,
         )
-        print(f"[Main] Loaded teacher1 from {cfg['teacher1_ckpt']}")
+        print(f"[Main] Loaded teacher1 from {teacher1_ckpt_path}")
 
     if cfg.get("use_partial_freeze", True):
         partial_freeze_teacher_auto(
@@ -388,6 +387,7 @@ def main():
             train_distill_adapter_only=cfg.get("use_distillation_adapter", False),
         )
 
+    teacher2_ckpt_path = cfg.get("teacher2_ckpt", f"./checkpoints/{teacher2_type}_ft.pth")
     teacher2 = create_teacher_by_name(
         teacher_name=teacher2_type,
         num_classes=num_classes,
@@ -396,14 +396,12 @@ def main():
         cfg=cfg,
     ).to(device)
 
-    if cfg.get("teacher2_ckpt"):
+    if os.path.exists(teacher2_ckpt_path):
         teacher2.load_state_dict(
-            torch.load(
-                cfg["teacher2_ckpt"], map_location=device, weights_only=True
-            ),
+            torch.load(teacher2_ckpt_path, map_location=device, weights_only=True),
             strict=False,
         )
-        print(f"[Main] Loaded teacher2 from {cfg['teacher2_ckpt']}")
+        print(f"[Main] Loaded teacher2 from {teacher2_ckpt_path}")
 
     if cfg.get("use_partial_freeze", True):
         partial_freeze_teacher_auto(
