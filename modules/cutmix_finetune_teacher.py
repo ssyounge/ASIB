@@ -56,6 +56,14 @@ def train_one_epoch_cutmix(
         with autocast_ctx:
             out = teacher_model(x_cm)  # we only need `logits` for classification
             logits = out["logit"]
+            num_classes = logits.size(1)
+            min_label = int(torch.cat((y_a, y_b)).min())
+            max_label = int(torch.cat((y_a, y_b)).max())
+            if min_label < 0 or max_label >= num_classes:
+                raise ValueError(
+                    f"CutMix labels must be within [0, {num_classes - 1}], "
+                    f"got min={min_label}, max={max_label}"
+                )
             loss = cutmix_criterion(criterion, logits, y_a, y_b, lam)
 
         # 4) backward
