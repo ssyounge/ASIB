@@ -8,7 +8,7 @@ import torch.optim as optim
 from typing import Optional
 from utils.progress import smart_tqdm
 
-from utils.misc import cutmix_data, get_amp_components
+from utils.misc import cutmix_data, get_amp_components, check_label_range
 
 
 def cutmix_criterion(criterion, pred, y_a, y_b, lam):
@@ -50,6 +50,11 @@ def train_one_epoch_cutmix(
 
     for batch_idx, (x, y) in enumerate(smart_tqdm(loader, desc="[CutMix Train]")):
         x, y = x.to(device), y.to(device)
+
+        if num_classes is not None:
+            _batch_ds = type("BatchDataset", (), {})()
+            _batch_ds.targets = y
+            check_label_range(_batch_ds, num_classes)
 
         # 1) cutmix
         x_cm, y_a, y_b, lam = cutmix_data(x, y, alpha=alpha)
