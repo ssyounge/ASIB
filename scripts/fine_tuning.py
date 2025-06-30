@@ -58,6 +58,7 @@ def parse_args():
     parser.add_argument("--finetune_epochs", type=int)
     parser.add_argument("--batch_size", type=int)
     parser.add_argument("--finetune_weight_decay", type=float)
+    parser.add_argument("--sgd_momentum", type=float)
     # ↓ run_experiments.sh 에서 CutMix 알파도 변경할 수 있도록
     parser.add_argument("--finetune_cutmix_alpha", type=float)
     parser.add_argument("--data_aug", type=int)
@@ -193,8 +194,12 @@ def standard_ce_finetune(
         Passed to ``CrossEntropyLoss``.
     """
     model = model.to(device)
-    optim = torch.optim.SGD(model.parameters(), lr=lr,
-                            momentum=0.9, weight_decay=weight_decay)
+    optim = torch.optim.SGD(
+        model.parameters(),
+        lr=lr,
+        momentum=cfg.get("sgd_momentum", 0.9) if cfg else 0.9,
+        weight_decay=weight_decay,
+    )
     crit  = torch.nn.CrossEntropyLoss(label_smoothing=label_smoothing)
     best_acc = 0.0
     for ep in range(1, epochs+1):
