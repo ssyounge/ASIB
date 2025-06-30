@@ -71,7 +71,7 @@ def test_student_update_scheduler_none():
     cfg = {"device": "cpu", "ce_alpha": 1.0, "kd_alpha": 1.0, "student_iters": 1}
 
     logger = DummyLogger()
-    opt = torch.optim.SGD(student.parameters(), lr=0.1)
+    opt = torch.optim.Adam(student.parameters(), lr=0.1)
 
     student_distillation_update(
         [t1, t2],
@@ -104,7 +104,7 @@ def test_teacher_update_scheduler_none():
     params += [p for p in t2.parameters() if p.requires_grad]
     params += [p for p in mbm.parameters() if p.requires_grad]
     params += [p for p in head.parameters() if p.requires_grad]
-    opt = torch.optim.SGD(params, lr=0.1)
+    opt = torch.optim.Adam(params, lr=0.1)
 
     teacher_adaptive_update(
         [t1, t2],
