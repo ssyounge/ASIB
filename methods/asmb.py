@@ -159,13 +159,21 @@ class ASMBDistiller(nn.Module):
         for p in self.synergy_head.parameters():
             if p.requires_grad:
                 teacher_params.append(p)
+        beta1 = self.config.get("adam_beta1", 0.9)
+        beta2 = self.config.get("adam_beta2", 0.999)
         teacher_optimizer = optim.Adam(
-            teacher_params, lr=teacher_lr, weight_decay=weight_decay
+            teacher_params,
+            lr=teacher_lr,
+            weight_decay=weight_decay,
+            betas=(beta1, beta2),
         )
 
         student_params = [p for p in self.student.parameters() if p.requires_grad]
         student_optimizer = optim.AdamW(
-            student_params, lr=student_lr, weight_decay=weight_decay
+            student_params,
+            lr=student_lr,
+            weight_decay=weight_decay,
+            betas=(beta1, beta2),
         )
         total_epochs = epochs_per_stage * self.num_stages
         student_scheduler = optim.lr_scheduler.CosineAnnealingLR(
