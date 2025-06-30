@@ -351,9 +351,10 @@ Swin) to expect 32×32 inputs.
 
 Fine-tune the individual teachers before running the distillation stages.
 All fine-tuning options live in `configs/hparams.yaml`.
-The bundled `TeacherSwinWrapper` accepts a Swin backbone that implements
-either a `forward_features` or `features` method to produce the intermediate
-feature map.
+The bundled `TeacherSwinWrapper` expects the Swin backbone to call
+`features`, `norm`, `permute`, `avgpool` and `flatten` in sequence when
+producing its feature map. This mirrors torchvision's official
+`SwinTransformer` forward path.
 Adjust the parameters in `configs/hparams.yaml`:
 
 ```bash
