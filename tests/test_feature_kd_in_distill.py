@@ -85,7 +85,7 @@ def test_feature_kd_term_in_student_distill():
 
     logger = DummyLogger()
 
-    opt = torch.optim.SGD(student.parameters(), lr=0.1)
+    opt = torch.optim.Adam(student.parameters(), lr=0.1)
     sched = torch.optim.lr_scheduler.StepLR(opt, step_size=1)
 
     student_distillation_update(
@@ -139,7 +139,7 @@ def test_student_distill_loss_components(use_la):
 
     logger = DummyLogger()
 
-    opt = torch.optim.SGD(student.parameters(), lr=0.1)
+    opt = torch.optim.Adam(student.parameters(), lr=0.1)
     sched = torch.optim.lr_scheduler.StepLR(opt, step_size=1)
 
     student_distillation_update(

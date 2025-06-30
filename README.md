@@ -19,8 +19,6 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 - **MBM Dropout**: set `mbm_dropout` in configs to add dropout within the
   Manifold Bridging Module
 - **Gradient Clipping**: enable by setting `grad_clip_norm` (>0) in configs
-- **Configurable SGD Momentum**: set `sgd_momentum` in configs or override
-  with `--sgd_momentum`
 - **Learnable MBM Query**: set `mbm_learnable_q: true` to use a global learnable
   token instead of the student feature as attention query
 - **Feature-Level KD**: align student features with the synergy representation.
@@ -364,7 +362,6 @@ Adjust the parameters in `configs/hparams.yaml`:
 # configs/hparams.yaml
 finetune_epochs=100   # number of fine-tuning epochs
 finetune_lr=0.0005    # learning rate
-sgd_momentum=0.9      # SGD momentum
 finetune_cutmix_alpha=0  # set to 0 to disable CutMix
 lr_schedule=step   # step or cosine
 ```
@@ -376,7 +373,6 @@ Alternatively edit the YAML file used by `scripts/fine_tuning.py`:
 default_teacher_type: resnet152
 finetune_epochs: 100
 finetune_lr: 0.0005
-sgd_momentum: 0.9
 finetune_use_cutmix: false
 efficientnet_dropout: 0.3  # dropout probability for EfficientNet teachers
 ```

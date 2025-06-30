@@ -122,10 +122,9 @@ def finetune_teacher_cutmix(
         print(f"[CutMix] loaded => testAcc={test_acc:.2f}")
         return teacher_model, test_acc
 
-    optimizer = optim.SGD(
+    optimizer = optim.AdamW(
         teacher_model.parameters(),
         lr=lr,
-        momentum=cfg.get("sgd_momentum", 0.9) if cfg else 0.9,
         weight_decay=weight_decay,
     )
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
@@ -194,10 +193,9 @@ def standard_ce_finetune(
         print(f"[CEFineTune] loaded => testAcc={test_acc:.2f}")
         return teacher_model, test_acc
 
-    optimizer = optim.SGD(
+    optimizer = optim.AdamW(
         teacher_model.parameters(),
         lr=lr,
-        momentum=cfg.get("sgd_momentum", 0.9) if cfg else 0.9,
         weight_decay=weight_decay,
     )
     criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
