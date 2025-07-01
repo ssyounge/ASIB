@@ -50,3 +50,4 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
             loss.backward()
             optimizer.step()
 
+
