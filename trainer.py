@@ -1,4 +1,4 @@
-# models/ib/vib_mbm.py
+# trainer.py
 
 import torch
 import torch.nn.functional as F
