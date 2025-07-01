@@ -257,7 +257,9 @@ def main():
             synergy_head.load_state_dict(head_ck, strict=False)
 
         # 5) student for LA MBM or optional synergy
+        student_type = cfg.get("student_type", "resnet_adapter")
         student = create_student_by_name(
+            student_type,
             pretrained=False,
             small_input=small_input,
             num_classes=n_classes,
