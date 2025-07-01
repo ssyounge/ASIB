@@ -25,16 +25,6 @@ from modules.trainer_student import student_distillation_update
 from data.cifar100 import get_cifar100_loaders
 from data.imagenet100 import get_imagenet100_loaders
 
-# partial freeze
-from modules.partial_freeze import (
-    partial_freeze_teacher_resnet,
-    partial_freeze_teacher_efficientnet,
-    partial_freeze_teacher_swin,
-    partial_freeze_student_resnet,
-    partial_freeze_student_efficientnet,
-    partial_freeze_student_swin
-)
-
 # Teacher creation (factory):
 from models.teachers.teacher_resnet import create_resnet101, create_resnet152
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
@@ -395,16 +385,7 @@ def main():
         )
         print(f"[Main] Loaded teacher1 from {teacher1_ckpt_path}")
 
-    if cfg.get("use_partial_freeze", True):
-        partial_freeze_teacher_auto(
-            teacher1, teacher1_type,
-            freeze_bn=cfg.get("teacher1_freeze_bn", True),
-            freeze_ln=cfg.get("teacher1_freeze_ln", True),
-            use_adapter=cfg.get("teacher1_use_adapter", False),
-            bn_head_only=cfg.get("teacher1_bn_head_only", False),
-            freeze_level=cfg.get("teacher1_freeze_level", 1),
-            train_distill_adapter_only=cfg.get("use_distillation_adapter", False),
-        )
+
 
     teacher2_ckpt_path = cfg.get("teacher2_ckpt", f"./checkpoints/{teacher2_type}_ft.pth")
     teacher2 = create_teacher_by_name(
@@ -427,16 +408,7 @@ def main():
         )
         print(f"[Main] Loaded teacher2 from {teacher2_ckpt_path}")
 
-    if cfg.get("use_partial_freeze", True):
-        partial_freeze_teacher_auto(
-            teacher2, teacher2_type,
-            freeze_bn=cfg.get("teacher2_freeze_bn", True),
-            freeze_ln=cfg.get("teacher2_freeze_ln", True),
-            use_adapter=cfg.get("teacher2_use_adapter", False),
-            bn_head_only=cfg.get("teacher2_bn_head_only", False),
-            freeze_level=cfg.get("teacher2_freeze_level", 1),
-            train_distill_adapter_only=cfg.get("use_distillation_adapter", False),
-        )
+
 
     # optional fine-tuning of teachers before ASMB stages
     finetune_epochs = int(cfg.get("finetune_epochs", 0))
@@ -528,15 +500,7 @@ def main():
         )
         print(f"[Main] Loaded student from {cfg['student_ckpt']}")
 
-    if cfg.get("use_partial_freeze", True):
-        partial_freeze_student_auto(
-            student_model,
-            student_name=student_name,
-            freeze_bn=cfg.get("student_freeze_bn", True),
-            freeze_ln=cfg.get("student_freeze_ln", True),
-            use_adapter=cfg.get("student_use_adapter", False),
-            freeze_level=cfg.get("student_freeze_level", 1),
-        )
+
 
     # Obtain student feature dimension for MBM defaults
     feat_dim = None
