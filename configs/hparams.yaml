@@ -53,12 +53,14 @@ finetune_alpha: 1.0
 # ===============================================================
 teacher_lr: 1e-4
 student_lr: 3e-4
+d_lr: 1e-4
 teacher_weight_decay: 0.0003
 student_weight_decay: 0.0005
 ce_alpha: 0.5
 kd_alpha: 0.5
 synergy_ce_alpha: 0.3
 hybrid_beta: 0.2
+adversarial_loss_weight: 0.1
 cutmix_alpha_distill: 0.0  # CutMix alpha used during distillation
 
 # Learning rate schedule
