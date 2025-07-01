@@ -24,7 +24,7 @@ small_input: true
 teacher1_list: ["resnet152"]
 teacher2_list: ["efficientnet_b2", "swin_tiny"]
 student_list: ["resnet_adapter", "resnet152_adapter"]
-method_list: ["asmb", "vanilla_kd", "dkd", "crd", "at", "fitnet"]
+method_list: ["asmb", "vanilla_kd", "dkd", "crd", "at", "fitnet"] # "asmb", "vanilla_kd", "dkd", "crd", "at", "fitnet"
 
 # Partial-freeze / adapter options
 use_partial_freeze: true
@@ -41,7 +41,7 @@ swin_adapter_dim: 64  # hidden size for student_swin_adapter
 # ===============================================================
 # 3. Fine-tuning Hyperparameters
 # ===============================================================
-finetune_epochs: 0
+finetune_epochs: 200
 finetune_lr: 0.001
 finetune_weight_decay: 0.0005
 finetune_use_cutmix: true

@@ -19,7 +19,7 @@ import torch
 import yaml
 from typing import Optional
 
-from utils.misc import set_random_seed, check_label_range
+from utils.misc import set_random_seed, check_label_range, get_model_num_classes
 
 # data loaders
 from data.cifar100 import get_cifar100_loaders
@@ -274,6 +274,12 @@ def main():
         dropout_p=cfg.get("efficientnet_dropout", 0.3),
         cfg=cfg,
     ).to(device)
+
+    model_classes = get_model_num_classes(teacher_model)
+    if model_classes != num_classes:
+        raise ValueError(
+            f"Teacher head expects {model_classes} classes but dataset provides {num_classes}"
+        )
 
     # optional load ckpt
     if cfg.get("finetune_ckpt_path") and os.path.isfile(cfg["finetune_ckpt_path"]):

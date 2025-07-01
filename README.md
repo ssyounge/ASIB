@@ -351,9 +351,10 @@ Swin) to expect 32×32 inputs.
 
 Fine-tune the individual teachers before running the distillation stages.
 All fine-tuning options live in `configs/hparams.yaml`.
-The bundled `TeacherSwinWrapper` accepts a Swin backbone that implements
-either a `forward_features` or `features` method to produce the intermediate
-feature map.
+The bundled `TeacherSwinWrapper` expects the Swin backbone to call
+`features`, `norm`, `permute`, `avgpool` and `flatten` in sequence when
+producing its feature map. This mirrors torchvision's official
+`SwinTransformer` forward path.
 Adjust the parameters in `configs/hparams.yaml`:
 
 ```bash
@@ -375,12 +376,20 @@ efficientnet_dropout: 0.3  # dropout probability for EfficientNet teachers
 ```
 
 Set `efficientnet_dropout` to control the dropout rate used in EfficientNet
-teachers. The default value is **0.3**. You can override it on the command line:
+teachers. The default value is **0.3**.
+
+#### Fine-tuning a Teacher
+
+Run the fine-tuning script directly to update a single teacher:
 
 ```bash
 python scripts/fine_tuning.py --config configs/hparams.yaml \
-  --teacher_type resnet152 --dropout_p 0.5
+  --teacher_type resnet152 --finetune_epochs 100 --finetune_lr 0.0005 \
+  --dropout_p 0.5
 ```
+
+The script uses **CIFAR-100** by default. Change the `dataset_name` key in
+`configs/hparams.yaml` (e.g., `dataset_name: imagenet100`) to switch datasets.
 
 For partial freezing with EfficientNet, a new freeze scope
 `features_classifier` unfreezes the feature extractor and classifier modules
