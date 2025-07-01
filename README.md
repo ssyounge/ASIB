@@ -19,6 +19,8 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 - **MBM Dropout**: set `mbm_dropout` in configs to add dropout within the
   Manifold Bridging Module
 - **Gradient Clipping**: enable by setting `grad_clip_norm` (>0) in configs
+- **Teacher Weight Decay Override**: set `--teacher_weight_decay` to control
+  the Adam weight decay for teacher updates
 - **Learnable MBM Query**: set `mbm_learnable_q: true` to use a global learnable
   token instead of the student feature as attention query
 - **Feature-Level KD**: align student features with the synergy representation.
