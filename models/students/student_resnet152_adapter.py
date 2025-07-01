@@ -2,7 +2,6 @@
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torchvision.models import resnet152, ResNet152_Weights
 
 class ExtendedAdapterResNet152(nn.Module):
@@ -55,8 +54,11 @@ class ExtendedAdapterResNet152(nn.Module):
 
         # 2) layer1,2,3
         x = self.layer1(x)
+        feat_layer1 = x
         x = self.layer2(x)
+        feat_layer2 = x
         x = self.layer3(x)
+        feat_layer3 = x
 
         # 3) adapter
         xa = self.adapter_conv1(x)
@@ -90,6 +92,9 @@ class ExtendedAdapterResNet152(nn.Module):
         feature_dict = {
             "feat_4d": f4,         # [N,2048,H',W']
             "feat_2d": feat_2d,    # [N,2048]
+            "feat_4d_layer1": feat_layer1,
+            "feat_4d_layer2": feat_layer2,
+            "feat_4d_layer3": feat_layer3,
         }
         return feature_dict, logit, ce_loss
 
