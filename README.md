@@ -57,6 +57,8 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
    shipped in this repository.*
 - **Swin Adapter Dim**: `swin_adapter_dim` sets the hidden size of the MLP
   adapter used by `student_swin_adapter` (default `64`)
+- **Student Projection Normalization**: set `proj_normalize` (default `true`) to
+  apply L2 normalization on features before the student projection head
 - **Smart Progress Bars**: progress bars hide automatically when stdout isn't a TTY
 - **CIFAR-friendly ResNet/EfficientNet stem**: use `--small_input 1` when
   fine-tuning or evaluating models that modify the conv stem for 32x32 inputs
