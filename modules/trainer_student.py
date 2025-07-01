@@ -7,7 +7,7 @@ from utils.progress import smart_tqdm
 from models.la_mbm import LightweightAttnMBM
 
 from modules.losses import kd_loss_fn, ce_loss_fn
-from utils.misc import mixup_data, cutmix_data, mixup_criterion, get_amp_components
+from utils.misc import get_amp_components
 from utils.schedule import get_tau
 
 def student_distillation_update(
@@ -73,25 +73,10 @@ def student_distillation_update(
         student_model.train()
         feat_kd_warned = False
 
-        mix_mode = (
-            "cutmix"
-            if cfg.get("cutmix_alpha_distill", 0.0) > 0.0
-            else "mixup" if cfg.get("mixup_alpha", 0.0) > 0.0
-            else "none"
-        )
-
         attn_sum = 0.0
         for x, y in smart_tqdm(trainloader, desc=f"[StudentDistill ep={ep+1}]"):
             x, y = x.to(cfg["device"]), y.to(cfg["device"])
-
-            if mix_mode == "cutmix":
-                x_mixed, y_a, y_b, lam = cutmix_data(
-                    x, y, alpha=cfg["cutmix_alpha_distill"]
-                )
-            elif mix_mode == "mixup":
-                x_mixed, y_a, y_b, lam = mixup_data(x, y, alpha=cfg["mixup_alpha"])
-            else:
-                x_mixed, y_a, y_b, lam = x, y, y, 1.0
+            x_mixed = x
 
             with autocast_ctx:
                 # (A) Student forward (query)
@@ -122,21 +107,12 @@ def student_distillation_update(
                     fsyn = mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
                 zsyn = synergy_head(fsyn)
 
-                if mix_mode != "none":
-                    ce_obj = lambda pred, target: ce_loss_fn(
-                        pred,
-                        target,
-                        label_smoothing=cfg.get("label_smoothing", 0.0),
-                        reduction="none",
-                    )
-                    ce_vec = mixup_criterion(ce_obj, s_logit, y_a, y_b, lam)
-                else:
-                    ce_vec = ce_loss_fn(
-                        s_logit,
-                        y,
-                        label_smoothing=cfg.get("label_smoothing", 0.0),
-                        reduction="none",
-                    )
+                ce_vec = ce_loss_fn(
+                    s_logit,
+                    y,
+                    label_smoothing=cfg.get("label_smoothing", 0.0),
+                    reduction="none",
+                )
                 kd_vec = kd_loss_fn(
                     s_logit, zsyn, T=cur_tau, reduction="none"
                 ).sum(dim=1)
@@ -224,7 +200,6 @@ def student_distillation_update(
         if la_mode:
             logger.update_metric(f"student_ep{ep+1}_attn", attn_avg)
         logger.update_metric(f"ep{ep+1}_feat_kd", avg_feat_kd)
-        logger.update_metric(f"ep{ep+1}_mix_mode", mix_mode)
         logger.update_metric(f"epoch{global_ep+ep+1}_tau", cur_tau)
 
         if scheduler is not None:
