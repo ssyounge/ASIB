@@ -101,6 +101,7 @@ mbm_query_dim: 0
 
 # Misc
 grad_clip_norm: 1.0
+proj_normalize: true
 
 # ===============================================================
 # 5. Other Advanced Options

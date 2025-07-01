@@ -537,7 +537,11 @@ def main():
 
     student_proj = None
     if cfg.get("mbm_type") == "VIB" and hasattr(student_model, "get_feat_dim"):
-        student_proj = StudentProj(student_model.get_feat_dim(), cfg.get("z_dim", 256)).to(device)
+        student_proj = StudentProj(
+            student_model.get_feat_dim(),
+            cfg.get("z_dim", 256),
+            cfg.get("proj_normalize", True),
+        ).to(device)
 
     # 7) teacher wrappers
     teacher_wrappers = [teacher1, teacher2]

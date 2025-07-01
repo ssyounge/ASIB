@@ -18,6 +18,7 @@ small_input: true
 # ─ IB‑KD 하이퍼 ────────────────────────────────────
 mbm_type: "VIB"
 z_dim: 256
+proj_normalize: true
 beta_bottleneck: 0.003
 alpha_kd: 0.7
 ce_alpha: 1.0
