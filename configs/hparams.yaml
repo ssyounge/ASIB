@@ -56,7 +56,6 @@ teacher_weight_decay: 1e-4
 student_weight_decay: 3e-4
 ce_alpha: 0.3
 kd_alpha: 0.4
-cutmix_alpha_distill: 0.0  # CutMix alpha used during distillation
 
 # Learning rate schedule
 lr_schedule: "cosine"       # "step" or "cosine"
@@ -108,7 +107,6 @@ grad_clip_norm: 1.0
 # ===============================================================
 # --- Regularization & Augmentation ---
 label_smoothing: 0.0
-mixup_alpha: 0.2
 
 # --- Feature KD ---
 feat_kd_alpha: 0.3
