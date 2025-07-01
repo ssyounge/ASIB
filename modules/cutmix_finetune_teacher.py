@@ -5,16 +5,29 @@ import copy
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from typing import Optional
 from utils.progress import smart_tqdm
 
-from utils.misc import cutmix_data, get_amp_components
+from utils.misc import cutmix_data, get_amp_components, check_label_range
 
 
 def cutmix_criterion(criterion, pred, y_a, y_b, lam):
     """CutMix-adjusted cross-entropy.
 
     Computed as ``lam * CE(pred, y_a) + (1 - lam) * CE(pred, y_b)``.
+
+    ``pred`` can have spatial dimensions. In that case, the predictions are
+    averaged across all non-batch, non-class dimensions before calculating the
+    loss.
     """
+    if pred.dim() > 2:
+        pred = pred.mean(dim=tuple(range(2, pred.dim())))
+
+    # Clamp labels to avoid invalid class indices from CutMix augmentation
+    num_classes = pred.size(1)
+    y_a = torch.clamp(y_a, 0, num_classes - 1)
+    y_b = torch.clamp(y_b, 0, num_classes - 1)
+
     return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
 
 
@@ -25,6 +38,7 @@ def train_one_epoch_cutmix(
     alpha=1.0,
     device="cuda",
     label_smoothing: float = 0.0,
+    num_classes: Optional[int] = None,
     cfg=None,
 ):
     """
@@ -43,6 +57,11 @@ def train_one_epoch_cutmix(
     for batch_idx, (x, y) in enumerate(smart_tqdm(loader, desc="[CutMix Train]")):
         x, y = x.to(device), y.to(device)
 
+        if num_classes is not None:
+            _batch_ds = type("BatchDataset", (), {})()
+            _batch_ds.targets = y
+            check_label_range(_batch_ds, num_classes)
+
         # 1) cutmix
         x_cm, y_a, y_b, lam = cutmix_data(x, y, alpha=alpha)
 
@@ -50,6 +69,15 @@ def train_one_epoch_cutmix(
         with autocast_ctx:
             out = teacher_model(x_cm)  # we only need `logits` for classification
             logits = out["logit"]
+            if num_classes is None:
+                num_classes = logits.size(1)
+            min_label = int(torch.cat((y_a, y_b)).min())
+            max_label = int(torch.cat((y_a, y_b)).max())
+            if min_label < 0 or max_label >= num_classes:
+                raise ValueError(
+                    f"CutMix labels must be within [0, {num_classes - 1}], "
+                    f"got min={min_label}, max={max_label}"
+                )
             loss = cutmix_criterion(criterion, logits, y_a, y_b, lam)
 
         # 4) backward
@@ -130,7 +158,7 @@ def finetune_teacher_cutmix(
     logits are used to do classification during fine-tuning.
     train_loader, test_loader: standard classification dataset
     alpha: cutmix alpha
-    lr, weight_decay, epochs, etc. for standard SGD
+    lr, weight_decay, epochs, etc. for AdamW optimizer
     label_smoothing: passed to ``CrossEntropyLoss`` during training
     """
     teacher_model = teacher_model.to(device)
@@ -145,14 +173,15 @@ def finetune_teacher_cutmix(
         print(f"[CutMix] loaded => testAcc={test_acc:.2f}")
         return teacher_model, test_acc
 
+    num_classes = len(getattr(train_loader.dataset, "classes", []))
+    if num_classes == 0:
+        from utils.misc import get_model_num_classes
+        num_classes = get_model_num_classes(teacher_model)
+
     optimizer = optim.AdamW(
         teacher_model.parameters(),
         lr=lr,
         weight_decay=weight_decay,
-        betas=(
-            cfg.get("adam_beta1", 0.9) if cfg is not None else 0.9,
-            cfg.get("adam_beta2", 0.999) if cfg is not None else 0.999,
-        ),
     )
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
@@ -167,6 +196,7 @@ def finetune_teacher_cutmix(
             alpha=alpha,
             device=device,
             label_smoothing=label_smoothing,
+            num_classes=num_classes,
             cfg=None,
         )
         te_acc = eval_teacher(teacher_model, test_loader, device=device, cfg=None)
@@ -174,6 +204,9 @@ def finetune_teacher_cutmix(
         if te_acc > best_acc:
             best_acc = te_acc
             best_state = copy.deepcopy(teacher_model.state_dict())
+            # --- save best checkpoint whenever best accuracy is updated ---
+            os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
+            torch.save(best_state, ckpt_path)
 
         scheduler.step()
 
@@ -182,10 +215,11 @@ def finetune_teacher_cutmix(
             f"trainAcc={tr_acc:.2f}, testAcc={te_acc:.2f}, best={best_acc:.2f}"
         )
 
-    teacher_model.load_state_dict(best_state)
-    os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
-    torch.save(teacher_model.state_dict(), ckpt_path)
     print(f"[CutMix] Fine-tune done => bestAcc={best_acc:.2f}, saved={ckpt_path}")
+    # reload the best checkpoint (already saved during training)
+    teacher_model.load_state_dict(
+        torch.load(ckpt_path, map_location=device, weights_only=True)
+    )
     return teacher_model, best_acc
 
 def standard_ce_finetune(
@@ -253,10 +287,13 @@ def standard_ce_finetune(
         if te_acc > best_acc:
             best_acc = te_acc
             best_state = copy.deepcopy(teacher_model.state_dict())
+            # save checkpoint whenever best accuracy improves
+            os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
+            torch.save(best_state, ckpt_path)
         print(f"[CE FineTune|ep={ep}/{epochs}] testAcc={te_acc:.2f}, best={best_acc:.2f}")
 
-    teacher_model.load_state_dict(best_state)
-    os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
-    torch.save(teacher_model.state_dict(), ckpt_path)
     print(f"[CEFineTune] done => bestAcc={best_acc:.2f}, saved={ckpt_path}")
+    teacher_model.load_state_dict(
+        torch.load(ckpt_path, map_location=device, weights_only=True)
+    )
     return teacher_model, best_acc
