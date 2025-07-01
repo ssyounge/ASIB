@@ -60,7 +60,6 @@ def parse_args():
     parser.add_argument("--teacher2_ckpt", type=str, default=None)
     parser.add_argument("--mbm_ckpt", type=str, default=None)
     parser.add_argument("--head_ckpt", type=str, default=None)
-    parser.add_argument("--student_type", type=str, default="resnet_adapter")
     parser.add_argument("--student_ckpt", type=str, default=None)
 
     parser.add_argument("--batch_size", type=int, default=128)
@@ -182,8 +181,7 @@ def main():
 
     if cfg["eval_mode"] == "single":
         # single model eval
-        from models.students.student_resnet_adapter import create_resnet101_with_extended_adapter
-        model = create_resnet101_with_extended_adapter(pretrained=False).to(device)
+        raise NotImplementedError("Student models have been removed")
 
         # load single model ckpt
         if cfg["ckpt_path"]:
@@ -259,9 +257,7 @@ def main():
             synergy_head.load_state_dict(head_ck, strict=False)
 
         # 5) student for LA MBM or optional synergy
-        student_name = cfg.get("student_type", "resnet_adapter")
         student = create_student_by_name(
-            student_name,
             pretrained=False,
             small_input=small_input,
             num_classes=n_classes,
