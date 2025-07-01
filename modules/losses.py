@@ -1,6 +1,7 @@
 # modules/losses.py
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 def ce_loss_fn(student_logits, labels, label_smoothing: float = 0.0, reduction: str = "mean"):
@@ -160,3 +161,7 @@ def rkd_angle_loss(student_feat, teacher_feat, eps: float = 1e-12):
     angle_t = angle_t[:, diag_mask].view(-1)
 
     return F.smooth_l1_loss(angle_s, angle_t)
+
+
+# adversarial loss for GAN-based distillation
+adversarial_loss_fn = nn.BCELoss()
