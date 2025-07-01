@@ -2,6 +2,7 @@
 
 import torch
 import torch.nn.functional as F
+from typing import Optional
 
 def ce_loss_fn(student_logits, labels, label_smoothing: float = 0.0, reduction: str = "mean"):
     """Standard cross-entropy loss for classification.
@@ -101,7 +102,7 @@ def rkd_distance_loss(
     teacher_feat,
     eps: float = 1e-12,
     reduction: str = "mean",
-    max_clip: float | None = None,
+    max_clip: Optional[float] = None,
 ):
     """Relational KD distance loss.
 
