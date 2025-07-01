@@ -96,8 +96,14 @@ def dkd_loss(student_logits, teacher_logits, labels, alpha=1.0, beta=1.0, temper
     return loss
 
 
-def rkd_distance_loss(student_feat, teacher_feat, eps: float = 1e-12):
-    """Relational KD distance loss."""
+def rkd_distance_loss(student_feat, teacher_feat, eps: float = 1e-12, reduction: str = "mean"):
+    """Relational KD distance loss.
+
+    Parameters
+    ----------
+    reduction : str, optional
+        "mean" to return a scalar or "none" to return per-sample losses.
+    """
     if student_feat.dim() > 2:
         student_feat = student_feat.view(student_feat.size(0), -1)
     if teacher_feat.dim() > 2:
@@ -128,7 +134,9 @@ def rkd_distance_loss(student_feat, teacher_feat, eps: float = 1e-12):
     dist_s = dist_s / (mean_s + eps)
     dist_t = dist_t / (mean_t + eps)
 
-    return F.smooth_l1_loss(dist_s, dist_t)
+    if reduction == "none":
+        return F.smooth_l1_loss(dist_s, dist_t, reduction="none").mean(dim=1)
+    return F.smooth_l1_loss(dist_s, dist_t, reduction=reduction)
 
 
 def rkd_angle_loss(student_feat, teacher_feat, eps: float = 1e-12):
