@@ -279,25 +279,9 @@ python scripts/train_student_baseline.py --config configs/partial_freeze.yaml \
 The script uses the same optimizer and scheduler configuration as the distillation runs. The resulting accuracy serves as the reference for all distillation experiments and is saved under `results/`.
 
 
-4) Evaluation (eval.py)
+4) Evaluation (utils.eval.evaluate_acc)
 
-Evaluate a single model or a synergy model (Teacher1 + Teacher2 + MBM + synergy head):
-
-# Single model
-python eval.py --eval_mode single \
-  --ckpt_path ./results/single_model.pth
-
-# Synergy model
-python eval.py --eval_mode synergy \
-  # uses checkpoints/{teacher_type}_ft.pth if available \
-  --mbm_ckpt mbm.pth \
-  --head_ckpt synergy_head.pth \
-  --student_type resnet_adapter \
-  --student_ckpt student.pth \
-  --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 1
-  # mbm_query_dim and mbm_out_dim are automatically set to the student feature dimension
-
-	•	Prints Train/Test accuracy, optionally logs to CSV if configured.
+Use `utils.eval.evaluate_acc` to compute accuracy for your model. The old script lives under `legacy_scripts/eval_asmb_old.py` for reference.
 
 ### Data Augmentation
 
@@ -362,7 +346,7 @@ python main.py --use_amp 1 --amp_dtype bfloat16
 
 Models fine-tuned with `--small_input 1` replace their conv stems for small
 images. When distilling or evaluating such checkpoints you must pass the same
-`--small_input 1` flag to `main.py` or `eval.py` so the architectures match.
+`--small_input 1` flag to `main.py` or when using `utils.eval.evaluate_acc` so the architectures match.
 The flag now also configures **all student adapters** (ResNet, EfficientNet and
 Swin) to expect 32×32 inputs.
 
@@ -473,7 +457,8 @@ Folder Structure
 
 (Repo Root)
 ├── main.py               # Main training script (ASMB, partial freeze)
-├── eval.py               # Evaluation script (single vs synergy)
+├── legacy_scripts
+│   └── eval_asmb_old.py   # Old evaluation script
 ├── requirements.txt      # Dependencies
 ├── README.md             # Project info
 ├── LICENSE               # MIT License
@@ -530,6 +515,7 @@ Folder Structure
 
 └── utils
     ├── logger.py
+    ├── eval.py           # evaluation helpers
     └── misc.py
 
 	• analysis/: Scripts or notebooks for comparing experiments (compare_ablation.py, plot_results.ipynb)
