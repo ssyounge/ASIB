@@ -12,7 +12,7 @@ deterministic: true
 # ─ 모델 ────────────────────────────────────────────
 teacher1_type: "resnet152"
 teacher2_type: "efficientnet_b2"
-student_type:  "convnext_tiny"
+student_type: "resnet_adapter"
 small_input: true
 
 # ─ IB‑KD 하이퍼 ────────────────────────────────────
@@ -30,11 +30,5 @@ student_weight_decay: 5e-4
 lr_schedule: "cosine"
 
 # ─ 학습 스테이지 ──────────────────────────────────
-num_stages: 1
 teacher_iters: 5
 student_iters: 15
-
-# ─ 데이터 증강 ────────────────────────────────────
-mixup_alpha: 1.0
-cutmix_alpha_distill: 0.0
-label_smoothing: 0.1
