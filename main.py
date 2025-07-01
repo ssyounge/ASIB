@@ -28,14 +28,61 @@ from models.teachers.teacher_resnet import create_resnet101, create_resnet152
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from models.teachers.teacher_swin import create_swin_t
 
+# Student creation (factory):
+from models.students import (
+    create_resnet_adapter,
+    create_resnet152_adapter,
+    create_efficientnet_adapter,
+    create_swin_adapter,
+    create_convnext_tiny,
+)
+
+
 def create_student_by_name(
+    student_name: str = "resnet_adapter",
     pretrained: bool = True,
     small_input: bool = False,
     num_classes: int = 100,
     cfg: Optional[dict] = None,
 ):
-    """Placeholder for removed student models."""
-    raise NotImplementedError("Student models have been removed")
+    """Instantiate a student model by name."""
+    if student_name == "resnet_adapter":
+        return create_resnet_adapter(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            small_input=small_input,
+            cfg=cfg,
+        )
+    elif student_name == "resnet152_adapter":
+        return create_resnet152_adapter(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            small_input=small_input,
+            cfg=cfg,
+        )
+    elif student_name == "efficientnet_adapter":
+        return create_efficientnet_adapter(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            small_input=small_input,
+            cfg=cfg,
+        )
+    elif student_name == "swin_adapter":
+        return create_swin_adapter(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            small_input=small_input,
+            cfg=cfg,
+        )
+    elif student_name == "convnext_tiny":
+        return create_convnext_tiny(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            small_input=small_input,
+            cfg=cfg,
+        )
+    else:
+        raise ValueError(f"[create_student_by_name] Unknown student_name={student_name}")
 
 from models.mbm import ManifoldBridgingModule, SynergyHead, build_from_teachers
 from models.ib import StudentProj
@@ -55,6 +102,7 @@ def parse_args():
     parser.add_argument("--teacher2_ckpt", type=str)
     parser.add_argument("--synergy_ce_alpha", type=float)    # α
     parser.add_argument("--hybrid_beta", type=float)
+    parser.add_argument("--student_type", type=str)
     
     # 편의용 하이퍼파라미터
     parser.add_argument("--batch_size", type=int)
@@ -425,7 +473,9 @@ def main():
     logger.update_metric("teacher2_test_acc", te2_acc)
 
     # 5) Student
+    student_type = cfg.get("student_type", "resnet_adapter")
     student_model = create_student_by_name(
+        student_type,
         pretrained=cfg.get("student_pretrained", True),
         small_input=small_input,
         num_classes=num_classes,

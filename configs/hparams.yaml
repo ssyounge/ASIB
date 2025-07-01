@@ -22,7 +22,7 @@ small_input: true
 # Lists used by run_experiments.sh when looping
 teacher1_list: ["resnet152"]
 teacher2_list: ["efficientnet_b2", "swin_tiny"]
-student_list: ["resnet_adapter", "resnet152_adapter"]
+student_list: ["resnet_adapter", "efficientnet_adapter", "swin_adapter", "convnext_tiny"]
 method_list: ["asmb", "vanilla_kd", "dkd", "crd", "at", "fitnet"] # "asmb", "vanilla_kd", "dkd", "crd", "at", "fitnet"
 
 # Partial-freeze / adapter options
