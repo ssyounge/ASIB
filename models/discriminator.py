@@ -1,3 +1,5 @@
+# models/discriminator.py
+
 import torch.nn as nn
 
 class Discriminator(nn.Module):
