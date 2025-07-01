@@ -7,7 +7,6 @@ from utils.progress import smart_tqdm
 from models.la_mbm import LightweightAttnMBM
 
 from modules.losses import kd_loss_fn, ce_loss_fn
-from modules.disagreement import sample_weights_from_disagreement
 from utils.misc import mixup_data, cutmix_data, mixup_criterion, get_amp_components
 from utils.schedule import get_tau
 
@@ -142,22 +141,9 @@ def student_distillation_update(
                     s_logit, zsyn, T=cur_tau, reduction="none"
                 ).sum(dim=1)
 
-            # (B1) disagreement-based sample weights
-            if cfg.get("use_disagree_weight", False):
-                weights = sample_weights_from_disagreement(
-                    t1_dict["logit"],
-                    t2_dict["logit"],
-                    y,
-                    mode=cfg.get("disagree_mode", "pred"),
-                    lambda_high=cfg.get("disagree_lambda_high", 1.0),
-                    lambda_low=cfg.get("disagree_lambda_low", 1.0),
-                )
-            else:
-                weights = torch.ones_like(y, dtype=torch.float32, device=y.device)
-
-            # apply sample weights to CE and KD losses computed above
-            ce_loss_val = (weights * ce_vec).mean()
-            kd_loss_val = (weights * kd_vec).mean()
+            # compute CE and KD losses
+            ce_loss_val = ce_vec.mean()
+            kd_loss_val = kd_vec.mean()
 
             feat_kd_val = torch.tensor(0.0, device=cfg["device"])
             if cfg.get("feat_kd_alpha", 0) > 0:
