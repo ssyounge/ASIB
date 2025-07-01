@@ -4,7 +4,6 @@
 # ===============================================================
 # 1. General & Experiment Settings
 # ===============================================================
-method: "asmb"
 device: "cuda"
 seed: 42
 deterministic: true
@@ -57,8 +56,6 @@ teacher_weight_decay: 0.0003
 student_weight_decay: 0.0005
 ce_alpha: 0.5
 kd_alpha: 0.5
-synergy_ce_alpha: 0.3
-hybrid_beta: 0.2
 cutmix_alpha_distill: 0.0  # CutMix alpha used during distillation
 
 # Learning rate schedule
@@ -90,8 +87,6 @@ hybrid_beta_list: "0.2"       # e.g. "0.1 0.5 0.9"
 teacher_adapt_epochs_list: "20"
 student_epochs_per_stage_list: "40"
 # Teacher adaptation
-teacher_adapt_epochs: 20
-student_epochs_per_stage: 40
 teacher_adapt_alpha_kd: 1.0
 mbm_lr_factor: 1.0
 use_distillation_adapter: true
@@ -114,7 +109,6 @@ grad_clip_norm: 1.0
 # --- Regularization & Augmentation ---
 label_smoothing: 0.0
 mixup_alpha: 0.0
-cutmix_alpha_distill: 0.0
 
 # --- Feature KD ---
 feat_kd_alpha: 1.0
