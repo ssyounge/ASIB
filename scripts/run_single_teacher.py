@@ -23,6 +23,7 @@ from methods.fitnet import FitNetDistiller
 from methods.dkd import DKDDistiller
 from methods.at import ATDistiller
 from methods.crd import CRDDistiller
+from modules.cutmix_finetune_teacher import eval_teacher
 
 
 METHOD_MAP = {
@@ -170,6 +171,9 @@ def main():
             bn_head_only=cfg.get("teacher_bn_head_only", False),
             freeze_level=cfg.get("teacher_freeze_level", 1),
         )
+
+    te_acc = eval_teacher(teacher, test_loader, device=device, cfg=cfg)
+    print(f"[run_single_teacher.py] Teacher testAcc={te_acc:.2f}%")
 
     student = create_student_by_name(
         cfg.get("student_type", "resnet_adapter"),
