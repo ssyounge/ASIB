@@ -112,8 +112,6 @@ label_smoothing: 0.0
 feat_kd_alpha: 0.3
 feat_kd_key: "feat_2d"
 feat_kd_norm: "none"
-rkd_loss_weight: 1.0
-rkd_gamma: 0.6
 
 # --- Disagreement weighting ---
 use_disagree_weight: false
