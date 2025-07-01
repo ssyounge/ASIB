@@ -50,9 +50,11 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 
   | Student model                | Feature dim |
   |------------------------------|-------------|
-  | `student_efficientnet_adapter` | 1408        |
-  | `student_resnet_adapter`       | 2048        |
-  | `student_swin_adapter`         | 768         |
+   | `student_efficientnet_adapter` | 1408        |
+   | `student_resnet_adapter`       | 2048        |
+   | `student_swin_adapter`         | 768         |
+   *The adapters above were part of the original project and are no longer
+   shipped in this repository.*
 - **Swin Adapter Dim**: `swin_adapter_dim` sets the hidden size of the MLP
   adapter used by `student_swin_adapter` (default `64`)
 - **Smart Progress Bars**: progress bars hide automatically when stdout isn't a TTY
@@ -81,6 +83,14 @@ conda activate facil_env
 ```bash
 pip install -r requirements.txt  # includes pandas for analysis
 ```
+
+> **Note**
+> Student model adapters (`student_resnet_adapter`, etc.) were removed from this
+> repository. To run the code you must provide your own student definitions.
+> Place custom modules under `models/students/` or copy them from the upstream
+> project. Each student should implement a `create_*` factory returning a model
+> whose `forward` yields `(feature_dict, logits, extra)` similar to the teacher
+> wrappers.
 
 The unified script `run_experiments.sh` automatically tries to activate a
 Conda environment named `facil_env`. If you use a different environment name,
@@ -212,6 +222,11 @@ Unit tests are skipped unless **PyTorch** is installed.
 Usage
 
 ### Typical Training Flow
+
+> **Note**
+> Predefined student adapters were removed. Add your own modules under
+> `models/students/` or copy them from the upstream repository before running
+> the examples below.
 
 1. Fine-tune each teacher (optional but recommended).
 2. For each stage, perform a teacher adaptive update followed by student knowledge distillation.
