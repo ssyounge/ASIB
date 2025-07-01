@@ -1,0 +1,39 @@
+# Minimal configuration for VIB-based distillation
+
+# ─ 기본 ────────────────────────────────────────────
+device: "cuda"
+dataset_name: "cifar100"
+batch_size: 128
+num_workers: 2
+seed: 42
+deterministic: true
+
+# ─ 모델 ────────────────────────────────────────────
+teacher1_type: "resnet152"
+teacher2_type: "efficientnet_b2"
+student_type:  "convnext_tiny"
+small_input: true
+
+# ─ IB‑KD 하이퍼 ────────────────────────────────────
+mbm_type: "VIB"
+z_dim: 256
+beta_bottleneck: 0.003
+alpha_kd: 0.7
+ce_alpha: 1.0
+
+# ─ 옵티마이저 ──────────────────────────────────────
+teacher_lr: 3e-4
+student_lr: 5e-4
+teacher_weight_decay: 5e-4
+student_weight_decay: 5e-4
+lr_schedule: "cosine"
+
+# ─ 학습 스테이지 ──────────────────────────────────
+num_stages: 1
+teacher_iters: 5
+student_iters: 15
+
+# ─ 데이터 증강 ────────────────────────────────────
+mixup_alpha: 1.0
+cutmix_alpha_distill: 0.0
+label_smoothing: 0.1
