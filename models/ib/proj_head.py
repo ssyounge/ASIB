@@ -1,3 +1,5 @@
+# models/ib/proj_head.py
+
 import torch.nn as nn
 
 class StudentProj(nn.Module):
