@@ -72,7 +72,6 @@ def teacher_adaptive_update(
     logger,
     optimizer,
     scheduler,
-    global_ep: int = 0,
 ):
     """
     - ``teacher_wrappers``: list containing ``teacher1`` and ``teacher2``.
@@ -115,7 +114,7 @@ def teacher_adaptive_update(
         synergy_head.train()
         if student_model is not None:
             student_model.eval()
-        cur_tau = get_tau(cfg, global_ep + ep)
+        cur_tau = get_tau(cfg, ep)
         teacher_loss_sum = 0.0
         count = 0
         attn_sum = 0.0
@@ -245,7 +244,7 @@ def teacher_adaptive_update(
         # ── NEW: per-epoch logging ───────────────────────────────
         logger.update_metric(f"teacher_ep{ep+1}_loss", ep_loss)
         logger.update_metric(f"teacher_ep{ep+1}_synAcc", synergy_test_acc)
-        logger.update_metric(f"epoch{global_ep+ep+1}_tau", cur_tau)
+        logger.update_metric(f"epoch{ep+1}_tau", cur_tau)
         if la_mode:
             logger.update_metric(f"teacher_ep{ep+1}_attn", attn_avg)
 

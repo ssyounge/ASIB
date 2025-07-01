@@ -20,7 +20,6 @@ def student_distillation_update(
     logger,
     optimizer,
     scheduler,
-    global_ep: int = 0
 ):
     """Train the student model via knowledge distillation.
 
@@ -66,7 +65,7 @@ def student_distillation_update(
     autocast_ctx, scaler = get_amp_components(cfg)
     la_mode = isinstance(mbm, LightweightAttnMBM) or cfg.get("mbm_type") == "LA"
     for ep in range(student_epochs):
-        cur_tau = get_tau(cfg, global_ep + ep)
+        cur_tau = get_tau(cfg, ep)
         distill_loss_sum = 0.0
         cnt = 0
         feat_kd_sum = 0.0
@@ -200,7 +199,7 @@ def student_distillation_update(
         if la_mode:
             logger.update_metric(f"student_ep{ep+1}_attn", attn_avg)
         logger.update_metric(f"ep{ep+1}_feat_kd", avg_feat_kd)
-        logger.update_metric(f"epoch{global_ep+ep+1}_tau", cur_tau)
+        logger.update_metric(f"epoch{ep+1}_tau", cur_tau)
 
         if scheduler is not None:
             scheduler.step()

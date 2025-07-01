@@ -2,10 +2,9 @@
 """
 main.py
 
-Implements a multi-stage distillation flow using:
+Implements a distillation flow using:
  (A) Teacher adaptive update (Teacher/MBM partial freeze)
  (B) Student distillation
-Repeated for 'num_stages' times, as in ASMB multi-stage self-training.
 """
 
 import argparse
@@ -53,7 +52,6 @@ def parse_args():
     parser.add_argument("--teacher2_type", type=str)
     parser.add_argument("--teacher1_ckpt", type=str)
     parser.add_argument("--teacher2_ckpt", type=str)
-    parser.add_argument("--num_stages",   type=int)
     parser.add_argument("--synergy_ce_alpha", type=float)    # α
     parser.add_argument("--hybrid_beta", type=float)
     
@@ -490,7 +488,6 @@ def main():
     teacher_wrappers = [teacher1, teacher2]
 
     # 7b) create optimizers and schedulers
-    num_stages = cfg.get("num_stages", 2)
 
     teacher_params = []
     use_da = cfg.get("use_distillation_adapter", False)
@@ -525,7 +522,7 @@ def main():
         ),
     )
 
-    teacher_total_epochs = num_stages * cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5))
+    teacher_total_epochs = cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5))
     if cfg.get("lr_schedule", "step") == "cosine":
         teacher_scheduler = CosineAnnealingLR(teacher_optimizer, T_max=teacher_total_epochs)
     else:
@@ -546,7 +543,7 @@ def main():
         eps=1e-8,
     )
 
-    student_total_epochs = num_stages * cfg.get("student_iters", cfg.get("student_epochs_per_stage", 15))
+    student_total_epochs = cfg.get("student_iters", cfg.get("student_epochs_per_stage", 15))
     if cfg.get("lr_schedule", "step") == "cosine":
         student_scheduler = CosineAnnealingLR(student_optimizer, T_max=student_total_epochs)
     else:
@@ -556,49 +553,38 @@ def main():
             gamma=cfg.get("student_gamma", 0.1),
         )
 
-    # 8) multi-stage distillation
+    # 8) distillation
 
-    global_ep = 0
-    for stage_id in range(1, num_stages + 1):
-        print(f"\n=== Stage {stage_id}/{num_stages} ===")
 
-        teacher_epochs = cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5))
-        student_epochs = cfg.get("student_iters", cfg.get("student_epochs_per_stage", 15))
+    # (A) Teacher adaptive update
+    teacher_adaptive_update(
+        teacher_wrappers=teacher_wrappers,
+        mbm=mbm,
+        synergy_head=synergy_head,
+        student_model=student_model,
+        trainloader=train_loader,
+        testloader=test_loader,
+        cfg=cfg,
+        logger=logger,
+        optimizer=teacher_optimizer,
+        scheduler=teacher_scheduler,
+    )
 
-        # (A) Teacher adaptive update
-        teacher_adaptive_update(
-            teacher_wrappers=teacher_wrappers,
-            mbm=mbm,
-            synergy_head=synergy_head,
-            student_model=student_model,
-            trainloader=train_loader,
-            testloader=test_loader,
-            cfg=cfg,
-            logger=logger,
-            optimizer=teacher_optimizer,
-            scheduler=teacher_scheduler,
-            global_ep=global_ep,
-        )
-
-        global_ep += teacher_epochs
-
-        # (B) Student distillation
-        final_acc = student_distillation_update(
-            teacher_wrappers=teacher_wrappers,
-            mbm=mbm,
-            synergy_head=synergy_head,
-            student_model=student_model,
-            trainloader=train_loader,
-            testloader=test_loader,
-            cfg=cfg,
-            logger=logger,
-            optimizer=student_optimizer,
-            scheduler=student_scheduler,
-            global_ep=global_ep,
-        )
-        global_ep += student_epochs
-        print(f"[Stage {stage_id}] Student final acc= {final_acc:.2f}%")
-        logger.update_metric(f"stage{stage_id}_student_acc", final_acc)
+    # (B) Student distillation
+    final_acc = student_distillation_update(
+        teacher_wrappers=teacher_wrappers,
+        mbm=mbm,
+        synergy_head=synergy_head,
+        student_model=student_model,
+        trainloader=train_loader,
+        testloader=test_loader,
+        cfg=cfg,
+        logger=logger,
+        optimizer=student_optimizer,
+        scheduler=student_scheduler,
+    )
+    print(f"[main] Student final acc= {final_acc:.2f}%")
+    logger.update_metric("student_acc", final_acc)
 
     # 8) save final
     ckpt_dir = cfg.get("ckpt_dir", cfg["results_dir"])

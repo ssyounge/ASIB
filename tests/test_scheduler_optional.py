@@ -117,5 +117,4 @@ def test_teacher_update_scheduler_none():
         logger=logger,
         optimizer=opt,
         scheduler=None,
-        global_ep=0,
     )
