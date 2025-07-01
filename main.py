@@ -19,7 +19,6 @@ from torch.optim.lr_scheduler import CosineAnnealingLR, StepLR
 
 from utils.logger import ExperimentLogger
 from utils.misc import set_random_seed, check_label_range, get_model_num_classes
-from modules.disagreement import compute_disagreement_rate
 from modules.trainer_teacher import teacher_adaptive_update
 from modules.trainer_student import student_distillation_update
 from data.cifar100 import get_cifar100_loaders
@@ -582,17 +581,6 @@ def main():
         )
 
         global_ep += teacher_epochs
-
-        dis_rate = compute_disagreement_rate(
-            teacher1,
-            teacher2,
-            test_loader,
-            device=device,
-            cfg=cfg,
-            mode=cfg.get("disagree_mode", "both_wrong"),
-        )
-        print(f"[Stage {stage_id}] Teacher disagreement= {dis_rate:.2f}%")
-        logger.update_metric(f"stage{stage_id}_disagreement_rate", dis_rate)
 
         # (B) Student distillation
         final_acc = student_distillation_update(
