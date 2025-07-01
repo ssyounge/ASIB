@@ -96,7 +96,13 @@ def dkd_loss(student_logits, teacher_logits, labels, alpha=1.0, beta=1.0, temper
     return loss
 
 
-def rkd_distance_loss(student_feat, teacher_feat, eps: float = 1e-12, reduction: str = "mean"):
+def rkd_distance_loss(
+    student_feat,
+    teacher_feat,
+    eps: float = 1e-12,
+    reduction: str = "mean",
+    max_clip: float | None = None,
+):
     """Relational KD distance loss.
 
     Parameters
@@ -135,12 +141,27 @@ def rkd_distance_loss(student_feat, teacher_feat, eps: float = 1e-12, reduction:
     dist_t = dist_t / (mean_t + eps)
 
     if reduction == "none":
-        return F.smooth_l1_loss(dist_s, dist_t, reduction="none").mean(dim=1)
-    return F.smooth_l1_loss(dist_s, dist_t, reduction=reduction)
+        losses = F.smooth_l1_loss(dist_s, dist_t, reduction="none").mean(dim=1)
+    else:
+        losses = F.smooth_l1_loss(dist_s, dist_t, reduction=reduction)
+    if max_clip is not None:
+        losses = torch.clamp(losses, max=max_clip)
+    return losses
 
 
-def rkd_angle_loss(student_feat, teacher_feat, eps: float = 1e-12):
-    """Relational KD angle loss."""
+def rkd_angle_loss(
+    student_feat,
+    teacher_feat,
+    eps: float = 1e-12,
+    reduction: str = "mean",
+):
+    """Relational KD angle loss.
+
+    Parameters
+    ----------
+    reduction : str, optional
+        "mean" to return a scalar or "none" to return per-sample losses.
+    """
     if student_feat.dim() > 2:
         student_feat = student_feat.view(student_feat.size(0), -1)
     if teacher_feat.dim() > 2:
@@ -164,7 +185,9 @@ def rkd_angle_loss(student_feat, teacher_feat, eps: float = 1e-12):
     angle_t = torch.bmm(norm_t, norm_t.transpose(1, 2))
 
     diag_mask = ~torch.eye(n - 1, dtype=torch.bool, device=student_feat.device)
-    angle_s = angle_s[:, diag_mask].view(-1)
-    angle_t = angle_t[:, diag_mask].view(-1)
+    angle_s = angle_s[:, diag_mask].view(n, -1)
+    angle_t = angle_t[:, diag_mask].view(n, -1)
 
-    return F.smooth_l1_loss(angle_s, angle_t)
+    if reduction == "none":
+        return F.smooth_l1_loss(angle_s, angle_t, reduction="none").mean(dim=1)
+    return F.smooth_l1_loss(angle_s, angle_t, reduction=reduction)
