@@ -538,31 +538,38 @@ def main():
             freeze_level=cfg.get("student_freeze_level", 1),
         )
 
-    # Obtain and store student feature dimension
+    # Obtain student feature dimension for MBM defaults
+    feat_dim = None
     if hasattr(student_model, "get_feat_dim"):
         feat_dim = student_model.get_feat_dim()
-        cfg["mbm_out_dim"] = feat_dim
-        logger.update_metric("mbm_out_dim", feat_dim)
-        print(f"[Info] mbm_out_dim set to student feature dimension {feat_dim}")
+        if cfg.get("mbm_out_dim") in (None, 0):
+            cfg["mbm_out_dim"] = feat_dim
+            logger.update_metric("mbm_out_dim", feat_dim)
+            print(
+                f"[Info] mbm_out_dim set to student feature dimension {feat_dim}"
+            )
+        elif cfg["mbm_out_dim"] != feat_dim:
+            print(
+                f"[Warning] mbm_out_dim ({cfg['mbm_out_dim']}) does not match the student feature dimension ({feat_dim})."
+            )
 
     # Validate or infer MBM query dimension
     mbm_query_dim = cfg.get("mbm_query_dim", 0)
-    if cfg.get("mbm_type", "MLP") == "LA" and mbm_query_dim <= 0:
-        if hasattr(student_model, "get_feat_dim"):
-            mbm_query_dim = student_model.get_feat_dim()
-            cfg["mbm_query_dim"] = mbm_query_dim
-            print(
-                f"[Info] mbm_query_dim not specified; using student feature dimension {mbm_query_dim}"
-            )
-        else:
-            print(
-                "[Warning] Student model does not expose get_feat_dim(); please set mbm_query_dim manually"
-            )
-    elif mbm_query_dim > 0 and hasattr(student_model, "get_feat_dim"):
-        s_dim = student_model.get_feat_dim()
-        if mbm_query_dim != s_dim:
+    if cfg.get("mbm_type", "MLP") == "LA":
+        if mbm_query_dim <= 0:
+            if feat_dim is not None:
+                mbm_query_dim = feat_dim
+                cfg["mbm_query_dim"] = mbm_query_dim
+                print(
+                    f"[Info] mbm_query_dim not specified; using student feature dimension {mbm_query_dim}"
+                )
+            else:
+                print(
+                    "[Warning] Student model does not expose get_feat_dim(); please set mbm_query_dim manually"
+                )
+        elif feat_dim is not None and mbm_query_dim != feat_dim:
             raise ValueError(
-                f"mbm_query_dim ({mbm_query_dim}) does not match the student feature dimension ({s_dim})."
+                f"mbm_query_dim ({mbm_query_dim}) does not match the student feature dimension ({feat_dim})."
             )
 
     # 6) MBM and synergy head
