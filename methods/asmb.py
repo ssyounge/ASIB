@@ -356,23 +356,13 @@ class ASMBDistiller(nn.Module):
         logger=None,
         label_smoothing: float = 0.0,
     ):
-        """
-        Student Distillation:
-         - Freeze teacher + MBM
-         - Student upper layers만 업데이트
-         - CE + KL(student vs synergy)
-         - Optional vanilla KD blending when ``hybrid_beta > 0``
-        """
-        # freeze teacher
-        self.teacher1.eval()
-        self.teacher2.eval()
+        """Student distillation with adversarial training."""
+        # Freeze teacher, MBM, and synergy head
+        self.teacher1.eval(); self.teacher2.eval(); self.mbm.eval(); self.synergy_head.eval()
         for p in self.teacher1.parameters():
             p.requires_grad = False
         for p in self.teacher2.parameters():
             p.requires_grad = False
-
-        self.mbm.eval()
-        self.synergy_head.eval()
         for p in self.mbm.parameters():
             p.requires_grad = False
         for p in self.synergy_head.parameters():
@@ -385,94 +375,65 @@ class ASMBDistiller(nn.Module):
         self.discriminator.to(self.device)
 
         for ep in range(1, epochs + 1):
-            cur_tau = get_tau(self.config, ep - 1)
             self.student.train()
             self.discriminator.train()
-            total_loss, total_num = 0.0, 0
+            total_loss_S, total_loss_D = 0.0, 0.0
+            total_num = 0
+
             for x, y in train_loader:
                 x, y = x.to(self.device), y.to(self.device)
 
                 real_labels = torch.ones(x.size(0), 1, device=self.device)
                 fake_labels = torch.zeros(x.size(0), 1, device=self.device)
 
-                # --- discriminator update ---
+                # --- 1. Discriminator update ---
                 self.optimizer_D.zero_grad()
 
-                s_feat_tmp = self.student(x)[0][self.config.get("feat_kd_key", "feat_2d")]
                 with torch.no_grad():
-                    t1 = self.teacher1(x)
-                    t2 = self.teacher2(x)
-                    feats_2d = [t1["feat_2d"], t2["feat_2d"]]
-                    feats_4d = [t1.get("feat_4d"), t2.get("feat_4d")]
-                    if self.la_mode:
-                        syn_feat_tmp, _, _, _ = self.mbm(s_feat_tmp.detach(), feats_2d)
-                    else:
-                        syn_feat_tmp = self.mbm(feats_2d, feats_4d)
+                    t1, t2 = self.teacher1(x), self.teacher2(x)
+                    s_feat_for_mbm = self.student(x)[0][self.config.get("feat_kd_key", "feat_2d")]
+                    syn_feat, _, _, _ = self.mbm(
+                        s_feat_for_mbm.detach(), [t1["feat_2d"], t2["feat_2d"]]
+                    )
 
-                loss_D_real = adversarial_loss_fn(self.discriminator(syn_feat_tmp.detach()), real_labels)
-                loss_D_fake = adversarial_loss_fn(self.discriminator(s_feat_tmp.detach()), fake_labels)
+                s_feat = self.student(x)[0][self.config.get("feat_kd_key", "feat_2d")]
+
+                loss_D_real = adversarial_loss_fn(self.discriminator(syn_feat.detach()), real_labels)
+                loss_D_fake = adversarial_loss_fn(self.discriminator(s_feat.detach()), fake_labels)
                 loss_D = (loss_D_real + loss_D_fake) / 2
                 loss_D.backward()
                 self.optimizer_D.step()
 
-                # --- student update ---
+                # --- 2. Student update ---
                 optimizer.zero_grad()
-                s_dict, s_logit, _ = self.student(x)
-                s_feat = s_dict[self.config.get("feat_kd_key", "feat_2d")]
-                zsyn = self.synergy_head(syn_feat_tmp.detach())
 
+                _, s_logit, _ = self.student(x)
+                zsyn = self.synergy_head(syn_feat.detach())
                 ce_val = ce_loss_fn(s_logit, y, label_smoothing=label_smoothing)
-                kd_val = kd_loss_fn(s_logit, zsyn, T=cur_tau)
+                kd_val = kd_loss_fn(s_logit, zsyn, T=get_tau(self.config, ep - 1))
+                loss_main = self.alpha * ce_val + (1 - self.alpha) * kd_val
 
-                avg_t_logit = 0.5 * (t1["logit"] + t2["logit"])
-                kd_vanilla = kd_loss_fn(s_logit, avg_t_logit, T=cur_tau)
-
-                feat_loss = torch.tensor(0.0, device=s_feat.device)
-                if self.feat_kd_alpha > 0:
-                    feat_loss = F.mse_loss(
-                        s_feat.view(s_feat.size(0), -1),
-                        syn_feat_tmp.detach().view(s_feat.size(0), -1),
-                    )
-
-                rkd_val = torch.tensor(0.0, device=s_feat.device)
-                if self.config.get("rkd_loss_weight", 0.0) > 0:
-                    syn_detach = syn_feat_tmp.detach()
-                    rkd_val = (
-                        rkd_distance_loss(s_feat, syn_detach)
-                        + rkd_angle_loss(s_feat, syn_detach)
-                    )
-
-                loss_asmb = (
-                    self.alpha * ce_val
-                    + (1 - self.alpha) * kd_val
-                    + self.feat_kd_alpha * feat_loss
-                    + self.config.get("rkd_loss_weight", 0.0) * rkd_val
-                )
-
-                adv_w = self.config.get("adversarial_loss_weight", 0.1)
+                adv_loss_weight = self.config.get("adversarial_loss_weight", 0.1)
                 loss_G = adversarial_loss_fn(self.discriminator(s_feat), real_labels)
+                total_student_loss = loss_main + adv_loss_weight * loss_G
 
-                beta = self.config.get("hybrid_beta", 0.0)
-                total = loss_asmb + adv_w * loss_G
-                loss = (1 - beta) * total + beta * kd_vanilla
-
-                if logger is not None and self.la_mode and 'attn' in locals() and attn is not None:
-                    logger.debug(f"attn_mean={attn.mean().item():.4f}")
-
-                loss.backward()
+                total_student_loss.backward()
                 optimizer.step()
 
                 bs = x.size(0)
-                total_loss += loss.item() * bs
+                total_loss_S += total_student_loss.item() * bs
+                total_loss_D += loss_D.item() * bs
                 total_num += bs
 
-            avg_loss = total_loss / total_num
+            avg_loss = total_loss_S / total_num
             acc = 0.0
             if test_loader is not None:
                 acc = self.evaluate(test_loader)
 
             if logger:
-                logger.info(f"[StudentDistill] ep={ep} => loss={avg_loss:.4f}, acc={acc:.2f}")
+                logger.info(
+                    f"[StudentDistill] ep={ep} => loss={avg_loss:.4f}, acc={acc:.2f}"
+                )
 
             if acc > best_acc:
                 best_acc = acc
