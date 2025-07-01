@@ -27,3 +27,13 @@ def test_adam_beta_default(monkeypatch):
     args = parse_args()
     assert args.adam_beta1 is None
     assert args.adam_beta2 is None
+
+def test_teacher_weight_decay_parse(monkeypatch):
+    monkeypatch.setattr(sys, 'argv', ['prog', '--teacher_weight_decay', '0.005'])
+    args = parse_args()
+    assert args.teacher_weight_decay == 0.005
+
+def test_teacher_weight_decay_default(monkeypatch):
+    monkeypatch.setattr(sys, 'argv', ['prog'])
+    args = parse_args()
+    assert args.teacher_weight_decay is None
