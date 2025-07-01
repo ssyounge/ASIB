@@ -48,3 +48,13 @@ def test_rkd_angle_nonzero():
     t = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]], dtype=torch.float32)
     loss = rkd_angle_loss(s, t)
     assert loss.item() > 0
+
+
+def test_rkd_angle_reduction_none_matches_mean():
+    s = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]], dtype=torch.float32)
+    t = torch.tensor([[1.0, 1.0], [1.0, 2.0], [2.0, 1.0]], dtype=torch.float32)
+    vec = rkd_angle_loss(s, t, reduction="none")
+    scalar = rkd_angle_loss(s, t, reduction="mean")
+    assert vec.shape == (3,)
+    assert vec.mean().item() == pytest.approx(scalar.item())
+
