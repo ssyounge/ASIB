@@ -112,6 +112,23 @@ run_loop() {
         fi
         done
 
+        # Evaluate fine-tuned teachers
+        for T in "$T1" "$T2"; do
+          CKPT="checkpoints/${T}_ft.pth"
+          if [ -f "${CKPT}" ]; then
+            CFG_EVAL=$(generate_config)
+            echo ">>> [run_experiments.sh] evaluating teacher=${T}"
+            python scripts/run_single_teacher.py \
+              --config "${CFG_EVAL}" \
+              --teacher_type "${T}" \
+              --teacher_ckpt "${CKPT}" \
+              --epochs 0 \
+              --method vanilla_kd \
+              --device cuda
+            rm -f "$CFG_EVAL"
+          fi
+        done
+
         # 2) ASMB multi-stage distillation
         for SC_ALPHA in ${sc_alpha_list}; do
           for H_BETA in ${hybrid_beta_list}; do
