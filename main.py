@@ -38,6 +38,7 @@ def create_student_by_name(
     raise NotImplementedError("Student models have been removed")
 
 from models.mbm import ManifoldBridgingModule, SynergyHead, build_from_teachers
+from models.ib import StudentProj
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -484,6 +485,10 @@ def main():
     mbm = mbm.to(device)
     synergy_head = synergy_head.to(device)
 
+    student_proj = None
+    if cfg.get("mbm_type") == "VIB" and hasattr(student_model, "get_feat_dim"):
+        student_proj = StudentProj(student_model.get_feat_dim(), cfg.get("z_dim", 256)).to(device)
+
     # 7) teacher wrappers
     teacher_wrappers = [teacher1, teacher2]
 
@@ -532,8 +537,11 @@ def main():
             gamma=cfg.get("teacher_gamma", 0.1),
         )
 
+    student_params = list(student_model.parameters())
+    if student_proj is not None:
+        student_params += list(student_proj.parameters())
     student_optimizer = optim.AdamW(
-        student_model.parameters(),
+        student_params,
         lr=cfg["student_lr"],
         weight_decay=cfg["student_weight_decay"],
         betas=(
@@ -556,33 +564,57 @@ def main():
     # 8) distillation
 
 
-    # (A) Teacher adaptive update
-    teacher_adaptive_update(
-        teacher_wrappers=teacher_wrappers,
-        mbm=mbm,
-        synergy_head=synergy_head,
-        student_model=student_model,
-        trainloader=train_loader,
-        testloader=test_loader,
-        cfg=cfg,
-        logger=logger,
-        optimizer=teacher_optimizer,
-        scheduler=teacher_scheduler,
-    )
+    if cfg.get("mbm_type") == "VIB":
+        from modules.trainer_vib import teacher_vib_update, student_vib_update
 
-    # (B) Student distillation
-    final_acc = student_distillation_update(
-        teacher_wrappers=teacher_wrappers,
-        mbm=mbm,
-        synergy_head=synergy_head,
-        student_model=student_model,
-        trainloader=train_loader,
-        testloader=test_loader,
-        cfg=cfg,
-        logger=logger,
-        optimizer=student_optimizer,
-        scheduler=student_scheduler,
-    )
+        teacher_vib_update(
+            teacher1,
+            teacher2,
+            mbm,
+            train_loader,
+            cfg,
+            teacher_optimizer,
+        )
+
+        student_vib_update(
+            teacher1,
+            teacher2,
+            student_model,
+            mbm,
+            student_proj,
+            train_loader,
+            cfg,
+            student_optimizer,
+        )
+        final_acc = 0.0
+    else:
+        # (A) Teacher adaptive update
+        teacher_adaptive_update(
+            teacher_wrappers=teacher_wrappers,
+            mbm=mbm,
+            synergy_head=synergy_head,
+            student_model=student_model,
+            trainloader=train_loader,
+            testloader=test_loader,
+            cfg=cfg,
+            logger=logger,
+            optimizer=teacher_optimizer,
+            scheduler=teacher_scheduler,
+        )
+
+        # (B) Student distillation
+        final_acc = student_distillation_update(
+            teacher_wrappers=teacher_wrappers,
+            mbm=mbm,
+            synergy_head=synergy_head,
+            student_model=student_model,
+            trainloader=train_loader,
+            testloader=test_loader,
+            cfg=cfg,
+            logger=logger,
+            optimizer=student_optimizer,
+            scheduler=student_scheduler,
+        )
     print(f"[main] Student final acc= {final_acc:.2f}%")
     logger.update_metric("student_acc", final_acc)
 

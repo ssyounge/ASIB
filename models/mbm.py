@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from typing import List, Optional, Tuple
 
 from .la_mbm import LightweightAttnMBM
+from .ib import VIB_MBM
 
 class ManifoldBridgingModule(nn.Module):
     """Fuses teacher features using optional MLP, convolutional and attention paths."""
@@ -129,6 +130,17 @@ def build_from_teachers(
             learnable_q=cfg.get("mbm_learnable_q", False),
             query_dim=qdim,
         )
+        head = SynergyHead(
+            in_dim=cfg.get("mbm_out_dim", 512),
+            num_classes=cfg.get("num_classes", 100),
+            p=cfg.get("synergy_head_dropout", cfg.get("mbm_dropout", 0.0)),
+        )
+    elif mbm_type == "VIB":
+        in1 = teachers[0].get_feat_dim()
+        in2 = teachers[1].get_feat_dim()
+        zdim = cfg.get("z_dim", 256)
+        mbm = VIB_MBM(in1, in2, zdim, cfg.get("num_classes", 100))
+        head = nn.Identity()
     else:
         mbm = ManifoldBridgingModule(
             feat_dims=feat_dims,
@@ -140,10 +152,9 @@ def build_from_teachers(
             out_ch_4d=out_ch_4d,
             attn_heads=int(cfg.get("mbm_attn_heads", 0)),
         )
-
-    head = SynergyHead(
-        in_dim=cfg.get("mbm_out_dim", 512),
-        num_classes=cfg.get("num_classes", 100),
-        p=cfg.get("synergy_head_dropout", cfg.get("mbm_dropout", 0.0)),
-    )
+        head = SynergyHead(
+            in_dim=cfg.get("mbm_out_dim", 512),
+            num_classes=cfg.get("num_classes", 100),
+            p=cfg.get("synergy_head_dropout", cfg.get("mbm_dropout", 0.0)),
+        )
     return mbm, head
