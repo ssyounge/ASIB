@@ -1,3 +1,5 @@
+# models/ib/vib_mbm.py
+
 import torch
 import torch.nn.functional as F
 
