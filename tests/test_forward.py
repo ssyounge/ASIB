@@ -1,3 +1,5 @@
+# tests/test_forward.py
+
 import torch
 from models.ib.vib_mbm import VIB_MBM
 
