@@ -308,6 +308,18 @@ def main():
     cli_cfg = {k: v for k, v in vars(args).items() if v is not None}
     cfg = {**base_cfg, **cli_cfg}
 
+    # convert learning rate and weight decay fields to float when merged
+    for key in (
+        "teacher_weight_decay",
+        "student_weight_decay",
+        "finetune_weight_decay",
+        "teacher_lr",
+        "student_lr",
+        "finetune_lr",
+    ):
+        if key in cfg:
+            cfg[key] = float(cfg[key])
+
     logger = ExperimentLogger(cfg, exp_name="asmb_experiment")
     logger.update_metric("use_amp", cfg.get("use_amp", False))
     logger.update_metric("amp_dtype", cfg.get("amp_dtype", "float16"))
