@@ -122,6 +122,7 @@ def parse_args():
     # 편의용 하이퍼파라미터
     parser.add_argument("--batch_size", type=int)
     parser.add_argument("--teacher_lr", type=float)
+    parser.add_argument("--teacher_weight_decay", type=float)
     parser.add_argument("--student_lr", type=float)
     parser.add_argument("--student_epochs_per_stage", type=int)
     parser.add_argument("--epochs",     type=int)            # 예: teacher_iters
