@@ -109,7 +109,6 @@ def test_teacher_adaptive_update_preserves_freeze():
         logger=logger,
         optimizer=opt,
         scheduler=sched,
-        global_ep=0,
     )
 
     frozen_after = [p.requires_grad for p in t1.frozen.parameters()]
@@ -151,7 +150,6 @@ def test_teacher_adaptive_update_trains_modules():
         logger=logger,
         optimizer=opt,
         scheduler=sched,
-        global_ep=0,
     )
 
     assert t1.record_training is True
