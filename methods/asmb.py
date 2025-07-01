@@ -285,7 +285,8 @@ class ASMBDistiller(nn.Module):
                 # synergy
                 if self.la_mode:
                     syn_feat, attn, _, _ = self.mbm(s_feat, f1)
-                    w1, w2 = attn[:, 0], attn[:, 1]
+                    attn_flat = attn.squeeze(1)
+                    w1, w2 = attn_flat[:, 0], attn_flat[:, 1]
                 else:
                     syn_feat = self.mbm(f1, f2)
                     attn = None
@@ -394,7 +395,8 @@ class ASMBDistiller(nn.Module):
 
                 if self.la_mode:
                     syn_feat, attn, _, _ = self.mbm(s_feat, f1)
-                    w1, w2 = attn[:, 0], attn[:, 1]
+                    attn_flat = attn.squeeze(1)
+                    w1, w2 = attn_flat[:, 0], attn_flat[:, 1]
                 else:
                     syn_feat = self.mbm(f1, f2)
                     attn = None
@@ -423,15 +425,15 @@ class ASMBDistiller(nn.Module):
 
                 rkd_val = torch.tensor(0.0, device=s_feat.device)
                 if self.config.get("rkd_loss_weight", 0.0) > 0:
-                    rkd_t1 = rkd_distance_loss(s_feat, t1["feat_2d"].detach())
-                    rkd_t2 = rkd_distance_loss(s_feat, t2["feat_2d"].detach())
-                    rkd_syn = rkd_distance_loss(s_feat, syn_feat.detach())
+                    rkd_t1 = rkd_distance_loss(s_feat, t1["feat_2d"].detach(), reduction="none")
+                    rkd_t2 = rkd_distance_loss(s_feat, t2["feat_2d"].detach(), reduction="none")
+                    rkd_syn = rkd_distance_loss(s_feat, syn_feat.detach(), reduction="none")
                     gamma = self.config.get("rkd_gamma", 0.5)
                     if w1 is not None:
-                        rkd_mix = (w1 * rkd_t1 + w2 * rkd_t2).mean() + gamma * rkd_syn
+                        rkd_mix = (w1 * rkd_t1 + w2 * rkd_t2) + gamma * rkd_syn
                     else:
                         rkd_mix = 0.5 * (rkd_t1 + rkd_t2) + gamma * rkd_syn
-                    rkd_val = rkd_mix
+                    rkd_val = rkd_mix.mean()
 
                 loss_asmb = (
                     self.alpha * ce_val
