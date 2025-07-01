@@ -3,7 +3,6 @@
 import torch
 import torch.nn as nn
 from typing import Optional
-from .adapters import DistillationAdapter
 from torchvision.models import swin_t, Swin_T_Weights
 
 class TeacherSwinWrapper(nn.Module):
@@ -27,14 +26,7 @@ class TeacherSwinWrapper(nn.Module):
         self.feat_dim = self.backbone.head.in_features
         self.feat_channels = self.feat_dim
 
-        # distillation adapter
-        cfg = cfg or {}
-        hidden_dim = cfg.get("distill_hidden_dim")
-        out_dim = cfg.get("distill_out_dim")
-        self.distillation_adapter = DistillationAdapter(
-            self.feat_dim, hidden_dim=hidden_dim, out_dim=out_dim
-        )
-        self.distill_dim = self.distillation_adapter.out_dim
+        # distillation adapter removed
 
     
     def forward(self, x, y=None):
@@ -47,7 +39,6 @@ class TeacherSwinWrapper(nn.Module):
         out = self.backbone.avgpool(out)
         feat_2d = self.backbone.flatten(out)
 
-        distill_feat = self.distillation_adapter(feat_2d)
         logit = self.backbone.head(feat_2d)
 
         ce_loss = None
@@ -62,7 +53,6 @@ class TeacherSwinWrapper(nn.Module):
         return {
             "feat_4d": feat_4d_for_compat,
             "feat_2d": feat_2d,
-            "distill_feat": distill_feat,
             "logit": logit,
             "ce_loss": ce_loss,
             "feat_4d_layer1": feat_4d_for_compat,

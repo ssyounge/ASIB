@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Optional
-from .adapters import DistillationAdapter
 from torchvision.models import (
     resnet101,
     ResNet101_Weights,
@@ -31,14 +30,7 @@ class TeacherResNetWrapper(nn.Module):
         self.feat_dim = 2048
         self.feat_channels = 2048
 
-        # distillation adapter
-        cfg = cfg or {}
-        hidden_dim = cfg.get("distill_hidden_dim")
-        out_dim = cfg.get("distill_out_dim")
-        self.distillation_adapter = DistillationAdapter(
-            self.feat_dim, hidden_dim=hidden_dim, out_dim=out_dim
-        )
-        self.distill_dim = self.distillation_adapter.out_dim
+        # distillation adapter removed
     
     def forward(self, x, y=None):
         # 1) stem
@@ -60,9 +52,6 @@ class TeacherResNetWrapper(nn.Module):
         gp = self.backbone.avgpool(f4d)  # [N, 2048, 1, 1]
         feat_2d = torch.flatten(gp, 1)   # [N, 2048]
 
-        # distillation adapter feature
-        distill_feat = self.distillation_adapter(feat_2d)
-
         # 4) fc => logit
         logit = self.backbone.fc(feat_2d)
 
@@ -75,7 +64,6 @@ class TeacherResNetWrapper(nn.Module):
         return {
             "feat_4d": f4d,      # [N, 2048, H, W]
             "feat_2d": feat_2d,  # [N, 2048]
-            "distill_feat": distill_feat,
             "logit": logit,
             "ce_loss": ce_loss,
             "feat_4d_layer1": feat_layer1,

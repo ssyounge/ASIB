@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Optional
-from .adapters import DistillationAdapter
 from torchvision.models import efficientnet_b2, EfficientNet_B2_Weights
 
 class TeacherEfficientNetWrapper(nn.Module):
@@ -26,14 +25,7 @@ class TeacherEfficientNetWrapper(nn.Module):
         self.feat_dim = 1408
         self.feat_channels = 1408
 
-        # distillation adapter
-        cfg = cfg or {}
-        hidden_dim = cfg.get("distill_hidden_dim")
-        out_dim = cfg.get("distill_out_dim")
-        self.distillation_adapter = DistillationAdapter(
-            self.feat_dim, hidden_dim=hidden_dim, out_dim=out_dim
-        )
-        self.distill_dim = self.distillation_adapter.out_dim
+        # distillation adapter removed
     
     def forward(self, x, y=None):
         # 1) compute intermediate 4D features
@@ -56,9 +48,6 @@ class TeacherEfficientNetWrapper(nn.Module):
         logit = self.backbone.classifier(fpool)
         # 3) feat_2d from pooled feature
 
-        # distillation adapter feature
-        distill_feat = self.distillation_adapter(fpool)
-
         # (optional) CE loss
         ce_loss = None
         if y is not None:
@@ -68,7 +57,6 @@ class TeacherEfficientNetWrapper(nn.Module):
         return {
             "feat_4d": f4d,       # [N, 1408, h, w]
             "feat_2d": fpool,     # [N, 1408]
-            "distill_feat": distill_feat,
             "logit": logit,
             "ce_loss": ce_loss,
             "feat_4d_layer1": feat_layer1,

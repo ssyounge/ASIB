@@ -31,63 +31,13 @@ from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from models.teachers.teacher_swin import create_swin_t
 
 def create_student_by_name(
-    student_name: str,
     pretrained: bool = True,
     small_input: bool = False,
     num_classes: int = 100,
     cfg: Optional[dict] = None,
 ):
-    """
-    Returns a student model that follows the common interface
-    (feature_dict, logits, ce_loss).
-    """
-    if student_name == "resnet_adapter":
-        from models.students.student_resnet_adapter import (
-            create_resnet101_with_extended_adapter,
-        )
-        return create_resnet101_with_extended_adapter(
-            pretrained=pretrained,
-            num_classes=num_classes,
-            small_input=small_input,
-        )
-
-    elif student_name == "resnet152_adapter":
-        from models.students.student_resnet152_adapter import (
-            create_resnet152_with_extended_adapter,
-        )
-        return create_resnet152_with_extended_adapter(
-            pretrained=pretrained,
-            num_classes=num_classes,
-            small_input=small_input,
-        )
-
-    elif student_name == "efficientnet_adapter":
-        from models.students.student_efficientnet_adapter import (
-            create_efficientnet_b2_with_adapter,
-        )
-        return create_efficientnet_b2_with_adapter(
-            pretrained=pretrained,
-            num_classes=num_classes,
-            small_input=small_input,
-        )
-
-    elif student_name == "swin_adapter":
-        from models.students.student_swin_adapter import (
-            create_swin_adapter_student,
-        )
-        adapter_dim = 64
-        if cfg is not None:
-            adapter_dim = cfg.get("swin_adapter_dim", adapter_dim)
-        return create_swin_adapter_student(
-            pretrained=pretrained,
-            small_input=small_input,
-            num_classes=num_classes,
-            adapter_dim=adapter_dim,
-            cfg=cfg,
-        )
-
-    else:
-        raise ValueError(f"[create_student_by_name] unknown student_name={student_name}")# MBM
+    """Placeholder for removed student models."""
+    raise NotImplementedError("Student models have been removed")
 
 from models.mbm import ManifoldBridgingModule, SynergyHead, build_from_teachers
 
@@ -107,7 +57,6 @@ def parse_args():
     parser.add_argument("--num_stages",   type=int)
     parser.add_argument("--synergy_ce_alpha", type=float)    # α
     parser.add_argument("--hybrid_beta", type=float)
-    parser.add_argument("--student_type", type=str)
     
     # 편의용 하이퍼파라미터
     parser.add_argument("--batch_size", type=int)
@@ -145,10 +94,6 @@ def parse_args():
     parser.add_argument("--disagree_mode", type=str)
     parser.add_argument("--disagree_lambda_high", type=float)
     parser.add_argument("--disagree_lambda_low", type=float)
-    parser.add_argument("--teacher1_use_adapter", type=int)
-    parser.add_argument("--teacher1_bn_head_only", type=int)
-    parser.add_argument("--teacher2_use_adapter", type=int)
-    parser.add_argument("--teacher2_bn_head_only", type=int)
     parser.add_argument("--use_amp", type=int)
     parser.add_argument("--amp_dtype", type=str)
     parser.add_argument("--adam_beta1", type=float)
@@ -482,9 +427,7 @@ def main():
     logger.update_metric("teacher2_test_acc", te2_acc)
 
     # 5) Student
-    student_name  = cfg.get("student_type", "resnet_adapter")   # e.g. resnet_adapter / efficientnet_adapter / swin_adapter
     student_model = create_student_by_name(
-        student_name,
         pretrained=cfg.get("student_pretrained", True),
         small_input=small_input,
         num_classes=num_classes,
