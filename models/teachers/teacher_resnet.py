@@ -60,16 +60,11 @@ class TeacherResNetWrapper(nn.Module):
         if y is not None:
             ce_loss = self.criterion_ce(logit, y)
 
-        # Dict
-        return {
-            "feat_4d": f4d,      # [N, 2048, H, W]
-            "feat_2d": feat_2d,  # [N, 2048]
-            "logit": logit,
-            "ce_loss": ce_loss,
-            "feat_4d_layer1": feat_layer1,
-            "feat_4d_layer2": feat_layer2,
-            "feat_4d_layer3": feat_layer3,
+        feat_dict = {
+            "feat_4d": f4d,
+            "feat_2d": feat_2d,
         }
+        return feat_dict, logit, None
 
     def get_feat_dim(self):
         """

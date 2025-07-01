@@ -53,16 +53,11 @@ class TeacherEfficientNetWrapper(nn.Module):
         if y is not None:
             ce_loss = self.criterion_ce(logit, y)
 
-        # Dict로 묶어서 반환
-        return {
-            "feat_4d": f4d,       # [N, 1408, h, w]
-            "feat_2d": fpool,     # [N, 1408]
-            "logit": logit,
-            "ce_loss": ce_loss,
-            "feat_4d_layer1": feat_layer1,
-            "feat_4d_layer2": feat_layer2,
-            "feat_4d_layer3": feat_layer3,
+        feat_dict = {
+            "feat_4d": f4d,
+            "feat_2d": fpool,
         }
+        return feat_dict, logit, None
 
     def get_feat_dim(self):
         """
