@@ -10,10 +10,10 @@ def evaluate_acc(model, loader, device="cuda"):
     for x, y in loader:
         x, y = x.to(device), y.to(device)
         out = model(x)
-        if isinstance(out, dict):
-            logits = out.get("logit", out)
-        elif isinstance(out, tuple):
+        if isinstance(out, tuple):
             logits = out[1]
+        elif isinstance(out, dict):
+            logits = out.get("logit", out)
         else:
             logits = out
         preds = logits.argmax(dim=1)

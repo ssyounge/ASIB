@@ -27,15 +27,11 @@ class StudentConvNeXtWrapper(nn.Module):
         if y is not None:
             ce_loss = self.criterion_ce(logit, y)
 
-        return {
+        feat_dict = {
             "feat_4d": feat_4d,
             "feat_2d": feat_2d,
-            "logit": logit,
-            "ce_loss": ce_loss,
-            "feat_4d_layer1": feat_4d,
-            "feat_4d_layer2": feat_4d,
-            "feat_4d_layer3": feat_4d,
         }
+        return feat_dict, logit, None
 
     def get_feat_dim(self):
         return self.feat_dim

@@ -14,8 +14,10 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer):
         for x, y in loader:
             x, y = x.to(device), y.to(device)
             with torch.no_grad():
-                t1_dict = teacher1(x)
-                t2_dict = teacher2(x)
+                out1 = teacher1(x)
+                out2 = teacher2(x)
+                t1_dict = out1[0] if isinstance(out1, tuple) else out1
+                t2_dict = out2[0] if isinstance(out2, tuple) else out2
             f1 = t1_dict["feat_2d"]
             f2 = t2_dict["feat_2d"]
             z, logit_syn, kl_z, _ = vib_mbm(f1, f2)
@@ -35,8 +37,10 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
         for x, y in loader:
             x, y = x.to(device), y.to(device)
             with torch.no_grad():
-                t1_dict = teacher1(x)
-                t2_dict = teacher2(x)
+                out1 = teacher1(x)
+                out2 = teacher2(x)
+                t1_dict = out1[0] if isinstance(out1, tuple) else out1
+                t2_dict = out2[0] if isinstance(out2, tuple) else out2
                 f1 = t1_dict["feat_2d"]
                 f2 = t2_dict["feat_2d"]
                 _, _, _, mu = vib_mbm(f1, f2)

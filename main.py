@@ -10,8 +10,9 @@ from models.ib.proj_head import StudentProj
 from utils.misc import set_random_seed
 from utils.eval import evaluate_acc
 from data.cifar100 import get_cifar100_loaders
-from teachers import create_resnet152, create_efficientnet_b2
-from students import create_convnext_tiny
+from models.teachers.teacher_resnet import create_resnet152
+from models.teachers.teacher_efficientnet import create_efficientnet_b2
+from models.students.student_convnext import create_convnext_tiny
 from trainer import teacher_vib_update, student_vib_update
 
 # ---------- CLI ----------
@@ -25,7 +26,7 @@ set_random_seed(cfg.get('seed', 42))
 
 # ---------- data ----------
 train_loader, test_loader = get_cifar100_loaders(
-    batch_size=cfg['batch_size'], num_workers=cfg['num_workers']
+    batch_size=cfg['batch_size'], num_workers=cfg.get('num_workers', 0)
 )
 
 # ---------- teachers ----------
