@@ -50,12 +50,12 @@ finetune_alpha: 1.0
 # ===============================================================
 # 4. Distillation Hyperparameters
 # ===============================================================
-teacher_lr: 1e-4
-student_lr: 3e-4
-teacher_weight_decay: 0.0003
-student_weight_decay: 0.0005
-ce_alpha: 0.5
-kd_alpha: 0.5
+teacher_lr: 3e‑4
+student_lr: 5e-4
+teacher_weight_decay: 1e-4
+student_weight_decay: 3e-4
+ce_alpha: 0.3
+kd_alpha: 0.4
 cutmix_alpha_distill: 0.0  # CutMix alpha used during distillation
 
 # Learning rate schedule
@@ -67,13 +67,13 @@ student_gamma: 0.1
 
 # Temperature scheduling
 temperature_schedule: "linear_decay"
-tau_start: 10.0
+tau_start: 6.0
 tau_end: 2.0
 tau_decay_epochs: 40
-mbm_out_dim: 2048
-mbm_reg: 5e-5         # default sweep value
-reg_lambda: 1e-5      # teacher L2 regularisation
-mbm_dropout: 0.0      # dropout prob inside MBM
+mbm_out_dim: 1024
+mbm_reg: 2e-5         # default sweep value
+reg_lambda: 5e-5      # teacher L2 regularisation
+mbm_dropout: 0.1      # dropout prob inside MBM
 head_dropout: 0.0     # dropout prob for synergy head
 
 # Sweep/loop variables
@@ -82,13 +82,13 @@ head_dropout: 0.0     # dropout prob for synergy head
 n_stage_list: 5
 sc_alpha_list: "0.6" # 0.3 0.6
 # Additional sweep lists
-hybrid_beta_list: "0.2"       # e.g. "0.1 0.5 0.9"
+hybrid_beta_list: "0.1"       # e.g. "0.1 0.5 0.9"
 # Epoch sweep lists
-teacher_adapt_epochs_list: "20"
+teacher_adapt_epochs_list: "10"
 student_epochs_per_stage_list: "40"
 # Teacher adaptation
 teacher_adapt_alpha_kd: 1.0
-mbm_lr_factor: 1.0
+mbm_lr_factor: 2.0
 use_distillation_adapter: true
 distill_hidden_dim: 0  # 0 -> use half of teacher feature dim
 distill_out_dim: 0     # 0 -> use quarter of teacher feature dim
@@ -108,14 +108,14 @@ grad_clip_norm: 1.0
 # ===============================================================
 # --- Regularization & Augmentation ---
 label_smoothing: 0.0
-mixup_alpha: 0.0
+mixup_alpha: 0.2
 
 # --- Feature KD ---
-feat_kd_alpha: 1.0
+feat_kd_alpha: 0.3
 feat_kd_key: "feat_2d"
 feat_kd_norm: "none"
 rkd_loss_weight: 1.0
-rkd_gamma: 0.5
+rkd_gamma: 0.6
 
 # --- Disagreement weighting ---
 use_disagree_weight: false
