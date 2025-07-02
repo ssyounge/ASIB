@@ -2,7 +2,7 @@
 
 import os
 import torch
-import torch.nn.functional as F
+import torch.nn.functional as F   # loss 함수(F.cross_entropy 등)용
 from utils.schedule import cosine_lr_scheduler
 from utils.misc import get_amp_components
 from utils.eval import evaluate_acc
