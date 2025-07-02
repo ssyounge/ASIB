@@ -49,8 +49,24 @@ t2 = create_efficientnet_b2(pretrained=True, small_input=True).to(device)
 ft_epochs = cfg.get('finetune_epochs', 0)
 ft_lr = cfg.get('finetune_lr', 1e-4)
 if ft_epochs > 0:
-    simple_finetune(t1, train_loader, ft_lr, ft_epochs, device, cfg)
-    simple_finetune(t2, train_loader, ft_lr, ft_epochs, device, cfg)
+    simple_finetune(
+        t1,
+        train_loader,
+        ft_lr,
+        ft_epochs,
+        device,
+        weight_decay=cfg.get("finetune_weight_decay", 0.0),
+        cfg=cfg,
+    )
+    simple_finetune(
+        t2,
+        train_loader,
+        ft_lr,
+        ft_epochs,
+        device,
+        weight_decay=cfg.get("finetune_weight_decay", 0.0),
+        cfg=cfg,
+    )
 freeze_all(t1)
 freeze_all(t2)
 t1.eval()
