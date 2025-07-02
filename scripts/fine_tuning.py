@@ -31,12 +31,7 @@ from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from models.teachers.teacher_swin import create_swin_t
 
 # partial freeze
-from modules.partial_freeze import (
-    partial_freeze_teacher_resnet,
-    partial_freeze_teacher_efficientnet,
-    partial_freeze_teacher_swin,
-)
-from utils.freeze import freeze_all
+from utils.freeze import freeze_all, partial_freeze_teacher_auto
 
 # cutmix finetune
 from modules.cutmix_finetune_teacher import finetune_teacher_cutmix, eval_teacher
@@ -142,43 +137,6 @@ def create_teacher_by_name(
     else:
         raise ValueError(f"[fine_tuning.py] Unknown teacher_type={teacher_type}")
 
-def partial_freeze_teacher_auto(
-    model,
-    teacher_type,
-    freeze_bn=True,
-    freeze_ln=True,
-    use_adapter=False,
-    bn_head_only=False,
-    freeze_level=1,
-):
-    """
-    If needed, partial freeze for fine-tune. Or you can freeze nothing if you want full fine-tune.
-    """
-    if teacher_type in ("resnet101", "resnet152"):
-        partial_freeze_teacher_resnet(
-            model,
-            freeze_bn=freeze_bn,
-            use_adapter=use_adapter,
-            bn_head_only=bn_head_only,
-            freeze_level=freeze_level,
-        )
-    elif teacher_type == "efficientnet_b2":
-        partial_freeze_teacher_efficientnet(
-            model,
-            freeze_bn=freeze_bn,
-            use_adapter=use_adapter,
-            bn_head_only=bn_head_only,
-            freeze_level=freeze_level,
-        )
-    elif teacher_type == "swin_tiny":
-        partial_freeze_teacher_swin(
-            model,
-            freeze_ln=freeze_ln,
-            use_adapter=use_adapter,
-            freeze_level=freeze_level,
-        )
-    else:
-        raise ValueError(f"Unknown teacher_type={teacher_type}")
 
 def standard_ce_finetune(
     model,
