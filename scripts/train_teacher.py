@@ -1,3 +1,4 @@
+# scripts/train_teacher.py
 #!/usr/bin/env python3
 """Simple teacher CE training script."""
 import argparse
