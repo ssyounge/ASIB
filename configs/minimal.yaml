@@ -3,6 +3,11 @@
 batch_size: 128              # ↑ 가능하면 256 (GPU 여유 시)
 num_workers: 2
 disable_tqdm: true
+dataset_root: "./data"
+results_dir: "results"
+device: "cuda"
+seed: 42
+checkpoint_dir: "checkpoints"
 
 student_type: "convnext_tiny"
 
@@ -21,6 +26,8 @@ randaug_M: 7
  
 teacher_weight_decay: 5e-4
 student_weight_decay: 5e-4
+teacher_lr: 3e-4
+student_lr: 5e-4
 lr_schedule: "cosine"
 grad_clip_norm: 1.0
 
@@ -41,4 +48,5 @@ use_ema: true
 ema_decay: 0.999
 
 finetune_lr: 1e-4
+finetune_epochs: 3
 finetune_weight_decay: 1e-4
