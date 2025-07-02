@@ -26,6 +26,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--finetune_lr", type=float)
     p.add_argument("--finetune_weight_decay", type=float)
     p.add_argument("--device", default="cuda")
+    p.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Delete existing checkpoint before fine-tuning",
+    )
     return p.parse_args()
 
 
@@ -77,6 +82,13 @@ def main() -> None:
     )
 
     os.makedirs(os.path.dirname(args.finetune_ckpt_path) or ".", exist_ok=True)
+
+    if args.overwrite:
+        if os.path.exists(args.finetune_ckpt_path):
+            os.remove(args.finetune_ckpt_path)
+        last_path = args.finetune_ckpt_path.replace(".pth", "_last.pth")
+        if os.path.exists(last_path):
+            os.remove(last_path)
 
     simple_finetune(
         model,
