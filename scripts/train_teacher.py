@@ -114,8 +114,8 @@ def main() -> None:
     )
     opt = torch.optim.AdamW(
         model.parameters(),
-        lr=lr,
-        weight_decay=wd,
+        lr=float(lr),
+        weight_decay=float(wd),
     )
     crit = torch.nn.CrossEntropyLoss()
 
