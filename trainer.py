@@ -2,7 +2,6 @@
 
 import os
 import copy, torch
-from utils.model_factory import create_student_by_name
 import torch.nn.functional as F   # loss 함수(F.cross_entropy 등)용
 from utils.schedule import cosine_lr_scheduler
 from utils.misc import get_amp_components
@@ -303,23 +302,20 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
         train_acc = 100.0 * correct / max(count, 1)
         # ─ EMA 추적 ─────────────────────────────────
         if cfg.get("use_ema", False):
-            if ep == 0:  # 초기화
-                student_type = cfg.get("student_type", "convnext_tiny")
-                num_cls = getattr(student_model.backbone.classifier[2], "out_features", 100)
-                ema_model = create_student_by_name(
-                    student_type,
-                    num_classes=num_cls,
-                    pretrained=False,
-                    small_input=True,
-                    cfg=cfg,
-                ).to(device)
-                ema_model.load_state_dict(student_model.state_dict())
-                ema_model.eval()
-            else:  # 이동 평균
-                with torch.no_grad():
-                    decay = cfg.get("ema_decay", 0.999)
-                    for p_ema, p in zip(ema_model.parameters(), student_model.parameters()):
-                        p_ema.data.mul_(decay).add_(p.data, alpha=1 - decay)
+            if ep == 0:                             # 초기 스냅샷
+                ema_model = copy.deepcopy(student_model).eval()
+                for m in ema_model.modules():       # BN·Dropout 모두 eval 고정
+                    m.training = False
+            with torch.no_grad():
+                d = cfg.get("ema_decay", 0.995)     # 반응성 ↑
+                for p_ema, p in zip(ema_model.parameters(),
+                                    student_model.parameters()):
+                    p_ema.data.mul_(d).add_(p.data, alpha=1 - d)
+                # BN running_mean / var 동기화
+                for b_ema, b in zip(ema_model.buffers(),
+                                    student_model.buffers()):
+                    if b_ema.dtype == torch.float32:
+                        b_ema.copy_(b)
 
         # ─ 테스트 정확도 ────────────────────────────
         test_acc = 0.0
