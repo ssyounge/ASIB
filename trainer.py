@@ -2,14 +2,17 @@
 
 import torch
 import torch.nn.functional as F
+from utils.schedule import cosine_lr_scheduler
 
 
 def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer):
     device = cfg.get("device", "cuda")
     beta = cfg.get("beta_bottleneck", 0.003)
+    clip = cfg.get("grad_clip_norm", 0)
     vib_mbm.train()
     teacher1.eval()
     teacher2.eval()
+    scheduler = cosine_lr_scheduler(optimizer, cfg.get("teacher_iters", 1))
     for ep in range(cfg.get("teacher_iters", 1)):
         for x, y in loader:
             x, y = x.to(device), y.to(device)
@@ -24,15 +27,20 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer):
             loss = F.cross_entropy(logit_syn, y) + beta * kl_z.mean()
             optimizer.zero_grad()
             loss.backward()
+            if clip > 0:
+                torch.nn.utils.clip_grad_norm_(vib_mbm.parameters(), clip)
             optimizer.step()
+        scheduler.step()
 
 
 def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj, loader, cfg, optimizer):
     device = cfg.get("device", "cuda")
     alpha = cfg.get("alpha_kd", 0.7)
     ce_alpha = cfg.get("ce_alpha", 1.0)
+    clip = cfg.get("grad_clip_norm", 0)
     vib_mbm.eval()
     student_model.train()
+    scheduler = cosine_lr_scheduler(optimizer, cfg.get("student_iters", 1))
     for ep in range(cfg.get("student_iters", 1)):
         for x, y in loader:
             x, y = x.to(device), y.to(device)
@@ -52,6 +60,12 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
             loss = ce_alpha * F.cross_entropy(s_logit, y) + alpha * kd
             optimizer.zero_grad()
             loss.backward()
+            if clip > 0:
+                torch.nn.utils.clip_grad_norm_(
+                    list(student_model.parameters()) + list(student_proj.parameters()),
+                    clip,
+                )
             optimizer.step()
+        scheduler.step()
 
 
