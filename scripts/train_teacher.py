@@ -20,6 +20,31 @@ TEACHER_CHOICES = ["resnet152", "efficientnet_b2"]
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse and return command line arguments for the training script.
+
+    The following options are recognised:
+
+    ``--config``
+        Path to a YAML configuration file. Defaults to
+        ``configs/minimal.yaml``.
+    ``--teacher``
+        Architecture of the teacher network. Must be one of
+        ``resnet152`` or ``efficientnet_b2``.
+    ``--epochs``
+        Number of fine-tuning epochs. Overrides the value in the
+        configuration file if provided.
+    ``--lr``
+        Learning rate for the optimizer.
+    ``--wd``
+        Weight decay for the optimizer.
+    ``--batch_size``
+        Mini-batch size used when loading the CIFAR-100 dataset.
+    ``--ckpt``
+        File path where the best performing model will be saved.
+    ``--device``
+        Torch device identifier on which to run training (e.g. ``cuda``).
+    """
+
     p = argparse.ArgumentParser(description="Teacher fine-tuning")
     p.add_argument("--config", default="configs/minimal.yaml")
     p.add_argument("--teacher", choices=TEACHER_CHOICES, required=True)
@@ -33,6 +58,20 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_cfg(path: str) -> Dict:
+    """Load a YAML configuration file if it exists.
+
+    Parameters
+    ----------
+    path : str
+        Location of the configuration file to load.
+
+    Returns
+    -------
+    dict
+        Parsed configuration as a dictionary. An empty dictionary is
+        returned when ``path`` does not exist.
+    """
+
     if os.path.exists(path):
         with open(path) as f:
             return yaml.safe_load(f)
