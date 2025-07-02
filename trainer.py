@@ -135,8 +135,18 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
                 out2 = teacher2(x)
                 t1_dict = out1[0] if isinstance(out1, tuple) else out1
                 t2_dict = out2[0] if isinstance(out2, tuple) else out2
-            f1 = t1_dict["feat_2d"]
-            f2 = t2_dict["feat_2d"]
+
+                # ────────── DEBUG ② feature key 확인 ──────────
+                assert "feat_2d" in t1_dict and "feat_2d" in t2_dict, (
+                    "feat_2d key not found in teacher outputs"
+                )
+                feat1, feat2 = t1_dict["feat_2d"], t2_dict["feat_2d"]
+                assert (
+                    feat1.shape[0] == x.size(0) and feat2.shape[0] == x.size(0)
+                ), "feature batch size mismatch"
+
+            f1 = feat1
+            f2 = feat2
             with autocast_ctx:
                 z, logit_syn, kl_z, _ = vib_mbm(
                     f1,
@@ -177,6 +187,18 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
         if logger is not None:
             logger.update_metric(f"teacher_ep{ep + 1}_train_acc", float(train_acc))
             logger.update_metric(f"teacher_ep{ep + 1}_test_acc", float(test_acc))
+
+        # ────────── DEBUG ④ synergy acc 첫 epoch 후 한 번 출력 ──────────
+        if ep == 0:
+            from utils.eval import evaluate_mbm_acc
+            dbg_acc = evaluate_mbm_acc(
+                teacher1,
+                teacher2,
+                vib_mbm,
+                test_loader,
+                device=next(vib_mbm.parameters()).device,
+            )
+            print(f"[DEBUG] synergy_acc_after_ep1: {dbg_acc:.2f}%")
 
 
 def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj, loader, cfg, optimizer, test_loader=None, logger=None):
