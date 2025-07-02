@@ -168,7 +168,7 @@ def main():
         )
 
     student = create_student_by_name(
-        cfg.get("student_type", "resnet_adapter"),
+        cfg.get("student_type", "convnext_tiny"),
         pretrained=cfg.get("student_pretrained", True),
         small_input=small_input,
         num_classes=num_classes,
@@ -182,7 +182,7 @@ def main():
     if cfg.get("use_partial_freeze", True):
         partial_freeze_student_auto(
             student,
-            student_name=cfg.get("student_type", "resnet_adapter"),
+            student_name=cfg.get("student_type", "convnext_tiny"),
             freeze_bn=cfg.get("student_freeze_bn", True),
             freeze_ln=cfg.get("student_freeze_ln", True),
             use_adapter=cfg.get("student_use_adapter", False),

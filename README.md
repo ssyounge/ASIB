@@ -48,15 +48,12 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
   when using this module.
   Common student feature dimensions are:
 
-  | Student model                | Feature dim |
-  |------------------------------|-------------|
-   | `student_efficientnet_adapter` | 1408        |
-   | `student_resnet_adapter`       | 2048        |
-   | `student_swin_adapter`         | 768         |
-   *The adapters above were part of the original project and are no longer
-   shipped in this repository.*
+  | Student model | Feature dim |
+  |---------------|-------------|
+  | `convnext_tiny` | 768 |
+*This minimal repository only ships `convnext_tiny` as a ready-made student.*
 - **Swin Adapter Dim**: `swin_adapter_dim` sets the hidden size of the MLP
-  adapter used by `student_swin_adapter` (default `64`)
+  adapter used by a custom `student_swin_adapter` (default `64`)
 - **Student Projection Normalization**: set `proj_normalize` (default `true`) to
   apply L2 normalization on features before the student projection head
 - **Smart Progress Bars**: progress bars hide automatically when stdout isn't a TTY
@@ -87,12 +84,10 @@ pip install -r requirements.txt  # includes pandas for analysis
 ```
 
 > **Note**
-> Student model adapters (`student_resnet_adapter`, etc.) were removed from this
-> repository. To run the code you must provide your own student definitions.
-> Place custom modules under `models/students/` or copy them from the upstream
-> project. Each student should implement a `create_*` factory returning a model
-> whose `forward` yields `(feature_dict, logits, extra)` similar to the teacher
-> wrappers.
+> This minimal repository only includes the `convnext_tiny` student.
+> To use other architectures, provide custom modules under `models/students/`.
+> Each student should implement a `create_*` factory returning a model whose
+> `forward` yields `(feature_dict, logits, extra)` similar to the teacher wrappers.
 
 The unified script `run_experiments.sh` automatically tries to activate a
 Conda environment named `facil_env`. If you use a different environment name,
@@ -226,9 +221,9 @@ Usage
 ### Typical Training Flow
 
 > **Note**
-> Predefined student adapters were removed. Add your own modules under
-> `models/students/` or copy them from the upstream repository before running
-> the examples below.
+> Only a `convnext_tiny` student is provided. Add your own modules under
+> `models/students/` or copy them from the upstream repository to try other
+> architectures.
 
 1. Fine-tune each teacher (optional but recommended).
 2. For each stage, perform a teacher adaptive update followed by student knowledge distillation.
@@ -254,7 +249,7 @@ python main.py --config configs/partial_freeze.yaml --device cuda \
 ```bash
 python scripts/run_single_teacher.py --config configs/default.yaml \
   --method vanilla_kd --teacher_type resnet152 --teacher_ckpt teacher.pth \
-  --student_type resnet_adapter --epochs 40 \
+  --student_type convnext_tiny --epochs 40 \
   --dataset imagenet100
 ```
 
@@ -272,7 +267,7 @@ Run the student alone using the same partial-freeze settings to gauge its standa
 
 ```bash
 python scripts/train_student_baseline.py --config configs/partial_freeze.yaml \
-  --student_type resnet_adapter --epochs 40 --dataset cifar100
+  --student_type convnext_tiny --epochs 40 --dataset cifar100
 # Freeze levels come from `configs/partial_freeze.yaml`
 ```
 
@@ -491,9 +486,7 @@ Folder Structure
 │   ├── mbm.py
 │   ├── students
 │   │   ├── __init__.py
-│   │   ├── student_efficientnet_adapter.py
-│   │   ├── student_resnet_adapter.py
-│   │   └── student_swin_adapter.py
+│   │   └── student_convnext.py
 │   └── teachers
 │       ├── __init__.py
 │       ├── teacher_efficientnet.py
