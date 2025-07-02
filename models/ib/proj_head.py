@@ -8,7 +8,7 @@ class StudentProj(nn.Module):
         super().__init__()
         self.proj = nn.Linear(in_dim, z_dim)
         self.normalize = normalize
-        self.bn = nn.BatchNorm1d(z_dim, affine=False) if use_bn else nn.Identity()
+        self.bn = nn.BatchNorm1d(z_dim, affine=True) if use_bn else nn.Identity()
 
     def forward(self, x):
         x = x.flatten(1)

@@ -18,12 +18,14 @@ small_input: true
 # ─ IB‑KD 하이퍼 ────────────────────────────────────
 mbm_type: "VIB"
 z_dim: 256
-proj_normalize: true
-proj_use_bn: false
+proj_normalize: false
+proj_use_bn: true
 use_amp: true
+amp_dtype: bfloat16
 beta_bottleneck: 0.003
 alpha_kd: 0.7
 ce_alpha: 1.0
+log_kl: false
 
 # ─ 옵티마이저 ──────────────────────────────────────
 teacher_lr: 3e-4
@@ -38,5 +40,5 @@ teacher_iters: 5
 student_iters: 15
 
 # ─ Teacher Fine‑tune ──────────────────────────────
-finetune_epochs: 1
+finetune_epochs: 3
 finetune_lr: 1e-4
