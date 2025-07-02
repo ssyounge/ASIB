@@ -4,16 +4,11 @@
 # ─ 기본 ────────────────────────────────────────────
 device: "cuda"
 dataset_name: "cifar100"
-batch_size: 128
-num_workers: 2
-seed: 42
-deterministic: true
 
 # ─ 모델 ────────────────────────────────────────────
 teacher1_type: "resnet152"
 teacher2_type: "efficientnet_b2"
 student_type: "convnext_tiny"
-small_input: true
 
 # ─ IB‑KD 하이퍼 ────────────────────────────────────
 mbm_type: "VIB"
@@ -39,6 +34,3 @@ grad_clip_norm: 1.0
 teacher_iters: 5
 student_iters: 15
 
-# ─ Teacher Fine‑tune ──────────────────────────────
-finetune_epochs: 3
-finetune_lr: 1e-4
