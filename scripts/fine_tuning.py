@@ -21,7 +21,7 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Teacher fine-tuning")
     p.add_argument("--config", default="configs/minimal.yaml")
     p.add_argument("--teacher_type", choices=TEACHER_CHOICES, required=True)
-    p.add_argument("--finetune_ckpt_path", required=True)
+    p.add_argument("--finetune_ckpt_path")
     p.add_argument("--finetune_epochs", type=int)
     p.add_argument("--finetune_lr", type=float)
     p.add_argument("--finetune_weight_decay", type=float)
@@ -41,7 +41,14 @@ def main() -> None:
     cfg = load_cfg(args.config)
     set_random_seed(cfg.get("seed", 42))
 
+    if args.finetune_ckpt_path is None:
+        ckpt_dir = cfg.get("checkpoint_dir", "checkpoints")
+        args.finetune_ckpt_path = os.path.join(
+            ckpt_dir, f"{args.teacher_type}_ft.pth"
+        )
+
     loader, _ = get_cifar100_loaders(
+        root=cfg.get("dataset_root", "./data"),
         batch_size=cfg.get("batch_size", 128),
         num_workers=cfg.get("num_workers", 0),
     )
