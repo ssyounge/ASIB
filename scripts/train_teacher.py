@@ -100,11 +100,20 @@ def main() -> None:
 
     device = args.device
     model = model.to(device)
+    lr = (
+        cfg.get("finetune_lr", cfg.get("teacher_lr", 1e-4))
+        if args.lr is None
+        else args.lr
+    )
+    wd = (
+        cfg.get("finetune_weight_decay", cfg.get("teacher_weight_decay", 5e-4))
+        if args.wd is None
+        else args.wd
+    )
     opt = torch.optim.AdamW(
         model.parameters(),
-        lr=args.lr or cfg.get("finetune_lr", cfg.get("teacher_lr", 1e-4)),
-        weight_decay=args.wd
-        or cfg.get("finetune_weight_decay", cfg.get("teacher_weight_decay", 5e-4)),
+        lr=lr,
+        weight_decay=wd,
     )
     crit = torch.nn.CrossEntropyLoss()
 
