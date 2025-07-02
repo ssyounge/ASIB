@@ -31,7 +31,7 @@ from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from models.teachers.teacher_swin import create_swin_t
 
 # partial freeze
-from utils.freeze import freeze_all, partial_freeze_teacher_auto
+from utils.freeze import freeze_all
 
 # cutmix finetune
 from modules.cutmix_finetune_teacher import finetune_teacher_cutmix, eval_teacher
@@ -255,19 +255,9 @@ def main():
 
     # 3) partial freeze or full fine-tune?
     if cfg.get("finetune_partial_freeze", False):
-        # e.g. freeze backbone, unfreeze head
-        freeze_bn = cfg.get("teacher_freeze_bn", True)
-        freeze_ln = cfg.get("teacher_freeze_ln", True)
-        partial_freeze_teacher_auto(
-            teacher_model,
-            teacher_type,
-            freeze_bn=freeze_bn,
-            freeze_ln=freeze_ln,
-            use_adapter=cfg.get("teacher_use_adapter", False),
-            bn_head_only=cfg.get("teacher_bn_head_only", False),
-            freeze_level=cfg.get("teacher_freeze_level", 1),
-        )
-        print("[FineTune] partial freeze mode => only head is trainable (example).")
+        # Freeze the entire model when partial freeze is requested
+        freeze_all(teacher_model)
+        print("[FineTune] partial freeze mode applied via freeze_all().")
     else:
         # full fine-tune => do nothing or freeze_all if you want the opposite
         print("[FineTune] full fine-tune => no partial freeze applied.")

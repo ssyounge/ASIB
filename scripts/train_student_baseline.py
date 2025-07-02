@@ -15,7 +15,7 @@ from utils.misc import set_random_seed, check_label_range, progress, get_amp_com
 from data.cifar100 import get_cifar100_loaders
 from data.imagenet100 import get_imagenet100_loaders
 from utils.model_factory import create_student_by_name
-from utils.freeze import partial_freeze_student_auto
+from utils.freeze import freeze_all
 from utils.eval import evaluate_acc as eval_teacher
 
 
@@ -167,14 +167,7 @@ def main():
             strict=False,
         )
 
-    partial_freeze_student_auto(
-        student,
-        student_name=cfg.get("student_type", "convnext_tiny"),
-        freeze_bn=cfg.get("student_freeze_bn", True),
-        freeze_ln=cfg.get("student_freeze_ln", True),
-        use_adapter=cfg.get("student_use_adapter", False),
-        freeze_level=cfg.get("student_freeze_level", 1),
-    )
+    freeze_all(student)
 
     os.makedirs(cfg.get("results_dir", "results"), exist_ok=True)
     ckpt = os.path.join(cfg["results_dir"], "student_baseline.pth")
