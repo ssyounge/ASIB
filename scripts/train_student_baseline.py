@@ -11,13 +11,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from utils.misc import set_random_seed, check_label_range
+from utils.misc import set_random_seed, check_label_range, progress, get_amp_components
 from data.cifar100 import get_cifar100_loaders
 from data.imagenet100 import get_imagenet100_loaders
-from main import create_student_by_name, partial_freeze_student_auto
-from modules.cutmix_finetune_teacher import eval_teacher
-from utils.progress import smart_tqdm
-from utils.misc import get_amp_components
+from utils.model_factory import create_student_by_name
+from utils.freeze import partial_freeze_student_auto
+from utils.eval import evaluate_acc as eval_teacher
 
 
 def parse_args():
@@ -91,7 +90,7 @@ def train_student_ce(
 
     for ep in range(1, epochs + 1):
         student_model.train()
-        for x, y in smart_tqdm(train_loader, desc=f"[StudentCE ep={ep}]"):
+        for x, y in progress(train_loader, desc=f"[StudentCE ep={ep}]"):
             x, y = x.to(device), y.to(device)
             optimizer.zero_grad()
             with autocast_ctx:

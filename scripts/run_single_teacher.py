@@ -11,12 +11,8 @@ import torch
 from utils.misc import set_random_seed, check_label_range, get_model_num_classes
 from data.cifar100 import get_cifar100_loaders
 from data.imagenet100 import get_imagenet100_loaders
-from main import (
-    create_teacher_by_name,
-    create_student_by_name,
-    partial_freeze_teacher_auto,
-    partial_freeze_student_auto,
-)
+from utils.model_factory import create_teacher_by_name, create_student_by_name
+from utils.freeze import partial_freeze_teacher_auto, partial_freeze_student_auto
 
 from methods.vanilla_kd import VanillaKDDistiller
 from methods.fitnet import FitNetDistiller
