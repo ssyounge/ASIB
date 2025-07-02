@@ -218,8 +218,11 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
         None.
     """
     device = cfg.get("device", "cuda")
-    alpha = cfg.get("alpha_kd", 0.7)
-    ce_alpha = cfg.get("ce_alpha", 1.0)
+    # ────── 하이퍼 ─────────────────────────────────────────────
+    T = cfg.get("kd_temperature", 4)          #  KD 온도
+    alpha_kd = cfg.get("alpha_kd", 0.5)       #  KD 가중치
+    ce_alpha = cfg.get("ce_alpha", 1.0)       #  CE 가중치
+    latent_w = cfg.get("latent_alpha", 1.0)   #  잠재 정렬
     clip = cfg.get("grad_clip_norm", 0)
     autocast_ctx, scaler = get_amp_components(cfg)
     vib_mbm.eval()
@@ -237,25 +240,40 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
         )
         for x, y in epoch_loader:
             x, y = x.to(device), y.to(device)
+
+            # ─ Teacher feature → synergy target ─────────────────
             with torch.no_grad():
                 out1 = teacher1(x)
                 out2 = teacher2(x)
                 t1_dict = out1[0] if isinstance(out1, tuple) else out1
                 t2_dict = out2[0] if isinstance(out2, tuple) else out2
-                f1 = t1_dict["feat_2d"]
-                f2 = t2_dict["feat_2d"]
-                _, _, _, mu = vib_mbm(
-                    f1,
-                    f2,
-                    log_kl=cfg.get("log_kl", False),
-                )
-                z_target = mu.detach()
-            with autocast_ctx:
-                feat_dict, s_logit, _ = student_model(x)
-                s_feat = feat_dict["feat_2d"]
-                z_pred = student_proj(s_feat)
-                kd = F.mse_loss(z_pred, z_target)
-                loss = ce_alpha * F.cross_entropy(s_logit, y) + alpha * kd
+                feat1, feat2 = t1_dict["feat_2d"], t2_dict["feat_2d"]
+                z_t, logit_t, _, _ = vib_mbm(feat1, feat2)
+
+            # ─ Student forward ─────────────────────────────────
+            s_out = student_model(x)
+
+            # ConvNeXt adapter: (feat_dict, logits, aux)  ← 3‑tuple
+            if isinstance(s_out, tuple) and len(s_out) == 3:
+                feat_dict, logit_s, _ = s_out
+                feat_s = feat_dict["feat_2d"]
+            elif isinstance(s_out, tuple) and len(s_out) == 2:
+                feat_s, logit_s = s_out
+            else:  # 단일 tensor 리턴 모델
+                logit_s = s_out
+                feat_s = student_model.get_feat()       # 필요 시 구현
+            z_s = student_proj(feat_s)
+
+            # ─ Losses ──────────────────────────────────────────
+            ce = F.cross_entropy(logit_s, y)
+            kd = F.kl_div(
+                F.log_softmax(logit_s / T, dim=1),
+                F.softmax(logit_t.detach() / T, dim=1),
+                reduction="batchmean",
+            ) * (T * T)
+            latent = F.mse_loss(z_s, z_t.detach())
+
+            loss = ce_alpha * ce + alpha_kd * kd + latent_w * latent
             optimizer.zero_grad()
             if scaler is not None:
                 scaler.scale(loss).backward()
@@ -276,7 +294,7 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
                     )
                 optimizer.step()
             running_loss += loss.item() * x.size(0)
-            correct += (s_logit.argmax(1) == y).sum().item()
+            correct += (logit_s.argmax(1) == y).sum().item()
             count += x.size(0)
         scheduler.step()
         avg_loss = running_loss / max(count, 1)
