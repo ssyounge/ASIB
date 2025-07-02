@@ -9,6 +9,10 @@ def evaluate_acc(model, loader, device="cuda", cfg=None, mixup_active: bool = Fa
     total = 0
     for x, y in loader:
         x, y = x.to(device), y.to(device)
+        # labels from mixup/cutmix loaders may be one-hot encoded
+        # or have an extra singleton dimension. Squeeze first and
+        # only apply argmax when a class dimension is present.
+        y = y.squeeze()
         if mixup_active and y.ndim > 1:
             y = y.argmax(dim=1)
         out = model(x)
