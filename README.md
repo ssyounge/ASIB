@@ -498,9 +498,7 @@ Folder Structure
 ├── modules
 │   ├── trainer_student.py
 │   ├── trainer_teacher.py
-│   ├── cutmix_finetune_teacher.py
 │   ├── disagreement.py
-│   ├── partial_freeze.py
 │   ├── losses.py
 │   └── __init__.py
 
@@ -516,7 +514,7 @@ Folder Structure
 	• analysis/: Scripts or notebooks for comparing experiments (compare_ablation.py, plot_results.ipynb)
 	• configs/: YAML config files for partial-freeze settings, hyperparameters
 	• methods/: KD implementations (ASMB, FitNet, CRD, DKD, etc.)
-	• modules/: Partial freeze utility, trainers, custom losses
+        • modules/: Trainers and custom losses
         • scripts/: Shell scripts for multiple or batch experiments
             ◦ Edit `configs/hparams.yaml` to change the default hyperparameters consumed by `run_experiments.sh`
 
