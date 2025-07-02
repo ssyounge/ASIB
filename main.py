@@ -38,8 +38,8 @@ t2 = create_efficientnet_b2(pretrained=True, small_input=True).to(device)
 ft_epochs = cfg.get('finetune_epochs', 0)
 ft_lr = cfg.get('finetune_lr', 1e-4)
 if ft_epochs > 0:
-    simple_finetune(t1, train_loader, ft_lr, ft_epochs, device)
-    simple_finetune(t2, train_loader, ft_lr, ft_epochs, device)
+    simple_finetune(t1, train_loader, ft_lr, ft_epochs, device, cfg)
+    simple_finetune(t2, train_loader, ft_lr, ft_epochs, device, cfg)
 freeze_all(t1)
 freeze_all(t2)
 t1.eval()
@@ -55,6 +55,7 @@ proj = StudentProj(
     student.get_feat_dim(),
     cfg['z_dim'],
     normalize=cfg.get('proj_normalize', True),
+    use_bn=cfg.get('proj_use_bn', False),
 ).to(device)
 
 opt_t = Adam(mbm.parameters(), lr=cfg['teacher_lr'], weight_decay=cfg['teacher_weight_decay'])

@@ -19,6 +19,8 @@ small_input: true
 mbm_type: "VIB"
 z_dim: 256
 proj_normalize: true
+proj_use_bn: false
+use_amp: true
 beta_bottleneck: 0.003
 alpha_kd: 0.7
 ce_alpha: 1.0
@@ -29,7 +31,7 @@ student_lr: 5e-4
 teacher_weight_decay: 5e-4
 student_weight_decay: 5e-4
 lr_schedule: "cosine"
-grad_clip_norm: 0
+grad_clip_norm: 1.0
 
 # ─ 학습 스테이지 ──────────────────────────────────
 teacher_iters: 5

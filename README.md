@@ -56,6 +56,8 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
   adapter used by a custom `student_swin_adapter` (default `64`)
 - **Student Projection Normalization**: set `proj_normalize` (default `true`) to
   apply L2 normalization on features before the student projection head
+  Set `proj_use_bn: true` to insert a scale-free BatchNorm layer after the
+  projection for better matching with teacher features.
 - **Smart Progress Bars**: progress bars hide automatically when stdout isn't a TTY
 - **CIFAR-friendly ResNet/EfficientNet stem**: use `--small_input 1` when
   fine-tuning or evaluating models that modify the conv stem for 32x32 inputs
