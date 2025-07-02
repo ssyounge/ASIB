@@ -22,11 +22,12 @@ parser.add_argument('--cfg', default='configs/minimal.yaml', help='YAML config')
 parser.add_argument('--teacher1_ckpt', type=str, help='Path to teacher-1 checkpoint')
 parser.add_argument('--teacher2_ckpt', type=str, help='Path to teacher-2 checkpoint')
 parser.add_argument('--results_dir', type=str, help='Where to save logs / ckpts')
+parser.add_argument('--batch_size', type=int, help='Mini-batch size for training')
 args = parser.parse_args()
 cfg = yaml.safe_load(open(args.cfg))
 
-for k in ('teacher1_ckpt', 'teacher2_ckpt', 'results_dir'):
-    v = getattr(args, k)
+for k in ('teacher1_ckpt', 'teacher2_ckpt', 'results_dir', 'batch_size'):
+    v = getattr(args, k, None)
     if v is not None:
         cfg[k] = v
 
@@ -35,7 +36,8 @@ set_random_seed(cfg.get('seed', 42))
 
 # ---------- data ----------
 train_loader, test_loader = get_cifar100_loaders(
-    batch_size=cfg['batch_size'], num_workers=cfg.get('num_workers', 0)
+    batch_size=cfg.get('batch_size', 128),
+    num_workers=cfg.get('num_workers', 0),
 )
 
 # ---------- teachers ----------
