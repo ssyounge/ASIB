@@ -1,6 +1,4 @@
 torch
 torchvision
-timm
 PyYAML
 tqdm
-pandas
