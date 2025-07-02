@@ -18,8 +18,8 @@ z_dim: 256
 beta_bottleneck: 0.003       # IB KL 가중치
 alpha_kd: 0.7                # soft‑KD 비중 ↑
 ce_alpha: 1.0                # 🔸 CE 그대로
-kd_temperature: 4            # 🔹 새 항목 ‑ T
-latent_alpha: 0.5            # z‑MSE 비중 ↓
+kd_temperature: 3            # 🔹 새 항목 ‑ T
+latent_alpha: 0.3            # z‑MSE 비중 ↓
 label_smoothing: 0.1         # 🔹 CE 안정화
 randaug_N: 2                 # 🔹 RandAug(N,M)
 randaug_M: 7
@@ -27,7 +27,7 @@ randaug_M: 7
 teacher_weight_decay: 5e-4
 student_weight_decay: 5e-4
 teacher_lr: 3e-4
-student_lr: 5e-4
+student_lr: 6e-4
 lr_schedule: "cosine"
 grad_clip_norm: 1.0
 
@@ -35,7 +35,7 @@ grad_clip_norm: 1.0
 eval_after_train: true
 
 # ─ Data Mixing ───────────────────────────────────
-mixup_alpha: 0.2             # CutMix 대신 MixUp 경량 사용
+mixup_alpha: 0.1             # CutMix 대신 MixUp 경량 사용
 cutmix_alpha_distill: 0.0    # (0 = MixUp 우선)
  
 # ─ 학습 스테이지 ──────────────────────────────────
@@ -45,8 +45,10 @@ student_iters: 40            # 학생 학습 2×
 
 # ─ EMA 평가 ─────────────
 use_ema: true
-ema_decay: 0.999
+ema_decay: 0.998
 
-finetune_lr: 1e-4
-finetune_epochs: 3
-finetune_weight_decay: 1e-4
+# --- Teacher fine‑tune ---
+finetune_epochs: 20
+finetune_lr: 5e-4
+finetune_weight_decay: 1e-5
+teacher2_freeze_scope: "none"
