@@ -1,10 +1,15 @@
 # utils/logger.py
 
-import os
-import csv
-import json
-import time
+import os, sys, csv, json, time, logging
 from datetime import datetime
+
+# ── 0) console logger 설정 (한 줄 timestamp + 색상* 지원)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s │ %(levelname)s │ %(message)s",
+    datefmt="%m-%d %H:%M:%S",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
 
 def save_json(exp_dict, save_path):
     """
@@ -87,13 +92,9 @@ class ExperimentLogger:
         """
         self.config[key] = value
 
+    # drop‑in logger
     def info(self, msg: str):
-        """
-        drop-in replacement for logging.Logger.info.
-        현재는 stdout으로만 출력하지만, 필요하면
-        파일에 따로 쓰거나 time-stamp를 붙이는 등 확장 가능.
-        """
-        print(msg)
+        logging.info(msg)
 
     def finalize(self):
         """
@@ -120,7 +121,7 @@ class ExperimentLogger:
 
         # Save the JSON (all info)
         save_json(self.config, json_path)
-        print(f"[ExperimentLogger] JSON saved => {json_path}")
+        self.info(f"JSON  ↗ {json_path}")
 
         # 4) Write CSV
         #   - 기본 열 + 모든 ep* 또는 teacher_ep* key 자동 포함
@@ -146,4 +147,13 @@ class ExperimentLogger:
         fieldnames = base_cols + sorted(epoch_cols)
 
         save_csv_row(self.config, csv_path, fieldnames, write_header_if_new=True)
-        print(f"[ExperimentLogger] CSV saved => {csv_path}")
+        self.info(f"CSV   ↗ {csv_path}")
+
+        # ── 한 줄 summary ───────────────────────
+        tr = self.config.get("train_acc", "-")
+        te = self.config.get("test_acc",  "-")
+        self.info(
+            f"SUMMARY │ {self.exp_id} │ train {tr} │ test {te} │ "
+            f"time {total_time/60:.1f} min"
+        )
+
