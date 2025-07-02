@@ -12,7 +12,7 @@ from utils.misc import set_random_seed, check_label_range, get_model_num_classes
 from data.cifar100 import get_cifar100_loaders
 from data.imagenet100 import get_imagenet100_loaders
 from utils.model_factory import create_teacher_by_name, create_student_by_name
-from utils.freeze import partial_freeze_teacher_auto, partial_freeze_student_auto
+from utils.freeze import freeze_all, partial_freeze_student_auto
 
 from methods.vanilla_kd import VanillaKDDistiller
 from methods.fitnet import FitNetDistiller
@@ -31,7 +31,7 @@ METHOD_MAP = {
 
 def parse_args():
     p = argparse.ArgumentParser(description="Single teacher KD")
-    p.add_argument("--config", type=str, default="configs/default.yaml")
+    p.add_argument("--config", type=str, default="configs/minimal.yaml")
     p.add_argument("--method", type=str, default="vanilla_kd")
     p.add_argument("--teacher_type", type=str)
     p.add_argument("--teacher_ckpt", type=str)
@@ -48,8 +48,6 @@ def parse_args():
     p.add_argument("--dataset", "--dataset_name", dest="dataset_name", type=str,
                    help="Dataset to use (cifar100 or imagenet100). Defaults to the config value")
     p.add_argument("--data_aug", type=int)
-    p.add_argument("--mixup_alpha", type=float)
-    p.add_argument("--cutmix_alpha_distill", type=float)
     p.add_argument("--label_smoothing", type=float)
     p.add_argument("--small_input", type=int)
     p.add_argument("--student_freeze_level", type=int)
@@ -157,15 +155,7 @@ def main():
         )
         print(f"[run_single_teacher.py] Loaded teacher from {teacher_ckpt_path}")
     if cfg.get("use_partial_freeze", True):
-        partial_freeze_teacher_auto(
-            teacher,
-            cfg.get("teacher_type", cfg.get("default_teacher_type")),
-            freeze_bn=cfg.get("teacher_freeze_bn", True),
-            freeze_ln=cfg.get("teacher_freeze_ln", True),
-            use_adapter=cfg.get("teacher_use_adapter", False),
-            bn_head_only=cfg.get("teacher_bn_head_only", False),
-            freeze_level=cfg.get("teacher_freeze_level", 1),
-        )
+        freeze_all(teacher)
 
     student = create_student_by_name(
         cfg.get("student_type", "convnext_tiny"),

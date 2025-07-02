@@ -21,7 +21,7 @@ from utils.eval import evaluate_acc as eval_teacher
 
 def parse_args():
     p = argparse.ArgumentParser(description="Student baseline training")
-    p.add_argument("--config", type=str, default="configs/default.yaml")
+    p.add_argument("--config", type=str, default="configs/minimal.yaml")
     p.add_argument("--student_type", type=str)
     p.add_argument("--student_ckpt", type=str)
     p.add_argument("--batch_size", type=int)

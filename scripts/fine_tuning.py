@@ -1,12 +1,12 @@
 # scripts/fine_tuning.py
 """
 Example: Fine-tuning Teacher (ResNet/EfficientNet/Swin) on either CIFAR-100 or ImageNet100
-using optional CutMix or standard CE training.
+using standard cross-entropy training.
 
 Usage:
-  python fine_tuning.py --config configs/hparams.yaml
+  python fine_tuning.py --config configs/minimal.yaml
 
-All fine-tuning options live in `configs/hparams.yaml`.
+All fine-tuning options live in `configs/minimal.yaml`.
 """
 
 import sys
@@ -31,10 +31,9 @@ from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from models.teachers.teacher_swin import create_swin_t
 
 # partial freeze
-from utils.freeze import freeze_all, partial_freeze_teacher_auto
+from utils.freeze import freeze_all
 
-# cutmix finetune
-from modules.cutmix_finetune_teacher import finetune_teacher_cutmix, eval_teacher
+from utils.eval import evaluate_acc as eval_teacher
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Teacher Fine-tuning Script")
@@ -43,7 +42,7 @@ def parse_args():
     parser.add_argument(
         "--config",
         type=str,
-        default="configs/hparams.yaml",
+        default="configs/minimal.yaml",
         help="Path to YAML config for fine-tuning",
     )
 
@@ -58,7 +57,6 @@ def parse_args():
     parser.add_argument("--batch_size", type=int)
     parser.add_argument("--finetune_weight_decay", type=float)
     # ↓ run_experiments.sh 에서 CutMix 알파도 변경할 수 있도록
-    parser.add_argument("--finetune_cutmix_alpha", type=float)
     parser.add_argument("--data_aug", type=int)
     parser.add_argument("--small_input", type=int)
     parser.add_argument("--dropout_p", type=float)
@@ -255,65 +253,31 @@ def main():
 
     # 3) partial freeze or full fine-tune?
     if cfg.get("finetune_partial_freeze", False):
-        # e.g. freeze backbone, unfreeze head
-        freeze_bn = cfg.get("teacher_freeze_bn", True)
-        freeze_ln = cfg.get("teacher_freeze_ln", True)
-        partial_freeze_teacher_auto(
-            teacher_model,
-            teacher_type,
-            freeze_bn=freeze_bn,
-            freeze_ln=freeze_ln,
-            use_adapter=cfg.get("teacher_use_adapter", False),
-            bn_head_only=cfg.get("teacher_bn_head_only", False),
-            freeze_level=cfg.get("teacher_freeze_level", 1),
-        )
-        print("[FineTune] partial freeze mode => only head is trainable (example).")
+        freeze_all(teacher_model)
+        print("[FineTune] freeze_all applied.")
     else:
-        # full fine-tune => do nothing or freeze_all if you want the opposite
-        print("[FineTune] full fine-tune => no partial freeze applied.")
-
-    # 4) use cutmix or standard CE?
-    use_cutmix = cfg.get("finetune_use_cutmix", True)
-    cutmix_alpha = cfg.get("finetune_cutmix_alpha", 1.0)
+        print("[FineTune] full fine-tune => no freezing applied.")
 
     finetune_epochs = cfg.get("finetune_epochs", 10)
     lr = cfg.get("finetune_lr", 1e-3)
     weight_decay = cfg.get("finetune_weight_decay", 1e-4)
-    ckpt_path = cfg.get("finetune_ckpt_path", "teacher_finetuned_cutmix.pth")
+    ckpt_path = cfg.get("finetune_ckpt_path", "teacher_finetuned.pth")
     ckpt_dir = os.path.dirname(ckpt_path)  # ''(빈 문자열) 이면 폴더 없는 케이스
     if ckpt_dir:                            # 폴더가 실제로 있을 때만
         os.makedirs(ckpt_dir, exist_ok=True)
 
-    if use_cutmix:
-        # => call finetune_teacher_cutmix
-        print(f"[FineTune] Using CutMix alpha={cutmix_alpha}, epochs={finetune_epochs}, lr={lr}")
-        teacher_model, best_acc = finetune_teacher_cutmix(
-            teacher_model,
-            train_loader,
-            test_loader,
-            alpha=cutmix_alpha,
-            lr=lr,
-            weight_decay=weight_decay,
-            epochs=finetune_epochs,
-            device=device,
-            ckpt_path=ckpt_path,
-            label_smoothing=cfg.get("label_smoothing", 0.0),
-            cfg=cfg,
-        )
-    else:
-        # => implement your own standard CE fine-tune loop or reuse a function
-        teacher_model, best_acc = standard_ce_finetune(
-            teacher_model,
-            train_loader,
-            test_loader,
-            lr=lr,
-            weight_decay=weight_decay,
-            epochs=finetune_epochs,
-            device=device,
-            ckpt_path=ckpt_path,
-            label_smoothing=cfg.get("label_smoothing", 0.0),
-            cfg=cfg,
-        )
+    teacher_model, best_acc = standard_ce_finetune(
+        teacher_model,
+        train_loader,
+        test_loader,
+        lr=lr,
+        weight_decay=weight_decay,
+        epochs=finetune_epochs,
+        device=device,
+        ckpt_path=ckpt_path,
+        label_smoothing=cfg.get("label_smoothing", 0.0),
+        cfg=cfg,
+    )
 
     print(f"[FineTune] done => bestAcc={best_acc:.2f}, final ckpt={ckpt_path}")
 
