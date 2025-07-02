@@ -1,3 +1,5 @@
+# scripts/run_ibkd.sh
+
 #!/usr/bin/env bash
 #SBATCH --job-name=ibkd_cifar
 #SBATCH --gres=gpu:1
