@@ -17,10 +17,18 @@ from trainer import teacher_vib_update, student_vib_update, simple_finetune
 from utils.freeze import freeze_all
 
 # ---------- CLI ----------
-parser = argparse.ArgumentParser()
-parser.add_argument('--cfg', default='configs/minimal.yaml')
+parser = argparse.ArgumentParser(description="IB-KD entry point")
+parser.add_argument('--cfg', default='configs/minimal.yaml', help='YAML config')
+parser.add_argument('--teacher1_ckpt', type=str, help='Path to teacher-1 checkpoint')
+parser.add_argument('--teacher2_ckpt', type=str, help='Path to teacher-2 checkpoint')
+parser.add_argument('--results_dir', type=str, help='Where to save logs / ckpts')
 args = parser.parse_args()
 cfg = yaml.safe_load(open(args.cfg))
+
+for k in ('teacher1_ckpt', 'teacher2_ckpt', 'results_dir'):
+    v = getattr(args, k)
+    if v is not None:
+        cfg[k] = v
 
 device = cfg.get('device', 'cuda')
 set_random_seed(cfg.get('seed', 42))
