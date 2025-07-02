@@ -13,7 +13,8 @@ from data.cifar100 import get_cifar100_loaders
 from models.teachers.teacher_resnet import create_resnet152
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from models.students.student_convnext import create_convnext_tiny
-from trainer import teacher_vib_update, student_vib_update
+from trainer import teacher_vib_update, student_vib_update, simple_finetune
+from utils.freeze import freeze_all
 
 # ---------- CLI ----------
 parser = argparse.ArgumentParser()
@@ -30,8 +31,19 @@ train_loader, test_loader = get_cifar100_loaders(
 )
 
 # ---------- teachers ----------
-t1 = create_resnet152(pretrained=True, small_input=True).to(device).eval()
-t2 = create_efficientnet_b2(pretrained=True, small_input=True).to(device).eval()
+t1 = create_resnet152(pretrained=True, small_input=True).to(device)
+t2 = create_efficientnet_b2(pretrained=True, small_input=True).to(device)
+
+# optional short fine-tuning before distillation
+ft_epochs = cfg.get('finetune_epochs', 0)
+ft_lr = cfg.get('finetune_lr', 1e-4)
+if ft_epochs > 0:
+    simple_finetune(t1, train_loader, ft_lr, ft_epochs, device)
+    simple_finetune(t2, train_loader, ft_lr, ft_epochs, device)
+freeze_all(t1)
+freeze_all(t2)
+t1.eval()
+t2.eval()
 
 # ---------- VIB-MBM ----------
 in1 = t1.get_feat_dim(); in2 = t2.get_feat_dim()

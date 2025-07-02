@@ -5,6 +5,26 @@ import torch.nn.functional as F
 from utils.schedule import cosine_lr_scheduler
 
 
+def simple_finetune(model, loader, lr, epochs, device, weight_decay=0.0):
+    """Minimal cross-entropy fine-tuning loop for teachers."""
+    if epochs <= 0:
+        return
+    model.train()
+    optimizer = torch.optim.Adam(
+        model.parameters(), lr=lr, weight_decay=weight_decay
+    )
+    criterion = torch.nn.CrossEntropyLoss()
+    for _ in range(epochs):
+        for x, y in loader:
+            x, y = x.to(device), y.to(device)
+            optimizer.zero_grad()
+            out = model(x)
+            logit = out[1] if isinstance(out, tuple) else out
+            loss = criterion(logit, y)
+            loss.backward()
+            optimizer.step()
+
+
 def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer):
     device = cfg.get("device", "cuda")
     beta = cfg.get("beta_bottleneck", 0.003)

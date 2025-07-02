@@ -34,3 +34,7 @@ grad_clip_norm: 0
 # ─ 학습 스테이지 ──────────────────────────────────
 teacher_iters: 5
 student_iters: 15
+
+# ─ Teacher Fine‑tune ──────────────────────────────
+finetune_epochs: 1
+finetune_lr: 1e-4
