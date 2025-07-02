@@ -95,7 +95,7 @@ def simple_finetune(
     model.train()
 
 
-def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer):
+def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test_loader=None, logger=None):
     """Train the VIB module using frozen teachers.
 
     Args:
@@ -120,6 +120,7 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer):
     for ep in range(cfg.get("teacher_iters", 1)):
         running_loss = 0.0
         running_kl = 0.0
+        correct = 0
         count = 0
         epoch_loader = tqdm(
             loader,
@@ -158,17 +159,27 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer):
                 optimizer.step()
             running_loss += loss.item() * x.size(0)
             running_kl += kl_z.mean().item() * x.size(0)
+            correct += (logit_syn.argmax(1) == y).sum().item()
             count += x.size(0)
         scheduler.step()
         avg_loss = running_loss / max(count, 1)
         avg_kl = running_kl / max(count, 1)
+        train_acc = 100.0 * correct / max(count, 1)
+        test_acc = 0.0
+        if test_loader is not None:
+            from utils.eval import evaluate_mbm_acc
+
+            test_acc = evaluate_mbm_acc(teacher1, teacher2, vib_mbm, test_loader, device)
         print(
             f"[Teacher] ep {ep + 1:03d}/{cfg.get('teacher_iters', 1)} "
-            f"loss {avg_loss:.4f} kl {avg_kl:.4f}"
+            f"loss {avg_loss:.4f} kl {avg_kl:.4f} train_acc {train_acc:.2f}% test_acc {test_acc:.2f}%"
         )
+        if logger is not None:
+            logger.update_metric(f"teacher_ep{ep + 1}_train_acc", float(train_acc))
+            logger.update_metric(f"teacher_ep{ep + 1}_test_acc", float(test_acc))
 
 
-def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj, loader, cfg, optimizer):
+def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj, loader, cfg, optimizer, test_loader=None, logger=None):
     """Update the student network to mimic the VIB representation.
 
     Args:
@@ -194,6 +205,7 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
     scheduler = cosine_lr_scheduler(optimizer, cfg.get("student_iters", 1))
     for ep in range(cfg.get("student_iters", 1)):
         running_loss = 0.0
+        correct = 0
         count = 0
         epoch_loader = tqdm(
             loader,
@@ -242,12 +254,25 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
                     )
                 optimizer.step()
             running_loss += loss.item() * x.size(0)
+            correct += (s_logit.argmax(1) == y).sum().item()
             count += x.size(0)
         scheduler.step()
         avg_loss = running_loss / max(count, 1)
+        train_acc = 100.0 * correct / max(count, 1)
+        test_acc = 0.0
+        if test_loader is not None:
+            test_acc = evaluate_acc(
+                student_model,
+                test_loader,
+                device=device,
+                mixup_active=(cfg.get("mixup_alpha", 0) > 0 or cfg.get("cutmix_alpha_distill", 0) > 0),
+            )
         print(
             f"[Student] ep {ep + 1:03d}/{cfg.get('student_iters', 1)} "
-            f"loss {avg_loss:.4f}"
+            f"loss {avg_loss:.4f} train_acc {train_acc:.2f}% test_acc {test_acc:.2f}%"
         )
+        if logger is not None:
+            logger.update_metric(f"student_ep{ep + 1}_train_acc", float(train_acc))
+            logger.update_metric(f"student_ep{ep + 1}_test_acc", float(test_acc))
 
 

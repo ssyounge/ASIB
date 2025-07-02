@@ -132,8 +132,28 @@ opt_s = AdamW(
 )
 
 # ---------- training ----------
-teacher_vib_update(t1, t2, mbm, train_loader, cfg, opt_t)
-student_vib_update(t1, t2, student, mbm, proj, train_loader, cfg, opt_s)
+teacher_vib_update(
+    t1,
+    t2,
+    mbm,
+    train_loader,
+    cfg,
+    opt_t,
+    test_loader=test_loader,
+    logger=logger,
+)
+student_vib_update(
+    t1,
+    t2,
+    student,
+    mbm,
+    proj,
+    train_loader,
+    cfg,
+    opt_s,
+    test_loader=test_loader,
+    logger=logger,
+)
 
 if cfg.get("eval_after_train", True):
     acc = evaluate_acc(
