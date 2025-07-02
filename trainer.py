@@ -1,7 +1,7 @@
 # trainer.py
 
 import os
-import torch
+import copy, torch
 import torch.nn.functional as F   # loss 함수(F.cross_entropy 등)용
 from utils.schedule import cosine_lr_scheduler
 from utils.misc import get_amp_components
@@ -227,6 +227,7 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
     autocast_ctx, scaler = get_amp_components(cfg)
     vib_mbm.eval()
     student_model.train()
+    ema_model = None
     scheduler = cosine_lr_scheduler(optimizer, cfg.get("student_iters", 1))
     for ep in range(cfg.get("student_iters", 1)):
         running_loss = 0.0
@@ -299,10 +300,22 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
         scheduler.step()
         avg_loss = running_loss / max(count, 1)
         train_acc = 100.0 * correct / max(count, 1)
+        # ─ EMA 추적 ─────────────────────────────────
+        if cfg.get("use_ema", False):
+            if ep == 0:           # 초기화
+                ema_model = copy.deepcopy(student_model).eval()
+            else:                 # 이동 평균
+                with torch.no_grad():
+                    for p_ema, p in zip(ema_model.parameters(),
+                                        student_model.parameters()):
+                        p_ema.data.mul_(cfg.get("ema_decay", 0.999)).add_(p.data, alpha=1 - cfg.get("ema_decay", 0.999))
+
+        # ─ 테스트 정확도 ────────────────────────────
         test_acc = 0.0
         if test_loader is not None:
+            model_eval = ema_model if cfg.get("use_ema", False) else student_model
             test_acc = evaluate_acc(
-                student_model,
+                model_eval,
                 test_loader,
                 device=device,
                 mixup_active=(cfg.get("mixup_alpha", 0) > 0 or cfg.get("cutmix_alpha_distill", 0) > 0),
@@ -314,5 +327,14 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
         if logger is not None:
             logger.update_metric(f"student_ep{ep + 1}_train_acc", float(train_acc))
             logger.update_metric(f"student_ep{ep + 1}_test_acc", float(test_acc))
+
+# ─ 최종 EMA 성능 저장 ──────────────────────────────
+    if cfg.get("use_ema", False) and test_loader is not None:
+        final_ema_acc = evaluate_acc(
+            ema_model, test_loader, device=device,
+            mixup_active=(cfg.get("mixup_alpha", 0) > 0 or cfg.get("cutmix_alpha_distill", 0) > 0),
+        )
+        logger.update_metric("test_acc", float(final_ema_acc))
+        print(f"Final student EMA accuracy: {final_ema_acc:.2f}%")
 
 
