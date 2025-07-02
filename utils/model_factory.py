@@ -3,7 +3,7 @@
 import torch
 from typing import Optional
 
-from models.teachers.teacher_resnet import create_resnet101, create_resnet152
+from models.teachers.teacher_resnet import create_resnet152
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from models.students.student_convnext import create_convnext_tiny
 
@@ -22,9 +22,8 @@ def create_teacher_by_name(
     cfg: Optional[dict] = None,
 ):
     """Factory for teacher models in this minimal repo."""
-    if teacher_type in {"resnet101", "resnet152"}:
-        fn = create_resnet101 if teacher_type == "resnet101" else create_resnet152
-        return fn(
+    if teacher_type == "resnet152":
+        return create_resnet152(
             num_classes=num_classes,
             pretrained=pretrained,
             small_input=small_input,
@@ -38,7 +37,9 @@ def create_teacher_by_name(
             dropout_p=dropout_p,
             cfg=cfg,
         )
-    raise ValueError(f"Unknown teacher_type: {teacher_type}")
+    raise ValueError(
+        f"Unknown teacher_type: {teacher_type} (expected 'resnet152' or 'efficientnet_b2')"
+    )
 
 
 def create_student_by_name(
@@ -49,12 +50,14 @@ def create_student_by_name(
     cfg: Optional[dict] = None,
 ):
     """Factory for student models in this minimal repo."""
-    if student_type in {"convnext_tiny", "convnext"}:
+    if student_type == "convnext_tiny":
         return create_convnext_tiny(
             num_classes=num_classes,
             pretrained=pretrained,
             small_input=small_input,
             cfg=cfg,
         )
-    raise ValueError(f"Unknown student_type: {student_type}")
+    raise ValueError(
+        f"Unknown student_type: {student_type} (expected 'convnext_tiny')"
+    )
 

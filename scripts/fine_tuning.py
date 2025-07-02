@@ -26,7 +26,7 @@ from data.cifar100 import get_cifar100_loaders
 from data.imagenet100 import get_imagenet100_loaders
 
 # teacher factories
-from models.teachers.teacher_resnet import create_resnet101, create_resnet152
+from models.teachers.teacher_resnet import create_resnet152
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from models.teachers.teacher_swin import create_swin_t
 
@@ -104,16 +104,9 @@ def create_teacher_by_name(
     cfg: Optional[dict] = None,
 ):
     """
-    Extends to handle resnet152, resnet101, efficientnet_b2, swin_tiny, etc.
+    Extends to handle resnet152, efficientnet_b2, swin_tiny, etc.
     """
-    if teacher_type == "resnet101":
-        return create_resnet101(
-            num_classes=num_classes,
-            pretrained=pretrained,
-            small_input=small_input,
-            cfg=cfg,
-        )
-    elif teacher_type == "resnet152":
+    if teacher_type == "resnet152":
         return create_resnet152(
             num_classes=num_classes,
             pretrained=pretrained,
