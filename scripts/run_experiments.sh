@@ -131,51 +131,32 @@ run_loop() {
           # Save the one true config file for this job
           cp "$CFG_TMP" "${OUTDIR}/config.yaml"
 
-          if [ "$METHOD" = "asmb" ]; then
-          python main.py \
-            --config "${CFG_TMP}" \
-            --teacher1_type "${T1}" \
-            --teacher2_type "${T2}" \
-            --finetune_epochs 0 \
-            --student_type "${STUDENT}" \
-            --num_stages ${STAGE} \
-            --synergy_ce_alpha ${SC_ALPHA} \
-            --hybrid_beta ${H_BETA} \
-            --teacher_lr ${teacher_lr} \
-            --student_lr ${student_lr} \
-            --batch_size ${batch_size} \
-            --teacher1_use_adapter ${teacher1_use_adapter} \
-            --teacher1_bn_head_only ${teacher1_bn_head_only} \
-            --teacher2_use_adapter ${teacher2_use_adapter} \
-            --teacher2_bn_head_only ${teacher2_bn_head_only} \
-            --student_freeze_level ${student_freeze_level} \
-            --results_dir "${OUTDIR}" \
-            --ckpt_dir "${CKPT_DIR}" \
-            --exp_id "${EXP_ID}" \
-            --seed 42 \
-            --data_aug ${data_aug} \
-            --mixup_alpha ${mixup_alpha} \
-            --cutmix_alpha_distill ${cutmix_alpha_distill} \
-            --label_smoothing ${label_smoothing} \
-            --method ${METHOD}
-          else
-          python scripts/run_single_teacher.py \
-            --config "${CFG_TMP}" \
-            --teacher_type "${T2}" \
-            --student_type "${STUDENT}" \
-            --student_lr ${student_lr} \
-            --batch_size ${batch_size} \
-            --epochs ${student_epochs_per_stage} \
-            --student_freeze_level ${student_freeze_level} \
-            --results_dir "${OUTDIR}" \
-            --ckpt_dir "${CKPT_DIR}" \
-            --seed 42 \
-            --data_aug ${data_aug} \
-            --mixup_alpha ${mixup_alpha} \
-            --cutmix_alpha_distill ${cutmix_alpha_distill} \
-            --label_smoothing ${label_smoothing} \
-            --method ${METHOD}
-          fi
+        python main.py \
+          --config "${CFG_TMP}" \
+          --teacher1_type "${T1}" \
+          --teacher2_type "${T2}" \
+          --finetune_epochs 0 \
+          --student_type "${STUDENT}" \
+          --num_stages ${STAGE} \
+          --synergy_ce_alpha ${SC_ALPHA} \
+          --hybrid_beta ${H_BETA} \
+          --teacher_lr ${teacher_lr} \
+          --student_lr ${student_lr} \
+          --batch_size ${batch_size} \
+          --teacher1_use_adapter ${teacher1_use_adapter} \
+          --teacher1_bn_head_only ${teacher1_bn_head_only} \
+          --teacher2_use_adapter ${teacher2_use_adapter} \
+          --teacher2_bn_head_only ${teacher2_bn_head_only} \
+          --student_freeze_level ${student_freeze_level} \
+          --results_dir "${OUTDIR}" \
+          --ckpt_dir "${CKPT_DIR}" \
+          --exp_id "${EXP_ID}" \
+          --seed 42 \
+          --data_aug ${data_aug} \
+          --mixup_alpha ${mixup_alpha} \
+          --cutmix_alpha_distill ${cutmix_alpha_distill} \
+          --label_smoothing ${label_smoothing} \
+          --method ${METHOD}
                 done            # closes STAGE loop
               done              # closes 'for H_BETA' loop
             done                # closes 'for SC_ALPHA' loop

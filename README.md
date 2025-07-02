@@ -1,6 +1,6 @@
 # ASMB Knowledge Distillation Framework
 
-This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-stage knowledge distillation framework, along with various KD methods (FitNet, CRD, AT, DKD, VanillaKD, etc.) and a partial-freeze mechanism for large models.
+This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-stage knowledge distillation framework with a partial-freeze mechanism for large models.
 
 ---
 
@@ -9,7 +9,6 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 - **Multi-Stage Distillation**: Teacher ↔ Student updates in a phased (block-wise) manner  
 - **ASMB** (Adaptive Synergy Manifold Bridging): Uses a Manifold Bridging Module (MBM) to fuse two Teacher feature maps into synergy logits  
 - **Partial Freeze**: Freeze backbone parameters, adapt BN/Heads/MBM for efficiency  
-- **Multiple KD Methods**: FitNet, CRD, AT, DKD, VanillaKD, plus custom `asmb.py`
 - **CIFAR-100 / ImageNet100** dataset support
 - **Automatic class count detection**: number of classes is inferred from the
   training loader when using `ImageFolder` or CIFAR datasets
@@ -97,18 +96,11 @@ set the `CONDA_ENV` variable accordingly. You can also skip activation
 entirely by exporting `USE_CONDA=0` before running the script. Run experiments
 directly with `bash scripts/run_experiments.sh --mode {loop,sweep}`.
 
-Set the distillation method via the `METHOD` variable or provide a
-space‑separated list using `METHOD_LIST`. The default `asmb` runs the
-multi‑teacher pipeline in `main.py`. Specify `vanilla_kd`, `fitnet`, `dkd`,
-`at` or `crd` to launch the single‑teacher runner. With `METHOD_LIST` you can
-execute several methods sequentially:
+Set the distillation method via the `METHOD` variable. The default `asmb` runs
+the multi‑teacher pipeline in `main.py`.
 
 The main training script accepts the same flag via `--method` (default `asmb`)
 so `run_experiments.sh` can pass it uniformly.
-
-```bash
-METHOD_LIST="asmb fitnet vanilla_kd" bash scripts/run_experiments.sh --mode loop
-```
 
 The base config merged by `generate_config.py` defaults to
 `configs/default.yaml`. This file defines universal settings such as
@@ -246,22 +238,7 @@ python main.py --config configs/partial_freeze.yaml --device cuda \
 	•	Teacher checkpoints load automatically from `checkpoints/{teacher_type}_ft.pth` when available.
         •       Each trainer creates its own optimizer and scheduler at the start of every stage.
 
-2) Single-Teacher Distillation (run_single_teacher.py)
-
-```bash
-python scripts/run_single_teacher.py --config configs/default.yaml \
-  --method vanilla_kd --teacher_type resnet152 --teacher_ckpt teacher.pth \
-  --student_type convnext_tiny --epochs 40 \
-  --dataset imagenet100
-```
-
-The `--method` flag selects one of `vanilla_kd`, `fitnet`, `dkd`, `at` or `crd`.
-Pass `--dataset` to override the dataset specified in the YAML config (either
-`cifar100` or `imagenet100`).
-Partial freezing is automatically turned off for these methods—`run_single_teacher.py`
-sets `use_partial_freeze: false` when the selected `method` is not `asmb`.
-
-3) Student Baseline (train_student_baseline.py)
+2) Student Baseline (train_student_baseline.py)
 
 ### Student Baseline
 
@@ -276,9 +253,9 @@ python scripts/train_student_baseline.py --config configs/partial_freeze.yaml \
 The script uses the same optimizer and scheduler configuration as the distillation runs. The resulting accuracy serves as the reference for all distillation experiments and is saved under `results/`.
 
 
-4) Evaluation (utils.eval.evaluate_acc)
+3) Evaluation (utils.eval.evaluate_acc)
 
-Use `utils.eval.evaluate_acc` to compute accuracy for your model. The old script lives under `legacy_scripts/eval_asmb_old.py` for reference.
+Use `utils.eval.evaluate_acc` to compute accuracy for your model.
 
 ### Data Augmentation
 
@@ -454,8 +431,6 @@ Folder Structure
 
 (Repo Root)
 ├── main.py               # Main training script (ASMB, partial freeze)
-├── legacy_scripts
-│   └── eval_asmb_old.py   # Old evaluation script
 ├── requirements.txt      # Dependencies
 ├── README.md             # Project info
 ├── LICENSE               # MIT License
@@ -474,15 +449,6 @@ Folder Structure
 │   ├── imagenet100.py
 │   └── __init__.py
 
-├── methods              # Various KD algorithms
-│   ├── asmb.py
-│   ├── fitnet.py
-│   ├── crd.py
-│   ├── dkd.py
-│   ├── at.py
-│   ├── vanilla_kd.py
-│   └── __init__.py
-
 ├── models
 │   ├── __init__.py
 │   ├── mbm.py
@@ -494,7 +460,6 @@ Folder Structure
 │       ├── teacher_efficientnet.py
 │       ├── teacher_resnet.py
 │       └── teacher_swin.py
-
 ├── modules
 │   ├── trainer_student.py
 │   ├── trainer_teacher.py
@@ -503,7 +468,6 @@ Folder Structure
 │   ├── partial_freeze.py
 │   ├── losses.py
 │   └── __init__.py
-
 ├── scripts
 │   ├── fine_tuning.py
 │   └── run_experiments.sh
@@ -515,7 +479,6 @@ Folder Structure
 
 	• analysis/: Scripts or notebooks for comparing experiments (compare_ablation.py, plot_results.ipynb)
 	• configs/: YAML config files for partial-freeze settings, hyperparameters
-	• methods/: KD implementations (ASMB, FitNet, CRD, DKD, etc.)
 	• modules/: Partial freeze utility, trainers, custom losses
         • scripts/: Shell scripts for multiple or batch experiments
             ◦ Edit `configs/hparams.yaml` to change the default hyperparameters consumed by `run_experiments.sh`
