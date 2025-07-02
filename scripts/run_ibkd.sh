@@ -35,13 +35,13 @@ ft_teacher () {
       echo "[INFO] $MODEL ckpt exists → skip fine-tune"
   else
       echo "[INFO] fine-tuning $MODEL → $CKPT"
-      python scripts/fine_tuning.py \
-          --config configs/minimal.yaml \
-          --teacher_type "$MODEL" \
-          --finetune_ckpt_path "$CKPT" \
-          --finetune_epochs "${FINETUNE_EPOCHS:-3}" \
-          --finetune_lr     "${FINETUNE_LR:-1e-4}" \
-          --device cuda
+        python scripts/fine_tuning.py \
+            --config configs/minimal.yaml \
+            --teacher_type "$MODEL" \
+            --finetune_ckpt_path "$CKPT" \
+            ${FINETUNE_EPOCHS:+--finetune_epochs "$FINETUNE_EPOCHS"} \
+            ${FINETUNE_LR:+--finetune_lr "$FINETUNE_LR"} \
+            --device cuda
   fi
 }
 ft_teacher resnet152       "$T1_CKPT"
