@@ -1,6 +1,7 @@
 # main.py
 
 import argparse
+import os
 import yaml
 import torch
 from torch.optim import Adam, AdamW
@@ -48,25 +49,45 @@ t2 = create_efficientnet_b2(pretrained=True, small_input=True).to(device)
 # optional short fine-tuning before distillation
 ft_epochs = cfg.get('finetune_epochs', 0)
 ft_lr = cfg.get('finetune_lr', 1e-4)
+
+t1_ckpt = cfg.get('teacher1_ckpt')
+t2_ckpt = cfg.get('teacher2_ckpt')
+loaded1 = False
+loaded2 = False
+
+if t1_ckpt and os.path.exists(t1_ckpt):
+    t1.load_state_dict(torch.load(t1_ckpt, map_location=device))
+    print(f"[INFO] Loaded teacher1 checkpoint: {t1_ckpt}")
+    loaded1 = True
+
+if t2_ckpt and os.path.exists(t2_ckpt):
+    t2.load_state_dict(torch.load(t2_ckpt, map_location=device))
+    print(f"[INFO] Loaded teacher2 checkpoint: {t2_ckpt}")
+    loaded2 = True
+
 if ft_epochs > 0:
-    simple_finetune(
-        t1,
-        train_loader,
-        ft_lr,
-        ft_epochs,
-        device,
-        weight_decay=cfg.get("finetune_weight_decay", 0.0),
-        cfg=cfg,
-    )
-    simple_finetune(
-        t2,
-        train_loader,
-        ft_lr,
-        ft_epochs,
-        device,
-        weight_decay=cfg.get("finetune_weight_decay", 0.0),
-        cfg=cfg,
-    )
+    if not loaded1:
+        simple_finetune(
+            t1,
+            train_loader,
+            ft_lr,
+            ft_epochs,
+            device,
+            weight_decay=cfg.get("finetune_weight_decay", 0.0),
+            cfg=cfg,
+            ckpt_path=t1_ckpt or "checkpoints/teacher1_ft.pth",
+        )
+    if not loaded2:
+        simple_finetune(
+            t2,
+            train_loader,
+            ft_lr,
+            ft_epochs,
+            device,
+            weight_decay=cfg.get("finetune_weight_decay", 0.0),
+            cfg=cfg,
+            ckpt_path=t2_ckpt or "checkpoints/teacher2_ft.pth",
+        )
 freeze_all(t1)
 freeze_all(t2)
 t1.eval()
