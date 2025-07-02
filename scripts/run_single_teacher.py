@@ -12,7 +12,7 @@ from utils.misc import set_random_seed, check_label_range, get_model_num_classes
 from data.cifar100 import get_cifar100_loaders
 from data.imagenet100 import get_imagenet100_loaders
 from utils.model_factory import create_teacher_by_name, create_student_by_name
-from utils.freeze import partial_freeze_teacher_auto, partial_freeze_student_auto
+from utils.freeze import freeze_all
 
 from methods.vanilla_kd import VanillaKDDistiller
 from methods.fitnet import FitNetDistiller
@@ -157,15 +157,7 @@ def main():
         )
         print(f"[run_single_teacher.py] Loaded teacher from {teacher_ckpt_path}")
     if cfg.get("use_partial_freeze", True):
-        partial_freeze_teacher_auto(
-            teacher,
-            cfg.get("teacher_type", cfg.get("default_teacher_type")),
-            freeze_bn=cfg.get("teacher_freeze_bn", True),
-            freeze_ln=cfg.get("teacher_freeze_ln", True),
-            use_adapter=cfg.get("teacher_use_adapter", False),
-            bn_head_only=cfg.get("teacher_bn_head_only", False),
-            freeze_level=cfg.get("teacher_freeze_level", 1),
-        )
+        freeze_all(teacher)
 
     student = create_student_by_name(
         cfg.get("student_type", "convnext_tiny"),
@@ -180,14 +172,7 @@ def main():
             strict=False,
         )
     if cfg.get("use_partial_freeze", True):
-        partial_freeze_student_auto(
-            student,
-            student_name=cfg.get("student_type", "convnext_tiny"),
-            freeze_bn=cfg.get("student_freeze_bn", True),
-            freeze_ln=cfg.get("student_freeze_ln", True),
-            use_adapter=cfg.get("student_use_adapter", False),
-            freeze_level=cfg.get("student_freeze_level", 1),
-        )
+        freeze_all(student)
 
     distiller = build_distiller(method, teacher, student, cfg)
     acc = distiller.train_distillation(
