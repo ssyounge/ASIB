@@ -64,6 +64,9 @@ if t1_ckpt and os.path.exists(t1_ckpt):
         torch.load(t1_ckpt, map_location=device, weights_only=True)
     )
     print(f"[INFO] Loaded teacher1 checkpoint: {t1_ckpt}")
+    acc1 = evaluate_acc(t1, test_loader, device)
+    print(f"[INFO] teacher1 accuracy: {acc1:.2f}%")
+    logger.update_metric("teacher1_acc", float(acc1))
     loaded1 = True
 
 if t2_ckpt and os.path.exists(t2_ckpt):
@@ -71,6 +74,9 @@ if t2_ckpt and os.path.exists(t2_ckpt):
         torch.load(t2_ckpt, map_location=device, weights_only=True)
     )
     print(f"[INFO] Loaded teacher2 checkpoint: {t2_ckpt}")
+    acc2 = evaluate_acc(t2, test_loader, device)
+    print(f"[INFO] teacher2 accuracy: {acc2:.2f}%")
+    logger.update_metric("teacher2_acc", float(acc2))
     loaded2 = True
 
 if ft_epochs > 0:
