@@ -14,6 +14,7 @@ beta_bottleneck: 0.003       # IB KL 가중치
 alpha_kd: 0.5                # 🔹 KD (soft) ↘ 0.5
 ce_alpha: 1.0                # 🔸 CE 그대로
 kd_temperature: 4            # 🔹 새 항목 ‑ T
+latent_alpha: 1.0            # z‑MSE 가중치
 use_ema: true                # 🔹 EMA 활성
 ema_decay: 0.999
 label_smoothing: 0.1         # 🔹 CE 안정화

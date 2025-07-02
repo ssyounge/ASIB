@@ -127,7 +127,7 @@ opt_t = Adam(
 )
 opt_s = AdamW(
     list(student.parameters()) + list(proj.parameters()),
-    lr=float(cfg.get("student_lr", 0.0)),
+    lr=float(cfg.get("student_lr", 5e-4)) * 2,
     weight_decay=float(cfg.get("student_weight_decay", 0.0)),
 )
 
