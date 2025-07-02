@@ -110,8 +110,8 @@ class ExperimentLogger:
         # Ensure results directory exists
         os.makedirs(self.results_dir, exist_ok=True)
 
-        # 2) JSON file path (fixed name within results_dir)
-        json_path = os.path.join(self.results_dir, "summary.json")
+        # 2) JSON file path (per-run using exp_id)
+        json_path = os.path.join(self.results_dir, f"{self.exp_id}.json")
 
         # 3) CSV file path (fixed name)
         csv_filename = "summary.csv"
