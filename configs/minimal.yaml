@@ -20,9 +20,12 @@
  randaug_M: 7
  
  teacher_weight_decay: 5e-4
- student_weight_decay: 5e-4
- lr_schedule: "cosine"
- grad_clip_norm: 1.0
+student_weight_decay: 5e-4
+lr_schedule: "cosine"
+grad_clip_norm: 1.0
+
+# run evaluation after training loop by default
+eval_after_train: true
 
 # ─ Data Mixing ───────────────────────────────────
  mixup_alpha: 0.2             # CutMix 대신 MixUp 경량 사용
