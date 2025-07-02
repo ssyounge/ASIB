@@ -3,12 +3,14 @@
 import torch
 
 @torch.no_grad()
-def evaluate_acc(model, loader, device="cuda", cfg=None):
+def evaluate_acc(model, loader, device="cuda", cfg=None, mixup_active: bool = False):
     model.eval()
     correct = 0
     total = 0
     for x, y in loader:
         x, y = x.to(device), y.to(device)
+        if mixup_active:
+            y = y.argmax(dim=1)
         out = model(x)
         if isinstance(out, tuple):
             logits = out[1]

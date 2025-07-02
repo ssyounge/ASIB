@@ -135,8 +135,15 @@ opt_s = AdamW(
 teacher_vib_update(t1, t2, mbm, train_loader, cfg, opt_t)
 student_vib_update(t1, t2, student, mbm, proj, train_loader, cfg, opt_s)
 
-acc = evaluate_acc(student, test_loader, device)
-print(f'Final student accuracy: {acc:.2f}%')
-logger.update_metric("test_acc", float(acc))
+if cfg.get("eval_after_train", True):
+    acc = evaluate_acc(
+        student,
+        test_loader,
+        device,
+        mixup_active=(cfg.get("mixup_alpha", 0) > 0 or cfg.get("cutmix_alpha_distill", 0) > 0),
+    )
+    print(f"Final student accuracy: {acc:.2f}%")
+    logger.update_metric("test_acc", float(acc))
+
 logger.finalize()
 
