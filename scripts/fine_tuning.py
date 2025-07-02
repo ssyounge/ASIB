@@ -22,8 +22,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--config", default="configs/minimal.yaml")
     p.add_argument("--teacher_type", choices=TEACHER_CHOICES, required=True)
     p.add_argument("--finetune_ckpt_path", required=True)
-    p.add_argument("--finetune_epochs", type=int, default=3)
-    p.add_argument("--finetune_lr", type=float, default=1e-4)
+    p.add_argument("--finetune_epochs", type=int)
+    p.add_argument("--finetune_lr", type=float)
+    p.add_argument("--finetune_weight_decay", type=float)
     p.add_argument("--device", default="cuda")
     return p.parse_args()
 
@@ -52,12 +53,19 @@ def main() -> None:
         small_input=True,
     ).to(args.device)
 
+    epochs = args.finetune_epochs or cfg.get("finetune_epochs", 3)
+    lr = args.finetune_lr or cfg.get("finetune_lr", 1e-4)
+    wd = args.finetune_weight_decay
+    if wd is None:
+        wd = cfg.get("finetune_weight_decay", 0.0)
+
     simple_finetune(
         model,
         loader,
-        lr=args.finetune_lr,
-        epochs=args.finetune_epochs,
+        lr=lr,
+        epochs=epochs,
         device=args.device,
+        weight_decay=wd,
         cfg=cfg,
     )
 
