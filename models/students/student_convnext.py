@@ -19,8 +19,12 @@ class StudentConvNeXtWrapper(nn.Module):
     def forward(self, x, y=None):
         feat_4d = self.backbone.features(x)
         pooled = self.backbone.avgpool(feat_4d)
-        feat_2d = torch.flatten(pooled, 1)
-        feat_2d = self.backbone.classifier[0](feat_2d)
+        # the ConvNeXt classifier expects a 4D tensor as input for the initial
+        # normalization layer (``LayerNorm2d`` in torchvision). We therefore
+        # pass the pooled feature map directly to ``classifier[0]`` and then
+        # flatten the normalized output.
+        normed = self.backbone.classifier[0](pooled)
+        feat_2d = self.backbone.classifier[1](normed)
         logit = self.backbone.classifier[2](feat_2d)
 
         ce_loss = None
