@@ -86,7 +86,9 @@ def main() -> None:
 
     batch_size = args.batch_size or cfg.get("batch_size", 128)
     train_loader, test_loader = get_cifar100_loaders(
-        batch_size=batch_size, num_workers=cfg.get("num_workers", 2)
+        root=cfg.get("dataset_root", "./data"),
+        batch_size=batch_size,
+        num_workers=cfg.get("num_workers", 2)
     )
     num_cls = len(train_loader.dataset.classes)
 

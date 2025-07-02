@@ -20,8 +20,8 @@ import torch, sys; print("[DEBUG] torch", torch.__version__, "| CUDA =", torch.c
 PY
 
 # 1) 경로 설정
-T1_CKPT="ckpts/resnet152_ft.pth"
-T2_CKPT="ckpts/efficientnet_b2_ft.pth"
+T1_CKPT="checkpoints/resnet152_ft.pth"
+T2_CKPT="checkpoints/efficientnet_b2_ft.pth"
 JOB_ID=${SLURM_JOB_ID:-local}
 OUT_DIR="$HOME/exp_outputs/ibkd_${JOB_ID}"
 mkdir -p "${OUT_DIR}"

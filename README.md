@@ -16,8 +16,8 @@ The project only requires **torch**, **torchvision**, **PyYAML** and **tqdm**.
 1. **Fine-tune teachers** with cross entropy:
 
 ```bash
-python scripts/train_teacher.py --teacher resnet152 --ckpt ckpts/resnet152_ft.pth
-python scripts/train_teacher.py --teacher efficientnet_b2 --ckpt ckpts/efficientnet_b2_ft.pth
+python scripts/train_teacher.py --teacher resnet152 --ckpt checkpoints/resnet152_ft.pth
+python scripts/train_teacher.py --teacher efficientnet_b2 --ckpt checkpoints/efficientnet_b2_ft.pth
 ```
 
 2. **Run IB-KD** using the provided checkpoints:
@@ -33,7 +33,7 @@ Both scripts read default options from `configs/minimal.yaml`.
 ```
 configs/
     minimal.yaml        # experiment settings
-ckpts/                  # teacher checkpoints
+checkpoints/            # teacher checkpoints
 models/                 # teacher and student architectures
 scripts/
     train_teacher.py    # CE fine-tuning

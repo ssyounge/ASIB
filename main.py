@@ -21,7 +21,7 @@ parser = argparse.ArgumentParser(description="IB-KD entry point")
 parser.add_argument('--cfg', default='configs/minimal.yaml', help='YAML config')
 parser.add_argument('--teacher1_ckpt', type=str, help='Path to teacher-1 checkpoint')
 parser.add_argument('--teacher2_ckpt', type=str, help='Path to teacher-2 checkpoint')
-parser.add_argument('--results_dir', type=str, help='Where to save logs / ckpts')
+parser.add_argument('--results_dir', type=str, help='Where to save logs / checkpoints')
 parser.add_argument('--batch_size', type=int, help='Mini-batch size for training')
 args = parser.parse_args()
 cfg = yaml.safe_load(open(args.cfg))
@@ -36,6 +36,7 @@ set_random_seed(cfg.get('seed', 42))
 
 # ---------- data ----------
 train_loader, test_loader = get_cifar100_loaders(
+    root=cfg.get('dataset_root', './data'),
     batch_size=cfg.get('batch_size', 128),
     num_workers=cfg.get('num_workers', 0),
 )

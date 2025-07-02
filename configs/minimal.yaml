@@ -4,6 +4,18 @@
 # ─ 기본 ────────────────────────────────────────────
 device: "cuda"
 dataset_name: "cifar100"
+seed: 42
+
+# ─ Data ────────────────────────────────────────────
+dataset_root: "./data"
+batch_size: 128
+num_workers: 2
+
+# ─ 결과 ────────────────────────────────────────────
+results_dir: "results"
+checkpoint_dir: "checkpoints"
+teacher1_ckpt: "checkpoints/resnet152_ft.pth"
+teacher2_ckpt: "checkpoints/efficientnet_b2_ft.pth"
 
 # ─ 모델 ────────────────────────────────────────────
 teacher1_type: "resnet152"
