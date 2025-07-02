@@ -85,9 +85,16 @@ proj = StudentProj(
     use_bn=cfg.get('proj_use_bn', False),
 ).to(device)
 
-opt_t = Adam(mbm.parameters(), lr=cfg['teacher_lr'], weight_decay=cfg['teacher_weight_decay'])
-opt_s = AdamW(list(student.parameters()) + list(proj.parameters()),
-              lr=cfg['student_lr'], weight_decay=cfg['student_weight_decay'])
+opt_t = Adam(
+    mbm.parameters(),
+    lr=float(cfg.get("teacher_lr", 0.0)),
+    weight_decay=float(cfg.get("teacher_weight_decay", 0.0)),
+)
+opt_s = AdamW(
+    list(student.parameters()) + list(proj.parameters()),
+    lr=float(cfg.get("student_lr", 0.0)),
+    weight_decay=float(cfg.get("student_weight_decay", 0.0)),
+)
 
 # ---------- training ----------
 teacher_vib_update(t1, t2, mbm, train_loader, cfg, opt_t)
