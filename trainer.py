@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from utils.schedule import cosine_lr_scheduler
 from utils.misc import get_amp_components
 from utils.eval import evaluate_acc
+from tqdm.auto import tqdm
 
 
 def simple_finetune(
@@ -117,7 +118,16 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer):
     teacher2.eval()
     scheduler = cosine_lr_scheduler(optimizer, cfg.get("teacher_iters", 1))
     for ep in range(cfg.get("teacher_iters", 1)):
-        for x, y in loader:
+        running_loss = 0.0
+        running_kl = 0.0
+        count = 0
+        epoch_loader = tqdm(
+            loader,
+            desc=f"[Teacher] epoch {ep + 1}",
+            leave=False,
+            disable=cfg.get("disable_tqdm", False),
+        )
+        for x, y in epoch_loader:
             x, y = x.to(device), y.to(device)
             with torch.no_grad():
                 out1 = teacher1(x)
@@ -146,7 +156,16 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer):
                 if clip > 0:
                     torch.nn.utils.clip_grad_norm_(vib_mbm.parameters(), clip)
                 optimizer.step()
+            running_loss += loss.item() * x.size(0)
+            running_kl += kl_z.mean().item() * x.size(0)
+            count += x.size(0)
         scheduler.step()
+        avg_loss = running_loss / max(count, 1)
+        avg_kl = running_kl / max(count, 1)
+        print(
+            f"[Teacher] ep {ep + 1:03d}/{cfg.get('teacher_iters', 1)} "
+            f"loss {avg_loss:.4f} kl {avg_kl:.4f}"
+        )
 
 
 def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj, loader, cfg, optimizer):
@@ -174,7 +193,15 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
     student_model.train()
     scheduler = cosine_lr_scheduler(optimizer, cfg.get("student_iters", 1))
     for ep in range(cfg.get("student_iters", 1)):
-        for x, y in loader:
+        running_loss = 0.0
+        count = 0
+        epoch_loader = tqdm(
+            loader,
+            desc=f"[Student] epoch {ep + 1}",
+            leave=False,
+            disable=cfg.get("disable_tqdm", False),
+        )
+        for x, y in epoch_loader:
             x, y = x.to(device), y.to(device)
             with torch.no_grad():
                 out1 = teacher1(x)
@@ -214,6 +241,13 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
                         clip,
                     )
                 optimizer.step()
+            running_loss += loss.item() * x.size(0)
+            count += x.size(0)
         scheduler.step()
+        avg_loss = running_loss / max(count, 1)
+        print(
+            f"[Student] ep {ep + 1:03d}/{cfg.get('student_iters', 1)} "
+            f"loss {avg_loss:.4f}"
+        )
 
 
