@@ -91,113 +91,6 @@ pip install -r requirements.txt  # includes pandas for analysis
 > Each student should implement a `create_*` factory returning a model whose
 > `forward` yields `(feature_dict, logits, extra)` similar to the teacher wrappers.
 
-The unified script `run_experiments.sh` automatically tries to activate a
-Conda environment named `facil_env`. If you use a different environment name,
-set the `CONDA_ENV` variable accordingly. You can also skip activation
-entirely by exporting `USE_CONDA=0` before running the script. Run experiments
-directly with `bash scripts/run_experiments.sh --mode {loop,sweep}`.
-
-Set the distillation method via the `METHOD` variable or provide a
-space‑separated list using `METHOD_LIST`. The default `asmb` runs the
-multi‑teacher pipeline in `main.py`. Specify `vanilla_kd`, `fitnet`, `dkd`,
-`at` or `crd` to launch the single‑teacher runner. With `METHOD_LIST` you can
-execute several methods sequentially:
-
-The main training script accepts the same flag via `--method` (default `asmb`)
-so `run_experiments.sh` can pass it uniformly.
-
-```bash
-METHOD_LIST="asmb fitnet vanilla_kd" bash scripts/run_experiments.sh --mode loop
-```
-
-The base config merged by `generate_config.py` defaults to
-`configs/default.yaml`. This file defines universal settings such as
-device and paths and enables Automatic Mixed Precision (AMP) by default.
-The script can also merge optional fragments such as
-`configs/partial_freeze.yaml`. Freeze levels are now defined in
-`configs/partial_freeze.yaml`. The variables `teacher1_freeze_level`,
-`teacher2_freeze_level` and `student_freeze_level` control how much of each
-model is unfrozen during training, so this fragment also sets the freeze levels
-in addition to BN freezing and adapter options. Pass one or more
-fragment files (or a directory containing them) to assemble a config from
-multiple pieces. Override the selection by setting the `BASE_CONFIG`
-environment variable:
-
-```bash
-BASE_CONFIG=configs/partial_freeze.yaml bash scripts/run_experiments.sh --mode loop
-```
-
-You can also merge several fragments directly:
-
-```bash
-python scripts/generate_config.py \
-  --base configs/default.yaml configs/partial_freeze.yaml \
-  --out combined.yaml
-```
-
-To combine additional fragments, simply list them all after `--base`:
-
-```bash
-python scripts/generate_config.py \
-  --base configs/default.yaml configs/partial_freeze.yaml extras.yaml \
-  --out full.yaml
-```
-
-Or point `--base` to a directory to load every YAML file inside (sorted by
-name):
-
-```bash
-python scripts/generate_config.py --base configs/fragments/ --out combined.yaml
-```
-
-`configs/hparams.yaml` holds the numeric hyperparameters used by the batch
-scripts while `configs/*.yaml` describe the model architectures and freeze
-settings. `generate_config.py` loads this file with `--hparams` so its values
-override or supplement those defined in the fragments. Edit
-`configs/hparams.yaml` before running `bash scripts/run_experiments.sh --mode loop`
-or `bash scripts/run_experiments.sh --mode sweep` to customize the default hyperparameters.
-`N_STAGE_LIST` can contain a space-separated list such as `"2 3 4 5"` to run
-multiple stage counts in one batch.
-
-### Batch scripts & hyperparameter overrides
-
-`configs/hparams.yaml` stores the default hyperparameters used by
-`run_experiments.sh`. The selected YAML file (via
-`BASE_CONFIG`) supplies the base settings such as model types and
-partial‑freeze options. When you run a script, the values are merged in
-the following order:
-
-1. YAML files passed to `--base` (via `BASE_CONFIG` or manually), merged in order
-2. Variables from `configs/hparams.yaml` (unless overridden)
-3. Command-line overrides passed to `generate_config.py` or `main.py`
-
-Values defined in `configs/hparams.yaml` **supersede** those in
-`configs/default.yaml` or any other fragments included with `--base`.
-For example, if `configs/default.yaml` declares
-`student_epochs_per_stage: 15` but `configs/hparams.yaml` sets
-`student_iters: 40`, the environment variable `STUDENT_ITERS=40` from
-`hparams.yaml` overrides the default 15‑epoch value during training.
-
-`run_experiments.sh` exports the values from `configs/hparams.yaml` as
-environment variables. These variables are fed back into
-`generate_config.py` so they can still override any field defined in the
-YAML fragments. The recommended workflow is to edit
-`configs/hparams.yaml` whenever you need experiment‑specific values and
-then invoke the batch script.
-
-You can override any variable by exporting it before calling the script.
-For example, run the batch script with the partial-freeze configuration
-(freeze levels come from `configs/partial_freeze.yaml`) and a different teacher
-learning rate:
-
-```bash
-teacher_lr=0.0002 BASE_CONFIG=configs/partial_freeze.yaml bash scripts/run_experiments.sh --mode loop
-```
-
-When launching jobs via `run.sh`, the script writes the merged configuration to
-`outputs/asmb_${SLURM_JOB_ID}/config.yaml`. During the batch loop, this file is
-copied into each experiment directory so you can recover the exact settings used
-for every run.
 
 ## Testing
 
@@ -223,62 +116,22 @@ Usage
 ### Typical Training Flow
 
 > **Note**
-> Only a `convnext_tiny` student is provided. Add your own modules under
-> `models/students/` or copy them from the upstream repository to try other
-> architectures.
+> Only a `convnext_tiny` student is provided. Add your own modules under `models/students/` to try other architectures.
 
-1. Fine-tune each teacher (optional but recommended).
-2. For each stage, perform a teacher adaptive update followed by student knowledge distillation.
-3. Repeat for the configured number of stages.
-
-Baseline runs (e.g., `vanilla_kd`) produce their own logs such as `VanillaKD => ...`.
-
-1) Multi-Stage Distillation (main.py)
-
-python main.py --config configs/partial_freeze.yaml --device cuda \
-  --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 1
-  # Freeze levels (`teacher1_freeze_level`, `teacher2_freeze_level`,
-  # `student_freeze_level`) are loaded from `configs/partial_freeze.yaml`
-  # mbm_query_dim and mbm_out_dim are automatically set to the student feature dimension
-        •       Adjust partial-freeze or architecture settings in `configs/*.yaml`.
-        •       Edit `configs/hparams.yaml` to change numeric hyperparameters like learning rates or dropout.
-        •       Set `LR_SCHEDULE` to "step" or "cosine" to choose the learning rate scheduler.
-	•	Teacher checkpoints load automatically from `checkpoints/{teacher_type}_ft.pth` when available.
-        •       Each trainer creates its own optimizer and scheduler at the start of every stage.
-
-2) Single-Teacher Distillation (run_single_teacher.py)
-
+1. **Fine-tune the teachers**
 ```bash
-python scripts/run_single_teacher.py --config configs/default.yaml \
-  --method vanilla_kd --teacher_type resnet152 --teacher_ckpt teacher.pth \
-  --student_type convnext_tiny --epochs 40 \
-  --dataset imagenet100
+python scripts/train_teacher.py --config configs/minimal.yaml --teacher_type resnet152
+python scripts/train_teacher.py --config configs/minimal.yaml --teacher_type efficientnet_b2
 ```
 
-The `--method` flag selects one of `vanilla_kd`, `fitnet`, `dkd`, `at` or `crd`.
-Pass `--dataset` to override the dataset specified in the YAML config (either
-`cifar100` or `imagenet100`).
-Partial freezing is automatically turned off for these methods—`run_single_teacher.py`
-sets `use_partial_freeze: false` when the selected `method` is not `asmb`.
-
-3) Student Baseline (train_student_baseline.py)
-
-### Student Baseline
-
-Run the student alone using the same partial-freeze settings to gauge its standalone performance:
-
+2. **Run IB-KD**
 ```bash
-python scripts/train_student_baseline.py --config configs/partial_freeze.yaml \
-  --student_type convnext_tiny --epochs 40 --dataset cifar100
-# Freeze levels come from `configs/partial_freeze.yaml`
+bash scripts/run_ibkd.sh --config configs/minimal.yaml
 ```
+`run_ibkd.sh` loads the fine-tuned checkpoints and performs multi-stage distillation.
 
-The script uses the same optimizer and scheduler configuration as the distillation runs. The resulting accuracy serves as the reference for all distillation experiments and is saved under `results/`.
-
-
-4) Evaluation (utils.eval.evaluate_acc)
-
-Use `utils.eval.evaluate_acc` to compute accuracy for your model. The old script lives under `legacy_scripts/eval_asmb_old.py` for reference.
+### Evaluation
+Use `utils.eval.evaluate_acc` to compute accuracy for your model.
 
 ### Data Augmentation
 
@@ -349,102 +202,14 @@ Swin) to expect 32×32 inputs.
 
 ### Teacher Fine-Tuning
 
-Fine-tune the individual teachers before running the distillation stages.
-All fine-tuning options live in `configs/hparams.yaml`.
-The bundled `TeacherSwinWrapper` expects the Swin backbone to call
-`features`, `norm`, `permute`, `avgpool` and `flatten` in sequence when
-producing its feature map. This mirrors torchvision's official
-`SwinTransformer` forward path.
-Adjust the parameters in `configs/hparams.yaml`:
+Run the helper script to fine-tune a teacher before distillation:
 
 ```bash
-# configs/hparams.yaml
-finetune_epochs=100   # number of fine-tuning epochs
-finetune_lr=0.0005    # learning rate
-finetune_cutmix_alpha=0  # set to 0 to disable CutMix
-lr_schedule=step   # step or cosine
+python scripts/train_teacher.py --config configs/minimal.yaml --teacher_type resnet152
 ```
 
-Alternatively edit the YAML file used by `scripts/fine_tuning.py`:
+Adjust the configuration file to control hyperparameters such as epochs and learning rate.
 
-```yaml
-# configs/hparams.yaml
-finetune_epochs: 100
-finetune_lr: 0.0005
-finetune_use_cutmix: false
-efficientnet_dropout: 0.3  # dropout probability for EfficientNet teachers
-```
-
-Set `efficientnet_dropout` to control the dropout rate used in EfficientNet
-teachers. The default value is **0.3**.
-
-#### Fine-tuning a Teacher
-
-Run the fine-tuning script directly to update a single teacher:
-
-```bash
-python scripts/fine_tuning.py --config configs/hparams.yaml \
-  --teacher_type resnet152 --finetune_epochs 100 --finetune_lr 0.0005 \
-  --dropout_p 0.5
-```
-
-The script uses **CIFAR-100** by default. Change the `dataset_name` key in
-`configs/hparams.yaml` (e.g., `dataset_name: imagenet100`) to switch datasets.
-
-For partial freezing with EfficientNet, a new freeze scope
-`features_classifier` unfreezes the feature extractor and classifier modules
-along with the MBM:
-
-```yaml
-# configs/partial_freeze.yaml
-teacher2_freeze_scope: "features_classifier"
-```
-
-After saving the changes, re-run the batch script to generate new teacher
-checkpoints and continue with distillation:
-
-Edit `configs/hparams.yaml` if you want to tweak the default hyperparameters.
-You can specify several stage counts by setting `n_stage_list="2 3 4 5"`.
-
-```bash
-bash scripts/run_experiments.sh --mode loop
-```
-
-Once the teacher checkpoints are in place you can disable the fine-tuning step
-in subsequent runs. Either set `finetune_epochs: 0` in `configs/hparams.yaml`
-or point `finetune_ckpt1` and `finetune_ckpt2` to the existing `.pth` files so
-`run_experiments.sh` skips the fine-tuning loops.
-
-### Teacher Adapter & BN-Head-Only Options
-
-With partial freezing you can further restrict the teachers to small
-adapters or only update their batch-norm layers and classifier heads.
-Set the following flags in `configs/hparams.yaml`:
-
-```yaml
-teacher1_use_adapter: 1
-teacher1_bn_head_only: 1
-teacher2_use_adapter: 1
-teacher2_bn_head_only: 0
-```
-
-`run_experiments.sh` exports these values so you can toggle them for
-sweeps or batch runs without editing every config file.
-
-### Freeze Levels
-
-The amount of each model that remains trainable is controlled by three keys in `configs/partial_freeze.yaml`:
-
-```yaml
-teacher1_freeze_level: 0
-teacher2_freeze_level: 1
-student_freeze_level: 0
-```
-
-Lower numbers unfreeze fewer layers. In the example above, only teacher&nbsp;2's
-final block and the classifier heads remain trainable. After editing the YAML
-file, rerun `bash scripts/run_experiments.sh --mode loop` to generate new
-configs with your chosen freeze levels.
 
 
 
@@ -453,74 +218,45 @@ configs with your chosen freeze levels.
 Folder Structure
 
 (Repo Root)
-├── main.py               # Main training script (ASMB, partial freeze)
-├── legacy_scripts
-│   └── eval_asmb_old.py   # Old evaluation script
-├── requirements.txt      # Dependencies
-├── README.md             # Project info
-├── LICENSE               # MIT License
-
-├── analysis
-│   ├── compare_ablation.py
-│   └── plot_results.ipynb
-
+├── main.py               # Main training script
+├── requirements.txt
+├── README.md
+├── LICENSE
+├── analysis/
 ├── configs
-│   ├── default.yaml
-│   ├── hparams.yaml        # default hyperparameters for run_experiments.sh
-│   └── partial_freeze.yaml    # BN/adapters and freeze levels
-
+│   └── minimal.yaml
 ├── data
 │   ├── cifar100.py
 │   ├── imagenet100.py
 │   └── __init__.py
-
-├── methods              # Various KD algorithms
+├── methods
 │   ├── asmb.py
 │   ├── fitnet.py
 │   ├── crd.py
 │   ├── dkd.py
 │   ├── at.py
-│   ├── vanilla_kd.py
-│   └── __init__.py
-
+│   └── vanilla_kd.py
 ├── models
-│   ├── __init__.py
-│   ├── mbm.py
+│   ├── ib
+│   │   └── vib_mbm.py
 │   ├── students
-│   │   ├── __init__.py
 │   │   └── student_convnext.py
 │   └── teachers
-│       ├── __init__.py
 │       ├── teacher_efficientnet.py
 │       ├── teacher_resnet.py
 │       └── teacher_swin.py
-
 ├── modules
 │   ├── trainer_student.py
 │   ├── trainer_teacher.py
-│   ├── cutmix_finetune_teacher.py
-│   ├── disagreement.py
-│   ├── partial_freeze.py
-│   ├── losses.py
-│   └── __init__.py
-
+│   └── losses.py
 ├── scripts
-│   ├── fine_tuning.py
-│   └── run_experiments.sh
-
+│   ├── train_teacher.py
+│   └── run_ibkd.sh
 └── utils
-    ├── logger.py
-    ├── eval.py           # evaluation helpers
+    ├── eval.py
     └── misc.py
-
-	• analysis/: Scripts or notebooks for comparing experiments (compare_ablation.py, plot_results.ipynb)
-	• configs/: YAML config files for partial-freeze settings, hyperparameters
-	• methods/: KD implementations (ASMB, FitNet, CRD, DKD, etc.)
-	• modules/: Partial freeze utility, trainers, custom losses
-        • scripts/: Shell scripts for multiple or batch experiments
-            ◦ Edit `configs/hparams.yaml` to change the default hyperparameters consumed by `run_experiments.sh`
-
 ```
+---
 ---
 
 Results
