@@ -12,7 +12,7 @@ deterministic: true
 # ─ 모델 ────────────────────────────────────────────
 teacher1_type: "resnet152"
 teacher2_type: "efficientnet_b2"
-student_type: "resnet_adapter"
+student_type: "convnext_tiny"
 small_input: true
 
 # ─ IB‑KD 하이퍼 ────────────────────────────────────
