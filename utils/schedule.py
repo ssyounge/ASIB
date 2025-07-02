@@ -1,6 +1,7 @@
 # utils/schedule.py
 
 import math
+import torch
 
 
 def get_tau(cfg: dict, epoch: int) -> float:
@@ -18,3 +19,8 @@ def get_tau(cfg: dict, epoch: int) -> float:
     else:  # fixed
         tau = T0
     return float(tau)
+
+
+def cosine_lr_scheduler(optimizer, iters):
+    """Return cosine scheduler over ``iters`` epochs."""
+    return torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=iters)

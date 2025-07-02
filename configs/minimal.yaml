@@ -29,6 +29,7 @@ student_lr: 5e-4
 teacher_weight_decay: 5e-4
 student_weight_decay: 5e-4
 lr_schedule: "cosine"
+grad_clip_norm: 0
 
 # ─ 학습 스테이지 ──────────────────────────────────
 teacher_iters: 5
