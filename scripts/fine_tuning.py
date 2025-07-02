@@ -53,11 +53,23 @@ def main() -> None:
         small_input=True,
     ).to(args.device)
 
-    epochs = args.finetune_epochs or cfg.get("finetune_epochs", 3)
-    lr = args.finetune_lr or cfg.get("finetune_lr", 1e-4)
-    wd = args.finetune_weight_decay
-    if wd is None:
-        wd = cfg.get("finetune_weight_decay", 0.0)
+    epochs = (
+        args.finetune_epochs
+        if args.finetune_epochs is not None
+        else cfg.get("finetune_epochs", 3)
+    )
+    lr = (
+        args.finetune_lr
+        if args.finetune_lr is not None
+        else cfg.get("finetune_lr", 1e-4)
+    )
+    wd = (
+        args.finetune_weight_decay
+        if args.finetune_weight_decay is not None
+        else cfg.get("finetune_weight_decay", 0.0)
+    )
+
+    os.makedirs(os.path.dirname(args.finetune_ckpt_path) or ".", exist_ok=True)
 
     simple_finetune(
         model,
@@ -67,10 +79,10 @@ def main() -> None:
         device=args.device,
         weight_decay=wd,
         cfg=cfg,
+        ckpt_path=args.finetune_ckpt_path,
     )
 
-    torch.save(model.state_dict(), args.finetune_ckpt_path)
-    print(f"[FINETUNE] saved => {args.finetune_ckpt_path}")
+    # best and final checkpoints are saved within ``simple_finetune``
 
 
 if __name__ == "__main__":
