@@ -45,6 +45,7 @@ def main() -> None:
     args = parse_args()
     cfg = load_cfg(args.config)
     set_random_seed(cfg.get("seed", 42))
+    cfg["overwrite"] = args.overwrite
 
     if args.finetune_ckpt_path is None:
         ckpt_dir = cfg.get("checkpoint_dir", "checkpoints")

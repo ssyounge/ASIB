@@ -23,7 +23,17 @@ def simple_finetune(
     The best model (by training accuracy) is saved to ``ckpt_path`` whenever
     improved. After all epochs finish, the final state is written to a
     ``*_last.pth`` file.
+
+    If ``ckpt_path`` already exists, the saved weights are loaded and
+    fine-tuning is skipped. Pass ``overwrite`` via ``cfg`` to ignore the
+    existing checkpoint.
     """
+    if os.path.exists(ckpt_path) and not (cfg or {}).get("overwrite", False):
+        model.load_state_dict(torch.load(ckpt_path, map_location=device))
+        print(f"[FineTune] loaded checkpoint → {ckpt_path}")
+        model.train()
+        return
+
     if epochs <= 0:
         return
 
