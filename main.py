@@ -1,6 +1,7 @@
 # main.py
 
 import argparse
+import os
 import yaml
 import torch
 from torch.optim import Adam, AdamW
@@ -15,6 +16,7 @@ from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from models.students.student_convnext import create_convnext_tiny
 from trainer import teacher_vib_update, student_vib_update, simple_finetune
 from utils.freeze import freeze_all
+from utils.logger import ExperimentLogger
 
 # ---------- CLI ----------
 parser = argparse.ArgumentParser(description="IB-KD entry point")
@@ -25,6 +27,9 @@ parser.add_argument('--results_dir', type=str, help='Where to save logs / checkp
 parser.add_argument('--batch_size', type=int, help='Mini-batch size for training')
 args = parser.parse_args()
 cfg = yaml.safe_load(open(args.cfg))
+
+os.makedirs(cfg.get("results_dir", "results"), exist_ok=True)
+logger = ExperimentLogger(cfg, exp_name="ibkd")
 
 for k in ('teacher1_ckpt', 'teacher2_ckpt', 'results_dir', 'batch_size'):
     v = getattr(args, k, None)
@@ -102,3 +107,6 @@ student_vib_update(t1, t2, student, mbm, proj, train_loader, cfg, opt_s)
 
 acc = evaluate_acc(student, test_loader, device)
 print(f'Final student accuracy: {acc:.2f}%')
+logger.update_metric("test_acc", float(acc))
+logger.finalize()
+
