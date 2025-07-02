@@ -34,3 +34,8 @@ grad_clip_norm: 1.0
 teacher_iters: 5
 student_iters: 15
 
+# ─ Teacher Fine-Tune ─────
+finetune_epochs: 3
+finetune_lr: 1e-4
+finetune_weight_decay: 1e-4   # 필요하면
+

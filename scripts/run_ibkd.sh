@@ -39,9 +39,9 @@ ft_teacher () {
           --config configs/minimal.yaml \
           --teacher_type "$MODEL" \
           --finetune_ckpt_path "$CKPT" \
-          --device cuda \
-          --finetune_epochs 3 \
-          --finetune_lr 1e-4
+          --finetune_epochs "${FINETUNE_EPOCHS:-3}" \
+          --finetune_lr     "${FINETUNE_LR:-1e-4}" \
+          --device cuda
   fi
 }
 ft_teacher resnet152       "$T1_CKPT"
