@@ -122,7 +122,7 @@ proj = StudentProj(
 
 opt_t = Adam(
     mbm.parameters(),
-    lr=float(cfg.get("teacher_lr", 0.0)),
+    lr=float(cfg.get("teacher_lr", 3e-4)) * 3,        # DEBUG ③ 3× 상향 (≈1e‑3)
     weight_decay=float(cfg.get("teacher_weight_decay", 0.0)),
 )
 opt_s = AdamW(
