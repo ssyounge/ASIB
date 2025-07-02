@@ -1,24 +1,45 @@
 # trainer.py
 
+import os
 import torch
 import torch.nn.functional as F
 from utils.schedule import cosine_lr_scheduler
 from utils.misc import get_amp_components
+from utils.eval import evaluate_acc
 
 
-def simple_finetune(model, loader, lr, epochs, device, weight_decay=0.0, cfg=None):
-    """Minimal cross-entropy fine-tuning loop for teachers."""
+def simple_finetune(
+    model,
+    loader,
+    lr,
+    epochs,
+    device,
+    weight_decay=0.0,
+    cfg=None,
+    ckpt_path="finetuned_best.pth",
+):
+    """Fine-tune ``model`` using cross-entropy loss with basic reporting.
+
+    The best model (by training accuracy) is saved to ``ckpt_path`` whenever
+    improved. After all epochs finish, the final state is written to a
+    ``*_last.pth`` file.
+    """
     if epochs <= 0:
         return
+
     model.train()
-    optimizer = torch.optim.Adam(
-        model.parameters(),
-        lr=lr,
-        weight_decay=float(weight_decay),
+    optimizer = torch.optim.AdamW(
+        model.parameters(), lr=lr, weight_decay=float(weight_decay)
     )
     autocast_ctx, scaler = get_amp_components(cfg or {})
     criterion = torch.nn.CrossEntropyLoss()
-    for _ in range(epochs):
+
+    eval_loader = loader
+    best_acc = 0.0
+
+    for ep in range(1, epochs + 1):
+        running_loss = 0.0
+        count = 0
         for x, y in loader:
             x, y = x.to(device), y.to(device)
             optimizer.zero_grad()
@@ -33,6 +54,29 @@ def simple_finetune(model, loader, lr, epochs, device, weight_decay=0.0, cfg=Non
             else:
                 loss.backward()
                 optimizer.step()
+
+            running_loss += loss.item() * x.size(0)
+            count += x.size(0)
+
+        acc = evaluate_acc(model, eval_loader, device=device)
+        avg_loss = running_loss / max(count, 1)
+
+        tag = ""
+        if acc > best_acc:
+            best_acc = acc
+            os.makedirs(os.path.dirname(ckpt_path) or ".", exist_ok=True)
+            torch.save(model.state_dict(), ckpt_path)
+            tag = "\u2605 best"
+
+        print(
+            f"[FineTune] ep {ep:03d}/{epochs}  loss {avg_loss:.4f}  acc {acc:.2f}%  best {best_acc:.2f}% {tag}"
+        )
+
+    last_path = ckpt_path.replace(".pth", "_last.pth")
+    torch.save(model.state_dict(), last_path)
+    print(
+        f"[FineTune] done \u2192 best={best_acc:.2f}% ({ckpt_path}), last={last_path}"
+    )
 
 
 def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer):
