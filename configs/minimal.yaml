@@ -11,12 +11,10 @@ mbm_type: "VIB"
 z_dim: 256
 
 beta_bottleneck: 0.003       # IB KL 가중치
-alpha_kd: 0.5                # 🔹 KD (soft) ↘ 0.5
+alpha_kd: 0.7                # soft‑KD 비중 ↑
 ce_alpha: 1.0                # 🔸 CE 그대로
 kd_temperature: 4            # 🔹 새 항목 ‑ T
-latent_alpha: 1.0            # z‑MSE 가중치
-use_ema: true                # 🔹 EMA 활성
-ema_decay: 0.999
+latent_alpha: 0.5            # z‑MSE 비중 ↓
 label_smoothing: 0.1         # 🔹 CE 안정화
 randaug_N: 2                 # 🔹 RandAug(N,M)
 randaug_M: 7
@@ -35,8 +33,12 @@ cutmix_alpha_distill: 0.0    # (0 = MixUp 우선)
  
 # ─ 학습 스테이지 ──────────────────────────────────
 
-teacher_iters: 8             # 🔹 교사 업데이트 조금 더
-student_iters: 20            # 🔹 학생 학습 여유
+teacher_iters: 12            # 교사 추가 적응
+student_iters: 40            # 학생 학습 2×
+
+# ─ EMA 평가 ─────────────
+use_ema: true
+ema_decay: 0.999
 
 finetune_lr: 1e-4
 finetune_weight_decay: 1e-4
