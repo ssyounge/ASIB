@@ -53,7 +53,11 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer):
             f1 = t1_dict["feat_2d"]
             f2 = t2_dict["feat_2d"]
             with autocast_ctx:
-                z, logit_syn, kl_z, _ = vib_mbm(f1, f2)
+                z, logit_syn, kl_z, _ = vib_mbm(
+                    f1,
+                    f2,
+                    log_kl=cfg.get("log_kl", False),
+                )
                 loss = F.cross_entropy(logit_syn, y) + beta * kl_z.mean()
             optimizer.zero_grad()
             if scaler is not None:
@@ -90,7 +94,11 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
                 t2_dict = out2[0] if isinstance(out2, tuple) else out2
                 f1 = t1_dict["feat_2d"]
                 f2 = t2_dict["feat_2d"]
-                _, _, _, mu = vib_mbm(f1, f2)
+                _, _, _, mu = vib_mbm(
+                    f1,
+                    f2,
+                    log_kl=cfg.get("log_kl", False),
+                )
                 z_target = mu.detach()
             with autocast_ctx:
                 feat_dict, s_logit, _ = student_model(x)
