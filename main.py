@@ -60,12 +60,16 @@ loaded1 = False
 loaded2 = False
 
 if t1_ckpt and os.path.exists(t1_ckpt):
-    t1.load_state_dict(torch.load(t1_ckpt, map_location=device))
+    t1.load_state_dict(
+        torch.load(t1_ckpt, map_location=device, weights_only=True)
+    )
     print(f"[INFO] Loaded teacher1 checkpoint: {t1_ckpt}")
     loaded1 = True
 
 if t2_ckpt and os.path.exists(t2_ckpt):
-    t2.load_state_dict(torch.load(t2_ckpt, map_location=device))
+    t2.load_state_dict(
+        torch.load(t2_ckpt, map_location=device, weights_only=True)
+    )
     print(f"[INFO] Loaded teacher2 checkpoint: {t2_ckpt}")
     loaded2 = True
 
