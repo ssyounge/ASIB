@@ -39,7 +39,11 @@ mbm = VIB_MBM(in1, in2, cfg['z_dim'], n_cls=100).to(device)
 
 # ---------- student ----------
 student = create_convnext_tiny(num_classes=100, small_input=True).to(device)
-proj = StudentProj(student.get_feat_dim(), cfg['z_dim']).to(device)
+proj = StudentProj(
+    student.get_feat_dim(),
+    cfg['z_dim'],
+    normalize=cfg.get('proj_normalize', True),
+).to(device)
 
 opt_t = Adam(mbm.parameters(), lr=cfg['teacher_lr'], weight_decay=cfg['teacher_weight_decay'])
 opt_s = AdamW(list(student.parameters()) + list(proj.parameters()),
