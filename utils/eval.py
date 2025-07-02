@@ -3,7 +3,7 @@
 import torch
 
 @torch.no_grad()
-def evaluate_acc(model, loader, device="cuda"):
+def evaluate_acc(model, loader, device="cuda", cfg=None):
     model.eval()
     correct = 0
     total = 0
