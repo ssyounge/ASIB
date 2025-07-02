@@ -2,6 +2,7 @@
 
 import os
 import copy, torch
+from utils.model_factory import create_student_by_name   # fallback 생성용
 import torch.nn.functional as F   # loss 함수(F.cross_entropy 등)용
 from utils.schedule import cosine_lr_scheduler
 from utils.misc import get_amp_components
@@ -303,8 +304,26 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
         # ─ EMA 추적 ─────────────────────────────────
         if cfg.get("use_ema", False):
             if ep == 0:                             # 초기 스냅샷
-                ema_model = copy.deepcopy(student_model).eval()
-                for m in ema_model.modules():       # BN·Dropout 모두 eval 고정
+                try:
+                    # 빠르고 간단하지만, weight_norm 모듈이 있을 땐 실패할 수 있음
+                    ema_model = copy.deepcopy(student_model).eval()
+                except RuntimeError:
+                    # fallback: 새 인스턴스 생성 후 state_dict 복사
+                    stype = cfg.get("student_type", "convnext_tiny")
+                    n_cls = getattr(
+                        student_model.backbone.classifier[2], "out_features", 100
+                    )
+                    ema_model = create_student_by_name(
+                        stype,
+                        num_classes=n_cls,
+                        pretrained=False,
+                        small_input=True,
+                        cfg=cfg,
+                    ).to(device)
+                    ema_model.load_state_dict(student_model.state_dict(), strict=True)
+                    ema_model.eval()
+                # BN·Dropout 모두 eval 고정
+                for m in ema_model.modules():
                     m.training = False
             with torch.no_grad():
                 d = cfg.get("ema_decay", 0.995)     # 반응성 ↑
