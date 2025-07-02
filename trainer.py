@@ -12,7 +12,9 @@ def simple_finetune(model, loader, lr, epochs, device, weight_decay=0.0, cfg=Non
         return
     model.train()
     optimizer = torch.optim.Adam(
-        model.parameters(), lr=lr, weight_decay=weight_decay
+        model.parameters(),
+        lr=lr,
+        weight_decay=float(weight_decay),
     )
     autocast_ctx, scaler = get_amp_components(cfg or {})
     criterion = torch.nn.CrossEntropyLoss()
