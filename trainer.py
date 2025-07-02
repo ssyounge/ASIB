@@ -62,6 +62,8 @@ def simple_finetune(
         acc = evaluate_acc(model, eval_loader, device=device)
         model.train()
         avg_loss = running_loss / max(count, 1)
+        # return to train mode after evaluation
+        model.train()
 
         tag = ""
         if acc > best_acc:
@@ -79,6 +81,7 @@ def simple_finetune(
     print(
         f"[FineTune] done \u2192 best={best_acc:.2f}% ({ckpt_path}), last={last_path}"
     )
+    model.train()
 
 
 def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer):
