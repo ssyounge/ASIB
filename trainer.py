@@ -38,6 +38,7 @@ def simple_finetune(
     best_acc = 0.0
 
     for ep in range(1, epochs + 1):
+        model.train()
         running_loss = 0.0
         count = 0
         for x, y in loader:
@@ -59,6 +60,7 @@ def simple_finetune(
             count += x.size(0)
 
         acc = evaluate_acc(model, eval_loader, device=device)
+        model.train()
         avg_loss = running_loss / max(count, 1)
 
         tag = ""
