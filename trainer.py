@@ -34,6 +34,19 @@ def simple_finetune(model, loader, lr, epochs, device, weight_decay=0.0, cfg=Non
 
 
 def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer):
+    """Train the VIB module using frozen teachers.
+
+    Args:
+        teacher1: First teacher network used for feature extraction.
+        teacher2: Second teacher network used for feature extraction.
+        vib_mbm: Bottleneck module to update.
+        loader: Data loader providing input images and labels.
+        cfg: Configuration dictionary with training options.
+        optimizer: Optimizer for ``vib_mbm`` parameters.
+
+    Returns:
+        None.
+    """
     device = cfg.get("device", "cuda")
     beta = cfg.get("beta_bottleneck", 0.003)
     clip = cfg.get("grad_clip_norm", 0)
@@ -76,6 +89,21 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer):
 
 
 def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj, loader, cfg, optimizer):
+    """Update the student network to mimic the VIB representation.
+
+    Args:
+        teacher1: First teacher network providing target features.
+        teacher2: Second teacher network providing target features.
+        student_model: Student model being trained.
+        vib_mbm: Pre-trained VIB module used to generate targets.
+        student_proj: Projection head mapping student features to the latent space.
+        loader: Data loader supplying input images and labels.
+        cfg: Configuration dictionary with training options.
+        optimizer: Optimizer for student parameters.
+
+    Returns:
+        None.
+    """
     device = cfg.get("device", "cuda")
     alpha = cfg.get("alpha_kd", 0.7)
     ce_alpha = cfg.get("ce_alpha", 1.0)
