@@ -35,6 +35,8 @@ class StudentConvNeXtWrapper(nn.Module):
             "feat_4d": feat_4d,
             "feat_2d": feat_2d,
         }
+        # cache last 2D feature for optional retrieval
+        self._cached_feat = feat_dict["feat_2d"]
         return feat_dict, logit, None
 
     def get_feat_dim(self):
@@ -42,6 +44,10 @@ class StudentConvNeXtWrapper(nn.Module):
 
     def get_feat_channels(self):
         return self.feat_channels
+
+    def get_feat(self):
+        """Return last cached feature map (feat_2d) saved in forward()."""
+        return getattr(self, "_cached_feat", None)
 
 
 def create_convnext_tiny(num_classes=100, pretrained=True, small_input=False, cfg: Optional[dict] = None):
