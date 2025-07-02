@@ -29,7 +29,7 @@ def simple_finetune(
 
     model.train()
     optimizer = torch.optim.AdamW(
-        model.parameters(), lr=lr, weight_decay=float(weight_decay)
+        model.parameters(), lr=float(lr), weight_decay=float(weight_decay)
     )
     autocast_ctx, scaler = get_amp_components(cfg or {})
     criterion = torch.nn.CrossEntropyLoss()
