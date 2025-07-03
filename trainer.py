@@ -326,7 +326,11 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
                 for m in ema_model.modules():
                     m.training = False
             with torch.no_grad():
-                d = cfg.get("ema_decay", 0.995)     # 반응성 ↑
+                # warm-up: 초기에는 빠르게, 점점 느리게
+                base = cfg.get("ema_decay", 0.995)     # 최종 목표치
+                warm = cfg.get("ema_warmup_iters", 5)  # 앞 N epoch
+                cur  = min(ep, warm) / warm
+                d = base * cur + (1 - cur) * 0.90      # 0.90 → base 로 선형 전환
                 for p_ema, p in zip(ema_model.parameters(),
                                     student_model.parameters()):
                     p_ema.data.mul_(d).add_(p.data, alpha=1 - d)
