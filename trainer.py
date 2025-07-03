@@ -129,7 +129,7 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
             leave=False,
             disable=cfg.get("disable_tqdm", False),
         )
-        for x, y in epoch_loader:
+        for batch_idx, (x, y) in enumerate(epoch_loader):
             x, y = x.to(device), y.to(device)
             with torch.no_grad():
                 out1 = teacher1(x)
@@ -219,9 +219,16 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
         None.
     """
     device = cfg.get("device", "cuda")
-    # ────── 하이퍼 ─────────────────────────────────────────────
-    T = cfg.get("kd_temperature", 4)          #  KD 온도
-    alpha_kd = cfg.get("alpha_kd", 0.5)       #  KD 가중치
+    # ────── KD 스케줄 파라미터 ────────────────────────────────
+    init_alpha = cfg.get("kd_alpha_init", cfg.get("alpha_kd", 0.5))
+    final_alpha = cfg.get("kd_alpha_final", 0.3)
+    init_T     = cfg.get("kd_T_init",   cfg.get("kd_temperature", 4))
+    final_T    = cfg.get("kd_T_final",  3)
+    warmup     = cfg.get("kd_warmup_frac", 0.0)
+    gran       = cfg.get("kd_schedule_granularity", "step").lower()
+
+    alpha_kd = init_alpha
+    T = init_T
     ce_alpha = cfg.get("ce_alpha", 1.0)       #  CE 가중치
     latent_w = cfg.get("latent_alpha", 1.0)   #  잠재 정렬
     clip = cfg.get("grad_clip_norm", 0)
@@ -230,7 +237,12 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
     student_model.train()
     ema_model = None
     scheduler = cosine_lr_scheduler(optimizer, cfg.get("student_iters", 1))
-    for ep in range(cfg.get("student_iters", 1)):
+
+    # 총 업데이트 횟수 (스케줄 계산용)
+    total_epochs = cfg.get("student_iters", 1)
+    total_steps  = total_epochs * len(loader)
+
+    for ep in range(total_epochs):
         running_loss = 0.0
         correct = 0
         count = 0
@@ -240,7 +252,7 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
             leave=False,
             disable=cfg.get("disable_tqdm", False),
         )
-        for x, y in epoch_loader:
+        for batch_idx, (x, y) in enumerate(epoch_loader):
             x, y = x.to(device), y.to(device)
 
             # ─ Teacher feature → synergy target ─────────────────
@@ -265,6 +277,19 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
                 logit_s = s_out
                 feat_s = student_model.get_feat()       # 필요 시 구현
             z_s = student_proj(feat_s)
+
+            # ─ KD 스케줄 (progress ∈ [0,1]) ────────────────────
+            if gran == "epoch":
+                raw_prog = ep / max(total_epochs - 1, 1)
+            else:  # "step"
+                global_step = ep * len(loader) + batch_idx
+                raw_prog = global_step / max(total_steps - 1, 1)
+
+            # warm-up: 앞부분 (warmup_frac) 동안 스케줄 고정
+            prog = max(0.0, raw_prog - warmup) / max(1e-6, 1.0 - warmup)
+
+            alpha_kd = init_alpha * (1 - prog) + final_alpha * prog
+            T        = init_T     * (1 - prog) + final_T     * prog
 
             # ─ Losses ──────────────────────────────────────────
             ce = F.cross_entropy(logit_s, y)
