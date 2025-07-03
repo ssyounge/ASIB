@@ -295,7 +295,10 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
 
             # ─────────────── DEBUG: 스케줄 값 모니터링 ───────────────
             if batch_idx == 0 and ep in {0, 5, 10, 20, total_epochs - 1}:
-                print(f"[KD-sched] ep{ep:02d} α={alpha_kd:.3f}, T={T:.2f}, prog={prog_p:.2f}")
+                print(
+                    f"[KD-sched] ep{ep:02d} prog={prog_p:.2f}, "
+                    f"kd={alpha_kd:.3f}, T={T:.2f}, latent_w={latent_w}"
+                )
 
             # ─ Losses ──────────────────────────────────────────
             ce = F.cross_entropy(logit_s, y)
