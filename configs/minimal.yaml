@@ -22,6 +22,7 @@ kd_T_init: 4                # 초기 온도
 kd_T_final: 2.0               # 최종 온도
 kd_warmup_frac: 0.10         # 앞부분 스케줄 고정 비율
 kd_schedule_granularity: "step"
+kd_sched_pow: 1.0            # KD 스케줄 지수(p)
 ce_alpha: 1.0                # 🔸 CE 그대로
 latent_alpha: 0.2            # z‑MSE 비중 ↓
 label_smoothing: 0.1         # 🔹 CE 안정화
