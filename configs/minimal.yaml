@@ -17,6 +17,12 @@ z_dim: 256
 
 beta_bottleneck: 0.003       # IB KL 가중치
 alpha_kd: 0.7                # soft‑KD 비중 ↑
+kd_alpha_init: 0.7          # KD 초반 가중치
+kd_alpha_final: 0.3         # KD 후반 가중치
+kd_T_init: 4                # 초기 온도
+kd_T_final: 3               # 최종 온도
+kd_warmup_frac: 0.0         # 앞부분 스케줄 고정 비율
+kd_schedule_granularity: step
 ce_alpha: 1.0                # 🔸 CE 그대로
 kd_temperature: 3            # 🔹 새 항목 ‑ T
 latent_alpha: 0.3            # z‑MSE 비중 ↓
