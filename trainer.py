@@ -226,6 +226,7 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
     final_T    = cfg.get("kd_T_final",  3)
     warmup     = cfg.get("kd_warmup_frac", 0.0)
     gran       = cfg.get("kd_schedule_granularity", "step").lower()
+    sched_pow  = cfg.get("kd_sched_pow", 1.0)
 
     alpha_kd = init_alpha
     T = init_T
@@ -285,15 +286,16 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
                 global_step = ep * len(loader) + batch_idx
                 raw_prog = global_step / max(total_steps - 1, 1)
 
-            # warm-up: 앞부분 (warmup_frac) 동안 스케줄 고정
+            # warm‑up 구간 제외 후, p‑power 스케일 적용
             prog = max(0.0, raw_prog - warmup) / max(1e-6, 1.0 - warmup)
+            prog_p = prog ** sched_pow
 
-            alpha_kd = init_alpha * (1 - prog) + final_alpha * prog
-            T        = init_T     * (1 - prog) + final_T     * prog
+            alpha_kd = init_alpha * (1 - prog_p) + final_alpha * prog_p
+            T        = init_T     * (1 - prog_p) + final_T     * prog_p
 
             # ─────────────── DEBUG: 스케줄 값 모니터링 ───────────────
-            if batch_idx == 0 and ep in {0, 5, 10, 20, total_epochs - 1}:
-                print(f"[KD-sched] ep{ep:02d} α={alpha_kd:.3f}, T={T:.2f}")
+            if batch_idx == 0 and ep in {0, 5, 10, 20, 39}:
+                print(f"[KD-sched] ep{ep:02d} α={alpha_kd:.3f}, T={T:.2f}, prog={prog_p:.2f}")
 
             # ─ Losses ──────────────────────────────────────────
             ce = F.cross_entropy(logit_s, y)
