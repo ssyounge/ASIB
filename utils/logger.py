@@ -75,6 +75,8 @@ class ExperimentLogger:
 
         # For timing
         self.start_time = time.time()
+        # history of metric updates for JSON logging
+        self.metric_history = []
 
     def _generate_exp_id(self, exp_name="exp"):
         """
@@ -85,12 +87,21 @@ class ExperimentLogger:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         return f"{exp_name}_{eval_mode}_{ts}"
 
-    def update_metric(self, key, value):
+    def update_metric(self, name: str, value: float, step: int | None = None):
         """
-        Save any metric (accuracy, loss, hyperparams, etc.) into self.config
-        so it can be written out on finalize().
+        Save a metric into ``self.config`` and keep a history with the step.
+
+        Parameters
+        ----------
+        name: str
+            Metric name (e.g. ``train_acc`` or ``loss``).
+        value: float
+            Metric value.
+        step: int | None
+            Optional step/epoch associated with this metric.
         """
-        self.config[key] = value
+        self.config[name] = value
+        self.metric_history.append({"name": name, "value": value, "step": step})
 
     # drop‑in logger
     def info(self, msg: str):
@@ -113,6 +124,9 @@ class ExperimentLogger:
 
         # 2) JSON file path (per-run using exp_id)
         json_path = os.path.join(self.results_dir, f"{self.exp_id}.json")
+
+        # include metric history in the final JSON
+        self.config["metrics"] = self.metric_history
 
         # 3) CSV file path (fixed name)
         csv_filename = "summary.csv"
