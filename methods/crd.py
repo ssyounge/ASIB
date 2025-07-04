@@ -6,16 +6,16 @@ import torch
 import torch.nn.functional as F
 from typing import Optional
 from tqdm.auto import tqdm
+import torch.nn as nn
 
 # CRD = CE + α·InfoNCE  (원 논문 식)
 from modules.losses import ce_loss_fn
 from utils.eval import evaluate_acc
 from utils.misc import get_amp_components
 from utils.schedule import cosine_lr_scheduler
-import torch.nn as nn  # (proj 사용 시 명시 import)
 
 
-class CRDDistiller:
+class CRDDistiller(nn.Module):
     """Minimal CRD distiller using feature MSE with KD loss."""
 
     def __init__(
@@ -27,12 +27,18 @@ class CRDDistiller:
         label_smoothing: float = 0.0,
         config: Optional[dict] = None,
     ) -> None:
+        super().__init__()
         self.teacher = teacher_model
         self.student = student_model
         self.alpha = float(alpha)          # α = CRD 비중
         self.temperature = float(temperature)  # τ
         self.label_smoothing = float(label_smoothing)
         self.cfg = config or {}
+
+        # ─ Projection 헤드(고정 1회 생성) —
+        s_dim = student_model.get_feat_dim()
+        t_dim = teacher_model.get_feat_dim()
+        self.proj = nn.Identity() if s_dim == t_dim else nn.Linear(s_dim, t_dim, bias=False)
 
     # ────────── unified forward API ──────────
     def _get_feat_logit(self, out):
@@ -61,13 +67,7 @@ class CRDDistiller:
             loss = ce                        # CRD 항은 계산하지 않음
             return loss, s_logit
 
-        # ── dim‑match (첫 호출에만 초기화) ──
-        if not hasattr(self, "_proj"):
-            in_d, out_d = s_feat.size(1), t_feat.size(1)
-            self._proj = (
-                nn.Identity() if in_d == out_d else nn.Linear(in_d, out_d, bias=False).to(s_feat.device)
-            )
-        s_proj = self._proj(s_feat)
+        s_proj = self.proj(s_feat)              # ← 등록된 모듈 사용
 
         crd = self._info_nce(s_proj, t_feat)
         ce = ce_loss_fn(s_logit, y, label_smoothing=self.label_smoothing)
@@ -88,8 +88,10 @@ class CRDDistiller:
         device = device or cfg.get("device", "cuda")
         self.teacher.eval()
         self.student.to(device)
+        self.proj.to(device)
         optimizer = torch.optim.AdamW(
-            self.student.parameters(), lr=float(lr), weight_decay=float(weight_decay)
+            list(self.student.parameters()) + list(self.proj.parameters()),
+            lr=float(lr), weight_decay=float(weight_decay)
         )
         scheduler = cosine_lr_scheduler(optimizer, epochs)
         autocast_ctx, scaler = get_amp_components(cfg)  # ce_criterion 제거
