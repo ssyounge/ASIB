@@ -21,8 +21,8 @@ def get_cifar100_loaders(
         aug_ops = [T.RandomCrop(32, padding=4), T.RandomHorizontalFlip()]
         if randaug_N > 0 and randaug_M > 0:
             aug_ops.append(T.RandAugment(num_ops=randaug_N, magnitude=randaug_M))
-        else:
-            aug_ops.append(T.RandAugment())
+        else:                                   # 기본 N=2, M=9 고정
+            aug_ops.append(T.RandAugment(num_ops=2, magnitude=9))
         aug_ops.extend([
             T.ToTensor(),
             T.Normalize((0.5071, 0.4865, 0.4409), (0.2673, 0.2564, 0.2762)),

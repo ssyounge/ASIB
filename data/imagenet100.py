@@ -22,8 +22,8 @@ def get_imagenet100_loaders(
         aug_ops = [T.RandomResizedCrop(224), T.RandomHorizontalFlip()]
         if randaug_N > 0 and randaug_M > 0:
             aug_ops.append(T.RandAugment(num_ops=randaug_N, magnitude=randaug_M))
-        else:
-            aug_ops.append(T.RandAugment())
+        else:                                   # 기본 N=2, M=9 고정
+            aug_ops.append(T.RandAugment(num_ops=2, magnitude=9))
         aug_ops.extend([
             T.ToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
