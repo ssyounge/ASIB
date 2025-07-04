@@ -1,6 +1,7 @@
 """Standard knowledge distillation helper."""
 
 import torch
+from typing import Optional
 from tqdm.auto import tqdm
 
 from modules.losses import kd_loss_fn, ce_loss_fn
@@ -18,7 +19,7 @@ class VanillaKDDistiller:
         student_model,
         alpha: float = 0.5,
         temperature: float = 4.0,
-        config: dict | None = None,
+        config: Optional[dict] = None,
     ) -> None:
         self.teacher = teacher_model
         self.student = student_model
@@ -34,7 +35,7 @@ class VanillaKDDistiller:
         lr: float = 5e-4,
         weight_decay: float = 5e-4,
         device: str = "cuda",
-        cfg: dict | None = None,
+        cfg: Optional[dict] = None,
     ) -> float:
         cfg = {**self.cfg, **(cfg or {})}
         device = device or cfg.get("device", "cuda")
