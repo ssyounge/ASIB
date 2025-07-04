@@ -5,7 +5,10 @@ from typing import Optional
 
 from models.teachers.teacher_resnet import create_resnet152
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
-from models.students.student_convnext import create_convnext_tiny
+from models.students.student_convnext import (
+    create_convnext_tiny,
+    create_convnext_small,
+)
 
 __all__ = [
     "create_teacher_by_name",
@@ -57,7 +60,14 @@ def create_student_by_name(
             small_input=small_input,
             cfg=cfg,
         )
+    if student_type == "convnext_small":
+        return create_convnext_small(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            small_input=small_input,
+            cfg=cfg,
+        )
     raise ValueError(
-        f"Unknown student_type: {student_type} (expected 'convnext_tiny')"
+        f"Unknown student_type: {student_type} (expected 'convnext_tiny' or 'convnext_small')"
     )
 
