@@ -79,7 +79,7 @@ class DKDDistiller:
     ) -> float:
         cfg = {**self.cfg, **(cfg or {})}
         device = device or cfg.get("device", "cuda")
-        self.teacher.eval()
+        self.teacher.to(device).eval()
         self.student.to(device)
         optimizer = torch.optim.AdamW(
             self.student.parameters(), lr=float(lr), weight_decay=float(weight_decay)

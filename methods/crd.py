@@ -86,7 +86,7 @@ class CRDDistiller(nn.Module):
     ) -> float:
         cfg = {**self.cfg, **(cfg or {})}
         device = device or cfg.get("device", "cuda")
-        self.teacher.eval()
+        self.teacher.to(device).eval()
         self.student.to(device)
         self.proj.to(device)
         optimizer = torch.optim.AdamW(
@@ -97,6 +97,7 @@ class CRDDistiller(nn.Module):
         autocast_ctx, scaler = get_amp_components(cfg)  # ce_criterion 제거
         for ep in range(epochs):
             self.student.train()
+            self.proj.train()          # <- 권장 (선택)
             running = 0.0
             correct = 0
             count = 0
