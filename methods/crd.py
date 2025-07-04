@@ -12,6 +12,7 @@ from modules.losses import ce_loss_fn
 from utils.eval import evaluate_acc
 from utils.misc import get_amp_components
 from utils.schedule import cosine_lr_scheduler
+import torch.nn as nn  # (proj 사용 시 명시 import)
 
 
 class CRDDistiller:
@@ -56,9 +57,7 @@ class CRDDistiller:
         if not hasattr(self, "_proj"):
             in_d, out_d = s_feat.size(1), t_feat.size(1)
             self._proj = (
-                torch.nn.Identity()
-                if in_d == out_d
-                else torch.nn.Linear(in_d, out_d).to(s_feat.device)
+                nn.Identity() if in_d == out_d else nn.Linear(in_d, out_d).to(s_feat.device)
             )
         s_proj = self._proj(s_feat)
 
@@ -85,7 +84,7 @@ class CRDDistiller:
             self.student.parameters(), lr=float(lr), weight_decay=float(weight_decay)
         )
         scheduler = cosine_lr_scheduler(optimizer, epochs)
-        autocast_ctx, scaler = get_amp_components(cfg)
+        autocast_ctx, scaler = get_amp_components(cfg)  # ce_criterion 제거
         for ep in range(epochs):
             self.student.train()
             running = 0.0
@@ -126,4 +125,5 @@ class CRDDistiller:
             if test_loader is not None
             else train_acc
         )
+        # < 추가 >
         return float(final_acc)

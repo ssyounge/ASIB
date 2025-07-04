@@ -7,6 +7,7 @@ from typing import Optional
 from tqdm.auto import tqdm
 
 from modules.losses import dkd_loss
+import torch.nn as nn  # forward 내부 투입 시 사용 가능
 from torch.nn.functional import cross_entropy
 from utils.eval import evaluate_acc
 from utils.misc import get_amp_components
@@ -84,7 +85,7 @@ class DKDDistiller:
             self.student.parameters(), lr=float(lr), weight_decay=float(weight_decay)
         )
         scheduler = cosine_lr_scheduler(optimizer, epochs)
-        autocast_ctx, scaler = get_amp_components(cfg)
+        autocast_ctx, scaler = get_amp_components(cfg)  # criterion_ce 삭제
         for ep in range(epochs):
             self.student.train()
             running = 0.0
@@ -126,4 +127,5 @@ class DKDDistiller:
             if test_loader is not None
             else train_acc
         )
+        # < 추가 >
         return float(final_acc)
