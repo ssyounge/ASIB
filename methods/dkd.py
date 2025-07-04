@@ -1,3 +1,5 @@
+# methods/dkd.py
+
 """Simplified Decoupled Knowledge Distillation."""
 
 import torch
