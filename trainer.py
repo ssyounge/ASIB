@@ -202,7 +202,8 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
             test_acc = evaluate_mbm_acc(teacher1, teacher2, vib_mbm, test_loader, device)
         print(
             f"[Teacher] ep {ep + 1:03d}/{cfg.get('teacher_iters', 1)} "
-            f"loss {avg_loss:.4f} kl {avg_kl:.4f} train_acc {train_acc:.2f}% test_acc {test_acc:.2f}%"
+            f"loss {avg_loss:.4f} kl {avg_kl:.4f} "
+            f"train_acc {train_acc:.2f}%  student_acc {test_acc:.2f}%"
         )
         if logger is not None:
             logger.update_metric(f"teacher_ep{ep + 1}_train_acc", float(train_acc))
@@ -403,22 +404,27 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
                         b_ema.copy_(b)
 
         # ─ 테스트 정확도 ────────────────────────────
-        test_acc = 0.0
+        # ───────── epoch‑end 평가 ─────────
+        student_acc = 0.0
+        ema_acc = None
         if test_loader is not None:
-            model_eval = ema_model if cfg.get("use_ema", False) else student_model
-            test_acc = evaluate_acc(
-                model_eval,
-                test_loader,
-                device=device,
-                mixup_active=(cfg.get("mixup_alpha", 0) > 0 or cfg.get("cutmix_alpha_distill", 0) > 0),
-            )
-        print(
+            student_acc = evaluate_acc(student_model, test_loader, device=device)
+            if ema_model is not None:
+                ema_acc = evaluate_acc(ema_model, test_loader, device=device)
+
+        msg = (
             f"[Student] ep {ep + 1:03d}/{cfg.get('student_iters', 1)} "
-            f"loss {avg_loss:.4f} train_acc {train_acc:.2f}% test_acc {test_acc:.2f}%"
+            f"loss {avg_loss:.4f} train_acc {train_acc:.2f}%  student_acc {student_acc:.2f}%"
         )
+        if ema_acc is not None:
+            msg += f"  ema_acc {ema_acc:.2f}%"
+        print(msg)
+
         if logger is not None:
             logger.update_metric(f"student_ep{ep + 1}_train_acc", float(train_acc))
-            logger.update_metric(f"student_ep{ep + 1}_test_acc", float(test_acc))
+            logger.update_metric("student_acc", float(student_acc), step=ep + 1)
+            if ema_acc is not None:
+                logger.update_metric("ema_acc", float(ema_acc), step=ep + 1)
 
 # ─ 최종 EMA 성능 저장 ──────────────────────────────
     if cfg.get("use_ema", False) and test_loader is not None:
