@@ -25,19 +25,22 @@ parser.add_argument('--teacher1_ckpt', type=str, help='Path to teacher-1 checkpo
 parser.add_argument('--teacher2_ckpt', type=str, help='Path to teacher-2 checkpoint')
 parser.add_argument('--results_dir', type=str, help='Where to save logs / checkpoints')
 parser.add_argument('--batch_size', type=int, help='Mini-batch size for training')
+parser.add_argument('--method', type=str, help='vib | dkd | crd | vanilla')
 args = parser.parse_args()
 cfg = yaml.safe_load(open(args.cfg))
 
 os.makedirs(cfg.get("results_dir", "results"), exist_ok=True)
 logger = ExperimentLogger(cfg, exp_name="ibkd")
 
-for k in ('teacher1_ckpt', 'teacher2_ckpt', 'results_dir', 'batch_size'):
+for k in ('teacher1_ckpt', 'teacher2_ckpt', 'results_dir', 'batch_size', 'method'):
     v = getattr(args, k, None)
     if v is not None:
         cfg[k] = v
 
 device = cfg.get('device', 'cuda')
 set_random_seed(cfg.get('seed', 42))
+method = cfg.get('method', 'vib').lower()
+assert method in {'vib', 'dkd', 'crd', 'vanilla'}, "unknown method"
 
 # ---------- data ----------
 train_loader, test_loader = get_cifar100_loaders(
@@ -142,28 +145,93 @@ opt_s = AdamW(
 )
 
 # ---------- training ----------
-teacher_vib_update(
-    t1,
-    t2,
-    mbm,
-    train_loader,
-    cfg,
-    opt_t,
-    test_loader=test_loader,
-    logger=logger,
-)
-student_vib_update(
-    t1,
-    t2,
-    student,
-    mbm,
-    proj,
-    train_loader,
-    cfg,
-    opt_s,
-    test_loader=test_loader,
-    logger=logger,
-)
+if method == 'vib':
+    teacher_vib_update(
+        t1,
+        t2,
+        mbm,
+        train_loader,
+        cfg,
+        opt_t,
+        test_loader=test_loader,
+        logger=logger,
+    )
+    student_vib_update(
+        t1,
+        t2,
+        student,
+        mbm,
+        proj,
+        train_loader,
+        cfg,
+        opt_s,
+        test_loader=test_loader,
+        logger=logger,
+    )
+
+elif method == 'crd':
+    from methods.crd import CRDDistiller
+    distiller = CRDDistiller(
+        teacher_model=t1,
+        student_model=student,
+        alpha=cfg.get('crd_alpha', 0.5),
+        temperature=cfg.get('crd_T', 0.07),
+        label_smoothing=cfg.get('label_smoothing', 0.0),
+        config=cfg,
+    )
+    acc = distiller.train_distillation(
+        train_loader,
+        test_loader,
+        epochs=cfg.get('student_iters', 60),
+        lr=cfg.get('student_lr', 5e-4),
+        weight_decay=cfg.get('student_weight_decay', 5e-4),
+        device=device,
+        cfg=cfg,
+    )
+    logger.update_metric("student_acc", float(acc))
+
+elif method == 'dkd':
+    from methods.dkd import DKDDistiller
+    distiller = DKDDistiller(
+        teacher_model=t1,
+        student_model=student,
+        alpha=cfg.get('dkd_alpha', 1.0),
+        beta=cfg.get('dkd_beta', 8.0),
+        temperature=cfg.get('dkd_T', 4.0),
+        warmup=cfg.get('dkd_warmup', 5),
+        label_smoothing=cfg.get('label_smoothing', 0.0),
+        config=cfg,
+    )
+    acc = distiller.train_distillation(
+        train_loader,
+        test_loader,
+        epochs=cfg.get('student_iters', 60),
+        lr=cfg.get('student_lr', 5e-4),
+        weight_decay=cfg.get('student_weight_decay', 5e-4),
+        device=device,
+        cfg=cfg,
+    )
+    logger.update_metric("student_acc", float(acc))
+
+elif method == 'vanilla':
+    from methods.vanilla_kd import VanillaKDDistiller
+    distiller = VanillaKDDistiller(
+        teacher_model=t1,
+        student_model=student,
+        alpha=cfg.get('vanilla_alpha', 0.5),
+        temperature=cfg.get('vanilla_T', 4.0),
+        config=cfg,
+    )
+    acc = distiller.train_distillation(
+        train_loader,
+        test_loader,
+        epochs=cfg.get('student_iters', 60),
+        lr=cfg.get('student_lr', 5e-4),
+        weight_decay=cfg.get('student_weight_decay', 5e-4),
+        device=device,
+        cfg=cfg,
+    )
+    logger.update_metric("student_acc", float(acc))
 
 if cfg.get("eval_after_train", True):
     acc = evaluate_acc(

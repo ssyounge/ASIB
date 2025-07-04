@@ -11,6 +11,23 @@ checkpoint_dir: "checkpoints"
 
 student_type: "convnext_tiny"
 
+# ─ Distillation method 선택 ──────────────────────
+method: vib        # {vib | dkd | crd | vanilla}
+
+# ─ CRD 전용 ─
+crd_alpha: 0.5
+crd_T: 0.07
+
+# ─ DKD 전용 ─
+dkd_alpha: 1.0
+dkd_beta: 8.0
+dkd_T: 4.0
+dkd_warmup: 5
+
+# ─ Vanilla-KD 전용 ─
+vanilla_alpha: 0.5
+vanilla_T: 4.0
+
 # ─ IB‑KD 하이퍼 ────────────────────────────────────
 mbm_type: "VIB"
 # ─ Latent 용량 ↑ ─
