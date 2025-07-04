@@ -25,7 +25,7 @@ class StudentProj(nn.Module):
 
         layers.append(nn.Linear(in_dim, out_dim, bias=not use_bn))
         if use_bn:
-            layers.insert(1, nn.BatchNorm1d(out_dim))
+            layers.append(nn.BatchNorm1d(out_dim))
 
         self.net = nn.Sequential(*layers)
         self._normalize = normalize
