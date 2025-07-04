@@ -57,6 +57,8 @@ def main() -> None:
         root=cfg.get("dataset_root", "./data"),
         batch_size=cfg.get("batch_size", 128),
         num_workers=cfg.get("num_workers", 0),
+        randaug_N=cfg.get("finetune_randaug_N", 0),
+        randaug_M=cfg.get("finetune_randaug_M", 0),
     )
 
     model = create_teacher_by_name(
