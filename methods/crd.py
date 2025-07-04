@@ -5,7 +5,8 @@ import torch.nn.functional as F
 from typing import Optional
 from tqdm.auto import tqdm
 
-from modules.losses import kd_loss_fn, ce_loss_fn
+# CRD = CE + α·InfoNCE  (원 논문 식)
+from modules.losses import ce_loss_fn
 from utils.eval import evaluate_acc
 from utils.misc import get_amp_components
 from utils.schedule import cosine_lr_scheduler
@@ -25,8 +26,8 @@ class CRDDistiller:
     ) -> None:
         self.teacher = teacher_model
         self.student = student_model
-        self.alpha = float(alpha)
-        self.temperature = float(temperature)
+        self.alpha = float(alpha)          # α = CRD 비중
+        self.temperature = float(temperature)  # τ
         self.label_smoothing = float(label_smoothing)
         self.cfg = config or {}
 
@@ -86,11 +87,18 @@ class CRDDistiller:
                         s_logit = s_out
                         s_feat = None
                     ce = ce_criterion(s_logit, y)
-                    kd = kd_loss_fn(s_logit, t_logit.detach(), T=self.temperature)
-                    feat_loss = 0.0
+                    # ─ InfoNCE( student vs teacher ) ─
                     if s_feat is not None and t_feat is not None:
-                        feat_loss = F.mse_loss(s_feat, t_feat.detach())
-                    loss = ce * (1 - self.alpha) + kd * self.alpha + feat_loss * 0.5
+                        s = F.normalize(s_feat.view(s_feat.size(0), -1), dim=1)
+                        t = F.normalize(t_feat.view(t_feat.size(0), -1), dim=1)
+                        logits_ct = torch.mm(s, t.t()) / self.temperature
+                        labels_ct = torch.arange(s.size(0), device=s.device)
+                        crd = F.cross_entropy(logits_ct, labels_ct)
+                    else:
+                        crd = 0.0
+
+                    # total = (1-α)·CE + α·CRD
+                    loss = (1 - self.alpha) * ce + self.alpha * crd
                 if scaler:
                     scaler.scale(loss).backward()
                     scaler.step(optimizer)
