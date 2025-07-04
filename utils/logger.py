@@ -2,6 +2,7 @@
 
 import os, sys, csv, json, time, logging
 from datetime import datetime                 # ★ 추가
+from typing import Optional
 
 # ── 0) console logger 설정 (한 줄 timestamp + 색상* 지원)
 logging.basicConfig(
@@ -84,7 +85,7 @@ class ExperimentLogger:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         return f"{exp_name}_{eval_mode}_{ts}"
 
-    def update_metric(self, name: str, value: float, step: int | None = None) -> None:
+    def update_metric(self, name: str, value: float, step: Optional[int] = None) -> None:
         """
         Save a metric and, if supplied, its step/epoch.
 
@@ -94,7 +95,7 @@ class ExperimentLogger:
             Metric name (e.g. ``train_acc`` or ``loss``).
         value: float
             Metric value.
-        step: int | None
+        step: Optional[int]
             Optional step/epoch associated with this metric.
         """
         self.config[name] = value
