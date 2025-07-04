@@ -31,5 +31,6 @@ class StudentProj(nn.Module):
         self._normalize = normalize
 
     def forward(self, x):
+        x = x.flatten(1)
         z = self.net(x)
         return F.normalize(z) if self._normalize else z
