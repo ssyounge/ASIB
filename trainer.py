@@ -200,14 +200,15 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
             from utils.eval import evaluate_mbm_acc
 
             test_acc = evaluate_mbm_acc(teacher1, teacher2, vib_mbm, test_loader, device)
-        print(
+        msg = (
             f"[Teacher] ep {ep + 1:03d}/{cfg.get('teacher_iters', 1)} "
-            f"loss {avg_loss:.4f} kl {avg_kl:.4f} "
-            f"train_acc {train_acc:.2f}%  student_acc {test_acc:.2f}%"
+            f"loss {avg_loss:.4f} kl {avg_kl:.4f} train_acc {train_acc:.2f}%  "
+            f"test_acc {test_acc:.2f}%"
         )
+        print(msg)
         if logger is not None:
             logger.update_metric(f"teacher_ep{ep + 1}_train_acc", float(train_acc))
-            logger.update_metric(f"teacher_ep{ep + 1}_test_acc", float(test_acc))
+            logger.update_metric(f"teacher_ep{ep + 1}_test_acc",    float(test_acc))
 
         # ────────── DEBUG ④ synergy acc 첫 epoch 후 한 번 출력 ──────────
         if ep == 0:
@@ -414,7 +415,8 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
 
         msg = (
             f"[Student] ep {ep + 1:03d}/{cfg.get('student_iters', 1)} "
-            f"loss {avg_loss:.4f} train_acc {train_acc:.2f}%  student_acc {student_acc:.2f}%"
+            f"loss {avg_loss:.4f} train_acc {train_acc:.2f}%  "
+            f"test_acc {student_acc:.2f}%"
         )
         if ema_acc is not None:
             msg += f"  ema_acc {ema_acc:.2f}%"
@@ -422,7 +424,7 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
 
         if logger is not None:
             logger.update_metric(f"student_ep{ep + 1}_train_acc", float(train_acc))
-            logger.update_metric("student_acc",  float(student_acc), step=ep + 1)
+            logger.update_metric("test_acc",     float(student_acc), step=ep + 1)
             if ema_acc is not None:
                 logger.update_metric("ema_acc",  float(ema_acc),    step=ep + 1)
 
