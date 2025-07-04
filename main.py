@@ -100,7 +100,7 @@ if ft_epochs > 0:
             ft_epochs,
             device,
             weight_decay=cfg.get("finetune_weight_decay", 0.0),
-            cfg=cfg,
+            cfg={**cfg, "finetune_eval_loader": test_loader},   # NEW
             ckpt_path=t1_ckpt or "checkpoints/teacher1_ft.pth",
         )
     if not loaded2:
@@ -111,7 +111,7 @@ if ft_epochs > 0:
             ft_epochs,
             device,
             weight_decay=cfg.get("finetune_weight_decay", 0.0),
-            cfg=cfg,
+            cfg={**cfg, "finetune_eval_loader": test_loader},   # NEW
             ckpt_path=t2_ckpt or "checkpoints/teacher2_ft.pth",
         )
 freeze_all(t1)
