@@ -422,9 +422,9 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
 
         if logger is not None:
             logger.update_metric(f"student_ep{ep + 1}_train_acc", float(train_acc))
-            logger.update_metric("student_acc", float(student_acc), step=ep + 1)
+            logger.update_metric("student_acc", float(student_acc))
             if ema_acc is not None:
-                logger.update_metric("ema_acc", float(ema_acc), step=ep + 1)
+                logger.update_metric("ema_acc", float(ema_acc))
 
 # ─ 최종 EMA 성능 저장 ──────────────────────────────
     if cfg.get("use_ema", False) and test_loader is not None:
