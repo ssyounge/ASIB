@@ -5,6 +5,7 @@ from typing import Optional
 from tqdm.auto import tqdm
 
 from modules.losses import dkd_loss
+from torch.nn.functional import cross_entropy           # CE 추가
 from utils.eval import evaluate_acc
 from utils.misc import get_amp_components
 from utils.schedule import cosine_lr_scheduler
@@ -58,7 +59,7 @@ class DKDDistiller:
             running = 0.0
             correct = 0
             count = 0
-            progress = min(1.0, (ep + 1) / max(1, self.warmup))
+            warm = min(1.0, (ep + 1) / max(1, self.warmup))   # DKD warm-up factor
             for x, y in tqdm(
                 train_loader,
                 desc=f"[DKD] epoch {ep+1}",
@@ -83,14 +84,16 @@ class DKDDistiller:
                         s_logits = s_out["logit"]
                     else:
                         s_logits = s_out
-                    loss = dkd_loss(
+                    ce  = criterion_ce(s_logits, y)
+                    dkd = dkd_loss(
                         s_logits,
                         t_logits.detach(),
                         y,
-                        alpha=self.alpha * progress,
+                        alpha=self.alpha,
                         beta=self.beta,
                         temperature=self.temperature,
                     )
+                    loss = ce + dkd * warm                 # CE + warm-up DKD
                 if scaler:
                     scaler.scale(loss).backward()
                     scaler.step(optimizer)
