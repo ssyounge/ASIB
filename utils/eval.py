@@ -3,7 +3,12 @@
 import torch
 
 @torch.no_grad()
-def evaluate_acc(model, loader, device="cuda", cfg=None, mixup_active: bool = False):
+def evaluate_acc(
+    model,
+    loader,
+    device: str = "cuda",
+    mixup_active: bool = False,   # NEW – 호출 처리를 위한 더미 플래그
+):
     model.eval()
     correct = 0
     total = 0
@@ -15,6 +20,8 @@ def evaluate_acc(model, loader, device="cuda", cfg=None, mixup_active: bool = Fa
         y = y.squeeze()
         if mixup_active and y.ndim > 1:
             y = y.argmax(dim=1)
+        # 학습-평가 공통 호출을 위해 mixup_active 플래그만 받는다.
+        # 평가 시엔 실제 MixUp 입력이 없으므로 로직 변화 없음.
         out = model(x)
         if isinstance(out, tuple):
             logits = out[1]
