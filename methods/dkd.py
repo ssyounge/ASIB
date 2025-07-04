@@ -7,7 +7,7 @@ from typing import Optional
 from tqdm.auto import tqdm
 
 from modules.losses import dkd_loss
-from torch.nn.functional import cross_entropy           # CE 추가
+from torch.nn.functional import cross_entropy
 from utils.eval import evaluate_acc
 from utils.misc import get_amp_components
 from utils.schedule import cosine_lr_scheduler
@@ -20,6 +20,7 @@ class DKDDistiller:
         self,
         teacher_model,
         student_model,
+        ce_weight: float = 1.0,
         alpha: float = 1.0,
         beta: float = 8.0,
         temperature: float = 4.0,
@@ -29,12 +30,41 @@ class DKDDistiller:
     ) -> None:
         self.teacher = teacher_model
         self.student = student_model
+        self.ce_weight = float(ce_weight)
         self.alpha = float(alpha)
         self.beta = float(beta)
         self.temperature = float(temperature)
         self.warmup = int(warmup)
         self.label_smoothing = float(label_smoothing)
         self.cfg = config or {}
+
+    # ───────── unified forward ─────────
+    def _get_logits(self, out):
+        if isinstance(out, tuple):
+            return out[1]
+        elif isinstance(out, dict):
+            return out["logit"]
+        else:
+            return out
+
+    def forward(self, x, y, warm):
+        with torch.no_grad():
+            t_logits = self._get_logits(self.teacher(x))
+        s_logits = self._get_logits(self.student(x))
+
+        ce = self.ce_weight * cross_entropy(
+            s_logits, y, label_smoothing=self.label_smoothing
+        )
+        dkd = dkd_loss(
+            s_logits,
+            t_logits,
+            y,
+            alpha=self.alpha,
+            beta=self.beta,
+            temperature=self.temperature,
+        )
+        loss = ce + dkd * warm
+        return loss, s_logits
 
     def train_distillation(
         self,
@@ -55,13 +85,12 @@ class DKDDistiller:
         )
         scheduler = cosine_lr_scheduler(optimizer, epochs)
         autocast_ctx, scaler = get_amp_components(cfg)
-        criterion_ce = torch.nn.CrossEntropyLoss(label_smoothing=self.label_smoothing)
         for ep in range(epochs):
             self.student.train()
             running = 0.0
             correct = 0
             count = 0
-            warm = min(1.0, (ep + 1) / max(1, self.warmup))   # DKD warm-up factor
+            warm = min(1.0, (ep + 1) / max(1, self.warmup))
             for x, y in tqdm(
                 train_loader,
                 desc=f"[DKD] epoch {ep+1}",
@@ -69,33 +98,9 @@ class DKDDistiller:
                 disable=cfg.get("disable_tqdm", False),
             ):
                 x, y = x.to(device), y.to(device)
-                with torch.no_grad():
-                    t_out = self.teacher(x)
-                    if isinstance(t_out, tuple):
-                        t_logits = t_out[1]
-                    elif isinstance(t_out, dict):
-                        t_logits = t_out["logit"]
-                    else:
-                        t_logits = t_out
                 optimizer.zero_grad()
                 with autocast_ctx:
-                    s_out = self.student(x)
-                    if isinstance(s_out, tuple):
-                        s_logits = s_out[1]
-                    elif isinstance(s_out, dict):
-                        s_logits = s_out["logit"]
-                    else:
-                        s_logits = s_out
-                    ce  = criterion_ce(s_logits, y)
-                    dkd = dkd_loss(
-                        s_logits,
-                        t_logits.detach(),
-                        y,
-                        alpha=self.alpha,
-                        beta=self.beta,
-                        temperature=self.temperature,
-                    )
-                    loss = ce + dkd * warm                 # CE + warm-up DKD
+                    loss, s_logits = self.forward(x, y, warm)
                 if scaler:
                     scaler.scale(loss).backward()
                     scaler.step(optimizer)
