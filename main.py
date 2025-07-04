@@ -151,9 +151,10 @@ opt_t = Adam(
     lr=float(cfg.get("teacher_lr", 1e-3)),            # 이미 YAML에서 1e‑3 지정
     weight_decay=float(cfg.get("teacher_weight_decay", 0.0)),
 )
+# NOTE: YAML 에서 지정한 learning‑rate 그대로 사용하도록 '* 2' 삭제
 opt_s = AdamW(
     list(student.parameters()) + list(proj.parameters()),
-    lr=float(cfg.get("student_lr", 5e-4)) * 2,
+    lr=float(cfg.get("student_lr", 5e-4)),
     weight_decay=float(cfg.get("student_weight_decay", 0.0)),
 )
 

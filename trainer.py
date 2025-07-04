@@ -306,6 +306,11 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
                 feat_s = student_model.get_feat()       # 필요 시 구현
             z_s = student_proj(feat_s)
 
+            # ─── DEBUG ① L2‑정규화 확인 (첫 step 한 번) ───
+            if batch_idx == 0 and ep == 0:
+                mean_norm = z_s.norm(dim=1).mean().item()
+                print(f"[DEBUG] z_s norm mean = {mean_norm:.3f}")
+
             # ─ KD 스케줄 (progress ∈ [0,1]) ────────────────────
             if gran == "epoch":
                 raw_prog = ep / max(total_epochs - 1, 1)
@@ -329,11 +334,20 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
 
             # ─ Losses ──────────────────────────────────────────
             ce = F.cross_entropy(logit_s, y)
-            kd = F.kl_div(
+            # raw KL (T 스케일 전)
+            kl_raw = F.kl_div(
                 F.log_softmax(logit_s / T, dim=1),
                 F.softmax(logit_t.detach() / T, dim=1),
                 reduction="batchmean",
-            ) * (T * T)
+            )
+            kd = kl_raw * (T * T)
+
+            # ─── DEBUG ② T² 스케일 검증 (첫 step 한 번) ───
+            if batch_idx == 0 and ep == 0:
+                print(
+                    f"[DEBUG] KL raw={kl_raw.item():.4f} │ "
+                    f"scaled={kd.item():.4f} (= raw×{T*T:.2f})"
+                )
             # ─ Latent & Angle Loss 병행 ─
             latent_mse   = F.mse_loss(z_s, z_t.detach())
             latent_angle = 1 - F.cosine_similarity(z_s, z_t.detach(), dim=1).mean()
