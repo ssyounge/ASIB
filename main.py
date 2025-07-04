@@ -114,15 +114,16 @@ mbm = VIB_MBM(in1, in2, cfg['z_dim'], n_cls=100).to(device)
 # ---------- student ----------
 student = create_convnext_tiny(num_classes=100, small_input=True).to(device)
 proj = StudentProj(
-    student.get_feat_dim(),
-    cfg['z_dim'],
-    normalize=cfg.get('proj_normalize', True),
-    use_bn=cfg.get('proj_use_bn', False),
+    in_dim        = student.get_feat_dim(),
+    out_dim       = cfg['z_dim'],
+    hidden_dim    = cfg.get('proj_hidden_dim'),
+    normalize     = True,
+    use_bn        = cfg.get('proj_use_bn', False),
 ).to(device)
 
 opt_t = Adam(
     mbm.parameters(),
-    lr=float(cfg.get("teacher_lr", 3e-4)) * 3,        # DEBUG ③ 3× 상향 (≈1e‑3)
+    lr=float(cfg.get("teacher_lr", 1e-3)),            # 이미 YAML에서 1e‑3 지정
     weight_decay=float(cfg.get("teacher_weight_decay", 0.0)),
 )
 opt_s = AdamW(

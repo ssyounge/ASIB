@@ -21,6 +21,17 @@ def get_tau(cfg: dict, epoch: int) -> float:
     return float(tau)
 
 
-def cosine_lr_scheduler(optimizer, iters):
-    """Return cosine scheduler over ``iters`` epochs."""
-    return torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=iters)
+def cosine_lr_scheduler(
+    optimizer,
+    total_epochs,
+    warmup_epochs: int = 0,
+    min_lr_ratio: float = 0.05,
+):
+    def lr_lambda(cur_epoch):
+        if cur_epoch < warmup_epochs:
+            return (cur_epoch + 1) / warmup_epochs
+        t = (cur_epoch - warmup_epochs) / max(1, total_epochs - warmup_epochs)
+        cosine = 0.5 * (1 + math.cos(math.pi * t))
+        return min_lr_ratio + (1 - min_lr_ratio) * cosine
+
+    return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
