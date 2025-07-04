@@ -165,7 +165,7 @@ class ExperimentLogger:
 
         # ── 한 줄 summary ───────────────────────
         tr = self.config.get("train_acc", "-")
-        te = self.config.get("test_acc",  "-")
+        te = self.config.get("final_test_acc", self.config.get("test_acc", "-"))
         self.info(
             f"SUMMARY │ {self.exp_id} │ train {tr} │ test {te} │ "
             f"time {total_time/60:.1f} min"
