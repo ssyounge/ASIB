@@ -50,14 +50,22 @@ class CRDDistiller:
         return F.cross_entropy(logits, torch.arange(s.size(0), device=s.device))
 
     def forward(self, x, y):
+        # ── teacher / student forward ──
         with torch.no_grad():
             t_feat, _ = self._get_feat_logit(self.teacher(x))
         s_feat, s_logit = self._get_feat_logit(self.student(x))
 
+        # teacher·student 둘 다 “feat_2d” 를 제공하지 않는 경우 ⇒ CE 로만 학습
+        if t_feat is None or s_feat is None:
+            ce   = ce_loss_fn(s_logit, y, label_smoothing=self.label_smoothing)
+            loss = ce                        # CRD 항은 계산하지 않음
+            return loss, s_logit
+
+        # ── dim‑match (첫 호출에만 초기화) ──
         if not hasattr(self, "_proj"):
             in_d, out_d = s_feat.size(1), t_feat.size(1)
             self._proj = (
-                nn.Identity() if in_d == out_d else nn.Linear(in_d, out_d).to(s_feat.device)
+                nn.Identity() if in_d == out_d else nn.Linear(in_d, out_d, bias=False).to(s_feat.device)
             )
         s_proj = self._proj(s_feat)
 

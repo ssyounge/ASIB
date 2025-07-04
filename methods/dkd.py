@@ -64,7 +64,7 @@ class DKDDistiller:
             beta=self.beta,
             temperature=self.temperature,
         )
-        loss = ce + dkd * warm
+        loss = ce + dkd * warm      # warm‑up factor 적용
         return loss, s_logits
 
     def train_distillation(
