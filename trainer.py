@@ -43,6 +43,13 @@ def simple_finetune(
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=float(lr), weight_decay=float(weight_decay)
     )
+    # warm-up + cosine
+    scheduler = cosine_lr_scheduler(
+        optimizer,
+        epochs,
+        warmup_epochs=(cfg or {}).get("finetune_warmup", 0),
+        min_lr_ratio=0.1,
+    )
     autocast_ctx, scaler = get_amp_components(cfg or {})
     criterion = torch.nn.CrossEntropyLoss()
 
@@ -76,6 +83,8 @@ def simple_finetune(
         avg_loss = running_loss / max(count, 1)
         # return to train mode after evaluation
         model.train()
+
+        scheduler.step()
 
         tag = ""
         if acc > best_acc:

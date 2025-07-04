@@ -61,7 +61,18 @@ use_ema: true
 ema_decay: 0.992
 
 # --- Teacher fine‑tune ---
-finetune_epochs: 20
-finetune_lr: 5e-4
-finetune_weight_decay: 1e-5
+finetune_epochs: 30          # +10 epoch
+finetune_lr: 1e-3            # LR ↑
+finetune_weight_decay: 3e-4  # WD ↓
+
+# ─ Teacher fine‑tune scheduler ─
+finetune_warmup: 5           # NEW – warm‑up epoch
+finetune_sched: "cosine"     # linear‑warmup + cosine
+
+# ─ Fine‑tune aug ─
+finetune_randaug_N: 2
+finetune_randaug_M: 7
+finetune_mixup_alpha: 0.2
+
+finetune_label_smoothing: 0.05
 teacher2_freeze_scope: "none"
