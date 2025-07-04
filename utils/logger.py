@@ -143,6 +143,7 @@ class ExperimentLogger:
             "eval_mode",
             "train_acc",
             "test_acc",
+            "final_test_acc",
             "batch_size",
             "total_time_sec",
             "mbm_type",
@@ -151,14 +152,15 @@ class ExperimentLogger:
             "mbm_learnable_q",
         ]
 
-        epoch_cols = [
+        # teacher / student epoch-wise metric columns also automatically included
+        extra_cols = sorted(
             k for k in self.config.keys()
-            if k.startswith(("student_ep", "teacher_ep"))
-        ]
+            if k.startswith(("teacher_ep", "student_ep"))
+        )
+        fieldnames = base_cols + extra_cols
 
-        fieldnames = base_cols + sorted(epoch_cols)
-
-        save_csv_row(self.config, csv_path, fieldnames, write_header_if_new=True)
+        # CSV 저장
+        save_csv_row(self.config, csv_path, fieldnames)
         self.info(f"CSV   ↗ {csv_path}")
 
         # ── 한 줄 summary ───────────────────────

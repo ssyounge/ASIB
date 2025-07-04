@@ -434,7 +434,7 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
             ema_model, test_loader, device=device,
             mixup_active=(cfg.get("mixup_alpha", 0) > 0 or cfg.get("cutmix_alpha_distill", 0) > 0),
         )
-        logger.update_metric("test_acc", float(final_ema_acc))
+        logger.update_metric("final_test_acc", float(final_ema_acc))
         print(f"Final student EMA accuracy: {final_ema_acc:.2f}%")
 
 
