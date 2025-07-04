@@ -25,9 +25,9 @@ kd_alpha_init: 0.6          # KD 초반 가중치
 kd_alpha_final: 0.15         # KD 후반 가중치
 kd_T_init: 5                # 초기 온도
 kd_T_final: 1.5               # 최종 온도
-kd_warmup_frac: 0.10         # 앞부분 스케줄 고정 비율
+kd_warmup_frac: 0.05         # 앞부분 스케줄 고정 비율
 kd_schedule_granularity: "step"
-kd_sched_pow: 2.0            # KD 스케줄 지수(p)
+kd_sched_pow: 1.5            # KD 스케줄 지수(p)
 ce_alpha: 1.0                # 🔸 CE 그대로
 latent_alpha: 0.6            # z‑MSE 가중치 ↑
 label_smoothing: 0.05         # 🔹 CE 안정화
@@ -37,7 +37,7 @@ randaug_M: 7
 teacher_weight_decay: 5e-4
 student_weight_decay: 5e-4
 teacher_lr: 1e-3        # MBM Adam LR ↑
-student_lr: 5e-4
+student_lr: 7e-4
 lr_schedule: "cosine"
 grad_clip_norm: 1.0
 
