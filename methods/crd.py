@@ -2,6 +2,7 @@
 
 import torch
 import torch.nn.functional as F
+from typing import Optional
 from tqdm.auto import tqdm
 
 from modules.losses import kd_loss_fn, ce_loss_fn
@@ -20,7 +21,7 @@ class CRDDistiller:
         alpha: float = 0.5,
         temperature: float = 0.07,
         label_smoothing: float = 0.0,
-        config: dict | None = None,
+        config: Optional[dict] = None,
     ) -> None:
         self.teacher = teacher_model
         self.student = student_model
@@ -37,7 +38,7 @@ class CRDDistiller:
         lr: float = 5e-4,
         weight_decay: float = 5e-4,
         device: str = "cuda",
-        cfg: dict | None = None,
+        cfg: Optional[dict] = None,
     ) -> float:
         cfg = {**self.cfg, **(cfg or {})}
         device = device or cfg.get("device", "cuda")

@@ -1,6 +1,7 @@
 """Simplified Decoupled Knowledge Distillation."""
 
 import torch
+from typing import Optional
 from tqdm.auto import tqdm
 
 from modules.losses import dkd_loss
@@ -21,7 +22,7 @@ class DKDDistiller:
         temperature: float = 4.0,
         warmup: int = 5,
         label_smoothing: float = 0.0,
-        config: dict | None = None,
+        config: Optional[dict] = None,
     ) -> None:
         self.teacher = teacher_model
         self.student = student_model
@@ -40,7 +41,7 @@ class DKDDistiller:
         lr: float = 5e-4,
         weight_decay: float = 5e-4,
         device: str = "cuda",
-        cfg: dict | None = None,
+        cfg: Optional[dict] = None,
     ) -> float:
         cfg = {**self.cfg, **(cfg or {})}
         device = device or cfg.get("device", "cuda")
