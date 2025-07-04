@@ -1,4 +1,4 @@
-# models/ib/proj_head.py
+# students/student_proj.py
 
 import torch.nn as nn
 import torch.nn.functional as F

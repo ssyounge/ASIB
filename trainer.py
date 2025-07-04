@@ -237,10 +237,16 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
     vib_mbm.eval()
     student_model.train()
     ema_model = None
-    scheduler = cosine_lr_scheduler(optimizer, cfg.get("student_iters", 1))
+    total_epochs = cfg.get("student_iters", 1)
+    # warm-up 3 epochs + cosine
+    scheduler = cosine_lr_scheduler(
+        optimizer,
+        total_epochs,
+        warmup_epochs=3,
+        min_lr_ratio=0.05,
+    )
 
     # 총 업데이트 횟수 (스케줄 계산용)
-    total_epochs = cfg.get("student_iters", 1)
     total_steps  = total_epochs * len(loader)
 
     for ep in range(total_epochs):

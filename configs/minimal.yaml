@@ -13,7 +13,12 @@ student_type: "convnext_tiny"
 
 # ─ IB‑KD 하이퍼 ────────────────────────────────────
 mbm_type: "VIB"
-z_dim: 256
+# ─ Latent 용량 ↑ ─
+z_dim: 512
+
+# ─ Student Proj MLP ─
+proj_hidden_dim: 1024   # NEW
+proj_use_bn: true
 
 beta_bottleneck: 0.003       # IB KL 가중치
 kd_alpha_init: 0.6          # KD 초반 가중치
@@ -24,14 +29,14 @@ kd_warmup_frac: 0.10         # 앞부분 스케줄 고정 비율
 kd_schedule_granularity: "step"
 kd_sched_pow: 2.0            # KD 스케줄 지수(p)
 ce_alpha: 1.0                # 🔸 CE 그대로
-latent_alpha: 0.6            # z‑MSE 비중 ↓
+latent_alpha: 0.6            # z‑MSE 가중치 ↑
 label_smoothing: 0.05         # 🔹 CE 안정화
 randaug_N: 2                 # 🔹 RandAug(N,M)
 randaug_M: 7
  
 teacher_weight_decay: 5e-4
 student_weight_decay: 5e-4
-teacher_lr: 3e-4
+teacher_lr: 1e-3        # MBM Adam LR ↑
 student_lr: 5e-4
 lr_schedule: "cosine"
 grad_clip_norm: 1.0
@@ -40,13 +45,13 @@ grad_clip_norm: 1.0
 eval_after_train: true
 
 # ─ Data Mixing ───────────────────────────────────
-mixup_alpha: 0.r             # CutMix 대신 MixUp 경량 사용
+mixup_alpha: 0.4             # CutMix 대신 MixUp 경량 사용
 cutmix_alpha_distill: 0.0    # (0 = MixUp 우선)
  
 # ─ 학습 스테이지 ──────────────────────────────────
 
-teacher_iters: 12            # 교사 추가 적응
-student_iters: 60            # 학생 학습 2×
+teacher_iters: 20       # MBM 더 학습
+student_iters: 60       # 조기 수렴
 
 # ─ EMA 평가 ─────────────
 use_ema: true
