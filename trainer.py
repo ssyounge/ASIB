@@ -57,7 +57,8 @@ def simple_finetune(
 
     criterion = torch.nn.CrossEntropyLoss(label_smoothing=label_smooth)
 
-    eval_loader = loader
+    # if caller supplies a separate validation loader, use it
+    eval_loader = (cfg or {}).get("finetune_eval_loader", loader)
     best_acc = 0.0
 
     for ep in range(1, epochs + 1):
@@ -87,12 +88,7 @@ def simple_finetune(
             running_loss += loss.item() * x.size(0)
             count += x.size(0)
 
-        acc = evaluate_acc(
-            model,
-            eval_loader,
-            device=device,
-            mixup_active=mixup_alpha > 0.0,
-        )
+        acc = evaluate_acc(model, eval_loader, device=device)
         model.train()
         avg_loss = running_loss / max(count, 1)
         # return to train mode after evaluation
