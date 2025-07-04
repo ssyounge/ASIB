@@ -377,6 +377,12 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
             correct += (logit_s.argmax(1) == y).sum().item()
             count += x.size(0)
         scheduler.step()
+
+        # ───────────── GPU 메모리 사용량 디버그 ─────────────
+        # YAML/CLI 에서  debug: true  로 켤 때만 작동
+        if cfg.get("debug", False) and torch.cuda.is_available():
+            torch.cuda.reset_peak_memory_stats()
+
         avg_loss = running_loss / max(count, 1)
         train_acc = 100.0 * correct / max(count, 1)
         # ─ EMA 추적 ─────────────────────────────────
@@ -403,6 +409,7 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
                 # BN·Dropout 모두 eval 고정
                 for m in ema_model.modules():
                     m.training = False
+            # AMP off 상황에서도 grad 누수가 없도록 보장
             with torch.no_grad():
                 # warm-up: 초기에는 빠르게, 점점 느리게
                 base = cfg.get("ema_decay", 0.995)     # 최종 목표치

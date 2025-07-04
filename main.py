@@ -49,6 +49,8 @@ important_keys = [
     "kd_alpha_init", "kd_alpha_final", "kd_T_init", "kd_T_final",
     "latent_alpha", "randaug_N", "randaug_M",
 ]
+# 새 항목 추가
+important_keys += ["normalize_proj", "kd_T_final"]
 print("┌─ Hyper-parameters (" + str(len(important_keys)) + ")")
 for k in important_keys:
     if k in cfg:
