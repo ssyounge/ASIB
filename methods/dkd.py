@@ -50,7 +50,7 @@ class DKDDistiller:
 
     def forward(self, x, y, warm):
         with torch.no_grad():
-            t_logits = self._get_logits(self.teacher(x))
+            t_logits = self._get_logits(self.teacher(x)).detach()
         s_logits = self._get_logits(self.student(x))
 
         ce = self.ce_weight * cross_entropy(
