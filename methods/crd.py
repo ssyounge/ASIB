@@ -1,3 +1,5 @@
+# methods/crd.py
+
 """Simple Contrastive Representation Distillation."""
 
 import torch
