@@ -33,6 +33,40 @@ class CRDDistiller:
         self.label_smoothing = float(label_smoothing)
         self.cfg = config or {}
 
+    # ────────── unified forward API ──────────
+    def _get_feat_logit(self, out):
+        if isinstance(out, tuple):
+            return out[0]["feat_2d"], out[1]
+        elif isinstance(out, dict):
+            return out["feat_2d"], out["logit"]
+        else:  # only logits returned
+            return None, out
+
+    def _info_nce(self, s_feat, t_feat):
+        s = F.normalize(s_feat.view(s_feat.size(0), -1), dim=1)
+        t = F.normalize(t_feat.view(t_feat.size(0), -1), dim=1)
+        logits = torch.mm(s, t.t()) / self.temperature
+        return F.cross_entropy(logits, torch.arange(s.size(0), device=s.device))
+
+    def forward(self, x, y):
+        with torch.no_grad():
+            t_feat, _ = self._get_feat_logit(self.teacher(x))
+        s_feat, s_logit = self._get_feat_logit(self.student(x))
+
+        if not hasattr(self, "_proj"):
+            in_d, out_d = s_feat.size(1), t_feat.size(1)
+            self._proj = (
+                torch.nn.Identity()
+                if in_d == out_d
+                else torch.nn.Linear(in_d, out_d).to(s_feat.device)
+            )
+        s_proj = self._proj(s_feat)
+
+        crd = self._info_nce(s_proj, t_feat)
+        ce = ce_loss_fn(s_logit, y, label_smoothing=self.label_smoothing)
+        loss = (1 - self.alpha) * ce + self.alpha * crd
+        return loss, s_logit
+
     def train_distillation(
         self,
         train_loader,
@@ -52,7 +86,6 @@ class CRDDistiller:
         )
         scheduler = cosine_lr_scheduler(optimizer, epochs)
         autocast_ctx, scaler = get_amp_components(cfg)
-        ce_criterion = torch.nn.CrossEntropyLoss(label_smoothing=self.label_smoothing)
         for ep in range(epochs):
             self.student.train()
             running = 0.0
@@ -65,42 +98,9 @@ class CRDDistiller:
                 disable=cfg.get("disable_tqdm", False),
             ):
                 x, y = x.to(device), y.to(device)
-                with torch.no_grad():
-                    t_out = self.teacher(x)
-                    if isinstance(t_out, tuple):
-                        t_feat = t_out[0]["feat_2d"]
-                        t_logit = t_out[1]
-                    elif isinstance(t_out, dict):
-                        t_feat = t_out["feat_2d"]
-                        t_logit = t_out["logit"]
-                    else:
-                        t_logit = t_out
-                        t_feat = None
                 optimizer.zero_grad()
                 with autocast_ctx:
-                    s_out = self.student(x)
-                    if isinstance(s_out, tuple):
-                        s_feat = s_out[0]["feat_2d"]
-                        s_logit = s_out[1]
-                    elif isinstance(s_out, dict):
-                        s_feat = s_out["feat_2d"]
-                        s_logit = s_out["logit"]
-                    else:
-                        s_logit = s_out
-                        s_feat = None
-                    ce = ce_criterion(s_logit, y)
-                    # ─ InfoNCE( student vs teacher ) ─
-                    if s_feat is not None and t_feat is not None:
-                        s = F.normalize(s_feat.view(s_feat.size(0), -1), dim=1)
-                        t = F.normalize(t_feat.view(t_feat.size(0), -1), dim=1)
-                        logits_ct = torch.mm(s, t.t()) / self.temperature
-                        labels_ct = torch.arange(s.size(0), device=s.device)
-                        crd = F.cross_entropy(logits_ct, labels_ct)
-                    else:
-                        crd = 0.0
-
-                    # total = (1-α)·CE + α·CRD
-                    loss = (1 - self.alpha) * ce + self.alpha * crd
+                    loss, s_logit = self.forward(x, y)
                 if scaler:
                     scaler.scale(loss).backward()
                     scaler.step(optimizer)
