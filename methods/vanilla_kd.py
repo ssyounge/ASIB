@@ -1,3 +1,5 @@
+# methods/vanilla_kd.py
+
 """Standard knowledge distillation helper."""
 
 import torch
