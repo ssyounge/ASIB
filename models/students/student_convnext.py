@@ -4,7 +4,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Optional
-from timm.models.convnext import convnext_tiny, convnext_small
+from torchvision.models import (
+    convnext_tiny,  ConvNeXt_Tiny_Weights,
+    convnext_small, ConvNeXt_Small_Weights,
+)
 
 __all__ = [
     "create_convnext_tiny",
@@ -55,44 +58,54 @@ class StudentConvNeXtWrapper(nn.Module):
         return getattr(self, "_cached_feat", None)
 
 
+def _patch_cifar_stem(model: nn.Module):
+    """32×32 입력용 stem stride 수정 (Conv1 stride 4→2)."""
+    conv = model.features[0][0]
+    model.features[0][0] = nn.Conv2d(
+        conv.in_channels,
+        conv.out_channels,
+        kernel_size=conv.kernel_size,
+        stride=2,
+        padding=conv.padding,
+        bias=conv.bias is not None,
+    )
+    model.features[0][0].weight.data.copy_(conv.weight.data)
+    if conv.bias is not None:
+        model.features[0][0].bias.data.copy_(conv.bias.data)
+
+
 def create_convnext_tiny(
     num_classes: int = 100,
     pretrained: bool = True,
     small_input: bool = True,
     cfg: Optional[dict] = None,
-    **kwargs,
 ):
-    """timm convnext_tiny wrapper with optional CIFAR-friendly stem."""
-    model = convnext_tiny(
-        pretrained=pretrained,
-        num_classes=num_classes,
-        **kwargs,
-    )
-    if small_input:
-        # stem-patch 4x4 already works for 32x32 -> no change
-        pass
+    w = ConvNeXt_Tiny_Weights.IMAGENET1K_V1 if pretrained else None
+    model = convnext_tiny(weights=w, num_classes=num_classes)
 
+    if small_input:
+        _patch_cifar_stem(model)
+
+    in_feats = model.classifier[2].in_features  # 헤드 교체
+    model.classifier[2] = nn.Linear(in_feats, num_classes)
     return StudentConvNeXtWrapper(model, cfg=cfg)
 
 
 # -------------------------------------------------------
-# NEW: ConvNeXt-Small (≈50 M parameters)
+# ConvNeXt‑Small (≈50 M params)
 # -------------------------------------------------------
 def create_convnext_small(
     num_classes: int = 100,
     pretrained: bool = True,
     small_input: bool = True,
     cfg: Optional[dict] = None,
-    **kwargs,
 ):
-    """timm convnext_small wrapper aligned with Tiny helper."""
-    model = convnext_small(
-        pretrained=pretrained,
-        num_classes=num_classes,
-        **kwargs,
-    )
-    if small_input:
-        # stem-patch 4x4 already works for 32x32 -> no change
-        pass
+    w = ConvNeXt_Small_Weights.IMAGENET1K_V1 if pretrained else None
+    model = convnext_small(weights=w, num_classes=num_classes)
 
+    if small_input:
+        _patch_cifar_stem(model)
+
+    in_feats = model.classifier[2].in_features
+    model.classifier[2] = nn.Linear(in_feats, num_classes)
     return StudentConvNeXtWrapper(model, cfg=cfg)

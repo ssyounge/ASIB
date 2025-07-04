@@ -1,5 +1,5 @@
 torch
-torchvision
+torchvision>=0.15
 PyYAML
 tqdm
 pandas
