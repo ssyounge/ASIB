@@ -313,7 +313,10 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
                 F.softmax(logit_t.detach() / T, dim=1),
                 reduction="batchmean",
             ) * (T * T)
-            latent = F.mse_loss(z_s, z_t.detach())
+            # ─ Latent & Angle Loss 병행 ─
+            latent_mse   = F.mse_loss(z_s, z_t.detach())
+            latent_angle = 1 - F.cosine_similarity(z_s, z_t.detach(), dim=1).mean()
+            latent       = 0.7 * latent_mse + 0.3 * latent_angle
 
             loss = ce_alpha * ce + alpha_kd * kd + latent_w * latent
             optimizer.zero_grad()
