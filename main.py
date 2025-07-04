@@ -44,6 +44,8 @@ train_loader, test_loader = get_cifar100_loaders(
     root=cfg.get('dataset_root', './data'),
     batch_size=cfg.get('batch_size', 128),
     num_workers=cfg.get('num_workers', 0),
+    randaug_N=cfg.get('randaug_N', 0),
+    randaug_M=cfg.get('randaug_M', 0),
 )
 
 # ---------- teachers ----------
@@ -80,10 +82,17 @@ if t2_ckpt and os.path.exists(t2_ckpt):
     loaded2 = True
 
 if ft_epochs > 0:
+    ft_loader, _ = get_cifar100_loaders(
+        root=cfg.get('dataset_root', './data'),
+        batch_size=cfg.get('batch_size', 128),
+        num_workers=cfg.get('num_workers', 0),
+        randaug_N=cfg.get('finetune_randaug_N', 0),
+        randaug_M=cfg.get('finetune_randaug_M', 0),
+    )
     if not loaded1:
         simple_finetune(
             t1,
-            train_loader,
+            ft_loader,
             ft_lr,
             ft_epochs,
             device,
@@ -94,7 +103,7 @@ if ft_epochs > 0:
     if not loaded2:
         simple_finetune(
             t2,
-            train_loader,
+            ft_loader,
             ft_lr,
             ft_epochs,
             device,

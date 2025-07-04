@@ -5,7 +5,7 @@ import copy, torch
 from utils.model_factory import create_student_by_name   # fallback 생성용
 import torch.nn.functional as F   # loss 함수(F.cross_entropy 등)용
 from utils.schedule import cosine_lr_scheduler
-from utils.misc import get_amp_components
+from utils.misc import get_amp_components, mixup_data, mixup_criterion
 from utils.eval import evaluate_acc
 from tqdm.auto import tqdm
 
@@ -51,7 +51,11 @@ def simple_finetune(
         min_lr_ratio=0.1,
     )
     autocast_ctx, scaler = get_amp_components(cfg or {})
-    criterion = torch.nn.CrossEntropyLoss()
+
+    mixup_alpha = (cfg or {}).get("finetune_mixup_alpha", 0.0)
+    label_smooth = (cfg or {}).get("finetune_label_smoothing", 0.0)
+
+    criterion = torch.nn.CrossEntropyLoss(label_smoothing=label_smooth)
 
     eval_loader = loader
     best_acc = 0.0
@@ -62,11 +66,16 @@ def simple_finetune(
         count = 0
         for x, y in loader:
             x, y = x.to(device), y.to(device)
+            if mixup_alpha > 0.0:
+                x, y_a, y_b, lam = mixup_data(x, y, alpha=mixup_alpha)
             optimizer.zero_grad()
             with autocast_ctx:
                 out = model(x)
                 logit = out[1] if isinstance(out, tuple) else out
-                loss = criterion(logit, y)
+                if mixup_alpha > 0.0:
+                    loss = mixup_criterion(criterion, logit, y_a, y_b, lam)
+                else:
+                    loss = criterion(logit, y)
             if scaler is not None:
                 scaler.scale(loss).backward()
                 scaler.step(optimizer)
@@ -78,7 +87,12 @@ def simple_finetune(
             running_loss += loss.item() * x.size(0)
             count += x.size(0)
 
-        acc = evaluate_acc(model, eval_loader, device=device)
+        acc = evaluate_acc(
+            model,
+            eval_loader,
+            device=device,
+            mixup_active=mixup_alpha > 0.0,
+        )
         model.train()
         avg_loss = running_loss / max(count, 1)
         # return to train mode after evaluation
