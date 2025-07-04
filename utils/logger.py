@@ -1,7 +1,7 @@
 # utils/logger.py
 
 import os, sys, csv, json, time, logging
-from datetime import datetime
+from datetime import datetime                 # ★ 추가
 
 # ── 0) console logger 설정 (한 줄 timestamp + 색상* 지원)
 logging.basicConfig(
@@ -73,23 +73,20 @@ class ExperimentLogger:
         # Where to save results
         self.results_dir = self.config.get("results_dir", "results")
 
-        # For timing
-        self.start_time = time.time()
-        # history of metric updates for JSON logging
-        self.metric_history = []
+        self.start_time      = time.time()     # 러닝타임 측정용
+        self.metric_history  = []              # step‑wise metric 로그용
 
-    def _generate_exp_id(self, exp_name="exp"):
+    def _generate_exp_id(self, exp_name: str = "exp") -> str:
         """
-        Creates an experiment ID like 'eval_experiment_synergy_20240805_153210'
-        using exp_name, eval_mode, and timestamp
+        Creates an experiment ID like 'ibkd_noeval_20250704_123456'
         """
         eval_mode = self.config.get("eval_mode", "noeval")
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         return f"{exp_name}_{eval_mode}_{ts}"
 
-    def update_metric(self, name: str, value: float, step: int | None = None):
+    def update_metric(self, name: str, value: float, step: int | None = None) -> None:
         """
-        Save a metric into ``self.config`` and keep a history with the step.
+        Save a metric and, if supplied, its step/epoch.
 
         Parameters
         ----------
@@ -125,7 +122,7 @@ class ExperimentLogger:
         # 2) JSON file path (per-run using exp_id)
         json_path = os.path.join(self.results_dir, f"{self.exp_id}.json")
 
-        # include metric history in the final JSON
+        # metric 히스토리 포함
         self.config["metrics"] = self.metric_history
 
         # 3) CSV file path (fixed name)
