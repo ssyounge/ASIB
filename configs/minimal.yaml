@@ -20,15 +20,18 @@ z_dim: 512
 proj_hidden_dim: 1024   # NEW
 proj_use_bn: true
 
+# ─ KD 스케줄 ① (더 hard·더 빨리) ────────────────
+
 beta_bottleneck: 0.003       # IB KL 가중치
 kd_alpha_init: 0.6          # KD 초반 가중치
 kd_alpha_final: 0.05      # hard‑KD 비중 ↑
 kd_T_init: 5                # 초기 온도
 kd_T_final: 1.0           # 더 hard logit
-kd_warmup_frac: 0.05         # 앞부분 스케줄 고정 비율
+kd_warmup_frac: 0.03      # warm-up 줄임
 kd_schedule_granularity: "step"
-kd_sched_pow: 1.0         # 선형 스케줄
+kd_sched_pow: 1.0         # 선형
 ce_alpha: 1.0                # 🔸 CE 그대로
+# ─ Latent 정렬 ② ────────────────────────────────
 latent_alpha: 0.8         # feature 정렬 가중 ↑
 label_smoothing: 0.05         # 🔹 CE 안정화
 randaug_N: 2                 # 🔹 RandAug(N,M)
@@ -37,7 +40,7 @@ randaug_M: 7
 teacher_weight_decay: 5e-4
 student_weight_decay: 5e-4
 teacher_lr: 1e-3        # MBM Adam LR ↑
-student_lr: 7e-4
+student_lr: 8e-4          # 학습률 15 % ↑
 lr_schedule: "cosine"
 grad_clip_norm: 1.0
 
@@ -45,8 +48,8 @@ grad_clip_norm: 1.0
 eval_after_train: true
 
 # ─ Data Mixing ───────────────────────────────────
-mixup_alpha: 0.4             # CutMix 대신 MixUp 경량 사용
-cutmix_alpha_distill: 0.0    # (0 = MixUp 우선)
+mixup_alpha: 0.6          # 강 MixUp
+cutmix_alpha_distill: 1.0 # MixUp + CutMix 병행
  
 # ─ 학습 스테이지 ──────────────────────────────────
 
