@@ -99,6 +99,7 @@ finetune_label_smoothing: 0.05
 teacher2_freeze_scope: "none"
 
 # --- feature distillation ---
-feat_layers: [1, 2]        # ConvNeXt stage index
+# ConvNeXt tiny 기준 예시
+feat_layers: [1, 2]        # layer2 / layer3 for ResNet-152
 feat_weights: [0.3, 0.7]   # 합계 1.0
 feat_loss_weight: 0.5      # γ
