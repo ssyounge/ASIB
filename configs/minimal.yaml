@@ -97,3 +97,8 @@ finetune_mixup_alpha: 0.2
 
 finetune_label_smoothing: 0.05
 teacher2_freeze_scope: "none"
+
+# --- feature distillation ---
+feat_layers: [1, 2]        # ConvNeXt stage index
+feat_weights: [0.3, 0.7]   # 합계 1.0
+feat_loss_weight: 1.0      # γ

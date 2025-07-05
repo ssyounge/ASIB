@@ -282,6 +282,18 @@ def student_vib_update(
     # 총 업데이트 횟수 (스케줄 계산용)
     total_steps  = total_epochs * len(loader)
 
+    # --- Feature hook 세팅 ---------------------------
+    from utils.feature_hook import FeatHook
+    from utils.distill_loss import feat_mse
+
+    layer_ids  = cfg.get("feat_layers", [1, 2])      # ex) [1,2]
+    layer_w    = cfg.get("feat_weights", [0.5, 0.5]) # 합 = 1
+    gamma_feat = cfg.get("feat_loss_weight", 1.0)
+
+    hook_s  = FeatHook(student_model.backbone, layer_ids)
+    hook_t1 = FeatHook(teacher1.backbone, layer_ids)
+    hook_t2 = FeatHook(teacher2.backbone, layer_ids)
+
     for ep in range(total_epochs):
         running_loss = 0.0
         correct = 0
@@ -351,7 +363,13 @@ def student_vib_update(
             latent_angle = 1 - F.cosine_similarity(z_s, z_t.detach(), dim=1).mean()
             latent       = 0.7 * latent_mse + 0.3 * latent_angle
 
-            loss = ce_alpha * ce + alpha_kd * kd + latent_w * latent
+            with torch.no_grad():   # teacher features는 이미 forward 훅으로 저장됨
+                teacher_feat = {k: 0.5 * hook_t1.features[k] + 0.5 * hook_t2.features[k] for k in layer_ids}
+
+            student_feat = hook_s.features
+            feat_loss = feat_mse(student_feat, teacher_feat, layer_ids, layer_w)
+
+            loss = ce_alpha * ce + alpha_kd * kd + latent_w * latent + gamma_feat * feat_loss
             optimizer.zero_grad()
             if scaler is not None:
                 scaler.scale(loss).backward()
@@ -371,6 +389,7 @@ def student_vib_update(
                         clip,
                     )
                 optimizer.step()
+            hook_s.clear(); hook_t1.clear(); hook_t2.clear()
             running_loss += loss.item() * x.size(0)
             correct += (logit_s.argmax(1) == y).sum().item()
             count += x.size(0)
