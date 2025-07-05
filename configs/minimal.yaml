@@ -42,10 +42,10 @@ proj_use_bn: true
 # ─ KD 스케줄 ① (더 hard·더 빨리) ────────────────
 
 beta_bottleneck: 0.003       # IB KL 가중치
-kd_alpha_init: 0.6          # KD 초반 가중치
-kd_alpha_final: 0.4      # hard‑KD 비중 ↑
+kd_alpha_init: 0.3
+kd_alpha_final: 0.6         # 후반부 soft‑KD ⭢ hard‑KD
 kd_T_init: 5                # 초기 온도
-kd_T_final: 1.0           # 더 hard logit
+kd_T_final:   2.0           # 너무 hard logit ↓ generalization 저하 방지
 kd_warmup_frac: 0.03      # warm-up 줄임
 kd_schedule_granularity: "step"
 kd_sched_pow: 1.0         # 선형
@@ -59,7 +59,7 @@ randaug_M: 7
 teacher_weight_decay: 5e-4
 student_weight_decay: 5e-4
 teacher_lr: 1e-3        # MBM Adam LR ↑
-student_lr: 8e-4          # 학습률 15 % ↑
+student_lr: 1.0e-3          # convnext_tiny 는 1e‑3 이상에서 더 잘 수렴
 lr_schedule: "cosine"
 # 학습률 warm‑up
 lr_warmup_epochs: 5        # 필요 시 숫자 조정
@@ -69,13 +69,13 @@ grad_clip_norm: 1.0
 eval_after_train: true
 
 # ─ Data Mixing ───────────────────────────────────
-mixup_alpha: 0.4
-cutmix_alpha_distill: 0
+mixup_alpha: 0.2
+cutmix_alpha_distill: 0.5
  
 # ─ 학습 스테이지 ──────────────────────────────────
 
 teacher_iters: 20       # MBM 더 학습
-student_iters: 60       # 조기 수렴
+student_iters: 90       # 정규화로 안정 ⇒ epoch 확장
 
 # ─ EMA 평가 ─────────────
 use_ema: true
@@ -100,6 +100,6 @@ teacher2_freeze_scope: "none"
 
 # --- feature distillation ---
 # ConvNeXt tiny 기준 예시
-feat_layers: [1, 2]        # layer2 / layer3 for ResNet-152
-feat_weights: [0.3, 0.7]   # 합계 1.0
-feat_loss_weight: 0.5      # γ
+feat_layers:  [2, 3]        # ConvNeXt 마지막 2 stage (더 추상적)
+feat_weights: [0.5, 0.5]
+feat_loss_weight: 0.2       # γ ↓  (정규화 후 0.2 ~ 0.3 권장)
