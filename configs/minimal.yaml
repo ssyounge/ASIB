@@ -10,6 +10,8 @@ seed: 42
 checkpoint_dir: "checkpoints"
 
 student_type: "convnext_tiny"
+# Conv stem stride
+patch_stride2: false       # true 로 바꾸면 stride 2
 
 # ─ Distillation method 선택 ──────────────────────
 method: vib        # {vib | dkd | crd | vanilla}
@@ -59,6 +61,8 @@ student_weight_decay: 5e-4
 teacher_lr: 1e-3        # MBM Adam LR ↑
 student_lr: 8e-4          # 학습률 15 % ↑
 lr_schedule: "cosine"
+# 학습률 warm‑up
+lr_warmup_epochs: 5        # 필요 시 숫자 조정
 grad_clip_norm: 1.0
 
 # run evaluation after training loop by default
