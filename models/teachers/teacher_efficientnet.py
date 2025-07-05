@@ -19,8 +19,6 @@ class TeacherEfficientNetWrapper(nn.Module):
     def __init__(self, backbone, cfg: Optional[dict] = None):
         super().__init__()
         self.backbone = backbone
-        # expose backbone for feature hooks
-        self.features = self.backbone
         self.criterion_ce = nn.CrossEntropyLoss()
 
         # 추가: EffNet-B2의 글로벌 피처 차원(1408)
