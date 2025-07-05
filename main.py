@@ -28,7 +28,13 @@ parser.add_argument('--results_dir', type=str, help='Where to save logs / checkp
 parser.add_argument('--batch_size', type=int, help='Mini-batch size for training')
 parser.add_argument('--method', type=str, help='vib | dkd | crd | vanilla')
 args = parser.parse_args()
-cfg = yaml.safe_load(open(args.cfg))
+with open(args.cfg, "r") as f:
+    cfg_raw = list(yaml.safe_load_all(f))  # 여러 문서 대비
+cfg = cfg_raw[0] if isinstance(cfg_raw, list) else cfg_raw
+if not isinstance(cfg, dict):
+    raise TypeError(
+        f"{args.cfg} 루트는 dict 여야 합니다 (현재: {type(cfg).__name__})"
+    )
 
 os.makedirs(cfg.get("results_dir", "results"), exist_ok=True)
 logger = ExperimentLogger(cfg, exp_name="ibkd")
