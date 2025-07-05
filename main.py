@@ -5,6 +5,7 @@ import os
 import yaml
 import torch
 from torch.optim import Adam, AdamW
+import math
 
 from models.ib.vib_mbm import VIB_MBM
 from models.ib.proj_head import StudentProj
@@ -71,6 +72,7 @@ t2 = create_efficientnet_b2(pretrained=True, small_input=True).to(device)
 # optional short fine-tuning before distillation
 ft_epochs = cfg.get('finetune_epochs', 0)
 ft_lr = cfg.get('finetune_lr', 1e-4)
+student_iters = cfg.get('student_iters', 60)
 
 t1_ckpt = cfg.get('teacher1_ckpt')
 t2_ckpt = cfg.get('teacher2_ckpt')
@@ -157,11 +159,22 @@ opt_t = Adam(
     lr=float(cfg.get("teacher_lr", 1e-3)),            # 이미 YAML에서 1e‑3 지정
     weight_decay=float(cfg.get("teacher_weight_decay", 0.0)),
 )
+base_lr = float(cfg.get("student_lr", 5e-4))
 opt_s = AdamW(
     list(student.parameters()) + list(proj.parameters()),
-    lr=float(cfg.get("student_lr", 5e-4)) * 2,
+    lr=base_lr,
     weight_decay=float(cfg.get("student_weight_decay", 0.0)),
 )
+
+# ─ warm‑up scheduler (cosine 기본) ─
+warm_epochs = cfg.get("lr_warmup_epochs", 5)
+total_epochs = student_iters
+def lr_lambda(cur_epoch):
+    if cur_epoch < warm_epochs:
+        return (cur_epoch + 1) / warm_epochs
+    t = (cur_epoch - warm_epochs) / max(1, total_epochs - warm_epochs)
+    return 0.5 * (1 + math.cos(math.pi * t))
+scheduler = torch.optim.lr_scheduler.LambdaLR(opt_s, lr_lambda)
 
 # ---------- training ----------
 if method == 'vib':
