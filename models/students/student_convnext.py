@@ -81,7 +81,11 @@ def create_convnext_tiny(
     cfg: Optional[dict] = None,
 ):
     w = ConvNeXt_Tiny_Weights.IMAGENET1K_V1 if pretrained else None
-    model = convnext_tiny(weights=w, num_classes=num_classes)
+    if pretrained:
+        # ① 가중치만 불러오고, num_classes는 건드리지 않는다.
+        model = convnext_tiny(weights=w)              # 1000‑cls head
+    else:
+        model = convnext_tiny(weights=None, num_classes=num_classes)
 
     if small_input:
         _patch_cifar_stem(model)
@@ -101,7 +105,10 @@ def create_convnext_small(
     cfg: Optional[dict] = None,
 ):
     w = ConvNeXt_Small_Weights.IMAGENET1K_V1 if pretrained else None
-    model = convnext_small(weights=w, num_classes=num_classes)
+    if pretrained:
+        model = convnext_small(weights=w)
+    else:
+        model = convnext_small(weights=None, num_classes=num_classes)
 
     if small_input:
         _patch_cifar_stem(model)

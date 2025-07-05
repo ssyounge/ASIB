@@ -13,7 +13,7 @@ from utils.eval import evaluate_acc
 from data.cifar100 import get_cifar100_loaders
 from models.teachers.teacher_resnet import create_resnet152
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
-from models.students.student_convnext import create_convnext_tiny
+from utils.model_factory import create_student_by_name               # NEW
 from trainer import teacher_vib_update, student_vib_update, simple_finetune
 from utils.freeze import freeze_all
 from utils.logger import ExperimentLogger
@@ -137,7 +137,13 @@ in1 = t1.get_feat_dim(); in2 = t2.get_feat_dim()
 mbm = VIB_MBM(in1, in2, cfg['z_dim'], n_cls=100).to(device)
 
 # ---------- student ----------
-student = create_convnext_tiny(num_classes=100, small_input=True).to(device)
+student = create_student_by_name(
+    cfg.get("student_type", "convnext_tiny"),   # ex) "convnext_small"
+    num_classes=100,
+    pretrained=True,
+    small_input=True,
+    cfg=cfg,
+).to(device)
 proj = StudentProj(
     in_dim        = student.get_feat_dim(),
     out_dim       = cfg['z_dim'],
