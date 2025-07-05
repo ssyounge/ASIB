@@ -7,6 +7,7 @@ import torch.nn.functional as F   # loss 함수(F.cross_entropy 등)용
 from utils.schedule import cosine_lr_scheduler
 from utils.misc import get_amp_components, mixup_data, mixup_criterion
 from utils.eval import evaluate_acc
+from utils.distill_loss import feat_mse_pair
 from tqdm.auto import tqdm
 
 
@@ -284,7 +285,7 @@ def student_vib_update(
 
     # --- Feature hook 세팅 ---------------------------
     from utils.feature_hook import FeatHook
-    from utils.distill_loss import feat_mse
+    from utils.distill_loss import feat_mse_pair
 
     layer_ids  = cfg.get("feat_layers", [1, 2])      # ex) [1,2]
     layer_w    = cfg.get("feat_weights", [0.5, 0.5]) # 합 = 1
@@ -363,13 +364,18 @@ def student_vib_update(
             latent_angle = 1 - F.cosine_similarity(z_s, z_t.detach(), dim=1).mean()
             latent       = 0.7 * latent_mse + 0.3 * latent_angle
 
-            with torch.no_grad():   # teacher features는 이미 forward 훅으로 저장됨
-                teacher_feat = {k: 0.5 * hook_t1.features[k] + 0.5 * hook_t2.features[k] for k in layer_ids}
-
             student_feat = hook_s.features
-            feat_loss = feat_mse(student_feat, teacher_feat, layer_ids, layer_w)
+            feat_loss = feat_mse_pair(
+                student_feat,
+                hook_t1.features,
+                hook_t2.features,
+                layer_ids,
+                layer_w,
+            )
 
-            loss = ce_alpha * ce + alpha_kd * kd + latent_w * latent + gamma_feat * feat_loss
+            loss = (
+                ce_alpha * ce + alpha_kd * kd + latent_w * latent + gamma_feat * feat_loss
+            )
             optimizer.zero_grad()
             if scaler is not None:
                 scaler.scale(loss).backward()
@@ -475,5 +481,7 @@ def student_vib_update(
         )
         logger.update_metric("final_test_acc", float(final_ema_acc))
         print(f"Final student EMA accuracy: {final_ema_acc:.2f}%")
+
+    hook_s.close(); hook_t1.close(); hook_t2.close()
 
 
