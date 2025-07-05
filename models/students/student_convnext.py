@@ -58,14 +58,16 @@ class StudentConvNeXtWrapper(nn.Module):
         return getattr(self, "_cached_feat", None)
 
 
-def _patch_cifar_stem(model: nn.Module):
-    """32×32 입력용 stem stride 수정 (Conv1 stride 4→2)."""
+# optional: keep stride 4 (original) – accuracy 일반적으로 ↑
+def _patch_cifar_stem(model: nn.Module, stride2: bool = False):
+    if not stride2:      # stride 4 유지 → 바로 return
+        return
     conv = model.features[0][0]
     model.features[0][0] = nn.Conv2d(
         conv.in_channels,
         conv.out_channels,
         kernel_size=conv.kernel_size,
-        stride=2,
+        stride=2,         # only if stride2=True
         padding=conv.padding,
         bias=conv.bias is not None,
     )
