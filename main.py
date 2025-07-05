@@ -199,6 +199,7 @@ if method == 'vib':
         opt_s,
         test_loader=test_loader,
         logger=logger,
+        scheduler=scheduler,
     )
 
 elif method == 'crd':

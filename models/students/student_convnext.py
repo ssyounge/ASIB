@@ -90,7 +90,7 @@ def create_convnext_tiny(
         model = convnext_tiny(weights=None, num_classes=num_classes)
 
     if small_input:
-        _patch_cifar_stem(model)
+        _patch_cifar_stem(model, stride2=cfg.get("patch_stride2", False))
 
     in_feats = model.classifier[2].in_features  # 헤드 교체
     model.classifier[2] = nn.Linear(in_feats, num_classes)
@@ -113,7 +113,7 @@ def create_convnext_small(
         model = convnext_small(weights=None, num_classes=num_classes)
 
     if small_input:
-        _patch_cifar_stem(model)
+        _patch_cifar_stem(model, stride2=cfg.get("patch_stride2", False))
 
     in_feats = model.classifier[2].in_features
     model.classifier[2] = nn.Linear(in_feats, num_classes)

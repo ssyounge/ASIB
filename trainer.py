@@ -94,7 +94,8 @@ def simple_finetune(
         # return to train mode after evaluation
         model.train()
 
-        scheduler.step()
+        if scheduler is not None:
+            scheduler.step()
 
         tag = ""
         if acc > best_acc:
@@ -191,7 +192,8 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
             running_kl += kl_z.mean().item() * x.size(0)
             correct += (logit_syn.argmax(1) == y).sum().item()
             count += x.size(0)
-        scheduler.step()
+        if scheduler is not None:
+            scheduler.step()
         avg_loss = running_loss / max(count, 1)
         avg_kl = running_kl / max(count, 1)
         train_acc = 100.0 * correct / max(count, 1)
@@ -223,7 +225,19 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
             print(f"[DEBUG] synergy_acc_after_ep1: {dbg_acc:.2f}%")
 
 
-def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj, loader, cfg, optimizer, test_loader=None, logger=None):
+def student_vib_update(
+    teacher1,
+    teacher2,
+    student_model,
+    vib_mbm,
+    student_proj,
+    loader,
+    cfg,
+    optimizer,
+    test_loader=None,
+    logger=None,
+    scheduler=None,
+):
     """Update the student network to mimic the VIB representation.
 
     Args:
@@ -259,13 +273,14 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
     student_model.train()
     ema_model = None
     total_epochs = cfg.get("student_iters", 1)
-    # warm-up 3 epochs + cosine
-    scheduler = cosine_lr_scheduler(
-        optimizer,
-        total_epochs,
-        warmup_epochs=3,
-        min_lr_ratio=0.05,
-    )
+    if scheduler is None:
+        # warm-up 3 epochs + cosine
+        scheduler = cosine_lr_scheduler(
+            optimizer,
+            total_epochs,
+            warmup_epochs=3,
+            min_lr_ratio=0.05,
+        )
 
     # 총 업데이트 횟수 (스케줄 계산용)
     total_steps  = total_epochs * len(loader)
@@ -362,7 +377,8 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
             running_loss += loss.item() * x.size(0)
             correct += (logit_s.argmax(1) == y).sum().item()
             count += x.size(0)
-        scheduler.step()
+        if scheduler is not None:
+            scheduler.step()
         avg_loss = running_loss / max(count, 1)
         train_acc = 100.0 * correct / max(count, 1)
         # ─ EMA 추적 ─────────────────────────────────
@@ -433,6 +449,7 @@ def student_vib_update(teacher1, teacher2, student_model, vib_mbm, student_proj,
             )
             if ema_acc is not None:
                 logger.update_metric("ema_acc", float(ema_acc), step=ep + 1)
+            logger.update_metric("lr", optimizer.param_groups[0]["lr"])
 
 # ─ 최종 EMA 성능 저장 ──────────────────────────────
     if cfg.get("use_ema", False) and test_loader is not None:
