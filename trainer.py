@@ -137,7 +137,6 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
     vib_mbm.train()
     teacher1.eval()
     teacher2.eval()
-    scheduler = cosine_lr_scheduler(optimizer, cfg.get("teacher_iters", 1))
     for ep in range(cfg.get("teacher_iters", 1)):
         running_loss = 0.0
         running_kl = 0.0
@@ -192,8 +191,6 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
             running_kl += kl_z.mean().item() * x.size(0)
             correct += (logit_syn.argmax(1) == y).sum().item()
             count += x.size(0)
-        if scheduler is not None:
-            scheduler.step()
         avg_loss = running_loss / max(count, 1)
         avg_kl = running_kl / max(count, 1)
         train_acc = 100.0 * correct / max(count, 1)
