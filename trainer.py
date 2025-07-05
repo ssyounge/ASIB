@@ -373,9 +373,10 @@ def student_vib_update(
                 layer_w,
             )
 
-            loss = (
-                ce_alpha * ce + alpha_kd * kd + latent_w * latent + gamma_feat * feat_loss
-            )
+            loss = ce_alpha*ce + alpha_kd*kd + latent_w*latent + gamma_feat*feat_loss
+
+            if batch_idx == 0 and ep % 10 == 0:
+                print(f"[DEBUG] γ={gamma_feat:.3f}  feat_loss={feat_loss.item():.4f}")
             optimizer.zero_grad()
             if scaler is not None:
                 scaler.scale(loss).backward()
