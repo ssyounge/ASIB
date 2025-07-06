@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# scripts/run_ibkd.sh
 #SBATCH --job-name=ibkd_cifar
 #SBATCH --gres=gpu:1
 #SBATCH --time=04:00:00
