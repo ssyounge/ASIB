@@ -38,20 +38,25 @@ if not isinstance(cfg, dict):
     )
 
 os.makedirs(cfg.get("results_dir", "results"), exist_ok=True)
-logger = ExperimentLogger(cfg, exp_name="ibkd")
 
-for k in ('teacher1_ckpt', 'teacher2_ckpt', 'results_dir', 'batch_size', 'method'):
+for k in (
+    'teacher1_ckpt', 'teacher2_ckpt', 'results_dir',
+    'batch_size', 'method'
+):
     v = getattr(args, k, None)
     if v is not None:
         cfg[k] = v
+
+# logger는 **최종 cfg**가 완성된 뒤에 생성
+logger = ExperimentLogger(cfg, exp_name="ibkd")
+
+# 전체 하이퍼파라미터 테이블 출력
+print_hparams(cfg)
 
 device = cfg.get('device', 'cuda')
 set_random_seed(cfg.get('seed', 42))
 method = cfg.get('method', 'vib').lower()
 assert method in {'vib', 'dkd', 'crd', 'vanilla'}, "unknown method"
-
-# ----- print all hyper-parameters -----
-print_hparams(cfg)
 
 # ---------- data ----------
 train_loader, test_loader = get_cifar100_loaders(
