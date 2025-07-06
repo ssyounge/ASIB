@@ -84,7 +84,12 @@ class DKDDistiller:
         optimizer = torch.optim.AdamW(
             self.student.parameters(), lr=float(lr), weight_decay=float(weight_decay)
         )
-        scheduler = cosine_lr_scheduler(optimizer, epochs)
+        scheduler = cosine_lr_scheduler(
+            optimizer,
+            epochs,
+            warmup_epochs=cfg.get("student_warmup_epochs", 0),
+            min_lr_ratio=cfg.get("min_lr_ratio_student", 0.05),
+        )
         autocast_ctx, scaler = get_amp_components(cfg)  # criterion_ce 삭제
         for ep in range(epochs):
             self.student.train()

@@ -49,7 +49,7 @@ def simple_finetune(
         optimizer,
         epochs,
         warmup_epochs=(cfg or {}).get("finetune_warmup", 0),
-        min_lr_ratio=0.1,
+        min_lr_ratio=(cfg or {}).get("min_lr_ratio_finetune", 0.1),
     )
     autocast_ctx, scaler = get_amp_components(cfg or {})
 
@@ -272,12 +272,11 @@ def student_vib_update(
     ema_model = None
     total_epochs = cfg.get("student_iters", 1)
     if scheduler is None:
-        # warm-up 3 epochs + cosine
         scheduler = cosine_lr_scheduler(
             optimizer,
             total_epochs,
-            warmup_epochs=3,
-            min_lr_ratio=0.05,
+            warmup_epochs=cfg.get("student_warmup_epochs", 3),
+            min_lr_ratio=cfg.get("min_lr_ratio_student", 0.05),
         )
 
     # 총 업데이트 횟수 (스케줄 계산용)
