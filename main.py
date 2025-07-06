@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import sys
 import yaml
 import torch
 from torch.optim import Adam, AdamW
@@ -154,13 +155,16 @@ student = create_student_by_name(
     small_input=True,
     cfg=cfg,
 ).to(device)
-proj = StudentProj(
-    in_dim        = student.get_feat_dim(),
-    out_dim       = cfg['z_dim'],
-    hidden_dim    = cfg.get('proj_hidden_dim'),
-    normalize     = True,
-    use_bn        = cfg.get('proj_use_bn', False),
-).to(device)
+if method != 'ce':
+    proj = StudentProj(
+        in_dim        = student.get_feat_dim(),
+        out_dim       = cfg['z_dim'],
+        hidden_dim    = cfg.get('proj_hidden_dim'),
+        normalize     = True,
+        use_bn        = cfg.get('proj_use_bn', False),
+    ).to(device)
+else:
+    proj = None  # CE baseline은 필요 없음
 
 if method != 'ce':
     opt_t = Adam(
@@ -170,22 +174,29 @@ if method != 'ce':
     )
 else:
     opt_t = None
-base_lr = float(cfg.get("student_lr", 5e-4))
-opt_s = AdamW(
-    list(student.parameters()) + list(proj.parameters()),
-    lr=base_lr,
-    weight_decay=float(cfg.get("student_weight_decay", 0.0)),
-)
 
-# ─ warm‑up scheduler (cosine 기본) ─
-warm_epochs = cfg.get("lr_warmup_epochs", 5)
-total_epochs = student_iters
-def lr_lambda(cur_epoch):
-    if cur_epoch < warm_epochs:
-        return (cur_epoch + 1) / warm_epochs
-    t = (cur_epoch - warm_epochs) / max(1, total_epochs - warm_epochs)
-    return 0.5 * (1 + math.cos(math.pi * t))
-scheduler = torch.optim.lr_scheduler.LambdaLR(opt_s, lr_lambda)
+if method != 'ce':
+    base_lr = float(cfg.get("student_lr", 5e-4))
+    opt_s = AdamW(
+        list(student.parameters()) + list(proj.parameters()),
+        lr=base_lr,
+        weight_decay=float(cfg.get("student_weight_decay", 0.0)),
+    )
+
+    # ─ warm‑up scheduler (cosine 기본) ─
+    warm_epochs = cfg.get("lr_warmup_epochs", 5)
+    total_epochs = student_iters
+
+    def lr_lambda(cur_epoch):
+        if cur_epoch < warm_epochs:
+            return (cur_epoch + 1) / warm_epochs
+        t = (cur_epoch - warm_epochs) / max(1, total_epochs - warm_epochs)
+        return 0.5 * (1 + math.cos(math.pi * t))
+
+    scheduler = torch.optim.lr_scheduler.LambdaLR(opt_s, lr_lambda)
+else:
+    opt_s = None
+    scheduler = None
 
 # ---------- training ----------
 if method == 'vib':
@@ -291,6 +302,8 @@ elif method == 'ce':
     )
     acc = evaluate_acc(student, test_loader, device)
     logger.update_metric("student_acc", float(acc))
+    logger.finalize()
+    sys.exit(0)
 
 if cfg.get("eval_after_train", True):
     acc = evaluate_acc(
