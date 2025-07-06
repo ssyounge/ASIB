@@ -1,4 +1,7 @@
 # configs/minimal.yaml
+# Default configuration for ASMB-KD. For a pure cross-entropy baseline,
+# set `method: ce` and also set `beta_bottleneck: 0.0` and
+# `student_iters: 200`.
 
 batch_size: 128              # ↑ 가능하면 256 (GPU 여유 시)
 num_workers: 2
@@ -14,7 +17,7 @@ student_type: "convnext_tiny"
 patch_stride2: false       # true 로 바꾸면 stride 2
 
 # ─ Distillation method 선택 ──────────────────────
-method: vib        # {vib | dkd | crd | vanilla}
+method: vib        # {vib | dkd | crd | vanilla | ce}
 
 # ─ CRD 전용 ─
 crd_alpha: 0.5
@@ -41,7 +44,7 @@ proj_use_bn: true
 
 # ─ KD 스케줄 ① (더 hard·더 빨리) ────────────────
 
-beta_bottleneck: 0.003       # IB KL 가중치
+beta_bottleneck: 0.003       # IB KL 가중치 (0.0 for CE baseline)
 kd_alpha_init: 0.3
 kd_alpha_final: 0.6         # 후반부 soft‑KD ⭢ hard‑KD
 kd_T_init: 5                # 초기 온도
@@ -81,7 +84,7 @@ cutmix_alpha_distill: 0.5
 # ─ 학습 스테이지 ──────────────────────────────────
 
 teacher_iters: 20       # MBM 더 학습
-student_iters: 90       # 정규화로 안정 ⇒ epoch 확장
+student_iters: 90       # 정규화로 안정 ⇒ epoch 확장 (200 for CE baseline)
 student_warmup_epochs: 3    # cosine warm-up length for student training
 min_lr_ratio_student: 0.05  # cosine scheduler minimum LR ratio
 

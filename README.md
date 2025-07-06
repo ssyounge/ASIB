@@ -34,7 +34,9 @@ bash scripts/run_ibkd.sh
 ```
 
 Both scripts read default options from `configs/minimal.yaml`.
-Set `disable_tqdm: true` in that file to suppress progress bars during training.
+For a pure cross-entropy baseline, edit that file and set `method: ce`,
+`beta_bottleneck: 0.0`, and `student_iters: 200`.
+Set `disable_tqdm: true` to suppress progress bars during training.
 Set `grad_scaler_init_scale` to control the initial scale used by the AMP grad
 scaler.
 
@@ -42,7 +44,7 @@ scaler.
 
 ```
 configs/
-    minimal.yaml        # experiment settings
+    minimal.yaml        # experiment settings (set `method: ce` for CE baseline)
 checkpoints/            # teacher checkpoints
 models/                 # teacher and student architectures
 scripts/
