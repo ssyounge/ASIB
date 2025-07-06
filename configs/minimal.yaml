@@ -52,6 +52,8 @@ kd_sched_pow: 1.0         # 선형
 ce_alpha: 1.0                # 🔸 CE 그대로
 # ─ Latent 정렬 ② ────────────────────────────────
 latent_alpha: 0.8         # feature 정렬 가중 ↑
+latent_mse_weight: 0.7
+latent_angle_weight: 0.3
 label_smoothing: 0.05         # 🔹 CE 안정화
 randaug_N: 2                 # 🔹 RandAug(N,M)
 randaug_M: 7
