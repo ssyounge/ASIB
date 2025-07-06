@@ -57,6 +57,10 @@ class StudentConvNeXtWrapper(nn.Module):
         """Return last cached feature map (feat_2d) saved in forward()."""
         return getattr(self, "_cached_feat", None)
 
+    def get_latent(self):
+        """Alias for retrieving the cached latent feature."""
+        return self.get_feat()
+
 
 # optional: keep stride 4 (original) – accuracy 일반적으로 ↑
 def _patch_cifar_stem(model: nn.Module, stride2: bool = False):
