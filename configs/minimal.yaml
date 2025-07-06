@@ -69,6 +69,7 @@ lr_schedule: "cosine"
 # 학습률 warm‑up
 lr_warmup_epochs: 5        # 필요 시 숫자 조정
 grad_clip_norm: 1.0
+grad_scaler_init_scale: 1024  # AMP GradScaler initial scale
 
 # run evaluation after training loop by default
 eval_after_train: true
