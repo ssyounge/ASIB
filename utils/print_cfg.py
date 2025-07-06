@@ -1,6 +1,11 @@
 # utils/print_cfg.py
 
-def print_hparams(cfg, title="Hyper‑parameters", ascii_only=False):
+def print_hparams(
+    cfg,
+    title="Hyper‑parameters",
+    ascii_only=False,
+    log_fn=print,
+):
     """Pretty-print flattened hyperparameters in a table.
 
     Parameters
@@ -50,10 +55,10 @@ def print_hparams(cfg, title="Hyper‑parameters", ascii_only=False):
         "+", "+", "+", "+", "|"
     ) if ascii_only else ("┌", "┐", "└", "┘", "│")
 
-    print(tl + h * (k_width + v_width + 1) + tr)
-    print(f"{vertical} {title} ({len(keys)})".ljust(k_width + v_width + 2) + vertical)
-    print(("+" if ascii_only else "├") + h * k_width + ("+" if ascii_only else "┬") + h * v_width + ("+" if ascii_only else "┤"))
+    log_fn(tl + h * (k_width + v_width + 1) + tr)
+    log_fn(f"{vertical} {title} ({len(keys)})".ljust(k_width + v_width + 2) + vertical)
+    log_fn(("+" if ascii_only else "├") + h * k_width + ("+" if ascii_only else "┬") + h * v_width + ("+" if ascii_only else "┤"))
     for k in keys:
         val = flat[k]
-        print(f"{vertical} {k.ljust(k_width-1)}{vertical} {str(val).ljust(v_width-1)}{vertical}")
-    print(bl + h * k_width + ("+" if ascii_only else "┴") + h * v_width + br)
+        log_fn(f"{vertical} {k.ljust(k_width-1)}{vertical} {str(val).ljust(v_width-1)}{vertical}")
+    log_fn(bl + h * k_width + ("+" if ascii_only else "┴") + h * v_width + br)
