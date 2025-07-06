@@ -1,3 +1,3 @@
-from .trainer import simple_finetune
+from .utils.train import simple_finetune
 
 __all__ = ["simple_finetune"]
