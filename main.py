@@ -57,7 +57,7 @@ print_hparams(cfg, log_fn=logger.info)
 device = cfg.get('device', 'cuda')
 set_random_seed(cfg.get('seed', 42))
 method = cfg.get('method', 'vib').lower()
-assert method in {'vib', 'dkd', 'crd', 'vanilla'}, "unknown method"
+assert method in {'vib', 'dkd', 'crd', 'vanilla', 'ce'}, "unknown method"
 
 # ---------- data ----------
 train_loader, test_loader = get_cifar100_loaders(
@@ -69,8 +69,9 @@ train_loader, test_loader = get_cifar100_loaders(
 )
 
 # ---------- teachers ----------
-t1 = create_resnet152(pretrained=True, small_input=True).to(device)
-t2 = create_efficientnet_b2(pretrained=True, small_input=True).to(device)
+if method != 'ce':
+    t1 = create_resnet152(pretrained=True, small_input=True).to(device)
+    t2 = create_efficientnet_b2(pretrained=True, small_input=True).to(device)
 
 # optional short fine-tuning before distillation
 ft_epochs = cfg.get('finetune_epochs', 0)
@@ -82,7 +83,7 @@ t2_ckpt = cfg.get('teacher2_ckpt')
 loaded1 = False
 loaded2 = False
 
-if t1_ckpt and os.path.exists(t1_ckpt):
+if method != 'ce' and t1_ckpt and os.path.exists(t1_ckpt):
     t1.load_state_dict(
         torch.load(t1_ckpt, map_location=device, weights_only=True)
     )
@@ -92,7 +93,7 @@ if t1_ckpt and os.path.exists(t1_ckpt):
     logger.update_metric("teacher1_acc", float(acc1))
     loaded1 = True
 
-if t2_ckpt and os.path.exists(t2_ckpt):
+if method != 'ce' and t2_ckpt and os.path.exists(t2_ckpt):
     t2.load_state_dict(
         torch.load(t2_ckpt, map_location=device, weights_only=True)
     )
@@ -102,7 +103,7 @@ if t2_ckpt and os.path.exists(t2_ckpt):
     logger.update_metric("teacher2_acc", float(acc2))
     loaded2 = True
 
-if ft_epochs > 0:
+if method != 'ce' and ft_epochs > 0:
     ft_loader, _ = get_cifar100_loaders(
         root=cfg.get('dataset_root', './data'),
         batch_size=cfg.get('batch_size', 128),
@@ -132,14 +133,18 @@ if ft_epochs > 0:
             cfg={**cfg, "finetune_eval_loader": test_loader},   # NEW
             ckpt_path=t2_ckpt or "checkpoints/teacher2_ft.pth",
         )
-freeze_all(t1)
-freeze_all(t2)
-t1.eval()
-t2.eval()
+if method != 'ce':
+    freeze_all(t1)
+    freeze_all(t2)
+    t1.eval()
+    t2.eval()
 
 # ---------- VIB-MBM ----------
-in1 = t1.get_feat_dim(); in2 = t2.get_feat_dim()
-mbm = VIB_MBM(in1, in2, cfg['z_dim'], n_cls=100).to(device)
+if method != 'ce':
+    in1 = t1.get_feat_dim(); in2 = t2.get_feat_dim()
+    mbm = VIB_MBM(in1, in2, cfg['z_dim'], n_cls=100).to(device)
+else:
+    mbm = None
 
 # ---------- student ----------
 student = create_student_by_name(
@@ -157,11 +162,14 @@ proj = StudentProj(
     use_bn        = cfg.get('proj_use_bn', False),
 ).to(device)
 
-opt_t = Adam(
-    mbm.parameters(),
-    lr=float(cfg.get("teacher_lr", 1e-3)),            # 이미 YAML에서 1e‑3 지정
-    weight_decay=float(cfg.get("teacher_weight_decay", 0.0)),
-)
+if method != 'ce':
+    opt_t = Adam(
+        mbm.parameters(),
+        lr=float(cfg.get("teacher_lr", 1e-3)),            # 이미 YAML에서 1e‑3 지정
+        weight_decay=float(cfg.get("teacher_weight_decay", 0.0)),
+    )
+else:
+    opt_t = None
 base_lr = float(cfg.get("student_lr", 5e-4))
 opt_s = AdamW(
     list(student.parameters()) + list(proj.parameters()),
@@ -267,6 +275,21 @@ elif method == 'vanilla':
         device=device,
         cfg=cfg,
     )
+    logger.update_metric("student_acc", float(acc))
+
+elif method == 'ce':
+    ce_ckpt = os.path.join(cfg.get('results_dir', 'results'), 'student_ce_best.pth')
+    simple_finetune(
+        student,
+        train_loader,
+        lr=cfg.get('student_lr', 5e-4),
+        epochs=cfg.get('student_iters', 60),
+        device=device,
+        weight_decay=cfg.get('student_weight_decay', 0.0),
+        cfg=cfg,
+        ckpt_path=ce_ckpt,
+    )
+    acc = evaluate_acc(student, test_loader, device)
     logger.update_metric("student_acc", float(acc))
 
 if cfg.get("eval_after_train", True):
