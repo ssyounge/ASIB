@@ -433,8 +433,9 @@ def student_vib_update(
                 # warm-up: 초기에는 빠르게, 점점 느리게
                 base = cfg.get("ema_decay", 0.995)     # 최종 목표치
                 warm = cfg.get("ema_warmup_iters", 5)  # 앞 N epoch
+                init = cfg.get("ema_initial_decay", 0.90)  # 초기 decay
                 cur  = min(ep, warm) / warm
-                d = base * cur + (1 - cur) * 0.90      # 0.90 → base 로 선형 전환
+                d = base * cur + (1 - cur) * init      # init → base 로 선형 전환
                 for p_ema, p in zip(ema_model.parameters(),
                                     student_model.parameters()):
                     p_ema.data.mul_(d).add_(p.data, alpha=1 - d)

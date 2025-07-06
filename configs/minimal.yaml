@@ -87,6 +87,8 @@ min_lr_ratio_student: 0.05  # cosine scheduler minimum LR ratio
 # ─ EMA 평가 ─────────────
 use_ema: true
 ema_decay: 0.992
+ema_warmup_iters: 5
+ema_initial_decay: 0.90
 
 # --- Teacher fine‑tune ---
 finetune_epochs: 30          # +10 epoch
