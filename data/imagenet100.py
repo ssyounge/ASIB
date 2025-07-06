@@ -1,6 +1,7 @@
 # data/imagenet100.py
 
 import os
+from typing import Mapping, Any, Optional
 import torch
 import torchvision
 import torchvision.transforms as T
@@ -12,6 +13,9 @@ def get_imagenet100_loaders(
     augment: bool = True,
     randaug_N: int = 0,
     randaug_M: int = 0,
+    cfg: Optional[Mapping[str, Any]] = None,
+    randaug_default_N: int = 2,
+    randaug_default_M: int = 9,
 ):
     """    
     ImageNet100 size = (224×224)
@@ -20,10 +24,13 @@ def get_imagenet100_loaders(
     """
     if augment:
         aug_ops = [T.RandomResizedCrop(224), T.RandomHorizontalFlip()]
+        if cfg is not None:
+            randaug_default_N = cfg.get("randaug_default_N", randaug_default_N)
+            randaug_default_M = cfg.get("randaug_default_M", randaug_default_M)
         if randaug_N > 0 and randaug_M > 0:
             aug_ops.append(T.RandAugment(num_ops=randaug_N, magnitude=randaug_M))
-        else:                                   # 기본 N=2, M=9 고정
-            aug_ops.append(T.RandAugment(num_ops=2, magnitude=9))
+        else:
+            aug_ops.append(T.RandAugment(num_ops=randaug_default_N, magnitude=randaug_default_M))
         aug_ops.extend([
             T.ToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
