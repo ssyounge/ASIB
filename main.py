@@ -37,8 +37,6 @@ if not isinstance(cfg, dict):
         f"{args.cfg} 루트는 dict 여야 합니다 (현재: {type(cfg).__name__})"
     )
 
-os.makedirs(cfg.get("results_dir", "results"), exist_ok=True)
-
 for k in (
     'teacher1_ckpt', 'teacher2_ckpt', 'results_dir',
     'batch_size', 'method'
@@ -46,6 +44,9 @@ for k in (
     v = getattr(args, k, None)
     if v is not None:
         cfg[k] = v
+
+# results_dir를 CLI※YAML 최종값으로 덮어쓴 뒤에 생성
+os.makedirs(cfg.get("results_dir", "results"), exist_ok=True)
 
 # logger는 **최종 cfg**가 완성된 뒤에 생성
 logger = ExperimentLogger(cfg, exp_name="ibkd")
