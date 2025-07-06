@@ -3,7 +3,7 @@
 import torch
 import torch.nn.functional as F
 
-__all__ = ["kd_loss_fn", "ce_loss_fn", "dkd_loss"]
+__all__ = ["kd_loss_fn", "ce_loss_fn", "dkd_loss", "compute_vib_loss"]
 
 
 def kd_loss_fn(student_logits: torch.Tensor, teacher_logits: torch.Tensor, T: float = 1.0) -> torch.Tensor:
@@ -24,3 +24,8 @@ def dkd_loss(student_logits: torch.Tensor, teacher_logits: torch.Tensor, labels:
     kd = kd_loss_fn(student_logits, teacher_logits, T=temperature)
     ce = ce_loss_fn(student_logits, labels)
     return alpha * kd + beta * ce
+
+
+def compute_vib_loss(latent: torch.Tensor) -> torch.Tensor:
+    """Simple VIB regularization term for latent features."""
+    return torch.mean(latent ** 2)

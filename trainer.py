@@ -8,6 +8,7 @@ from utils.schedule import cosine_lr_scheduler
 from utils.misc import get_amp_components, mixup_data, mixup_criterion
 from utils.eval import evaluate_acc
 from utils.distill_loss import feat_mse_pair
+from modules.losses import compute_vib_loss
 from tqdm.auto import tqdm
 
 
@@ -78,6 +79,12 @@ def simple_finetune(
                     loss = mixup_criterion(criterion, logit, y_a, y_b, lam)
                 else:
                     loss = criterion(logit, y)
+
+                if (cfg or {}).get("mbm_type") == "VIB":
+                    z = model.get_latent() if hasattr(model, "get_latent") else None
+                    if z is not None:
+                        vib_loss = compute_vib_loss(z)
+                        loss = loss + (cfg or {}).get("latent_alpha", 1.0) * vib_loss
             if scaler is not None:
                 scaler.scale(loss).backward()
                 scaler.step(optimizer)
