@@ -79,6 +79,8 @@ cutmix_alpha_distill: 0.5
 
 teacher_iters: 20       # MBM 더 학습
 student_iters: 90       # 정규화로 안정 ⇒ epoch 확장
+student_warmup_epochs: 3    # cosine warm-up length for student training
+min_lr_ratio_student: 0.05  # cosine scheduler minimum LR ratio
 
 # ─ EMA 평가 ─────────────
 use_ema: true
@@ -92,6 +94,7 @@ finetune_weight_decay: 3e-4  # WD ↓
 # ─ Teacher fine‑tune scheduler ─
 finetune_warmup: 5           # NEW – warm‑up epoch
 finetune_sched: "cosine"     # linear‑warmup + cosine
+min_lr_ratio_finetune: 0.1   # cosine scheduler minimum LR ratio
 
 # ─ Fine‑tune aug ─
 finetune_randaug_N: 2
