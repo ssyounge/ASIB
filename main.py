@@ -51,8 +51,8 @@ os.makedirs(cfg.get("results_dir", "results"), exist_ok=True)
 # logger는 **최종 cfg**가 완성된 뒤에 생성
 logger = ExperimentLogger(cfg, exp_name="ibkd")
 
-# 전체 하이퍼파라미터 테이블 출력
-print_hparams(cfg)
+# 전체 하이퍼파라미터 테이블 출력 (logger 사용)
+print_hparams(cfg, log_fn=logger.info)
 
 device = cfg.get('device', 'cuda')
 set_random_seed(cfg.get('seed', 42))
