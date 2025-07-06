@@ -3,6 +3,7 @@
 import torch
 import torchvision
 import torchvision.transforms as T
+from typing import Mapping, Any, Optional
 
 def get_cifar100_loaders(
     root: str = "./data",
@@ -11,6 +12,9 @@ def get_cifar100_loaders(
     augment: bool = True,
     randaug_N: int = 0,
     randaug_M: int = 0,
+    cfg: Optional[Mapping[str, Any]] = None,
+    randaug_default_N: int = 2,
+    randaug_default_M: int = 9,
 ):
     """
     CIFAR-100 size = (32x32)
@@ -19,10 +23,13 @@ def get_cifar100_loaders(
     """
     if augment:
         aug_ops = [T.RandomCrop(32, padding=4), T.RandomHorizontalFlip()]
+        if cfg is not None:
+            randaug_default_N = cfg.get("randaug_default_N", randaug_default_N)
+            randaug_default_M = cfg.get("randaug_default_M", randaug_default_M)
         if randaug_N > 0 and randaug_M > 0:
             aug_ops.append(T.RandAugment(num_ops=randaug_N, magnitude=randaug_M))
-        else:                                   # 기본 N=2, M=9 고정
-            aug_ops.append(T.RandAugment(num_ops=2, magnitude=9))
+        else:
+            aug_ops.append(T.RandAugment(num_ops=randaug_default_N, magnitude=randaug_default_M))
         aug_ops.extend([
             T.ToTensor(),
             T.Normalize((0.5071, 0.4865, 0.4409), (0.2673, 0.2564, 0.2762)),
