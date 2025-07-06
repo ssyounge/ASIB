@@ -74,17 +74,22 @@ def simple_finetune(
             optimizer.zero_grad()
             with autocast_ctx:
                 out = model(x)
-                logit = out[1] if isinstance(out, tuple) else out
+                logit_s = out[1] if isinstance(out, tuple) else out
+
                 if mixup_alpha > 0.0:
-                    loss = mixup_criterion(criterion, logit, y_a, y_b, lam)
+                    ce = mixup_criterion(criterion, logit_s, y_a, y_b, lam)
                 else:
-                    loss = criterion(logit, y)
+                    ce = criterion(logit_s, y)
 
                 if (cfg or {}).get("mbm_type") == "VIB":
                     z = model.get_latent() if hasattr(model, "get_latent") else None
                     if z is not None:
                         vib_loss = compute_vib_loss(z)
-                        loss = loss + (cfg or {}).get("latent_alpha", 1.0) * vib_loss
+                        loss = ce + (cfg or {}).get("latent_alpha", 1.0) * vib_loss
+                    else:
+                        loss = ce
+                else:
+                    loss = ce
             if scaler is not None:
                 scaler.scale(loss).backward()
                 scaler.step(optimizer)
