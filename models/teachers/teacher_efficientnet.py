@@ -82,6 +82,9 @@ def create_efficientnet_b2(
     small_input=True 시, CIFAR-100과 같은 작은 이미지에 맞게 stem stride를 1로 수정
     => TeacherEfficientNetWrapper로 감싸서 반환
     """
+    if cfg is not None:
+        dropout_p = cfg.get("teacher_dropout_p", dropout_p)
+
     if pretrained:
         model = efficientnet_b2(weights=EfficientNet_B2_Weights.IMAGENET1K_V1)
     else:

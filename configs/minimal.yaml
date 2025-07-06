@@ -61,6 +61,7 @@ randaug_default_M: 9         # fallback RandAug(N,M) M
 teacher_weight_decay: 5e-4
 student_weight_decay: 5e-4
 teacher_lr: 1e-3        # MBM Adam LR ↑
+teacher_dropout_p: 0.3      # teacher classifier dropout
 student_lr: 1.0e-3          # convnext_tiny 는 1e‑3 이상에서 더 잘 수렴
 lr_schedule: "cosine"
 # 학습률 warm‑up
