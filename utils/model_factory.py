@@ -25,6 +25,8 @@ def create_teacher_by_name(
     cfg: Optional[dict] = None,
 ):
     """Factory for teacher models in this minimal repo."""
+    if cfg is not None:
+        dropout_p = cfg.get("teacher_dropout_p", dropout_p)
     if teacher_type == "resnet152":
         return create_resnet152(
             num_classes=num_classes,
