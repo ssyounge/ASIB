@@ -58,7 +58,7 @@ print_hparams(cfg, log_fn=logger.info)
 device = cfg.get('device', 'cuda')
 set_random_seed(cfg.get('seed', 42))
 method = cfg.get('method', 'vib').lower()
-assert method in {'vib', 'dkd', 'crd', 'vanilla', 'ce'}, "unknown method"
+assert method in {'vib', 'dkd', 'crd', 'vanilla', 'ce', 'kd'}, "unknown method"
 
 # ---------- data ----------
 train_loader, test_loader = get_cifar100_loaders(
@@ -223,6 +223,27 @@ if method == 'vib':
         logger=logger,
         scheduler=scheduler,
     )
+
+elif method == 'kd':
+    from methods.feature_kd import FeatureKD
+    distiller = FeatureKD(
+        teacher_model=t1,
+        student_model=student,
+        alpha=cfg.get('kd_alpha', 1.0),
+        temperature=cfg.get('kd_T', 4.0),
+        label_smoothing=cfg.get('label_smoothing', 0.0),
+        config=cfg,
+    )
+    acc = distiller.train_distillation(
+        train_loader,
+        test_loader,
+        epochs=cfg.get('student_iters', 60),
+        lr=cfg.get('student_lr', 5e-4),
+        weight_decay=cfg.get('student_weight_decay', 5e-4),
+        device=device,
+        cfg=cfg,
+    )
+    logger.update_metric("student_acc", float(acc))
 
 elif method == 'crd':
     from methods.crd import CRDDistiller
