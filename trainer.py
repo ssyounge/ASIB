@@ -265,6 +265,8 @@ def student_vib_update(
     T = init_T
     ce_alpha = cfg.get("ce_alpha", 1.0)       #  CE 가중치
     latent_w = cfg.get("latent_alpha", 1.0)   #  잠재 정렬
+    latent_mse_weight = cfg.get("latent_mse_weight", 0.7)
+    latent_angle_weight = cfg.get("latent_angle_weight", 0.3)
     clip = cfg.get("grad_clip_norm", 0)
     autocast_ctx, scaler = get_amp_components(cfg)
     vib_mbm.eval()
@@ -361,7 +363,7 @@ def student_vib_update(
             # ─ Latent & Angle Loss 병행 ─
             latent_mse   = F.mse_loss(z_s, z_t.detach())
             latent_angle = 1 - F.cosine_similarity(z_s, z_t.detach(), dim=1).mean()
-            latent       = 0.7 * latent_mse + 0.3 * latent_angle
+            latent       = latent_mse_weight * latent_mse + latent_angle_weight * latent_angle
 
             student_feat = hook_s.features
             feat_loss = feat_mse_pair(
