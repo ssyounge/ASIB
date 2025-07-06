@@ -33,6 +33,12 @@ python scripts/fine_tuning.py --teacher_type resnet152 --overwrite
 bash scripts/run_ibkd.sh
 ```
 
+3. **(Optional) CE baseline** without distillation:
+
+```bash
+python main.py --cfg configs/minimal.yaml --method ce
+```
+
 Both scripts read default options from `configs/minimal.yaml`.
 Set `disable_tqdm: true` in that file to suppress progress bars during training.
 Set `grad_scaler_init_scale` to control the initial scale used by the AMP grad

@@ -28,7 +28,7 @@ parser.add_argument('--teacher1_ckpt', type=str, help='Path to teacher-1 checkpo
 parser.add_argument('--teacher2_ckpt', type=str, help='Path to teacher-2 checkpoint')
 parser.add_argument('--results_dir', type=str, help='Where to save logs / checkpoints')
 parser.add_argument('--batch_size', type=int, help='Mini-batch size for training')
-parser.add_argument('--method', type=str, help='vib | dkd | crd | vanilla')
+parser.add_argument('--method', type=str, help='vib | dkd | crd | vanilla | ce')
 args = parser.parse_args()
 with open(args.cfg, "r") as f:
     cfg_raw = list(yaml.safe_load_all(f))  # 여러 문서 대비
