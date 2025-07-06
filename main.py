@@ -18,6 +18,7 @@ from utils.model_factory import create_student_by_name               # NEW
 from trainer import teacher_vib_update, student_vib_update, simple_finetune
 from utils.freeze import freeze_all
 from utils.logger import ExperimentLogger
+from utils.print_cfg import print_hparams
 
 # ---------- CLI ----------
 parser = argparse.ArgumentParser(description="IB-KD entry point")
@@ -49,18 +50,8 @@ set_random_seed(cfg.get('seed', 42))
 method = cfg.get('method', 'vib').lower()
 assert method in {'vib', 'dkd', 'crd', 'vanilla'}, "unknown method"
 
-# ----- pretty-print key hyper-params -----
-important_keys = [
-    "method", "batch_size", "student_lr", "teacher_lr",
-    "proj_hidden_dim", "z_dim",
-    "kd_alpha_init", "kd_alpha_final", "kd_T_init", "kd_T_final",
-    "latent_alpha", "randaug_N", "randaug_M",
-]
-print("┌─ Hyper-parameters (" + str(len(important_keys)) + ")")
-for k in important_keys:
-    if k in cfg:
-        print(f"│ {k:18s}: {cfg[k]}")
-print("└───────────────────────────────────────")
+# ----- print all hyper-parameters -----
+print_hparams(cfg)
 
 # ---------- data ----------
 train_loader, test_loader = get_cifar100_loaders(
