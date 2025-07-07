@@ -1,5 +1,6 @@
 # data/cifar100.py
 
+import warnings
 import torch
 import torchvision
 import torchvision.transforms as T
@@ -15,7 +16,8 @@ def get_cifar100_loaders(
     cfg: Optional[Mapping[str, Any]] = None,
     randaug_default_N: int = 2,
     randaug_default_M: int = 9,
-    persistent: bool = False,
+    persistent_train: bool = False,
+    persistent_test: Optional[bool] = None,
 ):
     """
     CIFAR-100 size = (32x32)
@@ -61,33 +63,56 @@ def get_cifar100_loaders(
         transform=transform_test
     )
 
-    mp_ctx = (
+    if persistent_test is None:
+        persistent_test = persistent_train
+
+    if persistent_train and num_workers == 0:
+        warnings.warn("persistent_workers=True 이지만 num_workers=0 → 비활성화")
+        persistent_train = False
+    if persistent_test and num_workers == 0:
+        warnings.warn("persistent_workers=True 이지만 num_workers=0 → 비활성화")
+        persistent_test = False
+
+    mp_ctx_train = (
         torch.multiprocessing.get_context("spawn")
-        if persistent and num_workers > 0
+        if persistent_train and num_workers > 0
+        else None
+    )
+    mp_ctx_test = (
+        torch.multiprocessing.get_context("spawn")
+        if persistent_test and num_workers > 0
         else None
     )
 
-    dl_kwargs = dict(
+    dl_kwargs_train = dict(
         batch_size=batch_size,
         num_workers=num_workers,
         pin_memory=True,
-        persistent_workers=persistent and num_workers > 0,
+        persistent_workers=persistent_train and num_workers > 0,
+    )
+    dl_kwargs_test = dict(
+        batch_size=batch_size,
+        num_workers=num_workers,
+        pin_memory=True,
+        persistent_workers=persistent_test and num_workers > 0,
     )
 
-    if mp_ctx is not None:
-        # ``multiprocessing_context`` is only available on newer PyTorch versions
+    if mp_ctx_train is not None:
         if "multiprocessing_context" in torch.utils.data.DataLoader.__init__.__code__.co_varnames:
-            dl_kwargs["multiprocessing_context"] = mp_ctx
+            dl_kwargs_train["multiprocessing_context"] = mp_ctx_train
+    if mp_ctx_test is not None:
+        if "multiprocessing_context" in torch.utils.data.DataLoader.__init__.__code__.co_varnames:
+            dl_kwargs_test["multiprocessing_context"] = mp_ctx_test
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
         shuffle=True,
-        **dl_kwargs,
+        **dl_kwargs_train,
     )
 
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
         shuffle=False,
-        **dl_kwargs,
+        **dl_kwargs_test,
     )
     return train_loader, test_loader

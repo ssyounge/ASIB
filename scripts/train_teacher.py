@@ -91,7 +91,9 @@ def main() -> None:
     train_loader, test_loader = get_cifar100_loaders(
         root=cfg.get("dataset_root", "./data"),
         batch_size=batch_size,
-        num_workers=cfg.get("num_workers", 2)
+        num_workers=cfg.get("num_workers", 2),
+        persistent_train=cfg.get("persistent_workers", False),
+        persistent_test=False,
     )
     num_cls = len(train_loader.dataset.classes)
 
