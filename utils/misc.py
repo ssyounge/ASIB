@@ -11,6 +11,7 @@ __all__ = [
     "get_amp_components",
     "mixup_data",
     "mixup_criterion",
+    "rand_bbox",
 ]
 
 
@@ -24,6 +25,8 @@ def set_random_seed(seed: int = 42, deterministic: bool = True) -> None:
         if deterministic:
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
+        else:
+            torch.backends.cudnn.benchmark = True
 
 
 def get_amp_components(cfg: dict):
@@ -65,3 +68,19 @@ def mixup_data(inputs: torch.Tensor, targets: torch.Tensor, alpha: float = 1.0):
 def mixup_criterion(criterion, pred, y_a, y_b, lam):
     """Compute loss for MixUp inputs."""
     return lam * criterion(pred, y_a) + (1.0 - lam) * criterion(pred, y_b)
+
+
+def rand_bbox(size, lam):
+    """Generate a random square bounding box."""
+    W = size[-1]
+    H = size[-2]
+    cut_rat = np.sqrt(1.0 - lam)
+    cut_w = int(W * cut_rat)
+    cut_h = int(H * cut_rat)
+    cx = np.random.randint(W)
+    cy = np.random.randint(H)
+    bbx1 = np.clip(cx - cut_w // 2, 0, W)
+    bby1 = np.clip(cy - cut_h // 2, 0, H)
+    bbx2 = np.clip(cx + cut_w // 2, 0, W)
+    bby2 = np.clip(cy + cut_h // 2, 0, H)
+    return bbx1, bby1, bbx2, bby2
