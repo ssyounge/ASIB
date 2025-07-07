@@ -25,7 +25,20 @@ class StudentConvNeXtWrapper(nn.Module):
         self.feat_channels = self.feat_dim
 
     def forward(self, x, y=None):
-        feat_4d = self.backbone.features(x)
+        # 1) compute intermediate 4D features at each stage
+        out = x
+        feat_layer1 = None
+        feat_layer2 = None
+        feat_layer3 = None
+        for idx, block in enumerate(self.backbone.features):
+            out = block(out)
+            if idx == 1:
+                feat_layer1 = out
+            elif idx == 2:
+                feat_layer2 = out
+            elif idx == 3:
+                feat_layer3 = out
+        feat_4d = out
         pooled = self.backbone.avgpool(feat_4d)
         # the ConvNeXt classifier expects a 4D tensor as input for the initial
         # normalization layer (``LayerNorm2d`` in torchvision). We therefore
@@ -42,6 +55,9 @@ class StudentConvNeXtWrapper(nn.Module):
         feat_dict = {
             "feat_4d": feat_4d,
             "feat_2d": feat_2d,
+            "feat_4d_layer1": feat_layer1,
+            "feat_4d_layer2": feat_layer2,
+            "feat_4d_layer3": feat_layer3,
         }
         # cache last 2D feature for optional retrieval
         self._cached_feat = feat_dict["feat_2d"]
