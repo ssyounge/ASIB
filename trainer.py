@@ -8,23 +8,6 @@ from utils.schedule import cosine_lr_scheduler
 from utils.misc import get_amp_components, mixup_data, mixup_criterion
 from utils.eval import evaluate_acc
 from utils.distill_loss import feat_mse_pair
-
-
-def feature_kd_loss(student_features, teacher1_features, teacher2_features, layer_ids, layer_weights):
-    """Compute feature-level distillation loss using intermediate feature maps."""
-    loss = 0.0
-    for idx, layer_id in enumerate(layer_ids):
-        s_feat = student_features[layer_id]
-        t1_feat = teacher1_features[layer_id]
-        t2_feat = teacher2_features[layer_id]
-        loss += feat_mse_pair(
-            {layer_id: s_feat},
-            {layer_id: t1_feat},
-            {layer_id: t2_feat},
-            [layer_id],
-            [layer_weights[idx]],
-        )
-    return loss
 from modules.losses import compute_vib_loss
 from tqdm.auto import tqdm
 
@@ -161,7 +144,7 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
         None.
     """
     device = cfg.get("device", "cuda")
-    beta = cfg.get("beta_bottleneck", 0.003)
+    beta = cfg.get("beta_bottleneck", 0.001)
     clip = cfg.get("grad_clip_norm", 0)
     autocast_ctx, scaler = get_amp_components(cfg)
     vib_mbm.train()
@@ -394,7 +377,7 @@ def student_vib_update(
             latent_angle = 1 - F.cosine_similarity(z_s, z_t.detach(), dim=1).mean()
             latent       = latent_mse_weight * latent_mse + latent_angle_weight * latent_angle
 
-            feat_loss = feature_kd_loss(
+            feat_loss = feat_mse_pair(
                 hook_s.features,
                 hook_t1.features,
                 hook_t2.features,

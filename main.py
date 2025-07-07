@@ -58,7 +58,7 @@ print_hparams(cfg, log_fn=logger.info)
 device = cfg.get('device', 'cuda')
 set_random_seed(cfg.get('seed', 42))
 method = cfg.get('method', 'vib').lower()
-assert method in {'vib', 'dkd', 'crd', 'vanilla', 'ce', 'kd'}, "unknown method"
+assert method in {'vib', 'dkd', 'crd', 'vanilla', 'ce'}, "unknown method"
 
 # ---------- data ----------
 train_loader, test_loader = get_cifar100_loaders(
@@ -149,6 +149,7 @@ if method != 'ce':
         cfg['z_dim'],
         100,
         beta=cfg.get('beta_bottleneck', 1e-3),
+        dropout_p=cfg.get('gate_dropout', 0.1),
     ).to(device)
 else:
     mbm = None
