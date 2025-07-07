@@ -43,7 +43,7 @@ class FitNetDistiller(nn.Module):
         self.cfg = config if config is not None else {}
 
         # 채널을 하드코딩하지 않고 run-time에 생성
-        self.regressor = None      # ← lazy-build
+        self.regressor = None      # lazy; 첫 forward 때 생성
 
     def forward(self, x, y):
         """
@@ -63,11 +63,10 @@ class FitNetDistiller(nn.Module):
         # 1) hint/guided MSE
         t_feat = t_dict[self.hint_key]  # e.g. [N, C_t, H_t, W_t] 
         s_feat = s_dict[self.guided_key]
-        # 최초 호출 시 채널에 맞춰 regressor 생성
-        if self.regressor is None:
+        if self.regressor is None:          # 첫 호출에서만 생성
             self.regressor = nn.Conv2d(
-                s_feat.size(1),      # in-ch = 학생 채널
-                t_feat.size(1),      # out-ch = 스승 채널
+                in_channels=s_feat.size(1),
+                out_channels=t_feat.size(1),
                 kernel_size=1
             ).to(s_feat.device)
 
@@ -118,9 +117,9 @@ class FitNetDistiller(nn.Module):
             step_size = 10
             gamma = 0.1
 
-        # regressor 파라미터까지 함께 최적화
+        # 처음에는 student 파라미터만 등록
         optimizer = optim.AdamW(
-            list(self.student.parameters()) + list(self.regressor.parameters()),
+            self.student.parameters(),
             lr=lr,
             weight_decay=weight_decay,
             betas=(
@@ -129,6 +128,7 @@ class FitNetDistiller(nn.Module):
             ),
             eps=1e-8,
         )
+        regressor_added = False      # param-group 추가 플래그
 
         if lr_schedule == "cosine":
             scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
@@ -148,6 +148,12 @@ class FitNetDistiller(nn.Module):
 
                 optimizer.zero_grad()
                 loss.backward()
+
+                # regressor 가 생성된 뒤 한 번만 param‑group 추가
+                if (not regressor_added) and (self.regressor is not None):
+                    optimizer.add_param_group({"params": self.regressor.parameters()})
+                    regressor_added = True
+
                 optimizer.step()
 
             
