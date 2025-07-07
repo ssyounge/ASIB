@@ -7,9 +7,10 @@ This repository provides a lightweight implementation of **Adaptive Synergy Mani
 Install the minimal dependencies:
 
 ```bash
-pip install -r requirements.txt
+# The analysis scripts rely on pandas.
+pip install torch torchvision PyYAML tqdm pandas
 ```
-The project only requires **torch**, **torchvision**, **PyYAML** and **tqdm**.
+The project only requires **torch**, **torchvision**, **PyYAML**, **tqdm** and **pandas**.
 
 ## Workflow
 
