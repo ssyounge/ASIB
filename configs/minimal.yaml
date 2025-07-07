@@ -123,4 +123,4 @@ teacher2_freeze_scope: "none"
 # ConvNeXt tiny 기준 예시
 feat_layers:  [2, 3]        # ConvNeXt 마지막 2 stage (더 추상적)
 feat_weights: [0.5, 0.5]
-feat_loss_weight: 0.2       # γ ↓  (정규화 후 0.2 ~ 0.3 권장)
+feat_loss_weight: 0.2       # γ ↓  (정규화 후 0.2 ~ 0.3 권장; or [γ1,γ2,γ3])

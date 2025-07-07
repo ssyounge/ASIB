@@ -318,7 +318,13 @@ def student_vib_update(
 
     layer_ids  = cfg.get("feat_layers", [1, 2])      # ex) [1,2]
     layer_w    = cfg.get("feat_weights", [0.5, 0.5]) # 합 = 1
-    gamma_feat = cfg.get("feat_loss_weight", 1.0)
+
+    _gamma_cfg = cfg.get("feat_loss_weight", 1.0)
+    if isinstance(_gamma_cfg, (list, tuple)):
+        gamma_schedule = list(_gamma_cfg)
+    else:
+        gamma_schedule = None
+        gamma_feat = float(_gamma_cfg)
 
     hook_s  = FeatHook(student_model.backbone, layer_ids)
     hook_t1 = FeatHook(teacher1.backbone, layer_ids)
@@ -408,7 +414,15 @@ def student_vib_update(
                 layer_w,
             )
 
-            loss = ce_alpha*ce + alpha_kd*kd + latent_w*latent + gamma_feat*feat_loss
+            if gamma_schedule is not None:
+                # 3‑단계 스케줄 (구간 길이가 같지 않아도 OK)
+                seg = len(gamma_schedule)
+                cur_seg = int(ep / (total_epochs / seg))
+                gamma_feat = gamma_schedule[min(cur_seg, seg - 1)]
+            loss = (
+                ce_alpha*ce + alpha_kd*kd + latent_w*latent
+                + gamma_feat*feat_loss
+            )
 
             if batch_idx == 0 and ep % 10 == 0:
                 print(f"[DEBUG] γ={gamma_feat:.3f}  feat_loss={feat_loss.item():.4f}")
