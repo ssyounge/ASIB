@@ -64,6 +64,12 @@ set_random_seed(cfg.get('seed', 42))
 method = cfg.get('method', 'vib').lower()
 assert method in {'vib', 'dkd', 'crd', 'vanilla', 'ce'}, "unknown method"
 
+# persistent_workers 사용 시: fork → spawn 전환 (dead-lock 방지)
+if cfg.get("persistent_workers", False):
+    import torch.multiprocessing as mp
+    if mp.get_start_method(allow_none=True) != "spawn":
+        mp.set_start_method("spawn", force=True)
+
 # ---------- data ----------
 train_loader, test_loader = get_cifar100_loaders(
     root=cfg.get('dataset_root', './data'),
