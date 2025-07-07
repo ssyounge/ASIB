@@ -45,6 +45,16 @@ Set `disable_tqdm: true` in that file to suppress progress bars during training.
 Set `grad_scaler_init_scale` to control the initial scale used by the AMP grad
 scaler.
 
+## Distillation Methods
+
+| `method` | Reference | Implementation |
+|---------|-----------|----------------|
+| `at` | Paying More Attention to Attention: Improving the Performance of Convolutional Neural Networks via Attention Transfer | `methods/at.py` |
+| `fitnet` | FitNets: Hints for Thin Deep Nets | `methods/fitnet.py` |
+
+Use `--method` to override the selected distillation method when calling `main.py`,
+or set `method` in `configs/minimal.yaml`.
+
 ## Directory Layout
 
 ```
