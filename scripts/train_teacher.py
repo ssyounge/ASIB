@@ -8,6 +8,7 @@ from typing import Dict
 
 import torch
 import yaml
+import copy
 
 sys.path.append(os.path.dirname(__file__) + "/..")
 
@@ -125,7 +126,7 @@ def main() -> None:
     crit = torch.nn.CrossEntropyLoss()
 
     best = 0.0
-    best_state = model.state_dict()
+    best_state = copy.deepcopy(model.state_dict())
     epochs = args.epochs or cfg.get("finetune_epochs", 3)
     for ep in range(1, epochs + 1):
         model.train()
@@ -149,7 +150,7 @@ def main() -> None:
         print(f"[TeacherCE] ep={ep}/{epochs} acc={acc:.2f}")
         if acc > best:
             best = acc
-            best_state = model.state_dict()
+            best_state = copy.deepcopy(model.state_dict())
 
     torch.save(best_state, args.ckpt)
     print(f"[TeacherCE] best={best:.2f} saved={args.ckpt}")
