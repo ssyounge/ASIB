@@ -68,7 +68,9 @@ class ATDistiller(nn.Module):
     def forward(self, x, y):
         # 1) teacher
         with torch.no_grad():
-            t_dict = self.teacher(x)
+            t_out = self.teacher(x)
+            # teacher 가 (dict, logits, …) 형태로 반환될 수도 있음
+            t_dict = t_out[0] if isinstance(t_out, tuple) else t_out
         # 2) student
         s_dict, s_logit, _ = self.student(x)
 
