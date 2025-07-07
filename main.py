@@ -74,7 +74,7 @@ def main() -> None:
     device = cfg.get('device', 'cuda')
     set_random_seed(cfg.get('seed', 42))
     method = cfg.get('method', 'vib').lower()
-    assert method in {'vib', 'dkd', 'crd', 'vanilla', 'ce'}, "unknown method"
+    assert method in {'vib', 'dkd', 'crd', 'vanilla', 'fitnet', 'at', 'ce'}, "unknown method"
 
     # ---------- data ----------
     train_loader, test_loader = get_cifar100_loaders(
@@ -309,6 +309,49 @@ def main() -> None:
             student_model=student,
             alpha=cfg.get('vanilla_alpha', 0.5),
             temperature=cfg.get('vanilla_T', 4.0),
+            config=cfg,
+        )
+        acc = distiller.train_distillation(
+            train_loader,
+            test_loader,
+            epochs=cfg.get('student_iters', 60),
+            lr=cfg.get('student_lr', 5e-4),
+            weight_decay=cfg.get('student_weight_decay', 5e-4),
+            device=device,
+            cfg=cfg,
+        )
+        logger.update_metric("student_acc", float(acc))
+
+    elif method == 'fitnet':
+        from methods.fitnet import FitNetDistiller
+        distiller = FitNetDistiller(
+            teacher_model=t1,
+            student_model=student,
+            alpha_hint=cfg.get('alpha_hint', 1.0),
+            alpha_ce=cfg.get('alpha_ce', 1.0),
+            label_smoothing=cfg.get('label_smoothing', 0.0),
+            config=cfg,
+        )
+        acc = distiller.train_distillation(
+            train_loader,
+            test_loader,
+            epochs=cfg.get('student_iters', 60),
+            lr=cfg.get('student_lr', 5e-4),
+            weight_decay=cfg.get('student_weight_decay', 5e-4),
+            device=device,
+            cfg=cfg,
+        )
+        logger.update_metric("student_acc", float(acc))
+
+    elif method == 'at':
+        from methods.at import ATDistiller
+        distiller = ATDistiller(
+            teacher_model=t1,
+            student_model=student,
+            alpha=cfg.get('alpha', 1.0),
+            p=cfg.get('p', 2),
+            layer_key=cfg.get('layer_key', 'feat_4d_layer3'),
+            label_smoothing=cfg.get('label_smoothing', 0.0),
             config=cfg,
         )
         acc = distiller.train_distillation(
