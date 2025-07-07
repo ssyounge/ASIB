@@ -20,6 +20,13 @@ class GateMBM(nn.Module):
         # (self.beta 필드 삭제)  ← 외부에서 β를 곱해 사용
 
     def forward(self, f1: torch.Tensor, f2: torch.Tensor, log_kl: bool = False):
+        # ── ① (N,C) → (N,C,1,1) 로 변환해 Conv 1×1 입력 보장 ──────────
+        if f1.dim() == 2:
+            f1 = f1.unsqueeze(-1).unsqueeze(-1)
+        if f2.dim() == 2:
+            f2 = f2.unsqueeze(-1).unsqueeze(-1)
+
+        # ── ② 1×1 Conv 로 channel 맞추기 ─────────────────────────────
         f1 = self.proj1(f1)
         f2 = self.proj2(f2)
         g = torch.sigmoid(self.gate)
