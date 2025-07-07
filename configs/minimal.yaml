@@ -14,7 +14,7 @@ student_type: "convnext_tiny"
 patch_stride2: false       # true 로 바꾸면 stride 2
 
 # ─ Distillation method 선택 ──────────────────────
-method: ce        # {vib | dkd | crd | vanilla | ce}
+method: vib        # {vib | dkd | crd | vanilla | ce}
 
 # ─ CRD 전용 ─
 crd_alpha: 0.5
