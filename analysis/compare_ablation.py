@@ -40,6 +40,8 @@ def parse_args():
 
 def main():
     args = parse_args()
+    # --- 출력 폴더 자동 생성 ---------------------------------------------
+    os.makedirs(os.path.dirname(args.out_path) or ".", exist_ok=True)
     # 예: results/summary.csv 에는 여러 파라미터/성과가 정리돼 있다고 가정
     summary_path = args.summary_csv
     if not os.path.exists(summary_path):

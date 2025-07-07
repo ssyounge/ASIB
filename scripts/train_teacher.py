@@ -84,6 +84,9 @@ def main() -> None:
     cfg = load_cfg(args.config)
     set_random_seed(cfg.get("seed", 42))
 
+    # --- 경로 보장 ---------------------------------------------------------
+    os.makedirs(os.path.dirname(args.ckpt) or ".", exist_ok=True)
+
     batch_size = args.batch_size or cfg.get("batch_size", 128)
     train_loader, test_loader = get_cifar100_loaders(
         root=cfg.get("dataset_root", "./data"),
