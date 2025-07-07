@@ -2,6 +2,7 @@
 
 import os
 import copy, torch
+import numpy as np
 from utils.model_factory import create_student_by_name   # fallback 생성용
 import torch.nn.functional as F   # loss 함수(F.cross_entropy 등)용
 from utils.schedule import cosine_lr_scheduler
@@ -212,6 +213,7 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
             from utils.eval import evaluate_mbm_acc
 
             test_acc = evaluate_mbm_acc(teacher1, teacher2, vib_mbm, test_loader, device)
+            vib_mbm.train()        # ← 평가‑모드 해제
         msg = (
             f"[Teacher] ep {ep + 1:03d}/{cfg.get('teacher_iters', 1)} "
             f"loss {avg_loss:.4f} kl {avg_kl:.4f} train_acc {train_acc:.2f}%  "
@@ -232,6 +234,7 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
                 test_loader,
                 device=next(vib_mbm.parameters()).device,
             )
+            vib_mbm.train()
             print(f"[DEBUG] synergy_acc_after_ep1: {dbg_acc:.2f}%")
 
 
@@ -320,6 +323,19 @@ def student_vib_update(
         )
         for batch_idx, (x, y) in enumerate(epoch_loader):
             x, y = x.to(device), y.to(device)
+            # ───────── Data Mixing ─────────
+            mixup_a  = cfg.get("mixup_alpha", 0.0)
+            cutmix_a = cfg.get("cutmix_alpha_distill", 0.0)
+            if mixup_a > 0.0:
+                x, y_a, y_b, lam = mixup_data(x, y, alpha=mixup_a)
+            elif cutmix_a > 0.0:
+                from utils.misc import rand_bbox
+                lam = np.random.beta(cutmix_a, cutmix_a)
+                bbx1,bby1,bbx2,bby2 = rand_bbox(x.size(), lam)
+                x[:, :, bbx1:bbx2, bby1:bby2] = x.flip(0)[:, :, bbx1:bbx2, bby1:bby2]
+                y_a, y_b = y, y.flip(0)
+            else:
+                y_a = y_b = y; lam = 1.0
 
             # ─ Teacher feature → synergy target ─────────────────
             with torch.no_grad():
@@ -366,7 +382,8 @@ def student_vib_update(
                 )
 
             # ─ Losses ──────────────────────────────────────────
-            ce = F.cross_entropy(logit_s, y)
+            ce = (lam * F.cross_entropy(logit_s, y_a) +
+                  (1-lam) * F.cross_entropy(logit_s, y_b))
             kd = F.kl_div(
                 F.log_softmax(logit_s / T, dim=1),
                 F.softmax(logit_t.detach() / T, dim=1),
@@ -473,6 +490,17 @@ def student_vib_update(
         if ema_acc is not None:
             msg += f"  ema_acc {ema_acc:.2f}%"
         print(msg)
+
+        # ── ckpt 저장 ─────────────────────
+        save_dir = cfg.get("results_dir", "results")
+        os.makedirs(save_dir, exist_ok=True)
+        best_pth = os.path.join(save_dir, "student_best.pth")
+        last_pth = os.path.join(save_dir, "student_last.pth")
+        score = ema_acc if ema_acc is not None else student_acc
+        if score > getattr(student_vib_update, "_best", -1):
+            torch.save(student_model.state_dict(), best_pth)
+            student_vib_update._best = score
+        torch.save(student_model.state_dict(), last_pth)
 
         if logger is not None:
             logger.update_metric(
