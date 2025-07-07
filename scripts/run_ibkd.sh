@@ -1,13 +1,17 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # scripts/run_ibkd.sh
 #SBATCH --job-name=ibkd_cifar
 #SBATCH --gres=gpu:1
 #SBATCH --time=04:00:00
-#SBATCH --chdir=/home/suyoung425/ASMB_KD        # repo root
 #SBATCH --output=outputs/ibkd_%j.log            # 절대경로나 chdir 둘 중 하나만 택
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
 set -euo pipefail
+
+# 사용 예)  PROJECT_ROOT=/data/ASMB_KD  ./run_ibkd.sh
+
+# ① 현재 위치를 기본값으로, 필요하면 환경변수로 덮어쓰기
+ROOT_DIR="${PROJECT_ROOT:-$(pwd)}"
 
 # 0) 디버그용 정보
 echo "[DEBUG] PWD=$(pwd)"
@@ -49,8 +53,12 @@ ft_teacher resnet152       "$T1_CKPT"
 ft_teacher efficientnet_b2 "$T2_CKPT"
 
 # 3) IB-KD 학습
-python main.py \
-  --cfg configs/minimal.yaml \
-  --results_dir "${OUT_DIR}" \
-  --teacher1_ckpt "$T1_CKPT" \
-  --teacher2_ckpt "$T2_CKPT"
+srun --chdir="$ROOT_DIR" \
+     --gres=gpu:1 \
+     python main.py --cfg configs/minimal.yaml \
+     --results_dir "${OUT_DIR}" \
+     --teacher1_ckpt "$T1_CKPT" \
+     --teacher2_ckpt "$T2_CKPT" "$@"
+
+# ➜ 주의: 다른 인자(실험 id, 추가 override 등)는
+#     ./run_ibkd.sh --batch_size 256 처럼 이어서 넘기면 됩니다.

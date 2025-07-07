@@ -1,16 +1,19 @@
 # trainer.py
 
 import os
-import copy, torch
+import copy
+
 import numpy as np
-from utils.model_factory import create_student_by_name   # fallback 생성용
+import torch
 import torch.nn.functional as F   # loss 함수(F.cross_entropy 등)용
+from tqdm.auto import tqdm
+
+from utils.model_factory import create_student_by_name   # fallback 생성용
 from utils.schedule import cosine_lr_scheduler
 from utils.misc import get_amp_components, mixup_data, mixup_criterion
 from utils.eval import evaluate_acc
 from utils.distill_loss import feat_mse_pair
 from modules.losses import compute_vib_loss
-from tqdm.auto import tqdm
 
 
 def simple_finetune(
