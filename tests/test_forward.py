@@ -1,5 +1,7 @@
 # tests/test_forward.py
 
+import pytest
+pytest.importorskip("torch")
 import torch
 from models.ib.gate_mbm import GateMBM
 
