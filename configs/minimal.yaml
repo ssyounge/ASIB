@@ -52,8 +52,8 @@ proj_use_bn: true
 beta_bottleneck: 0.001       # IB KL 가중치
 kd_alpha_init: 0.3
 kd_alpha_final: 0.6         # 후반부 soft‑KD ⭢ hard‑KD
-kd_T_init: 5                # 초기 온도
-kd_T_final:   2.0           # 너무 hard logit ↓ generalization 저하 방지
+kd_T_init: 6                # 초기 온도
+kd_T_final: 2.5           # 너무 hard logit ↓ generalization 저하 방지
 kd_warmup_frac: 0.03      # warm-up 줄임
 kd_schedule_granularity: "step"
 kd_sched_pow: 1.0         # 선형
