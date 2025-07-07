@@ -42,8 +42,8 @@ class FitNetDistiller(nn.Module):
         # optional runtime configuration for training loops
         self.cfg = config if config is not None else {}
 
-        # 학생 특징맵을 스승 특징맵 채널로 변환하는 1x1 convolution
-        self.regressor = nn.Conv2d(s_channels, t_channels, kernel_size=1)
+        # 채널을 하드코딩하지 않고 run-time에 생성
+        self.regressor = None      # ← lazy-build
 
     def forward(self, x, y):
         """
@@ -54,7 +54,8 @@ class FitNetDistiller(nn.Module):
         # Teacher (no_grad)
         with torch.no_grad():
             t_out = self.teacher(x)
-            t_dict = t_out
+            # teacher 가 (dict, logits, …) 형태로 반환될 수도 있음
+            t_dict = t_out[0] if isinstance(t_out, tuple) else t_out
 
         # Student
         s_dict, s_logit, _ = self.student(x)      # (feat_dict, logit, ce_loss(opt))
@@ -62,6 +63,14 @@ class FitNetDistiller(nn.Module):
         # 1) hint/guided MSE
         t_feat = t_dict[self.hint_key]  # e.g. [N, C_t, H_t, W_t] 
         s_feat = s_dict[self.guided_key]
+        # 최초 호출 시 채널에 맞춰 regressor 생성
+        if self.regressor is None:
+            self.regressor = nn.Conv2d(
+                s_feat.size(1),      # in-ch = 학생 채널
+                t_feat.size(1),      # out-ch = 스승 채널
+                kernel_size=1
+            ).to(s_feat.device)
+
         # 학생 특징맵을 변환기의 채널로 변환 후, 스승의 공간 크기에 맞춰 풀링
         s_feat_regressed = self.regressor(s_feat)
         s_feat_resized = F.adaptive_avg_pool2d(
@@ -109,8 +118,9 @@ class FitNetDistiller(nn.Module):
             step_size = 10
             gamma = 0.1
 
+        # regressor 파라미터까지 함께 최적화
         optimizer = optim.AdamW(
-            self.student.parameters(),
+            list(self.student.parameters()) + list(self.regressor.parameters()),
             lr=lr,
             weight_decay=weight_decay,
             betas=(
