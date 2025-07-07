@@ -164,13 +164,6 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
             leave=False,
             disable=cfg.get("disable_tqdm", False),
         )
-        for batch_idx, (x, y) in enumerate(epoch_loader):
-            x, y = x.to(device), y.to(device)
-            with torch.no_grad():
-                out1 = teacher1(x)
-                out2 = teacher2(x)
-                t1_dict = out1[0] if isinstance(out1, tuple) else out1
-                t2_dict = out2[0] if isinstance(out2, tuple) else out2
 
                 # ────────── DEBUG ② feature key 확인 ──────────
                 assert "feat_2d" in t1_dict and "feat_2d" in t2_dict, (
@@ -189,7 +182,7 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
                     f2,
                     log_kl=cfg.get("log_kl", False),
                 )
-                loss = F.cross_entropy(logit_syn, y) + kl_z.mean()
+                loss = F.cross_entropy(logit_syn, y) + kl_z
             optimizer.zero_grad()
             if scaler is not None:
                 scaler.scale(loss).backward()
@@ -204,7 +197,7 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
                     torch.nn.utils.clip_grad_norm_(vib_mbm.parameters(), clip)
                 optimizer.step()
             running_loss += loss.item() * x.size(0)
-            running_kl += kl_z.mean().item() * x.size(0)
+            running_kl += kl_z.item() * x.size(0)
             correct += (logit_syn.argmax(1) == y).sum().item()
             count += x.size(0)
         avg_loss = running_loss / max(count, 1)
@@ -269,6 +262,11 @@ def student_vib_update(
         None.
     """
     device = cfg.get("device", "cuda")
+    best_acc = 0.0
+    ckpt_dir = cfg.get("checkpoint_dir", "checkpoints")
+    os.makedirs(ckpt_dir, exist_ok=True)
+    ckpt_best = os.path.join(ckpt_dir, "student_best.pth")
+    ckpt_last = os.path.join(ckpt_dir, "student_last.pth")
     # ────── KD 스케줄 파라미터 ────────────────────────────────
     init_alpha = cfg.get("kd_alpha_init", cfg.get("alpha_kd", 0.5))
     final_alpha = cfg.get("kd_alpha_final", 0.3)
@@ -492,16 +490,18 @@ def student_vib_update(
             msg += f"  ema_acc {ema_acc:.2f}%"
         print(msg)
 
-        # ── ckpt 저장 ─────────────────────
-        save_dir = cfg.get("results_dir", "results")
-        os.makedirs(save_dir, exist_ok=True)
-        best_pth = os.path.join(save_dir, "student_best.pth")
-        last_pth = os.path.join(save_dir, "student_last.pth")
-        score = ema_acc if ema_acc is not None else student_acc
-        if score > getattr(student_vib_update, "_best", -1):
-            torch.save(student_model.state_dict(), best_pth)
-            student_vib_update._best = score
-        torch.save(student_model.state_dict(), last_pth)
+        if scheduler is not None:
+            scheduler.step()
+
+        # --------- Check-pointing ----------
+        if student_acc > best_acc:
+            best_acc = student_acc
+            torch.save(student_model.state_dict(), ckpt_best)
+            if logger is not None:
+                logger.info(f"[CKPT] ↑ best student acc={best_acc:.2f}%  → {ckpt_best}")
+
+        # epoch 끝날 때마다 최신 가중치 덮어쓰기
+        torch.save(student_model.state_dict(), ckpt_last)
 
         if logger is not None:
             logger.update_metric(
