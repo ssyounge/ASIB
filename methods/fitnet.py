@@ -21,8 +21,6 @@ class FitNetDistiller(nn.Module):
         student_model,
         hint_key="feat_4d_layer2",    # teacher가 반환하는 key
         guided_key="feat_4d_layer2",  # student가 반환하는 key
-        s_channels=512,              # 학생 특징맵의 채널 수
-        t_channels=88,               # 스승 특징맵의 채널 수
         alpha_hint=1.0,
         alpha_ce=1.0,
         label_smoothing: float = 0.0,
@@ -42,7 +40,7 @@ class FitNetDistiller(nn.Module):
         # optional runtime configuration for training loops
         self.cfg = config if config is not None else {}
 
-        # 채널을 하드코딩하지 않고 run-time에 생성
+        # 특징맵 채널 수에 맞춰 runtime에 생성할 회귀기
         self.regressor = None      # lazy; 첫 forward 때 생성
 
     def forward(self, x, y):
