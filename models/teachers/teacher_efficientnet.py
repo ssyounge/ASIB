@@ -56,6 +56,9 @@ class TeacherEfficientNetWrapper(nn.Module):
         feat_dict = {
             "feat_4d": f4d,
             "feat_2d": fpool,
+            "feat_4d_layer1": feat_layer1,
+            "feat_4d_layer2": feat_layer2,
+            "feat_4d_layer3": feat_layer3,
         }
         return feat_dict, logit, None
 
