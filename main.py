@@ -38,6 +38,10 @@ if not isinstance(cfg, dict):
         f"{args.cfg} 루트는 dict 여야 합니다 (현재: {type(cfg).__name__})"
     )
 
+# cuDNN 자동 튜닝 활성 (deterministic 모드가 아니라면)
+if not cfg.get("deterministic", False):
+    torch.backends.cudnn.benchmark = True
+
 for k in (
     'teacher1_ckpt', 'teacher2_ckpt', 'results_dir',
     'batch_size', 'method'
@@ -67,6 +71,7 @@ train_loader, test_loader = get_cifar100_loaders(
     num_workers=cfg.get('num_workers', 0),
     randaug_N=cfg.get('randaug_N', 0),
     randaug_M=cfg.get('randaug_M', 0),
+    persistent=cfg.get('persistent_workers', False),
 )
 
 # ---------- teachers ----------
@@ -111,6 +116,7 @@ if method != 'ce' and ft_epochs > 0:
         num_workers=cfg.get('num_workers', 0),
         randaug_N=cfg.get('finetune_randaug_N', 0),
         randaug_M=cfg.get('finetune_randaug_M', 0),
+        persistent=cfg.get('persistent_workers', False),
     )
     if not loaded1:
         simple_finetune(

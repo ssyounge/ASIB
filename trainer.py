@@ -287,6 +287,12 @@ def student_vib_update(
     latent_angle_weight = cfg.get("latent_angle_weight", 0.3)
     clip = cfg.get("grad_clip_norm", 0)
     autocast_ctx, scaler = get_amp_components(cfg)
+
+    # ───── MixUp / CutMix 설정 ─────
+    mix_alpha = cfg.get("mixup_alpha", 0.0)
+    cutmix_alpha = cfg.get("cutmix_alpha_distill", 0.0)
+    do_mix = (mix_alpha > 0) or (cutmix_alpha > 0)
+
     vib_mbm.eval()
     student_model.train()
     ema_model = None
@@ -326,19 +332,10 @@ def student_vib_update(
         )
         for batch_idx, (x, y) in enumerate(epoch_loader):
             x, y = x.to(device), y.to(device)
-            # ───────── Data Mixing ─────────
-            mixup_a  = cfg.get("mixup_alpha", 0.0)
-            cutmix_a = cfg.get("cutmix_alpha_distill", 0.0)
-            if mixup_a > 0.0:
-                x, y_a, y_b, lam = mixup_data(x, y, alpha=mixup_a)
-            elif cutmix_a > 0.0:
-                from utils.misc import rand_bbox
-                lam = np.random.beta(cutmix_a, cutmix_a)
-                bbx1,bby1,bbx2,bby2 = rand_bbox(x.size(), lam)
-                x[:, :, bbx1:bbx2, bby1:bby2] = x.flip(0)[:, :, bbx1:bbx2, bby1:bby2]
-                y_a, y_b = y, y.flip(0)
-            else:
-                y_a = y_b = y; lam = 1.0
+
+            if do_mix:
+                lam_alpha = mix_alpha if mix_alpha > 0 else cutmix_alpha
+                x, y_a, y_b, lam = mixup_data(x, y, alpha=lam_alpha)
 
             # ─ Teacher feature → synergy target ─────────────────
             with torch.no_grad():
@@ -385,8 +382,10 @@ def student_vib_update(
                 )
 
             # ─ Losses ──────────────────────────────────────────
-            ce = (lam * F.cross_entropy(logit_s, y_a) +
-                  (1-lam) * F.cross_entropy(logit_s, y_b))
+            if do_mix:
+                ce = mixup_criterion(F.cross_entropy, logit_s, y_a, y_b, lam)
+            else:
+                ce = F.cross_entropy(logit_s, y)
             kd = F.kl_div(
                 F.log_softmax(logit_s / T, dim=1),
                 F.softmax(logit_t.detach() / T, dim=1),
