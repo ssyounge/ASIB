@@ -1,6 +1,7 @@
 #!/bin/bash
 # scripts/run_ibkd.sh
 #SBATCH --job-name=ibkd_cifar
+#SBATCH --partition=base_suma_rtx3090
 #SBATCH --gres=gpu:1
 #SBATCH --time=04:00:00
 #SBATCH --output=outputs/ibkd_%j.log            # 절대경로나 chdir 둘 중 하나만 택
@@ -54,7 +55,6 @@ ft_teacher efficientnet_b2 "$T2_CKPT"
 
 # 3) IB-KD 학습
 srun --chdir="$ROOT_DIR" \
-     --gres=gpu:1 \
      python main.py --cfg configs/minimal.yaml \
      --results_dir "${OUT_DIR}" \
      --teacher1_ckpt "$T1_CKPT" \
