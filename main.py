@@ -8,7 +8,7 @@ import torch
 from torch.optim import Adam, AdamW
 import math
 
-from models.ib.vib_mbm import VIB_MBM
+from models.ib.gate_mbm import GateMBM
 from models.ib.proj_head import StudentProj
 from utils.misc import set_random_seed
 from utils.eval import evaluate_acc
@@ -143,7 +143,13 @@ if method != 'ce':
 # ---------- VIB-MBM ----------
 if method != 'ce':
     in1 = t1.get_feat_dim(); in2 = t2.get_feat_dim()
-    mbm = VIB_MBM(in1, in2, cfg['z_dim'], n_cls=100).to(device)
+    mbm = GateMBM(
+        in1,
+        in2,
+        cfg['z_dim'],
+        100,
+        beta=cfg.get('beta_bottleneck', 1e-3),
+    ).to(device)
 else:
     mbm = None
 
