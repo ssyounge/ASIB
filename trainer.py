@@ -186,7 +186,7 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
                     f2,
                     log_kl=cfg.get("log_kl", False),
                 )
-                loss = F.cross_entropy(logit_syn, y) + beta * kl_z.mean()
+                loss = F.cross_entropy(logit_syn, y) + beta * kl_z        # kl_z 는 이미 mean
             optimizer.zero_grad()
             if scaler is not None:
                 scaler.scale(loss).backward()

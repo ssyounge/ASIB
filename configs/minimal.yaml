@@ -15,7 +15,7 @@ teacher1_ckpt: "checkpoints/resnet152_ft.pth"
 teacher2_ckpt: "checkpoints/efficientnet_b2_ft.pth"
 student_ce_ckpt: "student_ce_best.pth"
 finetune_partial_freeze: false
-num_classes: 100
+num_classes: 100        # 고정 클래스 수
 
 student_type: "convnext_tiny"
 # Conv stem stride
@@ -72,7 +72,7 @@ teacher_weight_decay: 5e-4
 student_weight_decay: 5e-4
 teacher_lr: 1e-3        # MBM Adam LR ↑
 teacher_dropout_p: 0.3      # teacher classifier dropout
-gate_dropout: 0.1
+gate_dropout: 0.1       # GateMBM dropout 확정
 student_lr: 1.0e-3          # convnext_tiny 는 1e‑3 이상에서 더 잘 수렴
 lr_schedule: "cosine"
 # 학습률 warm‑up

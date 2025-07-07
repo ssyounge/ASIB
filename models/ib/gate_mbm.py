@@ -17,7 +17,7 @@ class GateMBM(nn.Module):
         self.mu = nn.Linear(c, z_dim)
         self.log = nn.Linear(c, z_dim)
         self.head = nn.Linear(z_dim, n_cls)
-        self.beta = beta
+        # (self.beta 필드 삭제)  ← 외부에서 β를 곱해 사용
 
     def forward(self, f1: torch.Tensor, f2: torch.Tensor, log_kl: bool = False):
         f1 = self.proj1(f1)

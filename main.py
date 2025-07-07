@@ -231,27 +231,6 @@ if method == 'vib':
         scheduler=scheduler,
     )
 
-elif method == 'kd':
-    from methods.feature_kd import FeatureKD
-    distiller = FeatureKD(
-        teacher_model=t1,
-        student_model=student,
-        alpha=cfg.get('kd_alpha', 1.0),
-        temperature=cfg.get('kd_T', 4.0),
-        label_smoothing=cfg.get('label_smoothing', 0.0),
-        config=cfg,
-    )
-    acc = distiller.train_distillation(
-        train_loader,
-        test_loader,
-        epochs=cfg.get('student_iters', 60),
-        lr=cfg.get('student_lr', 5e-4),
-        weight_decay=cfg.get('student_weight_decay', 5e-4),
-        device=device,
-        cfg=cfg,
-    )
-    logger.update_metric("student_acc", float(acc))
-
 elif method == 'crd':
     from methods.crd import CRDDistiller
     distiller = CRDDistiller(
