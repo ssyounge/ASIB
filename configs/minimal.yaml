@@ -31,7 +31,7 @@ vanilla_alpha: 0.5
 vanilla_T: 4.0
 
 # ─ IB‑KD 하이퍼 ────────────────────────────────────
-mbm_type: "VIB"
+mbm_type: "GATE"
 # ─ Latent 용량 ↑ ─
 z_dim: 512
 
@@ -41,7 +41,7 @@ proj_use_bn: true
 
 # ─ KD 스케줄 ① (더 hard·더 빨리) ────────────────
 
-beta_bottleneck: 0.003       # IB KL 가중치
+beta_bottleneck: 0.001       # IB KL 가중치
 kd_alpha_init: 0.3
 kd_alpha_final: 0.6         # 후반부 soft‑KD ⭢ hard‑KD
 kd_T_init: 5                # 초기 온도

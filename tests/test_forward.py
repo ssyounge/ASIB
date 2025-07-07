@@ -1,9 +1,11 @@
 # tests/test_forward.py
 
 import torch
-from models.ib.vib_mbm import VIB_MBM
+from models.ib.gate_mbm import GateMBM
 
 def test_forward():
-    vib = VIB_MBM(2048, 2048, 256, 100)
-    z, logit, kl, mu = vib(torch.randn(4,2048), torch.randn(4,2048))
-    assert logit.shape == (4,100)
+    mbm = GateMBM(16, 16, 256, 100)
+    f1 = torch.randn(4, 16, 4, 4)
+    f2 = torch.randn(4, 16, 4, 4)
+    z, logit, kl, _ = mbm(f1, f2)
+    assert logit.shape == (4, 100)
