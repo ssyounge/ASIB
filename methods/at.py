@@ -111,8 +111,8 @@ class ATDistiller(nn.Module):
             lr=lr,
             weight_decay=weight_decay,
             betas=(
-                self.cfg.get("adam_beta1", 0.9),
-                self.cfg.get("adam_beta2", 0.999),
+                cfg.get("adam_beta1", 0.9),
+                cfg.get("adam_beta2", 0.999),
             ),
             eps=1e-8,
         )

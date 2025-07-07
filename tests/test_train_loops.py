@@ -71,3 +71,43 @@ def test_fitnet_train_distillation_updates_student_and_regressor():
     assert not torch.allclose(student_init, student.conv1.weight)
     for p0, p1 in zip(reg_init, distiller.regressor.parameters()):
         assert not torch.allclose(p0, p1)
+
+
+@pytest.mark.parametrize("distiller_cls", [ATDistiller, FitNetDistiller])
+def test_train_distillation_cfg_overrides_adam_betas(monkeypatch, distiller_cls):
+    teacher = DummyNet()
+    student = DummyNet()
+    distiller = distiller_cls(teacher, student)
+    loader = _make_loader()
+
+    captured = {}
+
+    class DummyOpt:
+        def __init__(self, params, lr=0.0, weight_decay=0.0, betas=(0.9, 0.999), eps=1e-8):
+            captured["betas"] = betas
+            self.param_groups = [dict(lr=lr)]
+
+        def zero_grad(self):
+            pass
+
+        def step(self):
+            pass
+
+        def add_param_group(self, group):
+            self.param_groups.append(group)
+
+    class DummyScheduler:
+        def __init__(self, optimizer, *args, **kwargs):
+            self.optimizer = optimizer
+            self.base_lrs = [0.0]
+
+        def step(self):
+            pass
+
+    monkeypatch.setattr(torch.optim, "AdamW", DummyOpt)
+    monkeypatch.setattr(torch.optim.lr_scheduler, "CosineAnnealingLR", DummyScheduler)
+
+    cfg = {"adam_beta1": 0.5, "adam_beta2": 0.4}
+    distiller.train_distillation(loader, epochs=0, device="cpu", cfg=cfg)
+
+    assert captured["betas"] == (0.5, 0.4)
