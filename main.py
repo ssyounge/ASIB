@@ -7,7 +7,8 @@ import yaml
 import torch
 from torch.optim import Adam, AdamW
 import math
-import multiprocessing as mp  # for spawn-safe entry
+import multiprocessing as mp           # 전역 mp = std multiprocessing
+import torch.multiprocessing as tmp     # 별칭: torch mp
 
 from models.ib.gate_mbm import GateMBM
 from models.ib.proj_head import StudentProj
@@ -67,11 +68,12 @@ def main() -> None:
     method = cfg.get('method', 'vib').lower()
     assert method in {'vib', 'dkd', 'crd', 'vanilla', 'ce'}, "unknown method"
 
-    # persistent_workers 사용 시: fork → spawn 전환 (dead-lock 방지)
+    # persistent_workers 사용 시: fork → spawn 전환
     if cfg.get("persistent_workers", False):
-        import torch.multiprocessing as mp
-        if mp.get_start_method(allow_none=True) != "spawn":
-            mp.set_start_method("spawn", force=True)
+        try:
+            tmp.set_start_method("spawn", force=False)   # 이미 설정돼 있으면 그대로 둔다
+        except RuntimeError:
+            pass
 
     # ---------- data ----------
     train_loader, test_loader = get_cifar100_loaders(
@@ -80,7 +82,7 @@ def main() -> None:
         num_workers=cfg.get('num_workers', 0),
         randaug_N=cfg.get('randaug_N', 0),
         randaug_M=cfg.get('randaug_M', 0),
-        persistent=cfg.get('persistent_workers', False),
+        persistent=cfg.get('persistent_workers', False),   # train
     )
 
     # ---------- teachers ----------
@@ -133,7 +135,7 @@ def main() -> None:
             num_workers=cfg.get('num_workers', 0),
             randaug_N=cfg.get('finetune_randaug_N', 0),
             randaug_M=cfg.get('finetune_randaug_M', 0),
-            persistent=cfg.get('persistent_workers', False),
+            persistent=cfg.get('persistent_workers', False),   # fine-tune
         )
         if not loaded1:
             simple_finetune(
