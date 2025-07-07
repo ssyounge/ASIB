@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+import copy
 from typing import Optional
 from modules.losses import ce_loss_fn
 
@@ -168,7 +169,7 @@ class FitNetDistiller(nn.Module):
                 print(f"[Epoch {epoch}] FitNet => loss={avg_loss:.4f}, testAcc={acc:.2f}")
                 if acc > best_acc:
                     best_acc = acc
-                    best_state = {"student": self.student.state_dict()}
+                    best_state = {"student": copy.deepcopy(self.student.state_dict())}
             else:
                 print(f"[Epoch {epoch}] FitNet => loss={avg_loss:.4f}")
 
