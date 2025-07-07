@@ -8,13 +8,14 @@ from typing import Mapping, Any, Optional
 def get_cifar100_loaders(
     root: str = "./data",
     batch_size: int = 128,
-    num_workers: int = 2,
+    num_workers: int = 0,
     augment: bool = True,
     randaug_N: int = 0,
     randaug_M: int = 0,
     cfg: Optional[Mapping[str, Any]] = None,
     randaug_default_N: int = 2,
     randaug_default_M: int = 9,
+    persistent: bool = False,
 ):
     """
     CIFAR-100 size = (32x32)
@@ -66,7 +67,7 @@ def get_cifar100_loaders(
         shuffle=True,
         num_workers=num_workers,
         pin_memory=True,
-        persistent_workers=(num_workers > 0)
+        persistent_workers=persistent and num_workers > 0,
     )
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
@@ -74,6 +75,6 @@ def get_cifar100_loaders(
         shuffle=False,
         num_workers=num_workers,
         pin_memory=True,
-        persistent_workers=(num_workers > 0)
+        persistent_workers=persistent and num_workers > 0,
     )
     return train_loader, test_loader
