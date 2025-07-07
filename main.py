@@ -90,9 +90,13 @@ loaded1 = False
 loaded2 = False
 
 if method != 'ce' and t1_ckpt and os.path.exists(t1_ckpt):
-    t1.load_state_dict(
-        torch.load(t1_ckpt, map_location=device, weights_only=True)
-    )
+    # PyTorch 1.12 이후만 weights_only 지원 → 버전별 fallback
+    try:
+        t1.load_state_dict(
+            torch.load(t1_ckpt, map_location=device, weights_only=True)
+        )
+    except TypeError:   # 구버전
+        t1.load_state_dict(torch.load(t1_ckpt, map_location=device))
     print(f"[INFO] Loaded teacher1 checkpoint: {t1_ckpt}")
     acc1 = evaluate_acc(t1, test_loader, device)
     print(f"[INFO] teacher1 accuracy: {acc1:.2f}%")
@@ -100,9 +104,13 @@ if method != 'ce' and t1_ckpt and os.path.exists(t1_ckpt):
     loaded1 = True
 
 if method != 'ce' and t2_ckpt and os.path.exists(t2_ckpt):
-    t2.load_state_dict(
-        torch.load(t2_ckpt, map_location=device, weights_only=True)
-    )
+    # PyTorch 1.12 이후만 weights_only 지원 → 버전별 fallback
+    try:
+        t2.load_state_dict(
+            torch.load(t2_ckpt, map_location=device, weights_only=True)
+        )
+    except TypeError:   # 구버전
+        t2.load_state_dict(torch.load(t2_ckpt, map_location=device))
     print(f"[INFO] Loaded teacher2 checkpoint: {t2_ckpt}")
     acc2 = evaluate_acc(t2, test_loader, device)
     print(f"[INFO] teacher2 accuracy: {acc2:.2f}%")
