@@ -40,7 +40,9 @@ class GateMBM(nn.Module):
         mu = self.mu(v)
         log = self.log(v)
         z = mu + torch.randn_like(mu) * (0.5 * log).exp()
-        kl_raw = -0.5 * (1 + log - mu.pow(2) - log.exp()).mean()
-        kl = self.beta * kl_raw              # ← 실제 사용
+        # KL per-sample  → mean
+        kl = -0.5 * (1 + log - mu.pow(2) - log.exp()).mean()
+        kl_scaled = self.beta * kl               # <-- 가중치 적용
         out = self.head(z)
-        return z, out, kl, None              # kl 은 이미 beta 가 곱해진 값
+        # (z, logits, scaled_KL, raw_KL)
+        return z, out, kl_scaled, kl
