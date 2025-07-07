@@ -63,24 +63,31 @@ def get_cifar100_loaders(
 
     mp_ctx = (
         torch.multiprocessing.get_context("spawn")
-        if persistent and num_workers > 0 else None
+        if persistent and num_workers > 0
+        else None
     )
+
+    dl_kwargs = dict(
+        batch_size=batch_size,
+        num_workers=num_workers,
+        pin_memory=True,
+        persistent_workers=persistent and num_workers > 0,
+    )
+
+    if mp_ctx is not None:
+        # ``multiprocessing_context`` is only available on newer PyTorch versions
+        if "multiprocessing_context" in torch.utils.data.DataLoader.__init__.__code__.co_varnames:
+            dl_kwargs["multiprocessing_context"] = mp_ctx
+
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
-        batch_size=batch_size,
         shuffle=True,
-        num_workers=num_workers,
-        pin_memory=True,
-        persistent_workers=persistent and num_workers > 0,
-        multiprocessing_context=mp_ctx,
+        **dl_kwargs,
     )
+
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
-        batch_size=batch_size,
         shuffle=False,
-        num_workers=num_workers,
-        pin_memory=True,
-        persistent_workers=persistent and num_workers > 0,
-        multiprocessing_context=mp_ctx,
+        **dl_kwargs,
     )
     return train_loader, test_loader
