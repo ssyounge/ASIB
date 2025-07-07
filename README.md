@@ -72,7 +72,13 @@ trainer.py              # training loops
 
 ## Testing
 
-Unit tests require PyTorch. Run:
+PyTorch must be installed for tests to run. Install it with:
+
+```bash
+pip install torch torchvision
+```
+
+Then run:
 
 ```bash
 pytest -q
