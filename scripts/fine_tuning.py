@@ -60,6 +60,7 @@ def main() -> None:
         num_workers=cfg.get("num_workers", 0),
         randaug_N=cfg.get("finetune_randaug_N", 0),
         randaug_M=cfg.get("finetune_randaug_M", 0),
+        persistent_train=cfg.get("persistent_workers", False),
     )
 
     model = create_teacher_by_name(
