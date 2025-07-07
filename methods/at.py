@@ -98,16 +98,12 @@ class ATDistiller(nn.Module):
     ):
         self.to(device)
 
-        if cfg is not None:
-            lr = cfg.get("student_lr", lr)
-            weight_decay = cfg.get("student_weight_decay", weight_decay)
-            lr_schedule = cfg.get("lr_schedule", "cosine")
-            step_size = cfg.get("student_step_size", 10)
-            gamma = cfg.get("student_gamma", 0.1)
-        else:
-            lr_schedule = "cosine"
-            step_size = 10
-            gamma = 0.1
+        cfg = {**self.cfg, **(cfg or {})}
+        lr = cfg.get("student_lr", lr)
+        weight_decay = cfg.get("student_weight_decay", weight_decay)
+        lr_schedule = cfg.get("lr_schedule", "cosine")
+        step_size = cfg.get("student_step_size", 10)
+        gamma = cfg.get("student_gamma", 0.1)
 
         optimizer = optim.AdamW(
             self.student.parameters(),
