@@ -164,6 +164,13 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
             leave=False,
             disable=cfg.get("disable_tqdm", False),
         )
+        for batch_idx, (x, y) in enumerate(epoch_loader):
+            x, y = x.to(device), y.to(device)
+            with torch.no_grad():
+                out1 = teacher1(x)
+                out2 = teacher2(x)
+                t1_dict = out1[0] if isinstance(out1, tuple) else out1
+                t2_dict = out2[0] if isinstance(out2, tuple) else out2
 
                 # ────────── DEBUG ② feature key 확인 ──────────
                 assert "feat_2d" in t1_dict and "feat_2d" in t2_dict, (
