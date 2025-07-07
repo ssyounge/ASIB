@@ -64,9 +64,10 @@ def main() -> None:
 
     model = create_teacher_by_name(
         args.teacher_type,
-        num_classes=100,
+        num_classes=cfg.get("num_classes", 100),
         pretrained=True,
         small_input=True,
+        cfg=cfg,
     ).to(args.device)
 
     epochs = (

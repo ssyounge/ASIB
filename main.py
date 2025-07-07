@@ -147,7 +147,7 @@ if method != 'ce':
         in1,
         in2,
         cfg['z_dim'],
-        100,
+        cfg.get('num_classes', 100),
         beta=cfg.get('beta_bottleneck', 1e-3),
         dropout_p=cfg.get('gate_dropout', 0.1),
     ).to(device)
@@ -157,7 +157,7 @@ else:
 # ---------- student ----------
 student = create_student_by_name(
     cfg.get("student_type", "convnext_tiny"),   # ex) "convnext_small"
-    num_classes=100,
+    num_classes=cfg.get('num_classes', 100),
     pretrained=True,
     small_input=True,
     cfg=cfg,
@@ -317,7 +317,10 @@ elif method == 'vanilla':
     logger.update_metric("student_acc", float(acc))
 
 elif method == 'ce':
-    ce_ckpt = os.path.join(cfg.get('results_dir', 'results'), 'student_ce_best.pth')
+    ce_ckpt = os.path.join(
+        cfg.get('results_dir', 'results'),
+        cfg.get('student_ce_ckpt', 'student_ce_best.pth'),
+    )
     simple_finetune(
         student,
         train_loader,
