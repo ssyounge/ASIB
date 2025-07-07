@@ -23,10 +23,10 @@ student_type: "convnext_tiny"
 patch_stride2: false       # true 로 바꾸면 stride 2
 
 # ─ Distillation method 선택 ──────────────────────
-method: vib        # {vib | dkd | crd | vanilla | ce}
+# method: vib        # {vib | dkd | crd | vanilla | ce}
 
 # --- AT --------------------------
-method: at
+# method: at
 alpha: 1000          # ← 기존 1 에서 ↑
 layer_key: feat_4d_layer3
 
