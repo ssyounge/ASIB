@@ -152,6 +152,7 @@ class FitNetDistiller(nn.Module):
                 # regressor 가 생성된 뒤 한 번만 param‑group 추가
                 if (not regressor_added) and (self.regressor is not None):
                     optimizer.add_param_group({"params": self.regressor.parameters()})
+                    scheduler.base_lrs.append(scheduler.base_lrs[0])  # 새 그룹 LR 등록
                     regressor_added = True
 
                 optimizer.step()
