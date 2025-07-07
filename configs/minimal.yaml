@@ -1,7 +1,7 @@
 # configs/minimal.yaml
 
 batch_size: 128              # ↑ 가능하면 256 (GPU 여유 시)
-num_workers: 2
+num_workers: 2           # 0이면 persistent 의미가 없어집니다
 persistent_workers: true   # 데이터 로더 워커 유지 여부
 disable_tqdm: true
 dataset_root: "./data"

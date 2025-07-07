@@ -61,6 +61,10 @@ def get_cifar100_loaders(
         transform=transform_test
     )
 
+    mp_ctx = (
+        torch.multiprocessing.get_context("spawn")
+        if persistent and num_workers > 0 else None
+    )
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=batch_size,
@@ -68,6 +72,7 @@ def get_cifar100_loaders(
         num_workers=num_workers,
         pin_memory=True,
         persistent_workers=persistent and num_workers > 0,
+        multiprocessing_context=mp_ctx,
     )
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
@@ -76,5 +81,6 @@ def get_cifar100_loaders(
         num_workers=num_workers,
         pin_memory=True,
         persistent_workers=persistent and num_workers > 0,
+        multiprocessing_context=mp_ctx,
     )
     return train_loader, test_loader
