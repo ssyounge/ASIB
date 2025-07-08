@@ -130,7 +130,7 @@ def main() -> None:
 
     if mode == 'continual':
         from trainer_continual import run_continual
-        run_continual(cfg, method)
+        run_continual(cfg, method, logger=logger)
         return
 
     # ---------- data ----------

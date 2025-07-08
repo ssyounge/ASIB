@@ -8,9 +8,10 @@ from trainer import teacher_vib_update, student_vib_update
 from models.teachers.teacher_resnet import create_resnet152
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from utils.freeze import freeze_all
+from utils.eval import evaluate_acc
 
 
-def run_continual(cfg: dict, kd_method: str) -> None:
+def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
     """Run continual-learning training using KD modules."""
     device = cfg.get("device", "cuda")
     n_tasks = cfg.get("n_tasks", 10)
@@ -39,7 +40,7 @@ def run_continual(cfg: dict, kd_method: str) -> None:
         vib_mbm = None
 
     for task in range(n_tasks):
-        train_loader, test_loader = get_cifar100_cl_loaders(
+        train_loader, test_cur, test_seen = get_cifar100_cl_loaders(
             root=cfg.get("dataset_root", "./data"),
             task_id=task,
             n_tasks=n_tasks,
@@ -55,7 +56,14 @@ def run_continual(cfg: dict, kd_method: str) -> None:
                 vib_mbm.parameters(), lr=cfg.get("teacher_lr", 1e-3)
             )
             teacher_vib_update(
-                t1, t2, vib_mbm, train_loader, cfg, opt_t, test_loader=test_loader
+                t1,
+                t2,
+                vib_mbm,
+                train_loader,
+                cfg,
+                opt_t,
+                test_loader=test_cur,
+                logger=logger,
             )
 
         from utils.model_factory import create_student_by_name
@@ -98,7 +106,8 @@ def run_continual(cfg: dict, kd_method: str) -> None:
                 train_loader,
                 cfg,
                 opt_s,
-                test_loader=test_loader,
+                test_loader=test_cur,
+                logger=logger,
             )
         else:
             if kd_method == "dkd":
@@ -138,7 +147,7 @@ def run_continual(cfg: dict, kd_method: str) -> None:
 
             distiller.train_distillation(
                 train_loader,
-                test_loader,
+                test_cur,
                 epochs=cfg.get("student_iters", 60),
                 lr=cfg.get("student_lr", 5e-4),
                 weight_decay=cfg.get("student_weight_decay", 5e-4),
@@ -147,5 +156,23 @@ def run_continual(cfg: dict, kd_method: str) -> None:
             )
 
         torch.save(student.state_dict(), f"{ckpt_dir}/task{task}_student.pth")
-        print(f"[CIL] task {task} finished.")
+
+        # ① 현재 task-only
+        acc_cur  = evaluate_acc(student, test_cur,  device=device)
+        # ② 지금까지 전체 class
+        acc_seen = evaluate_acc(student, test_seen, device=device)
+
+        if logger is not None:
+            logger.info(
+                f"[CIL] task {task} → cur={acc_cur:.2f}%  seen={acc_seen:.2f}%"
+            )
+            logger.update_metric(f"task{task}_acc_cur",  float(acc_cur))
+            logger.update_metric(f"task{task}_acc_seen", float(acc_seen))
+        else:
+            print(
+                f"[CIL] task {task} → cur={acc_cur:.2f}%  seen={acc_seen:.2f}%"
+            )
+
+    if logger is not None:
+        logger.finalize()
 

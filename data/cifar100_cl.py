@@ -3,6 +3,25 @@
 import torch
 import torchvision
 import torchvision.transforms as T
+from functools import lru_cache
+
+# ------------------------------------------------------------------
+# 전역 class-order  (seed 고정 시 재현성 보장)
+# ------------------------------------------------------------------
+_CLASS_ORDER = list(range(100))          # 0-99 기본
+
+# 필요하면 main 에서 set_class_order([...]) 호출
+def set_class_order(order):
+    assert len(order) == 100 and len(set(order)) == 100
+    global _CLASS_ORDER
+    _CLASS_ORDER = list(order)
+
+# task_id → class id list 캐싱  (IO-free)
+@lru_cache(maxsize=32)
+def _task_classes(task_id: int, n_tasks: int):
+    per = 100 // n_tasks
+    st = task_id * per
+    return _CLASS_ORDER[st : st + per]
 
 
 def _split_dataset(dataset, class_ids):
@@ -22,10 +41,7 @@ def get_cifar100_cl_loaders(
 ):
     """Return train/test loaders for a single CIFAR-100 incremental task."""
     assert 0 <= task_id < n_tasks, "invalid task_id"
-    classes_per = 100 // n_tasks
-    start = task_id * classes_per
-    end = start + classes_per
-    class_ids = list(range(start, end))
+    class_ids = _task_classes(task_id, n_tasks)
 
     ops = [T.RandomCrop(32, padding=4), T.RandomHorizontalFlip()]
     if randaug_N > 0 and randaug_M > 0:
@@ -49,7 +65,11 @@ def get_cifar100_cl_loaders(
     )
 
     train_ds = _split_dataset(base_train, class_ids)
-    test_ds = _split_dataset(base_test, class_ids)
+    # ① 현재 task-only
+    cur_test  = _split_dataset(base_test, class_ids)
+    # ② 지금까지 등장한 모든 class
+    seen_cls  = sum((_task_classes(t, n_tasks) for t in range(task_id + 1)), [])
+    seen_test = _split_dataset(base_test, seen_cls)
 
     mp_ctx = (
         torch.multiprocessing.get_context("spawn")
@@ -69,12 +89,20 @@ def get_cifar100_cl_loaders(
 
     train_loader = torch.utils.data.DataLoader(train_ds, **dl_kwargs)
 
-    test_loader = torch.utils.data.DataLoader(
-        test_ds,
+    # (cur-only, cumulative) 두 개 모두 반환
+    test_loader_cur = torch.utils.data.DataLoader(
+        cur_test,
         batch_size=batch_size,
         shuffle=False,
         num_workers=num_workers,
         pin_memory=True,
     )
-    return train_loader, test_loader
+    test_loader_seen = torch.utils.data.DataLoader(
+        seen_test,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
+    )
+    return train_loader, test_loader_cur, test_loader_seen
 
