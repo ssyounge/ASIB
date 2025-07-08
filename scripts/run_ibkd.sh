@@ -4,15 +4,24 @@
 #SBATCH --partition=base_suma_rtx3090
 #SBATCH --gres=gpu:1
 #SBATCH --time=04:00:00
-#SBATCH --output=outputs/ibkd_%j.log            # 절대경로나 chdir 둘 중 하나만 택
+#SBATCH --output=outputs/slurm/%x_%j.out        # SLURM 로그
+#SBATCH --chdir=/home/suyoung425/ASMB_KD        # ★ 프로젝트 루트 고정
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
+#-------------------------------------------------------------------
+# 기본 설정
+#-------------------------------------------------------------------
 set -euo pipefail
 
-# 사용 예)  PROJECT_ROOT=/data/ASMB_KD  ./run_ibkd.sh
+# (1) 프로젝트 루트 자동 판정
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+ROOT_DIR="${PROJECT_ROOT:-${SCRIPT_DIR%/scripts}}"
 
-# ① 현재 위치를 기본값으로, 필요하면 환경변수로 덮어쓰기
-ROOT_DIR="${PROJECT_ROOT:-$(pwd)}"
+# (2) 출력 디렉터리
+JOB_ID=${SLURM_JOB_ID:-local}
+OUT_ROOT="$ROOT_DIR/outputs"
+OUT_DIR="$OUT_ROOT/results/ibkd_${JOB_ID}"
+mkdir -p "$OUT_DIR" "$OUT_ROOT/slurm"
 
 # 0) 디버그용 정보
 echo "[DEBUG] PWD=$(pwd)"
@@ -25,12 +34,10 @@ python - <<'PY'
 import torch, sys; print("[DEBUG] torch", torch.__version__, "| CUDA =", torch.cuda.is_available())
 PY
 
-# 1) 경로 설정
-T1_CKPT="checkpoints/resnet152_ft.pth"
-T2_CKPT="checkpoints/efficientnet_b2_ft.pth"
-JOB_ID=${SLURM_JOB_ID:-local}
-OUT_DIR="$HOME/exp_outputs/ibkd_${JOB_ID}"
-mkdir -p "${OUT_DIR}"
+# 1) 체크포인트 경로 (루트 기준 절대경로로)
+CKPT_DIR="$ROOT_DIR/checkpoints"
+T1_CKPT="$CKPT_DIR/resnet152_ft.pth"
+T2_CKPT="$CKPT_DIR/efficientnet_b2_ft.pth"
 
 # 2) ──────────────────────────────────────────────
 #    Teacher fine-tune (있으면 skip)
@@ -61,8 +68,9 @@ shift 0   # 인수 필요 없음; 있으면 그대로 Python 쪽으로
 #    자동으로 configs/method/***.yaml, configs/scenario/***.yaml 을 merge 합니다.
 
 srun --chdir="$ROOT_DIR" \
-     python main.py \
-     --cfg "configs/base.yaml,configs/control.yaml" \
+     python "$ROOT_DIR/main.py" \
+     --cfg "$ROOT_DIR/configs/base.yaml,$ROOT_DIR/configs/control.yaml" \
+     --results_dir "$OUT_DIR" \
      "$@"
 
 # ➜ 주의: 다른 인자(실험 id, 추가 override 등)는
