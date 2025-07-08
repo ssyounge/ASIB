@@ -3,7 +3,7 @@
 import argparse
 import os
 import sys
-import yaml, glob
+import yaml, os                                   # glob 불필요
 import torch
 from torch.optim import Adam, AdamW
 import math
@@ -34,21 +34,25 @@ from utils.print_cfg import print_hparams
 def main() -> None:
     # ---------- CLI ----------
     parser = argparse.ArgumentParser(description="IB-KD entry point")
-    parser.add_argument('--cfg', default='configs/base.yaml', help='YAML config')        # comma-sep list
+    parser.add_argument('--cfg',
+                        default='configs/base.yaml',
+                        help='Comma-separated list of YAML files')
     parser.add_argument('--teacher1_ckpt', type=str, help='Path to teacher-1 checkpoint')
     parser.add_argument('--teacher2_ckpt', type=str, help='Path to teacher-2 checkpoint')
     parser.add_argument('--results_dir', type=str, help='Where to save logs / checkpoints')
     parser.add_argument('--batch_size', type=int, help='Mini-batch size for training')
-    parser.add_argument('--method', type=str, help='Override KD algorithm')    # ex) vib
-    parser.add_argument('--train_mode', type=str, help='Override scenario')    # ex) continual
+    parser.add_argument('--method', type=str, help='Override KD algorithm')   # optional
+    parser.add_argument('--train_mode', type=str, help='Override scenario')   # optional
     parser.add_argument('--n_tasks', type=int, help='number of tasks for continual learning')
     args = parser.parse_args()
-    # ① 여러 YAML 파일 병합 (쉼표 구분)
+    # ① 여러 YAML 파일 병합 (쉼표 구분) + 로드된 경로 기록
+    loaded = set()
     cfg = {}
-    for path in args.cfg.split(','):
-        with open(path.strip(), 'r') as f:
-            part = yaml.safe_load(f) or {}
-        cfg.update(part)
+    for p in args.cfg.split(','):
+        p = p.strip()
+        with open(p, 'r') as f:
+            cfg.update(yaml.safe_load(f) or {})
+        loaded.add(os.path.abspath(p))
     if not isinstance(cfg, dict):
         raise TypeError(
             f"{args.cfg} 루트는 dict 여야 합니다 (현재: {type(cfg).__name__})"
@@ -75,13 +79,21 @@ def main() -> None:
     # 전체 하이퍼파라미터 테이블 출력 (logger 사용)
     print_hparams(cfg, log_fn=logger.info)
 
-    # ② method / scenario 자동 로드
-    if args.method:
-        cfg.update(yaml.safe_load(open(f"configs/method/{args.method}.yaml")))
-        cfg['method'] = args.method.lower()
-    if args.train_mode:
-        cfg.update(yaml.safe_load(open(f"configs/scenario/{args.train_mode}.yaml")))
-        cfg['train_mode'] = args.train_mode.lower()
+    # ② YAML 안에 명시된 method/scenario → 자동 merge
+    def _auto_merge(section_key, subdir, cli_override):
+        #  a) CLI 값이 있으면 최우선
+        name = (cli_override or cfg.get(section_key))
+        if not name:
+            return
+        cfg[section_key] = name.lower()
+        path = os.path.abspath(f"configs/{subdir}/{name}.yaml")
+        if path not in loaded and os.path.exists(path):
+            with open(path, 'r') as f:
+                cfg.update(yaml.safe_load(f) or {})
+            loaded.add(path)
+
+    _auto_merge('method',     'method',   args.method)
+    _auto_merge('train_mode', 'scenario', args.train_mode)
 
     device = cfg.get('device', 'cuda')
     set_random_seed(
