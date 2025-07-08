@@ -36,3 +36,5 @@ grad_scaler_init_scale: 1024
 
 patch_stride2 : false
 seed: 42
+student_weight_decay: 5e-4
+student_ce_ckpt: student_ce_best.pth

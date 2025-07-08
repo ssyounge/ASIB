@@ -6,11 +6,15 @@ finetune_epochs      : 30
 finetune_lr          : 1e-3
 finetune_weight_decay: 3e-4
 finetune_mixup_alpha : 0.2
+
+finetune_label_smoothing: 0.05
+finetune_partial_freeze: false
 finetune_randaug_N   : 2
 finetune_randaug_M   : 7
 finetune_warmup      : 5
 finetune_sched       : cosine
 min_lr_ratio_finetune: 0.1
+
 
 # ─ Student Cosine LR 옵션 ─
 lr_warmup_epochs     : 5
