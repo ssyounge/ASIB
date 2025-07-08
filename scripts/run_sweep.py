@@ -1,5 +1,10 @@
 # scripts/run_sweep.py
-import argparse, itertools, os, subprocess, yaml, time
+import argparse
+import itertools
+import os
+import subprocess
+import yaml
+import time
 
 def main():
     p = argparse.ArgumentParser()
@@ -12,6 +17,14 @@ def main():
                    help="(고정) GPU id = 0  ‑ 다른 값 넣으면 오류")
     p.add_argument("--max_parallel", type=int, default=1,
                    help="(고정) 동시 실행 = 1  ‑ 다른 값 넣으면 오류")
+    # ───────── Sweep 전략 선택 ─────────
+    #   full   : 모든 list 변수의 Cartesian product (기존 동작)
+    #   single : list 변수를 하나씩만 바꿔서 ‘기본+α’ 실험
+    p.add_argument("--mode", choices=["full", "single"], default="full",
+                   help="'full': 전체 조합,  'single': 변수별 개별 실험")
+    #   필요한 변수만 골라서 sweep 하고 싶을 때
+    p.add_argument("--keys", default="",
+                   help="콤마로 구분된 sweep 대상 key (비워두면 전부)")
     p.add_argument("--extra", nargs=argparse.REMAINDER,
                    help="main.py 에 그대로 넘길 추가 CLI 인수")
     args = p.parse_args()
@@ -27,19 +40,31 @@ def main():
 
     # list 가 아닌 값은 무시
     sweep_vars = {k: v for k, v in sweep_cfg.items() if isinstance(v, list)}
-    keys, vals = zip(*sweep_vars.items())
-    combos = list(itertools.product(*vals))
+
+    # --keys 필터링
+    if args.keys:
+        wanted = [k.strip() for k in args.keys.split(',') if k.strip()]
+        sweep_vars = {k: v for k, v in sweep_vars.items() if k in wanted}
+
+    # ─ Sweep 전략 ─────────────────────────────────────────────
+    param_sets: list[dict[str, str]] = []
+    if args.mode == "full":
+        keys, vals = zip(*sweep_vars.items())
+        for tup in itertools.product(*vals):
+            param_sets.append(dict(zip(keys, tup)))
+    else:   # single mode
+        for k, v_list in sweep_vars.items():
+            for v in v_list:
+                param_sets.append({k: v})
 
     # 항상 GPU 0, 동시 1
     gpu_id   = "0"
     max_jobs = 1
     procs    = []
 
-    for idx, tup in enumerate(combos):
-        cli = []
-        for k, v in zip(keys, tup):
-            cli += [f"--{k}", str(v)]
-        exp_name = "_".join(f"{k}{v}" for k, v in zip(keys, tup))
+    for idx, params in enumerate(param_sets):
+        cli = sum(([f"--{k}", str(v)] for k, v in params.items()), [])
+        exp_name = "_".join(f"{k}{v}" for k, v in params.items())
         out_dir  = f"results/sweep/{exp_name}"
         log_file = f"logs/{exp_name}.log"
         os.makedirs(out_dir,  exist_ok=True)
