@@ -29,6 +29,9 @@ def main():
         repo_root = pathlib.Path(__file__).resolve().parents[1]
     p.add_argument("--base",  default=repo_root / "configs/base.yaml",
                    help="(기본) configs/base.yaml")
+    # NEW ─ control.yaml 경로(방법·시나리오 고정용)
+    p.add_argument("--control", default=repo_root / "configs/control.yaml",
+                   help="(기본) configs/control.yaml")
     p.add_argument("--sweep", default=repo_root / "configs/ablation/kd_sweep.yaml",
                    help="(기본) configs/ablation/kd_sweep.yaml")
     # GPU·병렬 수 고정  ─ 변경 금지(실수 방지용)
@@ -103,24 +106,21 @@ def main():
         out_dir  = os.path.join(ROOT_DIR, "outputs", "results", "sweep", exp_name)
         log_dir  = os.path.join(ROOT_DIR, "outputs", "sweep_logs")
         log_file = os.path.join(log_dir, f"{exp_name}.log")
-        os.makedirs(out_dir, exist_ok=True)
-        os.makedirs(log_dir, exist_ok=True)
+        os.makedirs(out_dir, exist_ok=True); os.makedirs(log_dir, exist_ok=True)
 
-        # ───────── override YAML 작성 (바뀐 하이퍼파라미터만) ─────────
-        override_yaml = os.path.join(out_dir, "override.yaml")
-        with open(override_yaml, "w") as f_yaml:
+        # ─ override.yaml 작성 (list 값 1개만 담김)
+        override_path = os.path.join(out_dir, "override.yaml")
+        with open(override_path, "w") as f_yaml:
             yaml.safe_dump(params, f_yaml)
-
-        #   디버그용 로그
-        print(f"[DBG]   └─ override → {override_yaml}", flush=True)
+        print(f"[DBG]   └─ override → {override_path}", flush=True)
 
         env = os.environ.copy()
         env["CUDA_VISIBLE_DEVICES"] = gpu_ids[idx % len(gpu_ids)]
 
-        # base.yaml 과 override.yaml 둘 다 넘김
-        cfg_arg = f"{args.base},{override_yaml}"
+        # main.py 에는 cfg 3개만 넘김: base, control, override
+        cfg_chain = f"{args.base},{args.control},{override_path}"
         cmd = ["python", os.path.join(ROOT_DIR, "main.py"),
-               "--cfg", cfg_arg,
+               "--cfg", cfg_chain,
                "--results_dir", out_dir] + (args.extra or [])
 
         procs.append(subprocess.Popen(cmd, env=env,
