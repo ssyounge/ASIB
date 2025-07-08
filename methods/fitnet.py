@@ -106,11 +106,12 @@ class FitNetDistiller(nn.Module):
         self.to(device)
 
         cfg = {**self.cfg, **(cfg or {})}
-        lr = cfg.get("student_lr", lr)
-        weight_decay = cfg.get("student_weight_decay", weight_decay)
-        lr_schedule = cfg.get("lr_schedule", "cosine")
-        step_size = cfg.get("student_step_size", 10)
-        gamma = cfg.get("student_gamma", 0.1)
+        # YAML strings like "1e-3" require casting to numeric types
+        lr           = float(cfg.get("student_lr", lr))
+        weight_decay = float(cfg.get("student_weight_decay", weight_decay))
+        lr_schedule  = cfg.get("lr_schedule", "cosine")
+        step_size    = int(cfg.get("student_step_size", 10))
+        gamma        = float(cfg.get("student_gamma", 0.1))
 
         # 처음에는 student 파라미터만 등록
         optimizer = optim.AdamW(
