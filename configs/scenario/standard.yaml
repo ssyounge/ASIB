@@ -11,6 +11,8 @@ finetune_randaug_M   : 7
 finetune_warmup      : 5
 finetune_sched       : cosine
 min_lr_ratio_finetune: 0.1
+finetune_label_smoothing: 0.05
+finetune_partial_freeze: false
 
 # ─ Student Cosine LR 옵션 ─
 lr_warmup_epochs     : 5
