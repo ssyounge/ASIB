@@ -1,1 +1,3 @@
+# configs/ablation/rnd_seed.yaml
+
 seed: [0, 1, 2]
