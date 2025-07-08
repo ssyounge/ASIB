@@ -1,3 +1,5 @@
+# configs/base.yaml
+
 dataset_root: ./data
 num_classes: 100
 student_type: convnext_tiny
