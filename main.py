@@ -45,14 +45,12 @@ def main() -> None:
     parser.add_argument('--train_mode', type=str, help='Override scenario')   # optional
     parser.add_argument('--n_tasks', type=int, help='number of tasks for continual learning')
     args = parser.parse_args()
-    # ① 여러 YAML 파일 병합 (쉼표 구분) + 로드된 경로 기록
-    loaded = set()
+    # ① 여러 YAML 파일 병합 (쉼표 구분)
     cfg = {}
     for p in args.cfg.split(','):
         p = p.strip()
         with open(p, 'r') as f:
             cfg.update(yaml.safe_load(f) or {})
-        loaded.add(os.path.abspath(p))
     if not isinstance(cfg, dict):
         raise TypeError(
             f"{args.cfg} 루트는 dict 여야 합니다 (현재: {type(cfg).__name__})"
@@ -79,21 +77,19 @@ def main() -> None:
     # 전체 하이퍼파라미터 테이블 출력 (logger 사용)
     print_hparams(cfg, log_fn=logger.info)
 
-    # ② YAML 안에 명시된 method/scenario → 자동 merge
-    def _auto_merge(section_key, subdir, cli_override):
-        #  a) CLI 값이 있으면 최우선
-        name = (cli_override or cfg.get(section_key))
-        if not name:
-            return
-        cfg[section_key] = name.lower()
-        path = os.path.abspath(f"configs/{subdir}/{name}.yaml")
-        if path not in loaded and os.path.exists(path):
-            with open(path, 'r') as f:
-                cfg.update(yaml.safe_load(f) or {})
-            loaded.add(path)
+    # ② scenario YAML 우선 적용
+    scen_name = args.train_mode or cfg.get('train_mode')
+    if scen_name:
+        with open(f"configs/scenario/{scen_name}.yaml") as f:
+            cfg.update(yaml.safe_load(f) or {})
+        cfg['train_mode'] = scen_name.lower()
 
-    _auto_merge('method',     'method',   args.method)
-    _auto_merge('train_mode', 'scenario', args.train_mode)
+    # ③ method YAML 적용 (scenario보다 나중에 → teacher_iters 등 덮어쓰기)
+    meth_name = args.method or cfg.get('method')
+    if meth_name:
+        with open(f"configs/method/{meth_name}.yaml") as f:
+            cfg.update(yaml.safe_load(f) or {})
+        cfg['method'] = meth_name.lower()
 
     device = cfg.get('device', 'cuda')
     set_random_seed(
