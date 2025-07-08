@@ -3,7 +3,7 @@
 import os
 import torch
 
-from data.cifar100_cl import get_cifar100_cl_loaders
+from data.cifar100_cl import get_cifar100_cl_loaders, _task_classes
 from trainer import teacher_vib_update, student_vib_update
 from models.teachers.teacher_resnet import create_resnet152
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
@@ -104,6 +104,8 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 lr=float(cfg.get("student_lr", 5e-4)),
                 weight_decay=float(cfg.get("student_weight_decay", 5e-4)),
             )
+            cur_classes = _task_classes(task, n_tasks)
+
             student_vib_update(
                 t1,
                 t2,
@@ -115,6 +117,7 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 opt_s,
                 test_loader=test_cur,
                 logger=logger,
+                cur_classes=cur_classes,
             )
         else:
             if kd_method == "dkd":
