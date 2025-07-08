@@ -54,11 +54,16 @@ ft_teacher resnet152       "$T1_CKPT"
 ft_teacher efficientnet_b2 "$T2_CKPT"
 
 # 3) IB-KD 학습
+shift 0   # 인수 필요 없음; 있으면 그대로 Python 쪽으로
+
+# ➜ base.yaml + control.yaml 만 넘기면
+#    main.py 가 method / train_mode 값을 읽어
+#    자동으로 configs/method/***.yaml, configs/scenario/***.yaml 을 merge 합니다.
+
 srun --chdir="$ROOT_DIR" \
-     python main.py --cfg configs/minimal.yaml \
-     --results_dir "${OUT_DIR}" \
-     --teacher1_ckpt "$T1_CKPT" \
-     --teacher2_ckpt "$T2_CKPT" "$@"
+     python main.py \
+     --cfg "configs/base.yaml,configs/control.yaml" \
+     "$@"
 
 # ➜ 주의: 다른 인자(실험 id, 추가 override 등)는
 #     ./run_ibkd.sh --batch_size 256 처럼 이어서 넘기면 됩니다.
