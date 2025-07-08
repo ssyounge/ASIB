@@ -1,0 +1,3 @@
+method: fitnet
+alpha_hint: 50
+alpha_ce: 1

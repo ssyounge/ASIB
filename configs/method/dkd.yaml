@@ -1,0 +1,5 @@
+method: dkd
+dkd_alpha: 1.0
+dkd_beta: 8.0
+dkd_T: 4.0
+dkd_warmup: 5
