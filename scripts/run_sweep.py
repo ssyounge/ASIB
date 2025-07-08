@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #SBATCH --job-name=kd_sweep          # SLURM 이름
-#SBATCH --output=logs/slurm_%j.out   # SLURM 로그 저장 경로
+#SBATCH --output=outputs/slurm/%x_%j.out   # SLURM 로그 저장 경로
 #SBATCH --gres=gpu:1                 # GPU 1장 고정
 #SBATCH --cpus-per-task=4            # 여유 CPU
 #SBATCH --time=3-00:00:00            # 최대 3일 (필요시 조정)
@@ -16,7 +16,12 @@ import pathlib
 
 def main():
     p = argparse.ArgumentParser()
-    repo_root = pathlib.Path(__file__).resolve().parents[1]
+    # __file__ becomes a temporary slurm_script when submitted via sbatch.
+    # Recover the original repository path using SLURM_SUBMIT_DIR.
+    if "SLURM_SUBMIT_DIR" in os.environ:
+        repo_root = pathlib.Path(os.environ["SLURM_SUBMIT_DIR"]).resolve()
+    else:
+        repo_root = pathlib.Path(__file__).resolve().parents[1]
     p.add_argument("--base",  default=repo_root / "configs/base.yaml",
                    help="(기본) configs/base.yaml")
     p.add_argument("--sweep", default=repo_root / "configs/ablation/kd_sweep.yaml",
@@ -37,6 +42,10 @@ def main():
     p.add_argument("--extra", nargs=argparse.REMAINDER,
                    help="main.py 에 그대로 넘길 추가 CLI 인수")
     args = p.parse_args()
+
+    # Output directories under the project root
+    out_root = repo_root / "outputs"
+    os.makedirs(out_root, exist_ok=True)
 
     # ─────── 고정 값 검증 ───────
     gpu_ids = [g.strip() for g in args.gpus.split(',') if g.strip()]
@@ -74,17 +83,17 @@ def main():
     for idx, params in enumerate(param_sets):
         cli = sum(([f"--{k}", str(v)] for k, v in params.items()), [])
         exp_name = "_".join(f"{k}{v}" for k, v in params.items())
-        out_dir  = f"results/sweep/{exp_name}"
-        log_file = f"logs/{exp_name}.log"
-        os.makedirs(out_dir,  exist_ok=True)
-        os.makedirs("logs", exist_ok=True)
+        out_dir  = out_root / "results" / "sweep" / exp_name
+        log_file = out_root / "logs" / f"{exp_name}.log"
+        os.makedirs(out_dir, exist_ok=True)
+        os.makedirs(out_root / "logs", exist_ok=True)
 
         env = os.environ.copy()
         env["CUDA_VISIBLE_DEVICES"] = gpu_ids[idx % len(gpu_ids)]
 
         cmd = ["python", "main.py",
-               "--cfg", args.base,
-               "--results_dir", out_dir] + (args.extra or []) + cli
+               "--cfg", str(args.base),
+               "--results_dir", str(out_dir)] + (args.extra or []) + cli
 
         procs.append(subprocess.Popen(cmd, env=env,
                          stdout=open(log_file, "w"),
