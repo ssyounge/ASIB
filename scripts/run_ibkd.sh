@@ -13,9 +13,14 @@
 #-------------------------------------------------------------------
 set -euo pipefail
 
-# (1) 프로젝트 루트 자동 판정
-SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
-ROOT_DIR="${PROJECT_ROOT:-${SCRIPT_DIR%/scripts}}"
+# (1) 프로젝트 루트:  --chdir 덕분에 이미 루트
+ROOT_DIR=$(pwd)
+
+# 안전: 그래도 환경변수로 덮어쓰기 허용
+if [ -n "${PROJECT_ROOT:-}" ]; then
+    ROOT_DIR="${PROJECT_ROOT}"
+    cd "$ROOT_DIR"
+fi
 
 # (2) 출력 디렉터리
 JOB_ID=${SLURM_JOB_ID:-local}
