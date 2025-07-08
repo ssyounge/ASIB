@@ -99,7 +99,6 @@ def main():
     procs    = []
 
     for idx, params in enumerate(param_sets):
-        cli = sum(([f"--{k}", str(v)] for k, v in params.items()), [])
         exp_name = "_".join(f"{k}{v}" for k, v in params.items())
         out_dir  = os.path.join(ROOT_DIR, "outputs", "results", "sweep", exp_name)
         log_dir  = os.path.join(ROOT_DIR, "outputs", "sweep_logs")
@@ -107,12 +106,22 @@ def main():
         os.makedirs(out_dir, exist_ok=True)
         os.makedirs(log_dir, exist_ok=True)
 
+        # ───────── override YAML 작성 (바뀐 하이퍼파라미터만) ─────────
+        override_yaml = os.path.join(out_dir, "override.yaml")
+        with open(override_yaml, "w") as f_yaml:
+            yaml.safe_dump(params, f_yaml)
+
+        #   디버그용 로그
+        print(f"[DBG]   └─ override → {override_yaml}", flush=True)
+
         env = os.environ.copy()
         env["CUDA_VISIBLE_DEVICES"] = gpu_ids[idx % len(gpu_ids)]
 
+        # base.yaml 과 override.yaml 둘 다 넘김
+        cfg_arg = f"{args.base},{override_yaml}"
         cmd = ["python", os.path.join(ROOT_DIR, "main.py"),
-               "--cfg", args.base,
-               "--results_dir", out_dir] + (args.extra or []) + cli
+               "--cfg", cfg_arg,
+               "--results_dir", out_dir] + (args.extra or [])
 
         procs.append(subprocess.Popen(cmd, env=env,
                          stdout=open(log_file, "w"),
