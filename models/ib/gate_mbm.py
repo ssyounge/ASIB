@@ -12,7 +12,8 @@ class GateMBM(nn.Module):
     def __init__(self, c_in1: int, c_in2: int, z_dim: int = 512, n_cls: int = 100,
                  beta: float = 1e-3, dropout_p: float = 0.1):
         super().__init__()
-        self.beta = beta
+        # ensure scalar value to avoid list * Tensor errors
+        self.beta = float(beta)
         c = max(c_in1, c_in2)                        # 정보 보존
         self.proj1 = nn.Conv2d(c_in1, c, 1)          # 업/다운 자동 해결
         self.proj2 = nn.Conv2d(c_in2, c, 1)
