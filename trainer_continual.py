@@ -15,6 +15,10 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
     """Run continual-learning training using KD modules."""
     device = cfg.get("device", "cuda")
     n_tasks = cfg.get("n_tasks", 10)
+    if 100 % n_tasks != 0:
+        raise ValueError(
+            f"n_tasks={n_tasks} 가 CIFAR-100 을 균등 분할하지 않습니다."
+        )
     ckpt_dir = os.path.join(cfg.get("results_dir", "results"), "cl_ckpt")
     os.makedirs(ckpt_dir, exist_ok=True)
 
@@ -53,7 +57,9 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
 
         if task == 0 and vib_mbm is not None:
             opt_t = torch.optim.Adam(
-                vib_mbm.parameters(), lr=cfg.get("teacher_lr", 1e-3)
+                vib_mbm.parameters(),
+                lr=cfg.get("teacher_lr", 1e-3),
+                weight_decay=cfg.get("teacher_weight_decay", 0.0),
             )
             teacher_vib_update(
                 t1,
@@ -92,10 +98,11 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 cfg["z_dim"],
                 hidden_dim=cfg.get("proj_hidden_dim"),
                 normalize=True,
-            )
+            ).to(device)  # ← device 맞춤
             opt_s = torch.optim.AdamW(
                 list(student.parameters()) + list(proj.parameters()),
                 lr=cfg.get("student_lr", 5e-4),
+                weight_decay=cfg.get("student_weight_decay", 5e-4),
             )
             student_vib_update(
                 t1,
