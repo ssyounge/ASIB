@@ -42,7 +42,7 @@ ft_teacher () {
   else
       echo "[INFO] fine-tuning $MODEL → $CKPT"
         python scripts/fine_tuning.py \
-            --config configs/minimal.yaml \
+            --config configs/base.yaml \
             --teacher_type "$MODEL" \
             --finetune_ckpt_path "$CKPT" \
             ${FINETUNE_EPOCHS:+--finetune_epochs "$FINETUNE_EPOCHS"} \
