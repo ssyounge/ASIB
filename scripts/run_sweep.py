@@ -12,7 +12,7 @@
 import argparse, itertools, os, subprocess, yaml, time
 import pathlib
 
-ROOT_DIR   = os.getcwd()   # SLURM --chdir 덕분에 항상 프로젝트 루트
+ROOT_DIR   = os.getcwd()   # ( --chdir 로 고정됨 )
 
 def main():
     # ────────────────────────────────────────────────
