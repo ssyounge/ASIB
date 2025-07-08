@@ -1,4 +1,5 @@
 """CIFAR-100 continual-learning data loader utilities."""
+# data/cifar100_cl.py
 
 import torch
 import torchvision
