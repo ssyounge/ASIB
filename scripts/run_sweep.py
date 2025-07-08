@@ -15,6 +15,11 @@ import pathlib
 ROOT_DIR   = os.getcwd()   # SLURM --chdir 덕분에 항상 프로젝트 루트
 
 def main():
+    # ────────────────────────────────────────────────
+    # 기본 정보 – SLURM 로그에 바로 찍힘
+    # ────────────────────────────────────────────────
+    print(f"[DBG] run_sweep.py started  cwd={os.getcwd()}", flush=True)
+
     p = argparse.ArgumentParser()
     # __file__ becomes a temporary slurm_script when submitted via sbatch.
     # Recover the original repository path using SLURM_SUBMIT_DIR.
@@ -43,6 +48,9 @@ def main():
                    help="main.py 에 그대로 넘길 추가 CLI 인수")
     args = p.parse_args()
 
+    print(f"[DBG] base  YAML = {args.base}",  flush=True)
+    print(f"[DBG] sweep YAML = {args.sweep}", flush=True)
+
     # --- config 경로를 절대경로로 변환 ----------------------------------
     if not os.path.isabs(args.base):
         args.base = os.path.join(ROOT_DIR, args.base)
@@ -62,6 +70,7 @@ def main():
 
     with open(args.sweep) as f:
         sweep_cfg = yaml.safe_load(f)
+    print(f"[DBG] sweep keys = {list(sweep_cfg.keys())}", flush=True)
 
     # list 가 아닌 값은 무시
     sweep_vars = {k: v for k, v in sweep_cfg.items() if isinstance(v, list)}
@@ -81,6 +90,9 @@ def main():
         for k, v_list in sweep_vars.items():
             for v in v_list:
                 param_sets.append({k: v})
+
+    print(f"[DBG] generated {len(param_sets)} experiment(s) "
+          f"(mode={args.mode})", flush=True)
 
     # 항상 GPU 1, 동시 1
     max_jobs = args.max_parallel
@@ -106,6 +118,10 @@ def main():
                          stdout=open(log_file, "w"),
                          stderr=subprocess.STDOUT))
 
+        print(f"[DBG] ▶ launch {idx+1}/{len(param_sets)}  "
+              f"{params}  → PID={procs[-1].pid}  log={log_file}",
+              flush=True)
+
         # 동시 실행 제한
         while len([p for p in procs if p.poll() is None]) >= max_jobs:
             time.sleep(10)
@@ -113,6 +129,8 @@ def main():
     # 모든 subprocess 종료 대기
     for p in procs:
         p.wait()
+
+    print("[DBG] all subprocesses finished ✅", flush=True)
 
 if __name__ == "__main__":
     main()
