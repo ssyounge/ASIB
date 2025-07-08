@@ -38,4 +38,3 @@ feat_loss_weight: [0.2, 0.15, 0.1]
 # ───── 추가 override (base.yaml 값을 덮어쓰기) ─────
 cutmix_alpha_distill: 1.0        # 강한 CutMix 유지
 ema_decay           : 0.992      # EMA 버퍼 빠르게 반영
-student_iters       : 90         # 동일 epoch 수
