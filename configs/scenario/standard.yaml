@@ -1,7 +1,7 @@
 # configs/scenario/standard.yaml
 
 train_mode   : standard
-teacher_iters: 20
+teacher_iters: 0
 
 # ─ Fine‑tune(교사+Gate) 설정 ─
 finetune_epochs      : 30
