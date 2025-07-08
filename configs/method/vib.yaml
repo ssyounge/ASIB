@@ -1,6 +1,7 @@
 # configs/method/vib.yaml
 
 method: vib
+teacher_iters: 20
 mbm_type: GATE
 z_dim: 512
 beta_bottleneck: 1e-3
