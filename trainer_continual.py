@@ -27,11 +27,12 @@ def run_continual(cfg: dict, kd_method: str) -> None:
     if kd_method == "vib":
         from models.ib.gate_mbm import GateMBM
 
+        num_cls_total = (100 // cfg.get("n_tasks", 10)) * cfg.get("n_tasks", 10)
         vib_mbm = GateMBM(
-            t1.get_feat_dim(),
-            t2.get_feat_dim(),
-            cfg["z_dim"],
-            cfg.get("num_classes", 100),
+            t1.get_feat_dim(),                # teacher-1 feat dim
+            t2.get_feat_dim(),                # teacher-2 feat dim
+            cfg["z_dim"],                     # latent z
+            num_cls_total,                    # 100-way (확정)
             beta=cfg.get("beta_bottleneck", 1e-3),
         ).to(device)
     else:
@@ -44,6 +45,9 @@ def run_continual(cfg: dict, kd_method: str) -> None:
             n_tasks=n_tasks,
             batch_size=cfg.get("batch_size", 128),
             num_workers=cfg.get("num_workers", 2),
+            randaug_N=cfg.get("randaug_N", 0),
+            randaug_M=cfg.get("randaug_M", 0),
+            persistent_train=cfg.get("persistent_workers", False),
         )
 
         if task == 0 and vib_mbm is not None:
@@ -56,13 +60,21 @@ def run_continual(cfg: dict, kd_method: str) -> None:
 
         from utils.model_factory import create_student_by_name
 
+        new_num_cls = (task + 1) * (100 // n_tasks)
         student = create_student_by_name(
             cfg.get("student_type", "convnext_tiny"),
-            num_classes=(task + 1) * 10,
+            num_classes=new_num_cls,
             pretrained=True,
             small_input=True,
             cfg=cfg,
         ).to(device)
+
+        # ─ 이어 학습용 가중치 로드 ─
+        prev_ckpt = f"{ckpt_dir}/task{task-1}_student.pth"
+        if task > 0 and os.path.isfile(prev_ckpt):
+            miss, _ = student.load_state_dict(
+                torch.load(prev_ckpt, map_location="cpu"), strict=False
+            )
 
         if kd_method == "vib":
             from models.ib.proj_head import StudentProj
@@ -135,9 +147,5 @@ def run_continual(cfg: dict, kd_method: str) -> None:
             )
 
         torch.save(student.state_dict(), f"{ckpt_dir}/task{task}_student.pth")
-        t1.load_state_dict(torch.load(f"{ckpt_dir}/task{task}_student.pth"))
-        t2.load_state_dict(torch.load(f"{ckpt_dir}/task{task}_student.pth"))
-        freeze_all(t1)
-        freeze_all(t2)
         print(f"[CIL] task {task} finished.")
 
