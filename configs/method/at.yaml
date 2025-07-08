@@ -1,3 +1,5 @@
+# configs/method/at.yaml
+
 method: at
 alpha: 1000
 layer_key: feat_4d_layer3
