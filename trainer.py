@@ -187,7 +187,8 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
                     f2,
                     log_kl=cfg.get("log_kl", False),
                 )
-                loss = F.cross_entropy(logit_syn, y) + kl_z
+                kl = kl_z.mean() if kl_z.dim() > 0 else kl_z
+                loss = F.cross_entropy(logit_syn, y) + kl
             optimizer.zero_grad()
             if scaler is not None:
                 scaler.scale(loss).backward()
@@ -202,7 +203,7 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
                     torch.nn.utils.clip_grad_norm_(vib_mbm.parameters(), clip)
                 optimizer.step()
             running_loss += loss.item() * x.size(0)
-            running_kl += kl_z.item() * x.size(0)
+            running_kl += kl.item() * x.size(0)
             correct += (logit_syn.argmax(1) == y).sum().item()
             count += x.size(0)
         avg_loss = running_loss / max(count, 1)

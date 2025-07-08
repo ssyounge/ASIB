@@ -40,6 +40,8 @@ def main() -> None:
     parser.add_argument('--results_dir', type=str, help='Where to save logs / checkpoints')
     parser.add_argument('--batch_size', type=int, help='Mini-batch size for training')
     parser.add_argument('--method', type=str, help='vib | dkd | crd | vanilla | ce')
+    parser.add_argument('--train_mode', type=str, help='standard | continual')
+    parser.add_argument('--n_tasks', type=int, help='number of tasks for continual learning')
     args = parser.parse_args()
     with open(args.cfg, "r") as f:
         cfg_raw = list(yaml.safe_load_all(f))  # 여러 문서 대비
@@ -55,7 +57,7 @@ def main() -> None:
 
     for k in (
         'teacher1_ckpt', 'teacher2_ckpt', 'results_dir',
-        'batch_size', 'method'
+        'batch_size', 'method', 'train_mode', 'n_tasks'
     ):
         v = getattr(args, k, None)
         if v is not None:
@@ -76,7 +78,14 @@ def main() -> None:
         deterministic=cfg.get('deterministic', False),
     )
     method = cfg.get('method', 'vib').lower()
+    mode   = cfg.get('train_mode', 'standard').lower()
     assert method in {'vib', 'dkd', 'crd', 'vanilla', 'fitnet', 'at', 'ce'}, "unknown method"
+    assert mode   in {'standard', 'continual'}, "unknown train_mode"
+
+    if mode == 'continual':
+        from trainer_continual import run_continual
+        run_continual(cfg, method)
+        return
 
     # ---------- data ----------
     train_loader, test_loader = get_cifar100_loaders(
