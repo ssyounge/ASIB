@@ -1,7 +1,14 @@
-train_mode: continual
-n_tasks: 10
-buffer_size: 20
+train_mode   : continual
+n_tasks      : 10
+buffer_size  : 20
 teacher_iters: 3
 student_iters: 10
-randaug_N: 1
-randaug_M: 5
+randaug_N    : 1
+randaug_M    : 5
+
+# Student LR 스케줄을 더 짧게
+lr_warmup_epochs     : 2
+student_warmup_epochs: 1
+
+# 데이터가 작으므로 label smoothing 감소
+label_smoothing      : 0.02

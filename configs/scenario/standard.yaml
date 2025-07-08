@@ -1,2 +1,25 @@
-train_mode: standard
+train_mode   : standard
 teacher_iters: 0
+
+# ─ Fine‑tune(교사+Gate) 설정 ─
+finetune_epochs      : 30
+finetune_lr          : 1e-3
+finetune_weight_decay: 3e-4
+finetune_mixup_alpha : 0.2
+finetune_randaug_N   : 2
+finetune_randaug_M   : 7
+finetune_warmup      : 5
+finetune_sched       : cosine
+min_lr_ratio_finetune: 0.1
+
+# ─ Student Cosine LR 옵션 ─
+lr_warmup_epochs     : 5
+student_warmup_epochs: 3
+min_lr_ratio_student : 0.05
+
+# ─ Label & Aug ─
+label_smoothing      : 0.05
+randaug_default_N    : 2
+randaug_default_M    : 9
+
+teacher2_freeze_scope: none

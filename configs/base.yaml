@@ -4,9 +4,17 @@ student_type: convnext_tiny
 teacher1_ckpt: checkpoints/resnet152_ft.pth
 teacher2_ckpt: checkpoints/efficientnet_b2_ft.pth
 
-batch_size: 128
-optimizer: adamw
-student_lr: 1e-3
+batch_size : 128
+num_workers: 2
+persistent_workers: true
+disable_tqdm: false
+
+device     : cuda
+results_dir: results
+checkpoint_dir: checkpoints
+
+optimizer  : adamw
+student_lr : 1e-3
 lr_schedule: cosine
 student_iters: 100
 
@@ -15,7 +23,16 @@ randaug_M: 7
 mixup_alpha: 0.2
 cutmix_alpha_distill: 0.5
 
-use_amp: false
-use_ema: true
-ema_decay: 0.995
+use_amp   : false
+amp_dtype : float16
+use_ema   : true
+ema_decay : 0.995
+ema_initial_decay: 0.90
+ema_warmup_iters : 5
+
+eval_after_train : true
+grad_clip_norm   : 1.0
+grad_scaler_init_scale: 1024
+
+patch_stride2 : false
 seed: 42
