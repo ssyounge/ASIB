@@ -110,8 +110,23 @@ def main() -> None:
     )
     method = cfg.get('method', 'vib').lower()
     mode   = cfg.get('train_mode', 'standard').lower()
-    assert method in {'vib', 'dkd', 'crd', 'vanilla', 'fitnet', 'at', 'ce'}, "unknown method"
+    assert method in {
+        'vib', 'dkd', 'crd', 'vanilla', 'fitnet', 'at', 'ce'
+    }, f"unknown method: {method}"
     assert mode   in {'standard', 'continual'}, "unknown train_mode"
+
+    # ───────────────────────────────────────────
+    # VIB-KD 전용 하이퍼파라미터는 필요할 때만 읽기
+    # -------------------------------------------
+    if method == 'vib':
+        z_dim       = cfg.get('z_dim', 512)
+        mbm_type    = cfg.get('mbm_type', 'GATE')
+        beta        = cfg.get('beta_bottleneck', 1e-3)
+        proj_hidden = cfg.get('proj_hidden_dim', 1024)
+        proj_use_bn = cfg.get('proj_use_bn', True)
+    else:
+        # 다른 KD 알고리즘은 VIB 관련 값을 전혀 사용하지 않음
+        z_dim = mbm_type = beta = proj_hidden = proj_use_bn = None
 
     if mode == 'continual':
         from trainer_continual import run_continual
@@ -209,19 +224,19 @@ def main() -> None:
         t1.eval()
         t2.eval()
 
-    # ---------- VIB-MBM ----------
-    if method != 'ce':
+    # ---------- VIB‑전용 모듈 ----------
+    if method == 'vib':
         in1 = t1.get_feat_dim(); in2 = t2.get_feat_dim()
-        mbm = GateMBM(
+        vib_mbm = GateMBM(
             in1,
             in2,
-            cfg['z_dim'],
+            z_dim,
             cfg.get('num_classes', 100),
-            beta=cfg.get('beta_bottleneck', 1e-3),
+            beta=beta,
             dropout_p=cfg.get('gate_dropout', 0.1),
         ).to(device)
     else:
-        mbm = None
+        vib_mbm = None
 
     # ---------- student ----------
     student = create_student_by_name(
@@ -231,30 +246,29 @@ def main() -> None:
         small_input=True,
         cfg=cfg,
     ).to(device)
-    if method != 'ce':
-        proj = StudentProj(
-            in_dim        = student.get_feat_dim(),
-            out_dim       = cfg['z_dim'],
-            hidden_dim    = cfg.get('proj_hidden_dim'),
-            normalize     = True,
-            use_bn        = cfg.get('proj_use_bn', False),
+    if method == 'vib':
+        student_proj = StudentProj(
+            in_dim     = student.get_feat_dim(),
+            out_dim    = z_dim,
+            hidden_dim = proj_hidden,
+            use_bn     = proj_use_bn,
         ).to(device)
     else:
-        proj = None  # CE baseline은 필요 없음
+        student_proj = None  # 다른 KD 알고리즘은 사용 안 함
 
-    if method != 'ce':
+    if method == 'vib':
         opt_t = Adam(
-            mbm.parameters(),
+            vib_mbm.parameters(),
             lr=float(cfg.get("teacher_lr", 1e-3)),            # 이미 YAML에서 1e‑3 지정
             weight_decay=float(cfg.get("teacher_weight_decay", 0.0)),
         )
     else:
         opt_t = None
 
-    if method != 'ce':
+    if method == 'vib':
         base_lr = float(cfg.get("student_lr", 5e-4))
         opt_s = AdamW(
-            list(student.parameters()) + list(proj.parameters()),
+            list(student.parameters()) + list(student_proj.parameters()),
             lr=base_lr,
             weight_decay=float(cfg.get("student_weight_decay", 0.0)),
         )
@@ -279,7 +293,7 @@ def main() -> None:
         teacher_vib_update(
             t1,
             t2,
-            mbm,
+            vib_mbm,
             train_loader,
             cfg,
             opt_t,
@@ -290,8 +304,8 @@ def main() -> None:
             t1,
             t2,
             student,
-            mbm,
-            proj,
+            vib_mbm,
+            student_proj,
             train_loader,
             cfg,
             opt_s,
