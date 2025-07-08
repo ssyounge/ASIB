@@ -1,0 +1,3 @@
+method: crd
+crd_alpha: 0.5
+crd_T: 0.07

@@ -1,0 +1,2 @@
+train_mode: standard
+teacher_iters: 0
