@@ -58,8 +58,8 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
         if task == 0 and vib_mbm is not None:
             opt_t = torch.optim.Adam(
                 vib_mbm.parameters(),
-                lr=cfg.get("teacher_lr", 1e-3),
-                weight_decay=cfg.get("teacher_weight_decay", 0.0),
+                lr=float(cfg.get("teacher_lr", 1e-3)),
+                weight_decay=float(cfg.get("teacher_weight_decay", 0.0)),
             )
             teacher_vib_update(
                 t1,
@@ -101,8 +101,8 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
             ).to(device)  # ← device 맞춤
             opt_s = torch.optim.AdamW(
                 list(student.parameters()) + list(proj.parameters()),
-                lr=cfg.get("student_lr", 5e-4),
-                weight_decay=cfg.get("student_weight_decay", 5e-4),
+                lr=float(cfg.get("student_lr", 5e-4)),
+                weight_decay=float(cfg.get("student_weight_decay", 5e-4)),
             )
             student_vib_update(
                 t1,
@@ -156,8 +156,8 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 train_loader,
                 test_cur,
                 epochs=cfg.get("student_iters", 60),
-                lr=cfg.get("student_lr", 5e-4),
-                weight_decay=cfg.get("student_weight_decay", 5e-4),
+                lr=float(cfg.get("student_lr", 5e-4)),
+                weight_decay=float(cfg.get("student_weight_decay", 5e-4)),
                 device=device,
                 cfg=cfg,
             )
