@@ -1,3 +1,5 @@
+# configs/method/dkd.yaml
+
 method: dkd
 dkd_alpha: 1.0
 dkd_beta: 8.0
