@@ -1,0 +1,143 @@
+"""Minimal continual-learning loop that re-uses KD modules."""
+
+import os
+import torch
+
+from data.cifar100_cl import get_cifar100_cl_loaders
+from trainer import teacher_vib_update, student_vib_update
+from models.teachers.teacher_resnet import create_resnet152
+from models.teachers.teacher_efficientnet import create_efficientnet_b2
+from utils.freeze import freeze_all
+
+
+def run_continual(cfg: dict, kd_method: str) -> None:
+    """Run continual-learning training using KD modules."""
+    device = cfg.get("device", "cuda")
+    n_tasks = cfg.get("n_tasks", 10)
+    ckpt_dir = os.path.join(cfg.get("results_dir", "results"), "cl_ckpt")
+    os.makedirs(ckpt_dir, exist_ok=True)
+
+    t1 = create_resnet152(pretrained=True, small_input=True).to(device)
+    t2 = create_efficientnet_b2(pretrained=True, small_input=True).to(device)
+    freeze_all(t1)
+    freeze_all(t2)
+    t1.eval()
+    t2.eval()
+
+    if kd_method == "vib":
+        from models.ib.gate_mbm import GateMBM
+
+        vib_mbm = GateMBM(
+            t1.get_feat_dim(),
+            t2.get_feat_dim(),
+            cfg["z_dim"],
+            cfg.get("num_classes", 100),
+            beta=cfg.get("beta_bottleneck", 1e-3),
+        ).to(device)
+    else:
+        vib_mbm = None
+
+    for task in range(n_tasks):
+        train_loader, test_loader = get_cifar100_cl_loaders(
+            root=cfg.get("dataset_root", "./data"),
+            task_id=task,
+            n_tasks=n_tasks,
+            batch_size=cfg.get("batch_size", 128),
+            num_workers=cfg.get("num_workers", 2),
+        )
+
+        if task == 0 and vib_mbm is not None:
+            opt_t = torch.optim.Adam(
+                vib_mbm.parameters(), lr=cfg.get("teacher_lr", 1e-3)
+            )
+            teacher_vib_update(
+                t1, t2, vib_mbm, train_loader, cfg, opt_t, test_loader=test_loader
+            )
+
+        from utils.model_factory import create_student_by_name
+
+        student = create_student_by_name(
+            cfg.get("student_type", "convnext_tiny"),
+            num_classes=(task + 1) * 10,
+            pretrained=True,
+            small_input=True,
+            cfg=cfg,
+        ).to(device)
+
+        if kd_method == "vib":
+            from models.ib.proj_head import StudentProj
+
+            proj = StudentProj(
+                student.get_feat_dim(),
+                cfg["z_dim"],
+                hidden_dim=cfg.get("proj_hidden_dim"),
+                normalize=True,
+            )
+            opt_s = torch.optim.AdamW(
+                list(student.parameters()) + list(proj.parameters()),
+                lr=cfg.get("student_lr", 5e-4),
+            )
+            student_vib_update(
+                t1,
+                t2,
+                student,
+                vib_mbm,
+                proj,
+                train_loader,
+                cfg,
+                opt_s,
+                test_loader=test_loader,
+            )
+        else:
+            if kd_method == "dkd":
+                from methods.dkd import DKDDistiller as Distiller
+
+                distiller = Distiller(
+                    teacher_model=t1,
+                    student_model=student,
+                    alpha=cfg.get("dkd_alpha", 1.0),
+                    beta=cfg.get("dkd_beta", 8.0),
+                    temperature=cfg.get("dkd_T", 4.0),
+                    warmup=cfg.get("dkd_warmup", 5),
+                    label_smoothing=cfg.get("label_smoothing", 0.0),
+                    config=cfg,
+                )
+            elif kd_method == "crd":
+                from methods.crd import CRDDistiller as Distiller
+
+                distiller = Distiller(
+                    teacher_model=t1,
+                    student_model=student,
+                    alpha=cfg.get("crd_alpha", 0.5),
+                    temperature=cfg.get("crd_T", 0.07),
+                    label_smoothing=cfg.get("label_smoothing", 0.0),
+                    config=cfg,
+                )
+            else:
+                from methods.vanilla_kd import VanillaKDDistiller as Distiller
+
+                distiller = Distiller(
+                    teacher_model=t1,
+                    student_model=student,
+                    alpha=cfg.get("vanilla_alpha", 0.5),
+                    temperature=cfg.get("vanilla_T", 4.0),
+                    config=cfg,
+                )
+
+            distiller.train_distillation(
+                train_loader,
+                test_loader,
+                epochs=cfg.get("student_iters", 60),
+                lr=cfg.get("student_lr", 5e-4),
+                weight_decay=cfg.get("student_weight_decay", 5e-4),
+                device=device,
+                cfg=cfg,
+            )
+
+        torch.save(student.state_dict(), f"{ckpt_dir}/task{task}_student.pth")
+        t1.load_state_dict(torch.load(f"{ckpt_dir}/task{task}_student.pth"))
+        t2.load_state_dict(torch.load(f"{ckpt_dir}/task{task}_student.pth"))
+        freeze_all(t1)
+        freeze_all(t2)
+        print(f"[CIL] task {task} finished.")
+
