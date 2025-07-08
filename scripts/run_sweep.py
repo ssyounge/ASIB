@@ -4,16 +4,15 @@
 #SBATCH --partition=base_suma_rtx3090
 #SBATCH --gres=gpu:1
 #SBATCH --time=12:00:00
-#SBATCH --output=outputs/slurm/%x_%j.out   # SLURM 로그 → outputs
-#SBATCH --chdir=/home/suyoung425/ASMB_KD   # 프로젝트 루트
+#SBATCH --output=outputs/slurm/%x_%j.out   # SLURM 로그
+#SBATCH --chdir=/home/suyoung425/ASMB_KD   # ★ 프로젝트 루트 고정
 # ------------------------------------------------------------
 
 # scripts/run_sweep.py
 import argparse, itertools, os, subprocess, yaml, time
 import pathlib
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR   = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))  # 프로젝트 루트
+ROOT_DIR   = os.getcwd()   # SLURM --chdir 덕분에 항상 프로젝트 루트
 
 def main():
     p = argparse.ArgumentParser()
