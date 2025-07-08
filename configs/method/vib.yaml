@@ -4,6 +4,7 @@ z_dim: 512
 beta_bottleneck: 1e-3
 proj_hidden_dim: 1024
 proj_use_bn: true
+log_kl: false
 
 # ─ Teacher(VIB‑MBM) 학습 ─
 teacher_lr          : 1e-3
