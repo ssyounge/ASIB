@@ -398,13 +398,20 @@ def student_vib_update(
                 ce = mixup_criterion(F.cross_entropy, logit_s, y_a, y_b, lam)
             else:
                 ce = F.cross_entropy(logit_s, y)
-            logit_kd = logit_s
+            # ── Continual‑KD: 현재 task 클래스만 사용 ──
+            logit_kd_s = logit_s
+            logit_kd_t = logit_t
             if cur_classes is not None:
-                logit_kd = logit_s[:, cur_classes]
+                if not torch.is_tensor(cur_classes):
+                    cur_classes = torch.tensor(
+                        cur_classes, device=logit_s.device, dtype=torch.long
+                    )
+                logit_kd_s = logit_s[:, cur_classes]        # [B,10]
+                logit_kd_t = logit_t[:, cur_classes]        # [B,10]
 
             kd = F.kl_div(
-                F.log_softmax(logit_kd / T, dim=1),
-                F.softmax(logit_t.detach() / T, dim=1),
+                F.log_softmax(logit_kd_s / T, dim=1),
+                F.softmax(logit_kd_t.detach() / T, dim=1),
                 reduction="batchmean",
             ) * (T * T)
             # ─ Latent & Angle Loss 병행 ─
