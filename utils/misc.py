@@ -15,18 +15,15 @@ __all__ = [
 ]
 
 
-def set_random_seed(seed: int = 42, deterministic: bool = True) -> None:
+def set_random_seed(seed: int = 42, deterministic: bool = False) -> None:
     """Fix random seeds for reproducibility."""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
-        if deterministic:
-            torch.backends.cudnn.deterministic = True
-            torch.backends.cudnn.benchmark = False
-        else:
-            torch.backends.cudnn.benchmark = True
+        torch.backends.cudnn.deterministic = deterministic
+        torch.backends.cudnn.benchmark = not deterministic
 
 
 def get_amp_components(cfg: dict):

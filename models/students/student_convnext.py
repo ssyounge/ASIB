@@ -25,6 +25,12 @@ class StudentConvNeXtWrapper(nn.Module):
         self.feat_channels = self.feat_dim
 
     def forward(self, x, y=None):
+        """
+        Returns:
+            feat_dict : {"feat_2d": tensor, ...}
+            logits    : Tensor of shape (N, C)
+            ce_loss   : scalar or None
+        """
         # 1) compute intermediate 4D features at each stage
         out = x
         feat_layer1 = None
@@ -61,7 +67,7 @@ class StudentConvNeXtWrapper(nn.Module):
         }
         # cache last 2D feature for optional retrieval
         self._cached_feat = feat_dict["feat_2d"]
-        return feat_dict, logit, None
+        return feat_dict, logit, ce_loss
 
     def get_feat_dim(self):
         return self.feat_dim

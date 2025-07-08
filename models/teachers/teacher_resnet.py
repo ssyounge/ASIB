@@ -33,6 +33,12 @@ class TeacherResNetWrapper(nn.Module):
         # distillation adapter removed
     
     def forward(self, x, y=None):
+        """
+        Returns:
+            feat_dict : {"feat_2d": tensor, ...}
+            logits    : Tensor of shape (N, C)
+            ce_loss   : scalar or None
+        """
         # 1) stem
         x = self.backbone.conv1(x)
         x = self.backbone.bn1(x)
@@ -67,7 +73,7 @@ class TeacherResNetWrapper(nn.Module):
             "feat_4d_layer2": feat_layer2,
             "feat_4d_layer3": feat_layer3,
         }
-        return feat_dict, logit, None
+        return feat_dict, logit, ce_loss
 
     def get_feat_dim(self):
         """

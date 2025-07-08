@@ -3,7 +3,6 @@
 import os
 import copy
 
-import numpy as np
 import torch
 import torch.nn.functional as F   # loss 함수(F.cross_entropy 등)용
 from tqdm.auto import tqdm
@@ -106,7 +105,6 @@ def simple_finetune(
             count += x.size(0)
 
         acc = evaluate_acc(model, eval_loader, device=device)
-        model.train()
         avg_loss = running_loss / max(count, 1)
         # return to train mode after evaluation
         model.train()
@@ -449,8 +447,6 @@ def student_vib_update(
             running_loss += loss.item() * x.size(0)
             correct += (logit_s.argmax(1) == y).sum().item()
             count += x.size(0)
-        if scheduler is not None:
-            scheduler.step()
         avg_loss = running_loss / max(count, 1)
         train_acc = 100.0 * correct / max(count, 1)
         # ─ EMA 추적 ─────────────────────────────────

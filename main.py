@@ -8,7 +8,6 @@ import torch
 from torch.optim import Adam, AdamW
 import math
 import multiprocessing as mp           # 전역 mp = std multiprocessing
-import torch.multiprocessing as tmp     # 별칭: torch mp
 import torch.multiprocessing as _tmp_mp
 
 # CUDA / torch 호출 **전에** spawn 모드 고정
@@ -72,7 +71,10 @@ def main() -> None:
     print_hparams(cfg, log_fn=logger.info)
 
     device = cfg.get('device', 'cuda')
-    set_random_seed(cfg.get('seed', 42))
+    set_random_seed(
+        cfg.get('seed', 42),
+        deterministic=cfg.get('deterministic', False),
+    )
     method = cfg.get('method', 'vib').lower()
     assert method in {'vib', 'dkd', 'crd', 'vanilla', 'fitnet', 'at', 'ce'}, "unknown method"
 
