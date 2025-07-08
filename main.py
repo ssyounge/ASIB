@@ -56,6 +56,31 @@ def main() -> None:
             f"{args.cfg} 루트는 dict 여야 합니다 (현재: {type(cfg).__name__})"
         )
 
+    # ────────────────────────────────────────────────
+    # ② Scenario  →  Method  순으로 추가 YAML 병합
+    #
+    #    precedence:
+    #      base  <  control  <  scenario  <  method  <  CLI‑override
+    # --------------------------------------------------------------
+
+    scenario = (args.train_mode or cfg.get('train_mode', 'standard')).lower()
+    with open(f"configs/scenario/{scenario}.yaml", 'r') as f:
+        cfg.update(yaml.safe_load(f) or {})
+    cfg['train_mode'] = scenario
+
+    method = (args.method or cfg.get('method'))
+    if method is None:
+        raise ValueError(
+            "method 가 지정되지 않았습니다. "
+            "(control.yaml 에 method: ..., 또는 --method 인수)"
+        )
+    method = method.lower()
+    with open(f"configs/method/{method}.yaml", 'r') as f:
+        cfg.update(yaml.safe_load(f) or {})
+    cfg['method'] = method
+
+    # --------------------------------------------------------------
+
     # cuDNN 자동 튜닝 활성 (deterministic 모드가 아니라면)
     if not cfg.get("deterministic", False):
         torch.backends.cudnn.benchmark = True
@@ -77,19 +102,6 @@ def main() -> None:
     # 전체 하이퍼파라미터 테이블 출력 (logger 사용)
     print_hparams(cfg, log_fn=logger.info)
 
-    # ② scenario YAML 우선 적용
-    scen_name = args.train_mode or cfg.get('train_mode')
-    if scen_name:
-        with open(f"configs/scenario/{scen_name}.yaml") as f:
-            cfg.update(yaml.safe_load(f) or {})
-        cfg['train_mode'] = scen_name.lower()
-
-    # ③ method YAML 적용 (scenario보다 나중에 → teacher_iters 등 덮어쓰기)
-    meth_name = args.method or cfg.get('method')
-    if meth_name:
-        with open(f"configs/method/{meth_name}.yaml") as f:
-            cfg.update(yaml.safe_load(f) or {})
-        cfg['method'] = meth_name.lower()
 
     device = cfg.get('device', 'cuda')
     set_random_seed(
