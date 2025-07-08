@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# scripts/run_sweep.py
 # ------------------------------------------------------------
 #SBATCH --job-name=kd_sweep
 #SBATCH --partition=base_suma_rtx3090
