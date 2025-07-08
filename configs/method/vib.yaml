@@ -1,3 +1,5 @@
+# configs/method/vib.yaml
+
 method: vib
 mbm_type: GATE
 z_dim: 512
