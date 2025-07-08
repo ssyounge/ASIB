@@ -84,12 +84,24 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
             cfg=cfg,
         ).to(device)
 
-        # ─ 이어 학습용 가중치 로드 ─
+        # ─── 이어 학습: 이전 task 가중치 로드 ───
         prev_ckpt = f"{ckpt_dir}/task{task-1}_student.pth"
         if task > 0 and os.path.isfile(prev_ckpt):
-            miss, _ = student.load_state_dict(
-                torch.load(prev_ckpt, map_location="cpu"), strict=False
-            )
+            prev = torch.load(prev_ckpt, map_location="cpu")
+            cur = student.state_dict()
+
+            # ① 새 모델과 **shape** 이 같은 파라미터만 선택
+            ok = {k: v for k, v in prev.items() if k in cur and v.shape == cur[k].shape}
+
+            # ② 로드 (classifier 가중치는 자동 스킵)
+            student.load_state_dict(ok, strict=False)
+
+            if logger:
+                skipped = [k for k in prev.keys() if k not in ok]
+                logger.info(
+                    f"[CIL] task{task}: restore {len(ok)}/{len(prev)} params "
+                    f"(skipped {len(skipped)} classifier params)"
+                )
 
         if kd_method == "vib":
             from models.ib.proj_head import StudentProj
