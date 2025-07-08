@@ -60,6 +60,7 @@ class ATDistiller(nn.Module):
         self.teacher = teacher_model
         self.student = student_model
         self.alpha = alpha
+        self.ce_alpha = config.get("ce_alpha", 1.0) if config else 1.0
         self.p = p
         self.layer_key = layer_key
         self.label_smoothing = label_smoothing
@@ -77,12 +78,11 @@ class ATDistiller(nn.Module):
 
         # 3) at_loss
         loss_at = at_loss_dict(t_dict, s_dict, layer_key=self.layer_key, p=self.p)
-        # 4) CE
+        # 4) CE (가중치 적용)
         loss_ce = ce_loss_fn(
-            s_logit,
-            y,
+            s_logit, y,
             label_smoothing=self.label_smoothing,
-        )
+        ) * self.ce_alpha
         total_loss = loss_ce + self.alpha * loss_at
 
         return total_loss, s_logit

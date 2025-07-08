@@ -382,8 +382,7 @@ def main() -> None:
         distiller = ATDistiller(
             teacher_model=t1,
             student_model=student,
-            alpha=cfg.get('alpha', 1.0),
-            p=cfg.get('p', 2),
+            alpha=cfg.get('alpha', 1000),
             layer_key=cfg.get('layer_key', 'feat_4d_layer3'),
             label_smoothing=cfg.get('label_smoothing', 0.0),
             config=cfg,
