@@ -1,3 +1,5 @@
+# configs/ablation/kd_sweep.yaml
+
 # 값이 리스트인 항목만 sweep
 beta_bottleneck: [1e-4, 3e-4, 1e-3, 3e-3, 1e-2]
 kd_alpha_init: [0.3, 0.5, 0.7]    # ← kd_alpha_init 과 동일
