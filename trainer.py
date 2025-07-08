@@ -251,6 +251,7 @@ def student_vib_update(
     test_loader=None,
     logger=None,
     scheduler=None,
+    cur_classes=None,
 ):
     """Update the student network to mimic the VIB representation.
 
@@ -263,6 +264,8 @@ def student_vib_update(
         loader: Data loader supplying input images and labels.
         cfg: Configuration dictionary with training options.
         optimizer: Optimizer for student parameters.
+        cur_classes: Optional sequence of class indices to slice student logits
+            before computing distillation loss.
 
     Returns:
         None.
@@ -395,8 +398,12 @@ def student_vib_update(
                 ce = mixup_criterion(F.cross_entropy, logit_s, y_a, y_b, lam)
             else:
                 ce = F.cross_entropy(logit_s, y)
+            logit_kd = logit_s
+            if cur_classes is not None:
+                logit_kd = logit_s[:, cur_classes]
+
             kd = F.kl_div(
-                F.log_softmax(logit_s / T, dim=1),
+                F.log_softmax(logit_kd / T, dim=1),
                 F.softmax(logit_t.detach() / T, dim=1),
                 reduction="batchmean",
             ) * (T * T)
