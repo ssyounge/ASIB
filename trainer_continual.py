@@ -1,4 +1,5 @@
 """Minimal continual-learning loop that re-uses KD modules."""
+# trainer_continual.py
 
 import os
 import torch
