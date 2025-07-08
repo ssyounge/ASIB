@@ -15,10 +15,13 @@ def set_class_order(order):
     assert len(order) == 100 and len(set(order)) == 100
     global _CLASS_ORDER
     _CLASS_ORDER = list(order)
+    # ─ 새 class-order 적용 시 기존 캐시 무효화 ─
+    _task_classes.cache_clear()
 
 # task_id → class id list 캐싱  (IO-free)
 @lru_cache(maxsize=32)
 def _task_classes(task_id: int, n_tasks: int):
+    assert 100 % n_tasks == 0, "n_tasks must divide 100"
     per = 100 // n_tasks
     st = task_id * per
     return _CLASS_ORDER[st : st + per]
