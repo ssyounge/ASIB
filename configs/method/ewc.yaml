@@ -1,0 +1,6 @@
+# configs/method/ewc.yaml
+
+ewc_lambda: 30.0
+ewc_samples: 1024
+ewc_online: true
+ewc_decay: 0.9

@@ -11,6 +11,7 @@ import wandb
 
 from data.cifar100_cl import get_cifar100_cl_loaders, _task_classes
 from trainer import teacher_vib_update, student_vib_update, simple_finetune
+from methods.ewc import EWC
 from models.teachers.teacher_resnet import create_resnet152
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from utils.freeze import freeze_all
@@ -43,6 +44,7 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
     writer = SummaryWriter(log_dir="runs/kd_monitor")
     wandb_run = wandb.init(project="kd_monitor", name="run_001")
     global_step_counter = 0
+    ewc_bank = []
 
     t1 = create_resnet152(pretrained=True, small_input=True).to(device)
     t2 = create_efficientnet_b2(pretrained=True, small_input=True).to(device)
@@ -109,6 +111,7 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 writer=writer,
                 wandb_run=wandb_run,
                 global_step_offset=global_step_counter,
+                ewc_bank=ewc_bank,
             )
 
         from utils.model_factory import create_student_by_name
@@ -200,9 +203,32 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 writer=writer,
                 wandb_run=wandb_run,
                 global_step_offset=global_step_counter,
+                ewc_bank=ewc_bank,
+                cfg=cfg,
             )
+
+            if cfg.get("use_ewc", False):
+                ewc_obj = EWC(
+                    student,
+                    train_loader,
+                    device=device,
+                    samples=cfg.get("ewc_samples", 1024),
+                    online=cfg.get("ewc_online", False),
+                    decay=cfg.get("ewc_decay", 1.0),
+                )
+                ewc_bank.append(ewc_obj)
         else:
-            if kd_method == "dkd":
+            if kd_method == "none":
+                simple_finetune(
+                    student,
+                    train_loader,
+                    lr=cfg.get("student_lr", 5e-4),
+                    epochs=cfg.get("student_iters", 60),
+                    device=device,
+                    weight_decay=float(cfg.get("student_weight_decay", 5e-4)),
+                    cfg=cfg,
+                )
+            elif kd_method == "dkd":
                 from methods.dkd import DKDDistiller as Distiller
 
                 distiller = Distiller(
@@ -237,15 +263,27 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                     config=cfg,
                 )
 
-            distiller.train_distillation(
-                train_loader,
-                test_cur,
-                epochs=cfg.get("student_iters", 60),
-                lr=float(cfg.get("student_lr", 5e-4)),
-                weight_decay=float(cfg.get("student_weight_decay", 5e-4)),
-                device=device,
-                cfg=cfg,
-            )
+            if kd_method != "none":
+                distiller.train_distillation(
+                    train_loader,
+                    test_cur,
+                    epochs=cfg.get("student_iters", 60),
+                    lr=float(cfg.get("student_lr", 5e-4)),
+                    weight_decay=float(cfg.get("student_weight_decay", 5e-4)),
+                    device=device,
+                    cfg=cfg,
+                )
+
+            if cfg.get("use_ewc", False):
+                ewc_obj = EWC(
+                    student,
+                    train_loader,
+                    device=device,
+                    samples=cfg.get("ewc_samples", 1024),
+                    online=cfg.get("ewc_online", False),
+                    decay=cfg.get("ewc_decay", 1.0),
+                )
+                ewc_bank.append(ewc_obj)
 
         # ───────── Class-Balanced finetune ─────────
         if cfg.get("cb_finetune_epochs", 0) > 0:
