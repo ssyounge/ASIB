@@ -46,8 +46,10 @@ def main():
     p.add_argument("--mode", choices=["full", "single"], default="single",
                    help="'full': 전체 조합,  'single': 변수별 개별 실험")
     #   필요한 변수만 골라서 sweep 하고 싶을 때
-    p.add_argument("--keys", default="beta_bottleneck,kd_alpha_init",
-                   help="콤마로 구분된 sweep 대상 key (비워두면 전부)")
+    #   ─ 기본값을 '' 로 두어 모든 list 항목을 sweep 대상으로 삼는다.
+    p.add_argument("--keys", default="",
+                   help="콤마로 구분된 sweep 대상 key "
+                        "(비워두면 list‑항목 전부 sweep)")
     p.add_argument("--extra", nargs=argparse.REMAINDER,
                    help="main.py 에 그대로 넘길 추가 CLI 인수")
     args = p.parse_args()
@@ -79,8 +81,8 @@ def main():
     # list 가 아닌 값은 무시
     sweep_vars = {k: v for k, v in sweep_cfg.items() if isinstance(v, list)}
 
-    # --keys 필터링
-    if args.keys:
+    # --keys 필터링 (빈 문자열이면 생략)
+    if args.keys.strip():
         wanted = [k.strip() for k in args.keys.split(',') if k.strip()]
         sweep_vars = {k: v for k, v in sweep_vars.items() if k in wanted}
 

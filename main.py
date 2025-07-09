@@ -135,11 +135,26 @@ def main() -> None:
     }, f"unknown method: {method}"
     assert mode   in {'standard', 'continual'}, "unknown train_mode"
 
+    # ──────────────────────────────────────────────────────────────
+    # Continual 학습은 현재 VIB‑KD 전용
+    # ─ mode 가 continual 인데 method 가 vib 가 아니면 즉시 중단
+    # ----------------------------------------------------------------
+    if mode == 'continual' and method != 'vib':
+        raise NotImplementedError(
+            "Continual learning currently supports only the 'vib' method."
+        )
+
     # ───────────────────────────────────────────
     # VIB-KD 전용 하이퍼파라미터는 필요할 때만 읽기
     # -------------------------------------------
     if method == 'vib':
-        z_dim       = cfg.get('z_dim', 512)
+        z_dim = cfg.get('z_dim', 512)
+        # ── DEBUG: z_dim 값 및 타입 모니터링 ───────────────────────
+        print(f"[DBG] resolved z_dim = {z_dim} (type={type(z_dim).__name__})")
+        assert isinstance(z_dim, int), (
+            f"z_dim must be an int after config merge, "
+            f"but got {type(z_dim).__name__}: {z_dim}"
+        )
         mbm_type    = cfg.get('mbm_type', 'GATE')
         beta        = cfg.get('beta_bottleneck', 1e-3)
         proj_hidden = cfg.get('proj_hidden_dim', 1024)
