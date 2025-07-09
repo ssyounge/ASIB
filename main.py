@@ -136,6 +136,7 @@ def main() -> None:
     logger = ExperimentLogger(cfg, exp_name="ibkd")
     writer = SummaryWriter(log_dir="runs/kd_monitor")
     wandb_run = wandb.init(project="kd_monitor", name="run_001")
+    global_step_counter = 0
 
     # ──────────────────────────────────────────────────────────────
     #   (A) 전체 테이블 +  (B) 그룹별 테이블 동시 출력
@@ -347,7 +348,7 @@ def main() -> None:
 
     # ---------- training ----------
     if method == 'vib':
-        teacher_vib_update(
+        global_step_counter = teacher_vib_update(
             t1,
             t2,
             vib_mbm,
@@ -358,8 +359,9 @@ def main() -> None:
             logger=logger,
             writer=writer,
             wandb_run=wandb_run,
+            global_step_offset=global_step_counter,
         )
-        student_vib_update(
+        global_step_counter = student_vib_update(
             t1,
             t2,
             student,
@@ -373,6 +375,7 @@ def main() -> None:
             scheduler=scheduler,
             writer=writer,
             wandb_run=wandb_run,
+            global_step_offset=global_step_counter,
         )
 
     elif method == 'crd':
