@@ -4,9 +4,11 @@ imports:
   - configs/base.yaml
   - configs/scenario/standard.yaml
 
-sweep_mode: full  # full|single
+# 방법론
+method: vib
 
-method: vib 
+# sweep 모드
+sweep_mode: full
 
 exp_id: seed_repro
 sweep:
