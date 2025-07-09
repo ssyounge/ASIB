@@ -76,3 +76,4 @@ srun --chdir="$ROOT_DIR" python scripts/launcher.py "$@"
 
 # ➜ 주의: 다른 인자(실험 id, 추가 override 등)는
 #     ./run_ibkd.sh --batch_size 256 처럼 이어서 넘기면 됩니다.
+trap 'pkill -P $$ || true' EXIT   # 자식 프로세스(예: TensorBoard) 강제 종료
