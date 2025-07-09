@@ -142,10 +142,13 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
             # Task 0, 1  : backbone 전체 학습
             # Task ≥ 2   : classifier(= head)만 학습, 나머지는 동결
             for name, param in student.named_parameters():
-                if name.startswith(("head.", "classifier.")):
-                    param.requires_grad_(True)           # 항상 열어 둔다
+                if name.startswith(
+                    ("head.", "classifier.", "fc.", "pre_logits.", "norm.")
+                ):
+                    param.requires_grad_(True)           # 항상 학습
                 else:
-                    param.requires_grad_(task < 2)       # 0·1번째 Task 만 학습
+                    param.requires_grad_(task < 2)       # backbone 은 0‑1 task 만
+                                                     # 학습
 
             if logger:
                 skipped = [k for k in prev.keys() if k not in ok]
@@ -165,8 +168,12 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 hidden_dim=cfg.get("proj_hidden_dim"),
                 normalize=True,
             ).to(device)  # ← device 맞춤
+            def trainable(p):
+                return p.requires_grad
+
             opt_s = torch.optim.AdamW(
-                list(student.parameters()) + list(proj.parameters()),
+                list(filter(trainable, student.parameters())) +
+                list(proj.parameters()),
                 lr=float(cfg.get("student_lr", 5e-4)),
                 weight_decay=float(cfg.get("student_weight_decay", 5e-4)),
             )
