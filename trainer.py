@@ -412,6 +412,7 @@ def student_vib_update(
 
     for ep in range(total_epochs):
         running_loss = 0.0
+        n_samples    = 0
         correct = 0
         count = 0
         epoch_loader = tqdm(
@@ -529,7 +530,7 @@ def student_vib_update(
                     reduction="batchmean",
                 ) * (T_prev * T_prev)
 
-            kd = F.kl_div(
+            kd = F.kl_div(                       # reduction=batchmean + T² 한 번만
                 F.log_softmax(logit_kd_s / T, dim=1),
                 F.softmax(logit_kd_t.detach() / T, dim=1),
                 reduction="batchmean",
@@ -642,9 +643,29 @@ def student_vib_update(
                 optimizer.step()
             hook_s.clear(); hook_t1.clear(); hook_t2.clear()
             running_loss += loss.item() * x.size(0)
+            n_samples    += x.size(0)
             correct += (logit_s.argmax(1) == y).sum().item()
             count += x.size(0)
-        avg_loss = running_loss / max(count, 1)
+
+            # ── DEBUG: 5 epoch 간격, 첫 버치만 ───────────────
+            if batch_idx == 0 and (ep % 5 == 0):
+                print(
+                    f"[DBG] ep{ep:03d} ce={ce.item():.3f} | "
+                    f"kd={kd.item():.3f} | latent={latent.item():.3f} | "
+                    f"feat={feat_loss.item():.3f} | total={loss.item():.3f}"
+                )
+                if wandb_run is not None:
+                    wandb_run.log(
+                        {
+                            "dbg/ce":     ce.item(),
+                            "dbg/kd":     kd.item(),
+                            "dbg/latent": latent.item(),
+                            "dbg/feat":   feat_loss.item(),
+                            "dbg/total":  loss.item(),
+                        },
+                        step=global_step,
+                    )
+        avg_loss = running_loss / max(1, n_samples)
         train_acc = 100.0 * correct / max(count, 1)
         # ─ EMA 추적 ─────────────────────────────────
         if cfg.get("use_ema", False):
