@@ -1,9 +1,11 @@
 imports:
   - configs/base.yaml
-  - configs/method/vib.yaml
   - configs/scenario/standard.yaml
 
 sweep_mode: full  # full|single
+
+method: vib 
+
 exp_id: seed_repro
 sweep:
   seed: [0, 1, 2]
