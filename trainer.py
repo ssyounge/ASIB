@@ -599,7 +599,19 @@ def student_vib_update(
 
             latent_mse = (precision * (z_s - mu_phi_det).pow(2)).sum(1).mean()
             latent_angle = 1 - F.cosine_similarity(z_s, z_t.detach(), dim=1).mean()
-            latent = latent_mse_weight * latent_mse + latent_angle_weight * latent_angle
+            # ─ Latent-loss rescale (스케일 보정) ─────────────────
+            latent_raw = (
+                latent_mse_weight * latent_mse
+                + latent_angle_weight * latent_angle
+            )
+
+            scale_mode = cfg.get("latent_norm", "none")  # yaml에서 설정
+            if scale_mode == "dim":  # 1 / z_dim
+                latent = latent_raw / z_s.size(1)
+            elif scale_mode == "sqrt":  # 1 / √z_dim
+                latent = latent_raw / (z_s.size(1) ** 0.5)
+            else:  # "none"
+                latent = latent_raw
             if logger is not None:
                 logger.update_metric("cw_mse", float(latent_mse), step=ep + 1)
 
