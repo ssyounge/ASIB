@@ -365,7 +365,9 @@ def student_vib_update(
     alpha_kd = init_alpha
     T = init_T
     ce_alpha = cfg.get("ce_alpha", 1.0)       #  CE 가중치
-    latent_w = cfg.get("latent_alpha", 1.0)   #  잠재 정렬
+    latent_base = cfg.get("latent_alpha", 1.0)
+    latent_warm_frac = cfg.get("latent_warmup_frac", 0.3)
+    latent_w = latent_base
     latent_mse_weight = cfg.get("latent_mse_weight", 0.7)
     latent_angle_weight = cfg.get("latent_angle_weight", 0.3)
     clip = cfg.get("grad_clip_norm", 0)
@@ -476,6 +478,12 @@ def student_vib_update(
 
             alpha_kd = init_alpha * (1 - prog_p) + final_alpha * prog_p
             T        = init_T     * (1 - prog_p) + final_T     * prog_p
+
+            # ─ Latent‑weight 램프‑업 ─
+            if raw_prog < latent_warm_frac:
+                latent_w = latent_base * (raw_prog / latent_warm_frac)
+            else:
+                latent_w = latent_base
 
             # ─────────────── DEBUG: 스케줄 값 모니터링 ───────────────
             if batch_idx == 0 and ep in {0, 5, 10, 20, total_epochs - 1}:

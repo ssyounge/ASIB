@@ -28,6 +28,7 @@ ce_alpha      : 1.0
 
 # ─ Latent 정렬 ─
 latent_alpha        : 0.5
+latent_warmup_frac  : 0.3
 latent_mse_weight   : 0.7
 latent_angle_weight : 0.3
 cw_mse_eps: 1e-6                 # 확신도‑가중 MSE용 ε (분모 보호)
