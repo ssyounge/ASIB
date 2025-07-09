@@ -467,6 +467,21 @@ def student_vib_update(
                 raise TypeError(f"cw_mse_eps must be numeric, got {type(eps).__name__}")
 
             precision  = 1.0 / (sigma2_phi + eps)
+
+            # ──────────────────────────────────────────────
+            # 【NEW】 Adaptive clipping : 상위 1 % 이상치만 컷
+            #   · 배치마다 99-percentile( p₉₉ )을 계산해 상한으로 사용
+            #   · torch.quantile 이 없으면 kthvalue 로 대체
+            # ──────────────────────────────────────────────
+            with torch.no_grad():
+                try:
+                    p99 = torch.quantile(precision, 0.99).detach()
+                except AttributeError:                         # < PyTorch 1.7 fallback
+                    k   = max(int(0.99 * precision.numel()), 1)
+                    p99 = precision.view(-1).kthvalue(k).values.detach()
+
+            precision = precision.clamp(max=p99)
+
             latent_mse = (precision * (z_s - mu_phi_det).pow(2)).sum(1).mean()
             latent_angle = 1 - F.cosine_similarity(z_s, z_t.detach(), dim=1).mean()
             latent = latent_mse_weight * latent_mse + latent_angle_weight * latent_angle
