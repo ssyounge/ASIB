@@ -144,20 +144,24 @@ def main() -> None:
             f"[LAUNCH] ▶ {idx+1}/{len(param_sets)} param={param or '—'} GPU={env['CUDA_VISIBLE_DEVICES']} log={log_path}",
             flush=True,
         )
-        procs.append(
-            subprocess.Popen(
-                cmd,
-                env=env,
-                stdout=open(log_path, "w"),
-                stderr=subprocess.STDOUT,
-            )
+        # ✅ with‑context로 열고, fp 수명 = Popen 종료까지
+        fp = open(log_path, "w")
+        proc = subprocess.Popen(
+            cmd,
+            env=env,
+            stdout=fp,
+            stderr=subprocess.STDOUT,
         )
+        proc._log_fp = fp            # 종료 후 닫기 위해 보관
+        procs.append(proc)
 
         while len([p for p in procs if p.poll() is None]) >= args.max_parallel:
             time.sleep(10)
 
     for p in procs:
         p.wait()
+        if hasattr(p, "_log_fp") and not p._log_fp.closed:
+            p._log_fp.close()        # 🧹 열려 있던 로그 핸들 확실히 닫기
     print("[LAUNCH] all subprocesses finished ✅", flush=True)
 
 
