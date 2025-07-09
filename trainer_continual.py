@@ -47,6 +47,11 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
         vib_mbm = None
 
     for task in range(n_tasks):
+        # ───────── Task 헤더 ─────────
+        head = f"[CIL] ── Task {task+1}/{n_tasks} " + "─"*40
+        print("\n" + head)
+        if logger is not None:
+            logger.info(head)
         train_loader, test_cur, test_seen = get_cifar100_cl_loaders(
             root=cfg.get("dataset_root", "./data"),
             task_id=task,
@@ -218,23 +223,19 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
 
         torch.save(student.state_dict(), f"{ckpt_dir}/task{task}_student.pth")
 
-        # ① 현재 task-only
-        acc_cur  = evaluate_acc(student, test_cur,  device=device)
-        # ② 지금까지 전체 class
-        acc_seen = evaluate_acc(student, test_seen, device=device)
+        # ───────── Task 종료 요약 ─────────
+        acc_cur  = evaluate_acc(student, test_cur,  device=device)  # 현재 task
+        acc_seen = evaluate_acc(student, test_seen, device=device)  # 전체 class
 
         acc_seen_hist.append(acc_seen)
 
+        msg = (f"[CIL] Task {task} done │ cur={acc_cur:.2f}% "
+               f"│ seen={acc_seen:.2f}%")
+        print(msg)
         if logger is not None:
-            logger.info(
-                f"[CIL] task {task} → cur={acc_cur:.2f}%  seen={acc_seen:.2f}%"
-            )
+            logger.info(msg)
             logger.update_metric(f"task{task}_acc_cur",  float(acc_cur))
             logger.update_metric(f"task{task}_acc_seen", float(acc_seen))
-        else:
-            print(
-                f"[CIL] task {task} → cur={acc_cur:.2f}%  seen={acc_seen:.2f}%"
-            )
 
     import numpy as np
     avg_acc = np.mean(acc_seen_hist)

@@ -412,12 +412,27 @@ def student_vib_update(
                 logit_kd_t = logit_t[:, cur_classes]        # [B,10]
 
             kd_prev = torch.tensor(0.0, device=device)
+            # ──────── Self‑KD (previous task student) ─────────────
             if cfg.get("use_prev_kd", False) and prev_student is not None:
+                prev_student.eval()
                 with torch.no_grad():
-                    logits_prev = prev_student(x).detach()
+                    out_prev = prev_student(x)
+                    # prev_student 출력 형식 통일 (tensor or tuple → logits 텐서)
+                    if isinstance(out_prev, tuple):
+                        if len(out_prev) == 3:
+                            _, logits_prev, _ = out_prev
+                        elif len(out_prev) == 2:
+                            _, logits_prev = out_prev
+                        else:       # 만약 (logits,) 1‑tuple 일 경우
+                            logits_prev = out_prev[-1]
+                    else:           # tensor
+                        logits_prev = out_prev
+
+                    logits_prev = logits_prev.detach()
                     if cur_classes is not None:
                         logits_prev = logits_prev[:, cur_classes]
-                T_prev = cfg.get("prev_kd_temperature", T)
+
+                T_prev  = cfg.get("prev_kd_temperature", T)
                 kd_prev = F.kl_div(
                     F.log_softmax(logit_kd_s / T_prev, dim=1),
                     F.softmax(logits_prev / T_prev, dim=1),
