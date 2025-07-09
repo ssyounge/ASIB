@@ -265,14 +265,15 @@ def student_vib_update(
         loader: Data loader supplying input images and labels.
         cfg: Configuration dictionary with training options.
         optimizer: Optimizer for student parameters.
-        cur_classes: Optional sequence of class indices to slice student logits
-            before computing distillation loss.
+        cur_classes: (Deprecated) unused. Class slicing now determined by
+            ``cfg['task_meta']['classes']`` when ``train_mode`` is ``continual``.
         prev_student: Frozen student from the previous task for self-KD.
 
     Returns:
         None.
     """
     device = cfg.get("device", "cuda")
+    from trainer_continual import _remap_for_task
     best_acc = 0.0
     ckpt_dir = cfg.get("checkpoint_dir", "checkpoints")
     os.makedirs(ckpt_dir, exist_ok=True)
@@ -347,10 +348,20 @@ def student_vib_update(
         for batch_idx, (x, y) in enumerate(epoch_loader):
             x, y = x.to(device), y.to(device)
 
+            task_cls = None
+            y_local = y
+            if cfg.get("train_mode") == "continual" and cfg.get("task_meta"):
+                task_cls = cfg["task_meta"].get("classes")
+                if task_cls:
+                    mapping = {g: i for i, g in enumerate(task_cls)}
+                    y_local = torch.empty_like(y)
+                    for g, l in mapping.items():
+                        y_local[y == g] = l
+
             if do_mix:
                 lam_alpha = mix_alpha if mix_alpha > 0 else cutmix_alpha
-                x, y_a, y_b, lam = mixup_data(x, y, alpha=lam_alpha)
-
+                x, y_a, y_b, lam = mixup_data(x, y_local, alpha=lam_alpha)
+            
             # ─ Teacher feature → synergy target ─────────────────
             with torch.no_grad():
                 out1 = teacher1(x)
@@ -396,20 +407,21 @@ def student_vib_update(
                 )
 
             # ─ Losses ──────────────────────────────────────────
-            if do_mix:
-                ce = mixup_criterion(F.cross_entropy, logit_s, y_a, y_b, lam)
-            else:
-                ce = F.cross_entropy(logit_s, y)
-            # ── Continual‑KD: 현재 task 클래스만 사용 ──
             logit_kd_s = logit_s
             logit_kd_t = logit_t
-            if cur_classes is not None:
-                if not torch.is_tensor(cur_classes):
-                    cur_classes = torch.tensor(
-                        cur_classes, device=logit_s.device, dtype=torch.long
-                    )
-                logit_kd_s = logit_s[:, cur_classes]        # [B,10]
-                logit_kd_t = logit_t[:, cur_classes]        # [B,10]
+            target_ce = y_local if do_mix else y
+            if task_cls is not None:
+                cls_tensor = torch.tensor(task_cls, dtype=torch.long, device=logit_s.device)
+                logit_kd_s = logit_s.index_select(1, cls_tensor)
+                logit_kd_t = logit_t.index_select(1, cls_tensor)
+                if not do_mix:
+                    _, target_ce = _remap_for_task(logit_s, y, task_cls)
+            if do_mix:
+                ce = mixup_criterion(F.cross_entropy, logit_kd_s, y_a, y_b, lam)
+            else:
+                ce = F.cross_entropy(logit_kd_s, target_ce)
+            assert target_ce.max().item() < logit_kd_s.size(1), \
+                "target out of range – label remap 누락!"
 
             kd_prev = torch.tensor(0.0, device=device)
             # ──────── Self‑KD (previous task student) ─────────────
@@ -429,8 +441,8 @@ def student_vib_update(
                         logits_prev = out_prev
 
                     logits_prev = logits_prev.detach()
-                    if cur_classes is not None:
-                        logits_prev = logits_prev[:, cur_classes]
+                    if task_cls is not None:
+                        logits_prev = logits_prev.index_select(1, cls_tensor)
 
                 T_prev  = cfg.get("prev_kd_temperature", T)
                 kd_prev = F.kl_div(
