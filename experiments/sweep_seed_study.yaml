@@ -8,7 +8,7 @@ imports:
 method: vib
 
 # sweep 모드
-sweep_mode: full
+sweep_mode: full    # full | single
 
 exp_id: seed_repro
 sweep:
