@@ -8,7 +8,7 @@ beta_bottleneck: 0.001
 proj_hidden_dim: 1024
 proj_use_bn: true
 log_kl: false
-student_iters: 25
+student_iters: 120
 
 # ─ Teacher(VIB‑MBM) 학습 ─
 teacher_lr          : 1e-3
