@@ -4,10 +4,11 @@ method: vib
 teacher_iters: 20
 mbm_type: GATE
 z_dim: 512
-beta_bottleneck: 0.002
+beta_bottleneck: 0.001
 proj_hidden_dim: 1024
 proj_use_bn: true
 log_kl: false
+student_iters: 25
 
 # ─ Teacher(VIB‑MBM) 학습 ─
 teacher_lr          : 1e-3
@@ -16,17 +17,17 @@ gate_dropout        : 0.1
 teacher_dropout_p   : 0.3
 
 # ─ KD 스케줄 (α, T) ─
-kd_alpha_init : 0.3
-kd_alpha_final: 0.8
+kd_alpha_init : 0.5
+kd_alpha_final: 0.5
 kd_T_init     : 7
 kd_T_final    : 2
-kd_warmup_frac: 0.03
+kd_warmup_frac: 0.01
 kd_schedule_granularity: step
 kd_sched_pow  : 0.5
 ce_alpha      : 1.0
 
 # ─ Latent 정렬 ─
-latent_alpha        : 0.8
+latent_alpha        : 0.5
 latent_mse_weight   : 0.7
 latent_angle_weight : 0.3
 
@@ -38,3 +39,4 @@ feat_loss_weight: [0.2, 0.15, 0.1]
 # ───── 추가 override (base.yaml 값을 덮어쓰기) ─────
 cutmix_alpha_distill: 1.0        # 강한 CutMix 유지
 ema_decay           : 0.992      # EMA 버퍼 빠르게 반영
+buffer_size         : 100

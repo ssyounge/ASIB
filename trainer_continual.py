@@ -5,7 +5,7 @@ import os
 import torch
 
 from data.cifar100_cl import get_cifar100_cl_loaders, _task_classes
-from trainer import teacher_vib_update, student_vib_update
+from trainer import teacher_vib_update, student_vib_update, simple_finetune
 from models.teachers.teacher_resnet import create_resnet152
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from utils.freeze import freeze_all
@@ -22,6 +22,8 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
         )
     ckpt_dir = os.path.join(cfg.get("results_dir", "results"), "cl_ckpt")
     os.makedirs(ckpt_dir, exist_ok=True)
+
+    acc_seen_hist = []
 
     t1 = create_resnet152(pretrained=True, small_input=True).to(device)
     t2 = create_efficientnet_b2(pretrained=True, small_input=True).to(device)
@@ -86,6 +88,7 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
 
         # ─── 이어 학습: 이전 task 가중치 로드 ───
         prev_ckpt = f"{ckpt_dir}/task{task-1}_student.pth"
+        prev_student = None
         if task > 0 and os.path.isfile(prev_ckpt):
             prev = torch.load(prev_ckpt, map_location="cpu")
             cur = student.state_dict()
@@ -96,12 +99,25 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
             # ② 로드 (classifier 가중치는 자동 스킵)
             student.load_state_dict(ok, strict=False)
 
+            from utils.model_factory import create_student_by_name
+            prev_student = create_student_by_name(
+                cfg.get("student_type", "convnext_tiny"),
+                num_classes=new_num_cls - (100 // n_tasks),
+                pretrained=False,
+                small_input=True,
+                cfg=cfg,
+            ).to(device)
+            prev_student.load_state_dict(torch.load(prev_ckpt, map_location="cpu"))
+            prev_student.eval()
+
             if logger:
                 skipped = [k for k in prev.keys() if k not in ok]
                 logger.info(
                     f"[CIL] task{task}: restore {len(ok)}/{len(prev)} params "
                     f"(skipped {len(skipped)} classifier params)"
                 )
+        else:
+            prev_student = None
 
         if kd_method == "vib":
             from models.ib.proj_head import StudentProj
@@ -131,6 +147,7 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 test_loader=test_cur,
                 logger=logger,
                 cur_classes=cur_classes,
+                prev_student=prev_student,
             )
         else:
             if kd_method == "dkd":
@@ -178,12 +195,35 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 cfg=cfg,
             )
 
+        # ───────── Class-Balanced finetune ─────────
+        if cfg.get("cb_finetune_epochs", 0) > 0:
+            from data.cifar100_cl import get_balanced_loader
+            finetune_loader = get_balanced_loader(
+                task_id=task,
+                n_tasks=n_tasks,
+                buffer_size=cfg.get("buffer_size", 20),
+                batch_size=cfg.get("batch_size", 128),
+                num_workers=cfg.get("num_workers", 2),
+            )
+            simple_finetune(
+                student,
+                finetune_loader,
+                lr=cfg.get("cb_finetune_lr", 1e-4),
+                epochs=cfg.get("cb_finetune_epochs", 2),
+                device=device,
+                weight_decay=0.0,
+                cfg=cfg,
+                ckpt_path=f"{ckpt_dir}/task{task}_student_ft.pth",
+            )
+
         torch.save(student.state_dict(), f"{ckpt_dir}/task{task}_student.pth")
 
         # ① 현재 task-only
         acc_cur  = evaluate_acc(student, test_cur,  device=device)
         # ② 지금까지 전체 class
         acc_seen = evaluate_acc(student, test_seen, device=device)
+
+        acc_seen_hist.append(acc_seen)
 
         if logger is not None:
             logger.info(
@@ -196,6 +236,15 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 f"[CIL] task {task} → cur={acc_cur:.2f}%  seen={acc_seen:.2f}%"
             )
 
+    import numpy as np
+    avg_acc = np.mean(acc_seen_hist)
+    best_prev = np.maximum.accumulate(acc_seen_hist)
+    forget = best_prev[:-1] - np.array(acc_seen_hist[1:])
+    avg_forgetting = forget.mean() if len(forget) > 0 else 0.0
+
+    print(f"\n[SUMMARY] AACC={avg_acc:.2f}%  |  Avg-Forgetting={avg_forgetting:.2f}%")
     if logger is not None:
+        logger.update_metric("AACC", float(avg_acc))
+        logger.update_metric("AvgForget", float(avg_forgetting))
         logger.finalize()
 
