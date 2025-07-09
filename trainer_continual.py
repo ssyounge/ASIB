@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import os
 import torch
+from torch.utils.tensorboard import SummaryWriter
+import wandb
 
 from data.cifar100_cl import get_cifar100_cl_loaders, _task_classes
 from trainer import teacher_vib_update, student_vib_update, simple_finetune
@@ -38,6 +40,9 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
     os.makedirs(ckpt_dir, exist_ok=True)
 
     acc_seen_hist = []
+    writer = SummaryWriter(log_dir="runs/kd_monitor")
+    wandb_run = wandb.init(project="kd_monitor", name="run_001")
+    global_step_counter = 0
 
     t1 = create_resnet152(pretrained=True, small_input=True).to(device)
     t2 = create_efficientnet_b2(pretrained=True, small_input=True).to(device)
@@ -92,7 +97,7 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 lr=float(cfg.get("teacher_lr", 1e-3)),
                 weight_decay=float(cfg.get("teacher_weight_decay", 0.0)),
             )
-            teacher_vib_update(
+            global_step_counter = teacher_vib_update(
                 t1,
                 t2,
                 vib_mbm,
@@ -101,6 +106,9 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 opt_t,
                 test_loader=test_cur,
                 logger=logger,
+                writer=writer,
+                wandb_run=wandb_run,
+                global_step_offset=global_step_counter,
             )
 
         from utils.model_factory import create_student_by_name
@@ -177,7 +185,7 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 lr=float(cfg.get("student_lr", 5e-4)),
                 weight_decay=float(cfg.get("student_weight_decay", 5e-4)),
             )
-            student_vib_update(
+            global_step_counter = student_vib_update(
                 t1,
                 t2,
                 student,
@@ -189,6 +197,9 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 test_loader=test_cur,
                 logger=logger,
                 prev_student=prev_student,
+                writer=writer,
+                wandb_run=wandb_run,
+                global_step_offset=global_step_counter,
             )
         else:
             if kd_method == "dkd":
@@ -284,4 +295,6 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
         logger.update_metric("AACC", float(avg_acc))
         logger.update_metric("AvgForget", float(avg_forgetting))
         logger.finalize()
+    writer.close()
+    wandb_run.finish()
 

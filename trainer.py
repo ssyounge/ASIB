@@ -45,8 +45,14 @@ def simple_finetune(
 
     model.train()
     torch.set_grad_enabled(True)
+    params = [p for p in model.parameters() if p.requires_grad]
+    if len(params) == 0:
+        for p in model.parameters():
+            p.requires_grad = True
+        params = list(model.parameters())
+
     optimizer = torch.optim.AdamW(
-        filter(lambda p: p.requires_grad, model.parameters()),
+        params,
         lr=float(lr),
         weight_decay=float(weight_decay),
     )
@@ -140,7 +146,20 @@ def simple_finetune(
     model.train()
 
 
-def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test_loader=None, logger=None):
+def teacher_vib_update(
+    teacher1,
+    teacher2,
+    vib_mbm,
+    loader,
+    cfg,
+    optimizer,
+    test_loader=None,
+    logger=None,
+    writer=None,
+    wandb_run=None,
+    *,
+    global_step_offset: int = 0,
+):
     """Train the VIB module using frozen teachers.
 
     Args:
@@ -160,6 +179,7 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
     vib_mbm.train()
     teacher1.eval()
     teacher2.eval()
+    global_step = global_step_offset
     for ep in range(cfg.get("teacher_iters", 1)):
         running_loss = 0.0
         running_kl = 0.0
@@ -191,7 +211,7 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
             f1 = feat1
             f2 = feat2
             with autocast_ctx:
-                z, logit_syn, kl_z, _, _, _ = vib_mbm(
+                z, logit_syn, kl_z, _, mu, log_var = vib_mbm(
                     f1,
                     f2,
                     log_kl=cfg.get("log_kl", False),
@@ -199,17 +219,62 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
                 kl = kl_z.mean() if kl_z.dim() > 0 else kl_z
                 loss = F.cross_entropy(logit_syn, y) + kl
             optimizer.zero_grad()
+            global_step = global_step_offset + ep * len(loader) + batch_idx
             if scaler is not None:
                 scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
+                grad_norm = torch.sqrt(
+                    sum(
+                        p.grad.detach().pow(2).sum()
+                        for p in vib_mbm.parameters()
+                        if p.grad is not None
+                    )
+                ).item()
                 if clip > 0:
-                    scaler.unscale_(optimizer)
                     torch.nn.utils.clip_grad_norm_(vib_mbm.parameters(), clip)
+                if writer is not None:
+                    writer.add_scalar("train/grad_norm", grad_norm, global_step)
+                    writer.add_scalar("train/kl_loss", kl.item(), global_step)
+                    writer.add_scalar(
+                        "train/logvar_mean", log_var.mean().item(), global_step
+                    )
+                if wandb_run is not None:
+                    wandb_run.log(
+                        {
+                            "train/grad_norm": grad_norm,
+                            "train/kl_loss": kl.item(),
+                            "train/logvar_mean": log_var.mean().item(),
+                        },
+                        step=global_step,
+                    )
                 scaler.step(optimizer)
                 scaler.update()
             else:
                 loss.backward()
+                grad_norm = torch.sqrt(
+                    sum(
+                        p.grad.detach().pow(2).sum()
+                        for p in vib_mbm.parameters()
+                        if p.grad is not None
+                    )
+                ).item()
                 if clip > 0:
                     torch.nn.utils.clip_grad_norm_(vib_mbm.parameters(), clip)
+                if writer is not None:
+                    writer.add_scalar("train/grad_norm", grad_norm, global_step)
+                    writer.add_scalar("train/kl_loss", kl.item(), global_step)
+                    writer.add_scalar(
+                        "train/logvar_mean", log_var.mean().item(), global_step
+                    )
+                if wandb_run is not None:
+                    wandb_run.log(
+                        {
+                            "train/grad_norm": grad_norm,
+                            "train/kl_loss": kl.item(),
+                            "train/logvar_mean": log_var.mean().item(),
+                        },
+                        step=global_step,
+                    )
                 optimizer.step()
             running_loss += loss.item() * x.size(0)
             running_kl += kl.item() * x.size(0)
@@ -247,6 +312,8 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
             vib_mbm.train()
             print(f"[DEBUG] synergy_acc_after_ep1: {dbg_acc:.2f}%")
 
+    return global_step + 1
+
 
 def student_vib_update(
     teacher1,
@@ -262,6 +329,10 @@ def student_vib_update(
     scheduler=None,
     cur_classes=None,
     prev_student=None,
+    writer=None,
+    wandb_run=None,
+    *,
+    global_step_offset: int = 0,
 ):
     """Update the student network to mimic the VIB representation.
 
@@ -300,10 +371,16 @@ def student_vib_update(
     alpha_kd = init_alpha
     T = init_T
     ce_alpha = cfg.get("ce_alpha", 1.0)       #  CE 가중치
-    latent_w = cfg.get("latent_alpha", 1.0)   #  잠재 정렬
+    latent_base = cfg.get("latent_alpha", 1.0)
+    latent_warm_frac = cfg.get("latent_warmup_frac", 0.3)
+    latent_w = latent_base
     latent_mse_weight = cfg.get("latent_mse_weight", 0.7)
     latent_angle_weight = cfg.get("latent_angle_weight", 0.3)
-    clip = cfg.get("grad_clip_norm", 0)
+    # ─ Grad‑clip 스케줄 파라미터 ─────────────────────────────
+    clip_init       = cfg.get("grad_clip_norm_init", 1.0)   # 초반 값
+    clip_final      = cfg.get("grad_clip_norm_final", 0.0)  # 종료 값(0 = 해제)
+    clip_warm_frac  = cfg.get("grad_clip_warmup_frac", 0.5) # 몇 % 지점까지 유지?
+    clip_cur        = clip_init                             # 현재 적용 값
     autocast_ctx, scaler = get_amp_components(cfg)
 
     # ───── MixUp / CutMix 설정 ─────
@@ -315,6 +392,7 @@ def student_vib_update(
     student_model.train()
     ema_model = None
     total_epochs = cfg.get("student_iters", 1)
+    global_step = global_step_offset
     if scheduler is None:
         scheduler = cosine_lr_scheduler(
             optimizer,
@@ -346,6 +424,7 @@ def student_vib_update(
 
     for ep in range(total_epochs):
         running_loss = 0.0
+        n_samples    = 0
         correct = 0
         count = 0
         epoch_loader = tqdm(
@@ -392,12 +471,16 @@ def student_vib_update(
                 feat_s = student_model.get_feat()       # 필요 시 구현
             z_s = student_proj(feat_s)
 
-            # ─ KD 스케줄 (progress ∈ [0,1]) ────────────────────
+            # ────────────────────────────────────────────────────
+            # ①  step 계산
+            local_step  = ep * len(loader) + batch_idx
+            global_step = global_step_offset + local_step
+
+            # ②  KD‑스케줄 (progress ∈ [0,1])
             if gran == "epoch":
                 raw_prog = ep / max(total_epochs - 1, 1)
-            else:  # "step"
-                global_step = ep * len(loader) + batch_idx
-                raw_prog = global_step / max(total_steps - 1, 1)
+            else:                      # "step"
+                raw_prog = local_step / max(total_steps - 1, 1)
 
             # warm‑up 구간 제외 후, p‑power 스케일 적용
             prog = max(0.0, raw_prog - warmup) / max(1e-6, 1.0 - warmup)
@@ -405,6 +488,19 @@ def student_vib_update(
 
             alpha_kd = init_alpha * (1 - prog_p) + final_alpha * prog_p
             T        = init_T     * (1 - prog_p) + final_T     * prog_p
+
+            # ─ Grad‑clip 선형 감소 스케줄 ───────────────────────────
+            if raw_prog < clip_warm_frac:
+                clip_cur = clip_init
+            else:
+                tail_prog = (raw_prog - clip_warm_frac) / max(1e-6, 1.0 - clip_warm_frac)
+                clip_cur = clip_init * (1 - tail_prog) + clip_final * tail_prog
+
+            # ─ Latent‑weight 램프‑업 ─
+            if raw_prog < latent_warm_frac:
+                latent_w = latent_base * (raw_prog / latent_warm_frac)
+            else:
+                latent_w = latent_base
 
             # ─────────────── DEBUG: 스케줄 값 모니터링 ───────────────
             if batch_idx == 0 and ep in {0, 5, 10, 20, total_epochs - 1}:
@@ -420,6 +516,13 @@ def student_vib_update(
                 cls_tensor = torch.tensor(task_cls, dtype=torch.long, device=logit_s.device)
                 logit_kd_s = logit_s.index_select(1, cls_tensor)
                 logit_kd_t = logit_t.index_select(1, cls_tensor)
+
+                # --- Ground-truth label remap to task-local index ---
+                if do_mix:
+                    y_a = torch.searchsorted(cls_tensor, y_a, right=False)
+                    y_b = torch.searchsorted(cls_tensor, y_b, right=False)
+                else:
+                    y   = torch.searchsorted(cls_tensor,  y,  right=False)
             if do_mix:
                 ce = mixup_criterion(F.cross_entropy, logit_kd_s, y_a, y_b, lam)
             else:
@@ -459,7 +562,7 @@ def student_vib_update(
                     reduction="batchmean",
                 ) * (T_prev * T_prev)
 
-            kd = F.kl_div(
+            kd = F.kl_div(                       # reduction=batchmean + T² 한 번만
                 F.log_softmax(logit_kd_s / T, dim=1),
                 F.softmax(logit_kd_t.detach() / T, dim=1),
                 reduction="batchmean",
@@ -520,30 +623,81 @@ def student_vib_update(
 
             if batch_idx == 0 and ep % 10 == 0:
                 print(f"[DEBUG] γ={gamma_feat:.3f}  feat_loss={feat_loss.item():.4f}")
-            optimizer.zero_grad()
+            optimizer.zero_grad()      # (전역 step은 이미 계산되어 있음)
+            params = list(student_model.parameters()) + list(student_proj.parameters())
             if scaler is not None:
                 scaler.scale(loss).backward()
-                if clip > 0:
-                    scaler.unscale_(optimizer)
-                    torch.nn.utils.clip_grad_norm_(
-                        list(student_model.parameters()) + list(student_proj.parameters()),
-                        clip,
+                scaler.unscale_(optimizer)
+                grad_norm = torch.sqrt(
+                    sum(p.grad.detach().pow(2).sum() for p in params if p.grad is not None)
+                ).item()
+                if clip_cur > 0:
+                    torch.nn.utils.clip_grad_norm_(params, clip_cur)
+                if writer is not None:
+                    writer.add_scalar("train/grad_norm", grad_norm, global_step)
+                    writer.add_scalar("train/kl_loss", kd.item(), global_step)
+                    writer.add_scalar(
+                        "train/logvar_mean", log_var_phi.mean().item(), global_step
+                    )
+                if wandb_run is not None:
+                    wandb_run.log(
+                        {
+                            "train/grad_norm": grad_norm,
+                            "train/kl_loss": kd.item(),
+                            "train/logvar_mean": log_var_phi.mean().item(),
+                        },
+                        step=global_step,
                     )
                 scaler.step(optimizer)
                 scaler.update()
             else:
                 loss.backward()
-                if clip > 0:
-                    torch.nn.utils.clip_grad_norm_(
-                        list(student_model.parameters()) + list(student_proj.parameters()),
-                        clip,
+                grad_norm = torch.sqrt(
+                    sum(p.grad.detach().pow(2).sum() for p in params if p.grad is not None)
+                ).item()
+                if clip_cur > 0:
+                    torch.nn.utils.clip_grad_norm_(params, clip_cur)
+                if writer is not None:
+                    writer.add_scalar("train/grad_norm", grad_norm, global_step)
+                    writer.add_scalar("train/kl_loss", kd.item(), global_step)
+                    writer.add_scalar(
+                        "train/logvar_mean", log_var_phi.mean().item(), global_step
+                    )
+                if wandb_run is not None:
+                    wandb_run.log(
+                        {
+                            "train/grad_norm": grad_norm,
+                            "train/kl_loss": kd.item(),
+                            "train/logvar_mean": log_var_phi.mean().item(),
+                        },
+                        step=global_step,
                     )
                 optimizer.step()
             hook_s.clear(); hook_t1.clear(); hook_t2.clear()
             running_loss += loss.item() * x.size(0)
+            n_samples    += x.size(0)
             correct += (logit_s.argmax(1) == y).sum().item()
             count += x.size(0)
-        avg_loss = running_loss / max(count, 1)
+
+            # ── DEBUG: 5 epoch 간격, 첫 버치만 ───────────────
+            if batch_idx == 0 and (ep % 5 == 0):
+                print(
+                    f"[DBG] ep{ep:03d} ce={ce.item():.3f} | "
+                    f"kd={kd.item():.3f} | latent={latent.item():.3f} | "
+                    f"feat={feat_loss.item():.3f} | total={loss.item():.3f}"
+                )
+                if wandb_run is not None:
+                    wandb_run.log(
+                        {
+                            "dbg/ce":     ce.item(),
+                            "dbg/kd":     kd.item(),
+                            "dbg/latent": latent.item(),
+                            "dbg/feat":   feat_loss.item(),
+                            "dbg/total":  loss.item(),
+                        },
+                        step=global_step,
+                    )
+        avg_loss = running_loss / max(1, n_samples)
         train_acc = 100.0 * correct / max(count, 1)
         # ─ EMA 추적 ─────────────────────────────────
         if cfg.get("use_ema", False):
@@ -639,5 +793,7 @@ def student_vib_update(
         print(f"Final student EMA accuracy: {final_ema_acc:.2f}%")
 
     hook_s.close(); hook_t1.close(); hook_t2.close()
+
+    return global_step + 1
 
 

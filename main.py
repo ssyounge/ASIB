@@ -21,6 +21,8 @@ except RuntimeError:
 
 from models.ib.gate_mbm import GateMBM
 from models.ib.proj_head import StudentProj
+from torch.utils.tensorboard import SummaryWriter
+import wandb
 from utils.misc import set_random_seed
 from utils.eval import evaluate_acc
 from data.cifar100 import get_cifar100_loaders
@@ -132,6 +134,9 @@ def main() -> None:
 
     # logger는 **최종 cfg**가 완성된 뒤에 생성
     logger = ExperimentLogger(cfg, exp_name="ibkd")
+    writer = SummaryWriter(log_dir="runs/kd_monitor")
+    wandb_run = wandb.init(project="kd_monitor", name="run_001")
+    global_step_counter = 0
 
     # ──────────────────────────────────────────────────────────────
     #   (A) 전체 테이블 +  (B) 그룹별 테이블 동시 출력
@@ -343,7 +348,7 @@ def main() -> None:
 
     # ---------- training ----------
     if method == 'vib':
-        teacher_vib_update(
+        global_step_counter = teacher_vib_update(
             t1,
             t2,
             vib_mbm,
@@ -352,8 +357,11 @@ def main() -> None:
             opt_t,
             test_loader=test_loader,
             logger=logger,
+            writer=writer,
+            wandb_run=wandb_run,
+            global_step_offset=global_step_counter,
         )
-        student_vib_update(
+        global_step_counter = student_vib_update(
             t1,
             t2,
             student,
@@ -365,6 +373,9 @@ def main() -> None:
             test_loader=test_loader,
             logger=logger,
             scheduler=scheduler,
+            writer=writer,
+            wandb_run=wandb_run,
+            global_step_offset=global_step_counter,
         )
 
     elif method == 'crd':
@@ -491,6 +502,8 @@ def main() -> None:
         acc = evaluate_acc(student, test_loader, device)
         logger.update_metric("student_acc", float(acc))
         logger.finalize()
+        writer.close()
+        wandb_run.finish()
         sys.exit(0)
 
     if cfg.get("eval_after_train", True):
@@ -507,6 +520,8 @@ def main() -> None:
         logger.update_metric("test_acc", float(acc))
 
     logger.finalize()
+    writer.close()
+    wandb_run.finish()
 
 
 if __name__ == "__main__":

@@ -44,6 +44,8 @@ Both scripts read default options from `configs/minimal.yaml`.
 Set `disable_tqdm: true` in that file to suppress progress bars during training.
 Set `grad_scaler_init_scale` to control the initial scale used by the AMP grad
 scaler.
+Use `grad_clip_norm_init`, `grad_clip_norm_final` and
+`grad_clip_warmup_frac` to schedule gradient clipping during student updates.
 
 ## Distillation Methods
 
