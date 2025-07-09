@@ -151,7 +151,9 @@ def teacher_vib_update(
     logger=None,
     writer=None,
     wandb_run=None,
-):
+    *,
+    global_step_offset: int = 0,
+) -> int:
     """Train the VIB module using frozen teachers.
 
     Args:
@@ -163,11 +165,13 @@ def teacher_vib_update(
         optimizer: Optimizer for ``vib_mbm`` parameters.
 
     Returns:
-        None.
+        Final step index used during logging.
     """
     device = cfg.get("device", "cuda")
     clip = cfg.get("grad_clip_norm", 0)
     autocast_ctx, scaler = get_amp_components(cfg)
+    global_step = global_step_offset
+    global_step = global_step_offset
     vib_mbm.train()
     teacher1.eval()
     teacher2.eval()
@@ -210,7 +214,7 @@ def teacher_vib_update(
                 kl = kl_z.mean() if kl_z.dim() > 0 else kl_z
                 loss = F.cross_entropy(logit_syn, y) + kl
             optimizer.zero_grad()
-            global_step = ep * len(loader) + batch_idx
+            global_step = global_step_offset + ep * len(loader) + batch_idx
             if scaler is not None:
                 scaler.scale(loss).backward()
                 scaler.unscale_(optimizer)
@@ -303,6 +307,8 @@ def teacher_vib_update(
             vib_mbm.train()
             print(f"[DEBUG] synergy_acc_after_ep1: {dbg_acc:.2f}%")
 
+    return global_step + 1
+
 
 def student_vib_update(
     teacher1,
@@ -320,6 +326,8 @@ def student_vib_update(
     prev_student=None,
     writer=None,
     wandb_run=None,
+    *,
+    global_step_offset: int = 0,
 ):
     """Update the student network to mimic the VIB representation.
 
@@ -337,7 +345,7 @@ def student_vib_update(
         prev_student: Frozen student from the previous task for self-KD.
 
     Returns:
-        None.
+        Final step index used during logging.
     """
     device = cfg.get("device", "cuda")
     from trainer_continual import _remap_for_task
@@ -454,7 +462,7 @@ def student_vib_update(
             if gran == "epoch":
                 raw_prog = ep / max(total_epochs - 1, 1)
             else:  # "step"
-                global_step = ep * len(loader) + batch_idx
+                global_step = global_step_offset + ep * len(loader) + batch_idx
                 raw_prog = global_step / max(total_steps - 1, 1)
 
             # warm‑up 구간 제외 후, p‑power 스케일 적용
@@ -579,7 +587,7 @@ def student_vib_update(
             if batch_idx == 0 and ep % 10 == 0:
                 print(f"[DEBUG] γ={gamma_feat:.3f}  feat_loss={feat_loss.item():.4f}")
             optimizer.zero_grad()
-            global_step = ep * len(loader) + batch_idx
+            global_step = global_step_offset + ep * len(loader) + batch_idx
             params = list(student_model.parameters()) + list(student_proj.parameters())
             if scaler is not None:
                 scaler.scale(loss).backward()
@@ -729,5 +737,4 @@ def student_vib_update(
         print(f"Final student EMA accuracy: {final_ema_acc:.2f}%")
 
     hook_s.close(); hook_t1.close(); hook_t2.close()
-
-
+    return global_step + 1
