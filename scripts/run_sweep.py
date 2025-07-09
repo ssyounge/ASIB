@@ -12,6 +12,9 @@
 # scripts/run_sweep.py
 import argparse, itertools, os, subprocess, yaml, time
 import pathlib
+# DEPRECATED: 남겨두되, 실행 시 경고만 출력
+print("[WARN] run_sweep.py is deprecated – 통합 런처(launcher.py)를 이용하세요.", flush=True)
+
 
 ROOT_DIR   = os.getcwd()   # ( --chdir 로 고정됨 )
 
