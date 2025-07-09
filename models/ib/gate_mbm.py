@@ -45,5 +45,5 @@ class GateMBM(nn.Module):
         kl = -0.5 * (1 + log - mu.pow(2) - log.exp()).mean()
         kl_scaled = self.beta * kl               # <-- 가중치 적용
         out = self.head(z)
-        # (z, logits, scaled_KL, raw_KL)
-        return z, out, kl_scaled, kl
+        # (z, logits, scaled_KL, raw_KL, mu, log_var)
+        return z, out, kl_scaled, kl, mu, log

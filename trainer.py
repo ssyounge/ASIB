@@ -182,7 +182,7 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
             f1 = feat1
             f2 = feat2
             with autocast_ctx:
-                z, logit_syn, kl_z, _ = vib_mbm(
+                z, logit_syn, kl_z, _, _, _ = vib_mbm(
                     f1,
                     f2,
                     log_kl=cfg.get("log_kl", False),
@@ -369,7 +369,7 @@ def student_vib_update(
                 t1_dict = out1[0] if isinstance(out1, tuple) else out1
                 t2_dict = out2[0] if isinstance(out2, tuple) else out2
                 feat1, feat2 = t1_dict["feat_2d"], t2_dict["feat_2d"]
-                z_t, logit_t, _, _ = vib_mbm(feat1, feat2)
+                z_t, logit_t, _, _, mu_phi, log_var_phi = vib_mbm(feat1, feat2)
 
             # ─ Student forward ─────────────────────────────────
             s_out = student_model(x)
@@ -457,9 +457,14 @@ def student_vib_update(
                 reduction="batchmean",
             ) * (T * T)
             # ─ Latent & Angle Loss 병행 ─
-            latent_mse   = F.mse_loss(z_s, z_t.detach())
+            mu_phi_det = mu_phi.detach()
+            sigma2_phi = torch.exp(log_var_phi).detach()
+            precision  = 1.0 / (sigma2_phi + cfg.get("cw_mse_eps", 1e-6))
+            latent_mse = (precision * (z_s - mu_phi_det).pow(2)).sum(1).mean()
             latent_angle = 1 - F.cosine_similarity(z_s, z_t.detach(), dim=1).mean()
-            latent       = latent_mse_weight * latent_mse + latent_angle_weight * latent_angle
+            latent = latent_mse_weight * latent_mse + latent_angle_weight * latent_angle
+            if logger is not None:
+                logger.update_metric("cw_mse", float(latent_mse), step=ep + 1)
 
             feat_loss = feat_mse_pair(
                 hook_s.features,
