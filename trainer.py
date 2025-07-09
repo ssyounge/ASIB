@@ -459,8 +459,12 @@ def student_vib_update(
             mu_phi_det = mu_phi.detach()
             sigma2_phi = torch.exp(log_var_phi).detach()
             eps = cfg.get("cw_mse_eps", 1e-6)        # YAML·CLI → str 로 넘어올 수도 있음
+            if isinstance(eps, torch.Tensor):
+                eps = eps.item()
             if isinstance(eps, str):
                 eps = float(eps)
+            elif not isinstance(eps, (int, float)):
+                raise TypeError(f"cw_mse_eps must be numeric, got {type(eps).__name__}")
 
             precision  = 1.0 / (sigma2_phi + eps)
             latent_mse = (precision * (z_s - mu_phi_det).pow(2)).sum(1).mean()
