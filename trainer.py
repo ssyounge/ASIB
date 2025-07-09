@@ -25,15 +25,14 @@ def simple_finetune(
     cfg=None,
     ckpt_path="finetuned_best.pth",
 ):
-    """Fine-tune ``model`` using cross-entropy loss with basic reporting.
+    """Class-balanced 미세조정 루프.
 
-    The best model (by training accuracy) is saved to ``ckpt_path`` whenever
-    improved. After all epochs finish, the final state is written to a
-    ``*_last.pth`` file.
+    - ``model.train()`` 으로 그래프를 활성화하고
+    - ``torch.set_grad_enabled(True)`` 로 ``no_grad`` 상황을 차단한다.
 
-    If ``ckpt_path`` already exists, the saved weights are loaded and
-    fine-tuning is skipped. Pass ``overwrite`` via ``cfg`` to ignore the
-    existing checkpoint.
+    Best accuracy 시 ``ckpt_path`` 에 저장되며 마지막 상태는 ``*_last.pth`` 로
+    남긴다. ``overwrite`` 옵션을 주면 기존 체크포인트를 무시하고 다시 학습을
+    시작한다.
     """
     if os.path.exists(ckpt_path) and not (cfg or {}).get("overwrite", False):
         model.load_state_dict(torch.load(ckpt_path, map_location=device))
@@ -45,8 +44,11 @@ def simple_finetune(
         return
 
     model.train()
+    torch.set_grad_enabled(True)
     optimizer = torch.optim.AdamW(
-        model.parameters(), lr=float(lr), weight_decay=float(weight_decay)
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr=float(lr),
+        weight_decay=float(weight_decay),
     )
     # warm-up + cosine
     scheduler = cosine_lr_scheduler(
@@ -74,7 +76,7 @@ def simple_finetune(
             x, y = x.to(device), y.to(device)
             if mixup_alpha > 0.0:
                 x, y_a, y_b, lam = mixup_data(x, y, alpha=mixup_alpha)
-            optimizer.zero_grad()
+            optimizer.zero_grad(set_to_none=True)
             with autocast_ctx:
                 out = model(x)
                 logit_s = out[1] if isinstance(out, tuple) else out
@@ -95,10 +97,17 @@ def simple_finetune(
                     loss = ce
             if scaler is not None:
                 scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(
+                    model.parameters(), (cfg or {}).get("grad_clip_norm", 1.0)
+                )
                 scaler.step(optimizer)
                 scaler.update()
             else:
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(
+                    model.parameters(), (cfg or {}).get("grad_clip_norm", 1.0)
+                )
                 optimizer.step()
 
             running_loss += loss.item() * x.size(0)
