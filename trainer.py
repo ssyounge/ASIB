@@ -1,7 +1,10 @@
 # trainer.py
 
+from __future__ import annotations
+
 import os
 import copy
+from typing import Optional
 
 import torch
 import torch.nn.functional as F   # loss 함수(F.cross_entropy 등)용
@@ -159,7 +162,7 @@ def teacher_vib_update(
     wandb_run=None,
     *,
     global_step_offset: int = 0,
-    ewc_bank: list | None = None,
+    ewc_bank: Optional[list] = None,
 ):
     """Train the VIB module using frozen teachers.
 
@@ -334,7 +337,7 @@ def student_vib_update(
     wandb_run=None,
     *,
     global_step_offset: int = 0,
-    ewc_bank: list | None = None,
+    ewc_bank: Optional[list] = None,
 ):
     """Update the student network to mimic the VIB representation.
 
