@@ -140,7 +140,18 @@ def simple_finetune(
     model.train()
 
 
-def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test_loader=None, logger=None):
+def teacher_vib_update(
+    teacher1,
+    teacher2,
+    vib_mbm,
+    loader,
+    cfg,
+    optimizer,
+    test_loader=None,
+    logger=None,
+    writer=None,
+    wandb_run=None,
+):
     """Train the VIB module using frozen teachers.
 
     Args:
@@ -191,7 +202,7 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
             f1 = feat1
             f2 = feat2
             with autocast_ctx:
-                z, logit_syn, kl_z, _, _, _ = vib_mbm(
+                z, logit_syn, kl_z, _, mu, log_var = vib_mbm(
                     f1,
                     f2,
                     log_kl=cfg.get("log_kl", False),
@@ -199,17 +210,62 @@ def teacher_vib_update(teacher1, teacher2, vib_mbm, loader, cfg, optimizer, test
                 kl = kl_z.mean() if kl_z.dim() > 0 else kl_z
                 loss = F.cross_entropy(logit_syn, y) + kl
             optimizer.zero_grad()
+            global_step = ep * len(loader) + batch_idx
             if scaler is not None:
                 scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
+                grad_norm = torch.sqrt(
+                    sum(
+                        p.grad.detach().pow(2).sum()
+                        for p in vib_mbm.parameters()
+                        if p.grad is not None
+                    )
+                ).item()
                 if clip > 0:
-                    scaler.unscale_(optimizer)
                     torch.nn.utils.clip_grad_norm_(vib_mbm.parameters(), clip)
+                if writer is not None:
+                    writer.add_scalar("train/grad_norm", grad_norm, global_step)
+                    writer.add_scalar("train/kl_loss", kl.item(), global_step)
+                    writer.add_scalar(
+                        "train/logvar_mean", log_var.mean().item(), global_step
+                    )
+                if wandb_run is not None:
+                    wandb_run.log(
+                        {
+                            "train/grad_norm": grad_norm,
+                            "train/kl_loss": kl.item(),
+                            "train/logvar_mean": log_var.mean().item(),
+                        },
+                        step=global_step,
+                    )
                 scaler.step(optimizer)
                 scaler.update()
             else:
                 loss.backward()
+                grad_norm = torch.sqrt(
+                    sum(
+                        p.grad.detach().pow(2).sum()
+                        for p in vib_mbm.parameters()
+                        if p.grad is not None
+                    )
+                ).item()
                 if clip > 0:
                     torch.nn.utils.clip_grad_norm_(vib_mbm.parameters(), clip)
+                if writer is not None:
+                    writer.add_scalar("train/grad_norm", grad_norm, global_step)
+                    writer.add_scalar("train/kl_loss", kl.item(), global_step)
+                    writer.add_scalar(
+                        "train/logvar_mean", log_var.mean().item(), global_step
+                    )
+                if wandb_run is not None:
+                    wandb_run.log(
+                        {
+                            "train/grad_norm": grad_norm,
+                            "train/kl_loss": kl.item(),
+                            "train/logvar_mean": log_var.mean().item(),
+                        },
+                        step=global_step,
+                    )
                 optimizer.step()
             running_loss += loss.item() * x.size(0)
             running_kl += kl.item() * x.size(0)
@@ -262,6 +318,8 @@ def student_vib_update(
     scheduler=None,
     cur_classes=None,
     prev_student=None,
+    writer=None,
+    wandb_run=None,
 ):
     """Update the student network to mimic the VIB representation.
 
@@ -521,22 +579,54 @@ def student_vib_update(
             if batch_idx == 0 and ep % 10 == 0:
                 print(f"[DEBUG] γ={gamma_feat:.3f}  feat_loss={feat_loss.item():.4f}")
             optimizer.zero_grad()
+            global_step = ep * len(loader) + batch_idx
+            params = list(student_model.parameters()) + list(student_proj.parameters())
             if scaler is not None:
                 scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
+                grad_norm = torch.sqrt(
+                    sum(p.grad.detach().pow(2).sum() for p in params if p.grad is not None)
+                ).item()
                 if clip > 0:
-                    scaler.unscale_(optimizer)
-                    torch.nn.utils.clip_grad_norm_(
-                        list(student_model.parameters()) + list(student_proj.parameters()),
-                        clip,
+                    torch.nn.utils.clip_grad_norm_(params, clip)
+                if writer is not None:
+                    writer.add_scalar("train/grad_norm", grad_norm, global_step)
+                    writer.add_scalar("train/kl_loss", kd.item(), global_step)
+                    writer.add_scalar(
+                        "train/logvar_mean", log_var_phi.mean().item(), global_step
+                    )
+                if wandb_run is not None:
+                    wandb_run.log(
+                        {
+                            "train/grad_norm": grad_norm,
+                            "train/kl_loss": kd.item(),
+                            "train/logvar_mean": log_var_phi.mean().item(),
+                        },
+                        step=global_step,
                     )
                 scaler.step(optimizer)
                 scaler.update()
             else:
                 loss.backward()
+                grad_norm = torch.sqrt(
+                    sum(p.grad.detach().pow(2).sum() for p in params if p.grad is not None)
+                ).item()
                 if clip > 0:
-                    torch.nn.utils.clip_grad_norm_(
-                        list(student_model.parameters()) + list(student_proj.parameters()),
-                        clip,
+                    torch.nn.utils.clip_grad_norm_(params, clip)
+                if writer is not None:
+                    writer.add_scalar("train/grad_norm", grad_norm, global_step)
+                    writer.add_scalar("train/kl_loss", kd.item(), global_step)
+                    writer.add_scalar(
+                        "train/logvar_mean", log_var_phi.mean().item(), global_step
+                    )
+                if wandb_run is not None:
+                    wandb_run.log(
+                        {
+                            "train/grad_norm": grad_norm,
+                            "train/kl_loss": kd.item(),
+                            "train/logvar_mean": log_var_phi.mean().item(),
+                        },
+                        step=global_step,
                     )
                 optimizer.step()
             hook_s.clear(); hook_t1.clear(); hook_t2.clear()
