@@ -1,4 +1,5 @@
 # utils/print_cfg.py
+from __future__ import annotations
 
 # ────────────────────────────────────────
 # NEW ①  공통 테이블 렌더러 (단일 그룹·가로 정렬)

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 # scripts/launcher.py
 # ------------------------------------------------------------
 # Unified launcher  - single run & hyper-parameter sweep
