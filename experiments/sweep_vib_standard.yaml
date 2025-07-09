@@ -8,7 +8,7 @@ imports:
 method: vib
 
 # sweep 모드
-sweep_mode: full        # full | single
+sweep_mode: single        # full | single
 
 exp_id: vib_std_sweep
 
