@@ -154,7 +154,7 @@ def main() -> None:
     method = cfg.get('method', 'vib').lower()
     mode   = cfg.get('train_mode', 'standard').lower()
     assert method in {
-        'vib', 'dkd', 'crd', 'vanilla', 'fitnet', 'at', 'ce'
+        'vib', 'dkd', 'crd', 'vanilla', 'fitnet', 'at', 'ce', 'none'
     }, f"unknown method: {method}"
     assert mode   in {'standard', 'continual'}, "unknown train_mode"
 

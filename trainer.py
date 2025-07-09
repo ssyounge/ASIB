@@ -159,6 +159,7 @@ def teacher_vib_update(
     wandb_run=None,
     *,
     global_step_offset: int = 0,
+    ewc_bank: list | None = None,
 ):
     """Train the VIB module using frozen teachers.
 
@@ -333,6 +334,7 @@ def student_vib_update(
     wandb_run=None,
     *,
     global_step_offset: int = 0,
+    ewc_bank: list | None = None,
 ):
     """Update the student network to mimic the VIB representation.
 
@@ -348,6 +350,7 @@ def student_vib_update(
         cur_classes: (Deprecated) unused. Class slicing now determined by
             ``cfg['task_meta']['classes']`` when ``train_mode`` is ``continual``.
         prev_student: Frozen student from the previous task for self-KD.
+        ewc_bank: List of EWC objects used for regularization.
 
     Returns:
         None.
@@ -620,6 +623,12 @@ def student_vib_update(
                 + latent_w*latent
                 + gamma_feat*feat_loss
             )
+
+            if cfg.get("use_ewc", False) and ewc_bank:
+                ewc_loss = 0.0
+                for ewc_obj in ewc_bank:
+                    ewc_loss += ewc_obj.penalty(student_model)
+                loss += cfg.get("ewc_lambda", 30.0) * ewc_loss
 
             if batch_idx == 0 and ep % 10 == 0:
                 print(f"[DEBUG] γ={gamma_feat:.3f}  feat_loss={feat_loss.item():.4f}")

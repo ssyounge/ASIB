@@ -44,3 +44,8 @@ patch_stride2 : false
 seed: 42
 student_weight_decay: 5e-4
 student_ce_ckpt: student_ce_best.pth
+use_ewc: false
+ewc_lambda: 30.0
+ewc_samples: 1024
+ewc_online: false
+ewc_decay: 1.0
