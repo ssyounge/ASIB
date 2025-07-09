@@ -370,7 +370,11 @@ def student_vib_update(
     latent_w = latent_base
     latent_mse_weight = cfg.get("latent_mse_weight", 0.7)
     latent_angle_weight = cfg.get("latent_angle_weight", 0.3)
-    clip = cfg.get("grad_clip_norm", 0)
+    # ─ Grad‑clip 스케줄 파라미터 ─────────────────────────────
+    clip_init       = cfg.get("grad_clip_norm_init", 1.0)   # 초반 값
+    clip_final      = cfg.get("grad_clip_norm_final", 0.0)  # 종료 값(0 = 해제)
+    clip_warm_frac  = cfg.get("grad_clip_warmup_frac", 0.5) # 몇 % 지점까지 유지?
+    clip_cur        = clip_init                             # 현재 적용 값
     autocast_ctx, scaler = get_amp_components(cfg)
 
     # ───── MixUp / CutMix 설정 ─────
@@ -478,6 +482,13 @@ def student_vib_update(
 
             alpha_kd = init_alpha * (1 - prog_p) + final_alpha * prog_p
             T        = init_T     * (1 - prog_p) + final_T     * prog_p
+
+            # ─ Grad‑clip 선형 감소 스케줄 ───────────────────────────
+            if raw_prog < clip_warm_frac:
+                clip_cur = clip_init
+            else:
+                tail_prog = (raw_prog - clip_warm_frac) / max(1e-6, 1.0 - clip_warm_frac)
+                clip_cur = clip_init * (1 - tail_prog) + clip_final * tail_prog
 
             # ─ Latent‑weight 램프‑업 ─
             if raw_prog < latent_warm_frac:
@@ -607,8 +618,8 @@ def student_vib_update(
                 grad_norm = torch.sqrt(
                     sum(p.grad.detach().pow(2).sum() for p in params if p.grad is not None)
                 ).item()
-                if clip > 0:
-                    torch.nn.utils.clip_grad_norm_(params, clip)
+                if clip_cur > 0:
+                    torch.nn.utils.clip_grad_norm_(params, clip_cur)
                 if writer is not None:
                     writer.add_scalar("train/grad_norm", grad_norm, global_step)
                     writer.add_scalar("train/kl_loss", kd.item(), global_step)
@@ -631,8 +642,8 @@ def student_vib_update(
                 grad_norm = torch.sqrt(
                     sum(p.grad.detach().pow(2).sum() for p in params if p.grad is not None)
                 ).item()
-                if clip > 0:
-                    torch.nn.utils.clip_grad_norm_(params, clip)
+                if clip_cur > 0:
+                    torch.nn.utils.clip_grad_norm_(params, clip_cur)
                 if writer is not None:
                     writer.add_scalar("train/grad_norm", grad_norm, global_step)
                     writer.add_scalar("train/kl_loss", kd.item(), global_step)

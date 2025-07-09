@@ -34,6 +34,10 @@ ema_warmup_iters : 5
 
 eval_after_train : true
 grad_clip_norm   : 1.0
+# ─ Grad‑clip 스케줄 옵션 ─
+grad_clip_norm_init:   1.0   # 시작 값
+grad_clip_norm_final:  0.0   # 끝 값(0 = 해제)
+grad_clip_warmup_frac: 0.5   # 학습 절반까지 클리핑 유지
 grad_scaler_init_scale: 1024
 
 patch_stride2 : false
