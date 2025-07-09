@@ -195,7 +195,7 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 vib_mbm,
                 proj,
                 train_loader,
-                cfg,
+                cfg,               # cfg is passed once as a positional argument
                 opt_s,
                 test_loader=test_cur,
                 logger=logger,
@@ -204,7 +204,6 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 wandb_run=wandb_run,
                 global_step_offset=global_step_counter,
                 ewc_bank=ewc_bank,
-                cfg=cfg,
             )
 
             if cfg.get("use_ewc", False):
