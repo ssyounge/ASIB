@@ -66,12 +66,22 @@ def main() -> None:
     parser.add_argument('--train_mode', type=str, help='Override scenario')   # optional
     parser.add_argument('--n_tasks', type=int, help='number of tasks for continual learning')
     args = parser.parse_args()
-    # ① 여러 YAML 파일 병합 (쉼표 구분)
-    cfg = {}
+    # ① 여러 YAML 파일 병합 (쉼표 구분) + “어느 파일에서 왔는지” 추적
+    cfg: dict = {}
+    cfg_src: dict[str, str] = {}
+
+    def _merge_yaml(path: str | os.PathLike, label: str):
+        """로드한 YAML을 cfg 에 병합하면서, key → label 매핑도 갱신."""
+        with open(path, "r") as f:
+            y = yaml.safe_load(f) or {}
+        for k, v in y.items():
+            cfg[k] = v
+            cfg_src[k] = label
+
+    # --- ①‑A. CLI 로 받은 --cfg (base 등) ----------------------------------
     for p in args.cfg.split(','):
         p = p.strip()
-        with open(p, 'r') as f:
-            cfg.update(yaml.safe_load(f) or {})
+        _merge_yaml(p, label=Path(p).stem)
     if not isinstance(cfg, dict):
         raise TypeError(
             f"{args.cfg} 루트는 dict 여야 합니다 (현재: {type(cfg).__name__})"
@@ -85,8 +95,7 @@ def main() -> None:
     # --------------------------------------------------------------
 
     scenario = (args.train_mode or cfg.get('train_mode', 'standard')).lower()
-    with open(f"configs/scenario/{scenario}.yaml", 'r') as f:
-        cfg.update(yaml.safe_load(f) or {})
+    _merge_yaml(f"configs/scenario/{scenario}.yaml", label="scenario")
     cfg['train_mode'] = scenario
 
     method = (args.method or cfg.get('method'))
@@ -96,7 +105,10 @@ def main() -> None:
             "(control.yaml 에 method: ..., 또는 --method 인수)"
         )
     method = method.lower()
-    cfg.update(get_method_cfg(method, scenario) or {})
+    method_yaml = get_method_cfg(method, scenario) or {}
+    for k, v in method_yaml.items():
+        cfg[k] = v
+        cfg_src[k] = "method"
     cfg['method'] = method
 
     # --------------------------------------------------------------
@@ -112,6 +124,7 @@ def main() -> None:
         v = getattr(args, k, None)
         if v is not None:
             cfg[k] = v
+            cfg_src[k] = "CLI"
 
     # results_dir를 CLI※YAML 최종값으로 덮어쓴 뒤에 생성
     os.makedirs(cfg.get("results_dir", "results"), exist_ok=True)
@@ -119,8 +132,12 @@ def main() -> None:
     # logger는 **최종 cfg**가 완성된 뒤에 생성
     logger = ExperimentLogger(cfg, exp_name="ibkd")
 
-    # 전체 하이퍼파라미터 테이블 출력 (logger 사용)
-    print_hparams(cfg, log_fn=logger.info)
+    # ──────────────────────────────────────────────────────────────
+    #   (A) 전체 테이블 +  (B) 그룹별 테이블 동시 출력
+    # --------------------------------------------------------------
+    from utils.print_cfg import print_hparams_grouped
+    print_hparams(cfg,          title="All Hyper‑parameters", log_fn=logger.info)
+    print_hparams_grouped(cfg,  src_map=cfg_src,              log_fn=logger.info)
 
 
     device = cfg.get('device', 'cuda')
