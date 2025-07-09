@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# scripts/launcher.py
 # ------------------------------------------------------------
 # Unified launcher  - single run & hyper-parameter sweep
 #   usage)
