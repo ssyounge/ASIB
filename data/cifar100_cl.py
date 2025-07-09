@@ -110,3 +110,47 @@ def get_cifar100_cl_loaders(
     )
     return train_loader, test_loader_cur, test_loader_seen
 
+
+def get_balanced_loader(
+    task_id: int,
+    n_tasks: int,
+    buffer_size: int = 20,
+    batch_size: int = 128,
+    num_workers: int = 2,
+    root: str = "./data",
+):
+    """Return a class-balanced loader using replay buffer and current data."""
+    ops = [T.RandomCrop(32, padding=4), T.RandomHorizontalFlip(), T.ToTensor(),
+           T.Normalize((0.5071, 0.4865, 0.4409), (0.2673, 0.2564, 0.2762))]
+    transform = T.Compose(ops)
+
+    base_train = torchvision.datasets.CIFAR100(
+        root=root, train=True, download=True, transform=transform
+    )
+
+    seen_cls = sum((_task_classes(t, n_tasks) for t in range(task_id + 1)), [])
+    indices = []
+    for c in seen_cls:
+        idx_c = [i for i, t in enumerate(base_train.targets) if t == c]
+        if c in _task_classes(task_id, n_tasks):
+            indices.extend(idx_c)
+        else:
+            indices.extend(idx_c[:buffer_size])
+
+    subset = torch.utils.data.Subset(base_train, indices)
+    targets = [base_train.targets[i] for i in indices]
+    from collections import Counter
+    counts = Counter(targets)
+    weights = [1.0 / counts[t] for t in targets]
+    sampler = torch.utils.data.WeightedRandomSampler(
+        weights, num_samples=len(weights), replacement=True
+    )
+    loader = torch.utils.data.DataLoader(
+        subset,
+        batch_size=batch_size,
+        sampler=sampler,
+        num_workers=num_workers,
+        pin_memory=True,
+    )
+    return loader
+

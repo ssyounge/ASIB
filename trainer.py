@@ -252,6 +252,7 @@ def student_vib_update(
     logger=None,
     scheduler=None,
     cur_classes=None,
+    prev_student=None,
 ):
     """Update the student network to mimic the VIB representation.
 
@@ -266,6 +267,7 @@ def student_vib_update(
         optimizer: Optimizer for student parameters.
         cur_classes: Optional sequence of class indices to slice student logits
             before computing distillation loss.
+        prev_student: Frozen student from the previous task for self-KD.
 
     Returns:
         None.
@@ -409,6 +411,19 @@ def student_vib_update(
                 logit_kd_s = logit_s[:, cur_classes]        # [B,10]
                 logit_kd_t = logit_t[:, cur_classes]        # [B,10]
 
+            kd_prev = torch.tensor(0.0, device=device)
+            if cfg.get("use_prev_kd", False) and prev_student is not None:
+                with torch.no_grad():
+                    logits_prev = prev_student(x).detach()
+                    if cur_classes is not None:
+                        logits_prev = logits_prev[:, cur_classes]
+                T_prev = cfg.get("prev_kd_temperature", T)
+                kd_prev = F.kl_div(
+                    F.log_softmax(logit_kd_s / T_prev, dim=1),
+                    F.softmax(logits_prev / T_prev, dim=1),
+                    reduction="batchmean",
+                ) * (T_prev * T_prev)
+
             kd = F.kl_div(
                 F.log_softmax(logit_kd_s / T, dim=1),
                 F.softmax(logit_kd_t.detach() / T, dim=1),
@@ -433,7 +448,10 @@ def student_vib_update(
                 cur_seg = int(ep / (total_epochs / seg))
                 gamma_feat = gamma_schedule[min(cur_seg, seg - 1)]
             loss = (
-                ce_alpha*ce + alpha_kd*kd + latent_w*latent
+                ce_alpha*ce
+                + alpha_kd*kd
+                + cfg.get("prev_kd_alpha", 0.5) * kd_prev
+                + latent_w*latent
                 + gamma_feat*feat_loss
             )
 

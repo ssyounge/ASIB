@@ -2,7 +2,7 @@
 
 train_mode   : continual
 n_tasks      : 10
-buffer_size  : 20
+buffer_size  : 100
 teacher_iters: 3
 student_iters: 10
 randaug_N    : 1
@@ -14,3 +14,10 @@ student_warmup_epochs: 1
 
 # 데이터가 작으므로 label smoothing 감소
 label_smoothing      : 0.02
+
+use_prev_kd        : true
+prev_kd_alpha      : 0.5
+prev_kd_temperature: 4.0
+
+cb_finetune_epochs : 2
+cb_finetune_lr     : 1e-4
