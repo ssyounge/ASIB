@@ -4,10 +4,13 @@ imports:
   - configs/base.yaml
   - configs/scenario/standard.yaml
 
-sweep_mode: full  # full|single
-exp_id: vib_std_sweep
+# 방법론
+method: vib
 
-method: vib 
+# sweep 모드
+sweep_mode: full
+
+exp_id: vib_std_sweep
 
 sweep:
   beta_bottleneck: [1e-4, 3e-4, 1e-3, 3e-3, 1e-2]

@@ -68,9 +68,9 @@ def main() -> None:
     # 1) sweep_mode 결정 –  CLI(--mode) 가 YAML(sweep_mode) 보다 우선
     # ──────────────────────────────────────────────────────────────
     yaml_mode = (exp_cfg.get("sweep_mode") or "full").lower()
-    if yaml_mode not in ("full", "single"):
+    if yaml_mode not in {"full", "single"}:
         _abort("sweep_mode must be 'full' or 'single'")
-    mode = args.mode or yaml_mode     # 최종 모드
+    sweep_mode = args.mode or yaml_mode  # 최종 모드
 
     # policy: sweep allowed only in standard scenario
     if sweep_dict and scenario != "standard":
@@ -79,27 +79,27 @@ def main() -> None:
             f"(current='{scenario}')."
         )
 
-    # generate parameter sets
+    # ───── generate parameter sets ──────────────────────────────
     param_sets: list[dict[str, str | int | float]] = []
     if sweep_dict:
-        keys, vals = zip(*sweep_dict.items())
-        if mode == "full":                          # 모든 조합
+        if sweep_mode == "full":         # Cartesian product
+            keys, vals = zip(*sweep_dict.items())
             for tup in itertools.product(*vals):
                 param_sets.append(dict(zip(keys, tup)))
-        else:                                       # single – 변수 하나씩만
+        else:                            # single‑var variation
             for k, v_list in sweep_dict.items():
                 for v in v_list:
                     param_sets.append({k: v})
     else:
-        param_sets.append({})  # single run
+        param_sets.append({})            # single run
 
     # global overrides (exp_id, student_iters, ...)
     global_ovr = {k: v for k, v in exp_cfg.items() if k not in {"imports", "sweep"}}
     exp_id = global_ovr.pop("exp_id", pathlib.Path(args.exp_yaml).stem)
 
     print(
-        f"[LAUNCH] scenario={scenario} mode={mode} runs={len(param_sets)} "
-        f"exp_id='{exp_id}'",
+        f"[LAUNCH] scenario={scenario} sweep={bool(sweep_dict)} "
+        f"mode={sweep_mode} runs={len(param_sets)} exp_id='{exp_id}'",
         flush=True,
     )
 

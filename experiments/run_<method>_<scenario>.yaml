@@ -10,11 +10,14 @@ imports:
   # (필수) 프로젝트 공통 기본값
   - configs/base.yaml
 
-  # (필수) ‘방법론’ 선택  ─ vib/dkd/crd/vanilla/fitnet/at/ce … 중 하나
-  - configs/method/<METHOD>.yaml        # 예) vib.yaml
+  # ‘방법론’ YAML은 import 하지 말고 아래 method 키로 지정
 
   # (필수) ‘시나리오’ 선택  ─ standard or continual
   - configs/scenario/<SCENARIO>.yaml    # 예) continual.yaml
+
+# ---------------------------------------------------------------------
+# 방법론 선택 (빈 칸에 vib / dkd / … 기입)
+method: <METHOD>
 
 # ────────────────────────────── ② 메타 정보(선택) ────────────────────────────
 exp_id: <원하는_실험_이름>    # 결과 폴더·TensorBoard 런 이름. 공백·한글 OK.
