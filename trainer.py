@@ -458,9 +458,13 @@ def student_vib_update(
             # ─ Latent & Angle Loss 병행 ─
             mu_phi_det = mu_phi.detach()
             sigma2_phi = torch.exp(log_var_phi).detach()
-            eps = cfg.get("cw_mse_eps", 1e-6)        # YAML·CLI → str 로 넘어올 수도 있음
-            if isinstance(eps, str):
-                eps = float(eps)
+            eps_cfg = cfg.get("cw_mse_eps", 1e-6)        # YAML·CLI → str 로 넘어올 수도 있음
+            try:
+                eps = float(eps_cfg)
+            except (TypeError, ValueError) as e:
+                raise TypeError(
+                    f"cfg['cw_mse_eps'] should be a float, got {eps_cfg!r}"
+                ) from e
 
             precision  = 1.0 / (sigma2_phi + eps)
             latent_mse = (precision * (z_s - mu_phi_det).pow(2)).sum(1).mean()
