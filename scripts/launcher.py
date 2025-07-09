@@ -11,6 +11,11 @@ import argparse, itertools, os, pathlib, subprocess, sys, tempfile, yaml, time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]  # repo root
 
+# ------------------------------------------------------------------
+# 모든 결과 폴더에 고유 식별자 부여: SLURM_JOB_ID 없으면 YYMMDDhhmmss
+# ------------------------------------------------------------------
+JOB_ID = os.getenv("SLURM_JOB_ID") or time.strftime("%y%m%d%H%M%S")
+
 # ---------------------------------------------------------------------
 # crash helper
 # ---------------------------------------------------------------------
@@ -97,9 +102,11 @@ def main() -> None:
     global_ovr = {k: v for k, v in exp_cfg.items() if k not in {"imports", "sweep"}}
     exp_id = global_ovr.pop("exp_id", pathlib.Path(args.exp_yaml).stem)
 
+    base_results = ROOT / "outputs" / "results" / f"{exp_id}_{JOB_ID}"
+    base_results.mkdir(parents=True, exist_ok=True)
     print(
         f"[LAUNCH] scenario={scenario} sweep={bool(sweep_dict)} "
-        f"mode={sweep_mode} runs={len(param_sets)} exp_id='{exp_id}'",
+        f"mode={sweep_mode} runs={len(param_sets)} exp_id='{exp_id}' job={JOB_ID}",
         flush=True,
     )
 
@@ -116,7 +123,7 @@ def main() -> None:
         tmp_yaml.close()
 
         tag = "_".join(f"{k}{v}" for k, v in param.items()) or "single"
-        results_dir = ROOT / "outputs" / "results" / exp_id / tag
+        results_dir = base_results / tag  # <exp>_<JOB_ID>/<tag>
         results_dir.mkdir(parents=True, exist_ok=True)
 
         cfg_chain = ",".join(imports + [tmp_yaml.name])
