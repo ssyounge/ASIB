@@ -9,6 +9,8 @@ imports:
   - configs/scenario/standard.yaml      # ★ 규칙: sweep 은 standard 전용
 
 exp_id: <주제_설명용_ID>                # 예) vib_hparam_search
+# sweep_mode: full | single  – 생략하면 'full'
+sweep_mode: full
 tags:
   - sweep
   - grid
