@@ -4,6 +4,7 @@ import argparse
 import os
 import sys
 import yaml, os                                   # glob 불필요
+from pathlib import Path
 import torch
 from torch.optim import Adam, AdamW
 import math
@@ -29,6 +30,26 @@ from trainer import teacher_vib_update, student_vib_update, simple_finetune
 from utils.freeze import freeze_all
 from utils.logger import ExperimentLogger
 from utils.print_cfg import print_hparams
+
+
+def get_method_cfg(method: str, train_mode: str):
+    """Load method-specific YAML with fallback for legacy paths."""
+    cand1 = Path(f"configs/method/{method}/{train_mode}.yaml")
+    cand2 = Path(f"configs/method/{method}.yaml")
+
+    if cand1.exists():
+        with cand1.open() as f:
+            return yaml.safe_load(f)
+    if cand2.exists():
+        if train_mode == "continual" and method != "vib":
+            raise RuntimeError(
+                "train_mode 'continual' is currently only supported for method 'vib'."
+            )
+        with cand2.open() as f:
+            return yaml.safe_load(f)
+    raise FileNotFoundError(
+        f"No yaml found for method={method}, train_mode={train_mode}"
+    )
 
 
 def main() -> None:
@@ -75,8 +96,7 @@ def main() -> None:
             "(control.yaml 에 method: ..., 또는 --method 인수)"
         )
     method = method.lower()
-    with open(f"configs/method/{method}.yaml", 'r') as f:
-        cfg.update(yaml.safe_load(f) or {})
+    cfg.update(get_method_cfg(method, scenario) or {})
     cfg['method'] = method
 
     # --------------------------------------------------------------
