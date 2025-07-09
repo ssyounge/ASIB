@@ -1,5 +1,7 @@
 """Minimal continual-learning loop that re-uses KD modules."""
 # trainer_continual.py
++# NOTE: student_vib_update() 내부에 ‘adaptive clipping (top‑1 %)’이 구현돼 있으므로
++#       trainer_continual.py에서는 별도 수정이 필요 없습니다.
 from __future__ import annotations
 
 import os
