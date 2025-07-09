@@ -42,6 +42,7 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
     acc_seen_hist = []
     writer = SummaryWriter(log_dir="runs/kd_monitor")
     wandb_run = wandb.init(project="kd_monitor", name="run_001")
+    global_step_counter = 0
 
     t1 = create_resnet152(pretrained=True, small_input=True).to(device)
     t2 = create_efficientnet_b2(pretrained=True, small_input=True).to(device)
@@ -96,7 +97,7 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 lr=float(cfg.get("teacher_lr", 1e-3)),
                 weight_decay=float(cfg.get("teacher_weight_decay", 0.0)),
             )
-            teacher_vib_update(
+            global_step_counter = teacher_vib_update(
                 t1,
                 t2,
                 vib_mbm,
@@ -107,6 +108,7 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 logger=logger,
                 writer=writer,
                 wandb_run=wandb_run,
+                global_step_offset=global_step_counter,
             )
 
         from utils.model_factory import create_student_by_name
@@ -183,7 +185,7 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 lr=float(cfg.get("student_lr", 5e-4)),
                 weight_decay=float(cfg.get("student_weight_decay", 5e-4)),
             )
-            student_vib_update(
+            global_step_counter = student_vib_update(
                 t1,
                 t2,
                 student,
@@ -197,6 +199,7 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 prev_student=prev_student,
                 writer=writer,
                 wandb_run=wandb_run,
+                global_step_offset=global_step_counter,
             )
         else:
             if kd_method == "dkd":

@@ -151,6 +151,8 @@ def teacher_vib_update(
     logger=None,
     writer=None,
     wandb_run=None,
+    *,
+    global_step_offset: int = 0,
 ):
     """Train the VIB module using frozen teachers.
 
@@ -171,6 +173,7 @@ def teacher_vib_update(
     vib_mbm.train()
     teacher1.eval()
     teacher2.eval()
+    global_step = global_step_offset
     for ep in range(cfg.get("teacher_iters", 1)):
         running_loss = 0.0
         running_kl = 0.0
@@ -210,7 +213,7 @@ def teacher_vib_update(
                 kl = kl_z.mean() if kl_z.dim() > 0 else kl_z
                 loss = F.cross_entropy(logit_syn, y) + kl
             optimizer.zero_grad()
-            global_step = ep * len(loader) + batch_idx
+            global_step = global_step_offset + ep * len(loader) + batch_idx
             if scaler is not None:
                 scaler.scale(loss).backward()
                 scaler.unscale_(optimizer)
@@ -303,6 +306,8 @@ def teacher_vib_update(
             vib_mbm.train()
             print(f"[DEBUG] synergy_acc_after_ep1: {dbg_acc:.2f}%")
 
+    return global_step + 1
+
 
 def student_vib_update(
     teacher1,
@@ -320,6 +325,8 @@ def student_vib_update(
     prev_student=None,
     writer=None,
     wandb_run=None,
+    *,
+    global_step_offset: int = 0,
 ):
     """Update the student network to mimic the VIB representation.
 
@@ -373,6 +380,7 @@ def student_vib_update(
     student_model.train()
     ema_model = None
     total_epochs = cfg.get("student_iters", 1)
+    global_step = global_step_offset
     if scheduler is None:
         scheduler = cosine_lr_scheduler(
             optimizer,
@@ -450,12 +458,16 @@ def student_vib_update(
                 feat_s = student_model.get_feat()       # 필요 시 구현
             z_s = student_proj(feat_s)
 
-            # ─ KD 스케줄 (progress ∈ [0,1]) ────────────────────
+            # ────────────────────────────────────────────────────
+            # ①  step 계산
+            local_step  = ep * len(loader) + batch_idx
+            global_step = global_step_offset + local_step
+
+            # ②  KD‑스케줄 (progress ∈ [0,1])
             if gran == "epoch":
                 raw_prog = ep / max(total_epochs - 1, 1)
-            else:  # "step"
-                global_step = ep * len(loader) + batch_idx
-                raw_prog = global_step / max(total_steps - 1, 1)
+            else:                      # "step"
+                raw_prog = local_step / max(total_steps - 1, 1)
 
             # warm‑up 구간 제외 후, p‑power 스케일 적용
             prog = max(0.0, raw_prog - warmup) / max(1e-6, 1.0 - warmup)
@@ -578,8 +590,7 @@ def student_vib_update(
 
             if batch_idx == 0 and ep % 10 == 0:
                 print(f"[DEBUG] γ={gamma_feat:.3f}  feat_loss={feat_loss.item():.4f}")
-            optimizer.zero_grad()
-            global_step = ep * len(loader) + batch_idx
+            optimizer.zero_grad()      # (전역 step은 이미 계산되어 있음)
             params = list(student_model.parameters()) + list(student_proj.parameters())
             if scaler is not None:
                 scaler.scale(loss).backward()
@@ -729,5 +740,7 @@ def student_vib_update(
         print(f"Final student EMA accuracy: {final_ema_acc:.2f}%")
 
     hook_s.close(); hook_t1.close(); hook_t2.close()
+
+    return global_step + 1
 
 
