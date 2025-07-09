@@ -1,0 +1,8 @@
+imports:
+  - configs/base.yaml
+  - configs/method/vib.yaml
+  - configs/scenario/standard.yaml
+
+exp_id: seed_repro
+sweep:
+  seed: [0, 1, 2]

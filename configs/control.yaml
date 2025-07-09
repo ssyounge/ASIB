@@ -1,4 +1,0 @@
-# configs/control.yaml
-# 바꾸고 싶은 값은 여기서만 수정하세요
-method: vib         # vib | dkd | crd | fitnet | vanilla | at | ce
-train_mode: standard   # standard | continual
