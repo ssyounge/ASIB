@@ -1,6 +1,6 @@
 #!/bin/bash
-# scripts/run_ibkd.sh
-#SBATCH --job-name=ibkd_cifar
+# scripts/run_launcher.sh
+#SBATCH --job-name=launcher_job
 #SBATCH --partition=base_suma_rtx3090
 #SBATCH --gres=gpu:1
 #SBATCH --time=04:00:00
@@ -72,11 +72,7 @@ shift 0   # 인수 필요 없음; 있으면 그대로 Python 쪽으로
 #    main.py 가 method / train_mode 값을 읽어
 #    자동으로 configs/method/***.yaml, configs/scenario/***.yaml 을 merge 합니다.
 
-srun --chdir="$ROOT_DIR" \
-     python "$ROOT_DIR/main.py" \
-     --cfg "$ROOT_DIR/configs/base.yaml,$ROOT_DIR/configs/control.yaml" \
-     --results_dir "$OUT_DIR" \
-     "$@"
+srun --chdir="$ROOT_DIR" python scripts/launcher.py "$@"
 
 # ➜ 주의: 다른 인자(실험 id, 추가 override 등)는
 #     ./run_ibkd.sh --batch_size 256 처럼 이어서 넘기면 됩니다.
