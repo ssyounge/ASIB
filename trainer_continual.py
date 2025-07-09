@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import torch
 
-from data.cifar100_cl import get_cifar100_cl_loaders
+from data.cifar100_cl import get_cifar100_cl_loaders, _task_classes
 from trainer import teacher_vib_update, student_vib_update, simple_finetune
 from models.teachers.teacher_resnet import create_resnet152
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
@@ -20,10 +20,7 @@ def _remap_for_task(logits: torch.Tensor,
     device = logits.device
     cls_tensor = torch.tensor(classes, dtype=torch.long, device=device)
     logits_t = logits.index_select(dim=1, index=cls_tensor)
-    global2local = {c: i for i, c in enumerate(classes)}
-    tgt_local = torch.empty_like(target)
-    for g, l in global2local.items():
-        tgt_local[target == g] = l
+    tgt_local = torch.searchsorted(cls_tensor, target, right=False)
     return logits_t, tgt_local
 
 
@@ -78,15 +75,14 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
             persistent_train=cfg.get("persistent_workers", False),
         )
 
-        train_set = train_loader.dataset
-        if isinstance(train_set, torch.utils.data.Subset):
-            indices = getattr(train_set, 'indices', [])
-            base = getattr(train_set, 'dataset', train_set)
-            targets = [base.targets[i] for i in indices]
-        else:
-            targets = getattr(train_set, 'targets', [])
-        task_classes = sorted({int(t) for t in targets})
-        cfg['task_meta'] = {'classes': task_classes, 'id': task}
+        cur_cls = _task_classes(task, n_tasks)
+        prev_cls = sum((_task_classes(t, n_tasks) for t in range(task)), [])
+        cfg['task_meta'] = {
+            'classes': cur_cls,
+            'cur_class_ids': cur_cls,
+            'prev_class_ids': prev_cls,
+            'id': task,
+        }
 
         if task == 0 and vib_mbm is not None:
             opt_t = torch.optim.Adam(
@@ -107,10 +103,10 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
 
         from utils.model_factory import create_student_by_name
 
-        new_num_cls = (task + 1) * (100 // n_tasks)
+        NUM_ALL = cfg.get("num_classes", 100)
         student = create_student_by_name(
             cfg.get("student_type", "convnext_tiny"),
-            num_classes=new_num_cls,
+            num_classes=NUM_ALL,
             pretrained=True,
             small_input=True,
             cfg=cfg,
@@ -132,7 +128,7 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
             from utils.model_factory import create_student_by_name
             prev_student = create_student_by_name(
                 cfg.get("student_type", "convnext_tiny"),
-                num_classes=new_num_cls - (100 // n_tasks),
+                num_classes=NUM_ALL,
                 pretrained=False,
                 small_input=True,
                 cfg=cfg,
