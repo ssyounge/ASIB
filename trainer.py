@@ -605,7 +605,7 @@ def student_vib_update(
                 + latent_angle_weight * latent_angle
             )
 
-            scale_mode = cfg.get("latent_norm", "none")  # yaml에서 설정
+            scale_mode = cfg.get("latent_norm", "dim")   # ← default = "dim"
             if scale_mode == "dim":  # 1 / z_dim
                 latent = latent_raw / z_s.size(1)
             elif scale_mode == "sqrt":  # 1 / √z_dim
