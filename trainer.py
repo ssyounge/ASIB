@@ -45,8 +45,14 @@ def simple_finetune(
 
     model.train()
     torch.set_grad_enabled(True)
+    params = [p for p in model.parameters() if p.requires_grad]
+    if len(params) == 0:
+        for p in model.parameters():
+            p.requires_grad = True
+        params = list(model.parameters())
+
     optimizer = torch.optim.AdamW(
-        filter(lambda p: p.requires_grad, model.parameters()),
+        params,
         lr=float(lr),
         weight_decay=float(weight_decay),
     )
@@ -510,6 +516,13 @@ def student_vib_update(
                 cls_tensor = torch.tensor(task_cls, dtype=torch.long, device=logit_s.device)
                 logit_kd_s = logit_s.index_select(1, cls_tensor)
                 logit_kd_t = logit_t.index_select(1, cls_tensor)
+
+                # --- Ground-truth label remap to task-local index ---
+                if do_mix:
+                    y_a = torch.searchsorted(cls_tensor, y_a, right=False)
+                    y_b = torch.searchsorted(cls_tensor, y_b, right=False)
+                else:
+                    y   = torch.searchsorted(cls_tensor,  y,  right=False)
             if do_mix:
                 ce = mixup_criterion(F.cross_entropy, logit_kd_s, y_a, y_b, lam)
             else:
