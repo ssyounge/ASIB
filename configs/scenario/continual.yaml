@@ -1,8 +1,6 @@
 # configs/scenario/continual.yaml
 
 train_mode   : continual
-n_tasks      : 10
-buffer_size  : 100
 teacher_iters: 3
 student_iters: 10
 randaug_N    : 1
