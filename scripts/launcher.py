@@ -44,6 +44,9 @@ def main() -> None:
                     help="Comma-separated GPU IDs (default 1 GPU)")
     ap.add_argument("--max_parallel", type=int, default=1,
                     help="Maximum parallel processes")
+    # (선택) CLI 로도 강제할 수 있게 --mode 추가
+    ap.add_argument("--mode", choices=["full", "single"], default=None,
+                    help="Override sweep mode in YAML")
     ap.add_argument("--extra", nargs=argparse.REMAINDER,
                     help="Additional CLI args forwarded to main.py")
     args = ap.parse_args()
@@ -60,6 +63,14 @@ def main() -> None:
 
     sweep_dict: dict[str, list] | None = exp_cfg.get("sweep")
 
+    # ──────────────────────────────────────────────────────────────
+    # 1) sweep_mode 결정 –  CLI(--mode) 가 YAML(sweep_mode) 보다 우선
+    # ──────────────────────────────────────────────────────────────
+    yaml_mode = (exp_cfg.get("sweep_mode") or "full").lower()
+    if yaml_mode not in ("full", "single"):
+        _abort("sweep_mode must be 'full' or 'single'")
+    mode = args.mode or yaml_mode     # 최종 모드
+
     # policy: sweep allowed only in standard scenario
     if sweep_dict and scenario != "standard":
         _abort(
@@ -71,8 +82,13 @@ def main() -> None:
     param_sets: list[dict[str, str | int | float]] = []
     if sweep_dict:
         keys, vals = zip(*sweep_dict.items())
-        for tup in itertools.product(*vals):
-            param_sets.append(dict(zip(keys, tup)))
+        if mode == "full":                          # 모든 조합
+            for tup in itertools.product(*vals):
+                param_sets.append(dict(zip(keys, tup)))
+        else:                                       # single – 변수 하나씩만
+            for k, v_list in sweep_dict.items():
+                for v in v_list:
+                    param_sets.append({k: v})
     else:
         param_sets.append({})  # single run
 
@@ -81,7 +97,8 @@ def main() -> None:
     exp_id = global_ovr.pop("exp_id", pathlib.Path(args.exp_yaml).stem)
 
     print(
-        f"[LAUNCH] scenario={scenario} runs={len(param_sets)} exp_id='{exp_id}'",
+        f"[LAUNCH] scenario={scenario} mode={mode} runs={len(param_sets)} "
+        f"exp_id='{exp_id}'",
         flush=True,
     )
 
