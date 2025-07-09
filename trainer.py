@@ -458,7 +458,11 @@ def student_vib_update(
             # ─ Latent & Angle Loss 병행 ─
             mu_phi_det = mu_phi.detach()
             sigma2_phi = torch.exp(log_var_phi).detach()
-            precision  = 1.0 / (sigma2_phi + cfg.get("cw_mse_eps", 1e-6))
+            eps = cfg.get("cw_mse_eps", 1e-6)        # YAML·CLI → str 로 넘어올 수도 있음
+            if isinstance(eps, str):
+                eps = float(eps)
+
+            precision  = 1.0 / (sigma2_phi + eps)
             latent_mse = (precision * (z_s - mu_phi_det).pow(2)).sum(1).mean()
             latent_angle = 1 - F.cosine_similarity(z_s, z_t.detach(), dim=1).mean()
             latent = latent_mse_weight * latent_mse + latent_angle_weight * latent_angle
