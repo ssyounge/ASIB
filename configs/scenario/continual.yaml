@@ -19,3 +19,7 @@ prev_kd_temperature: 4.0
 
 cb_finetune_epochs : 2
 cb_finetune_lr     : 1e-4
+
+# mixup / cutmix 는 클래스 섞임을 유발하므로 continual 단계에선 비활성화
+mixup_alpha        : 0.0
+cutmix_alpha_distill: 0.0

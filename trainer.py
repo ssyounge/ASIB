@@ -351,12 +351,10 @@ def student_vib_update(
             task_cls = None
             y_local = y
             if cfg.get("train_mode") == "continual" and cfg.get("task_meta"):
-                task_cls = cfg["task_meta"].get("classes")
+                task_cls = cfg["task_meta"].get("cur_class_ids")
                 if task_cls:
-                    mapping = {g: i for i, g in enumerate(task_cls)}
-                    y_local = torch.empty_like(y)
-                    for g, l in mapping.items():
-                        y_local[y == g] = l
+                    cls_tensor = torch.tensor(task_cls, device=y.device)
+                    y_local = torch.searchsorted(cls_tensor, y, right=False)
 
             if do_mix:
                 lam_alpha = mix_alpha if mix_alpha > 0 else cutmix_alpha
@@ -409,19 +407,14 @@ def student_vib_update(
             # ─ Losses ──────────────────────────────────────────
             logit_kd_s = logit_s
             logit_kd_t = logit_t
-            target_ce = y_local if do_mix else y
             if task_cls is not None:
                 cls_tensor = torch.tensor(task_cls, dtype=torch.long, device=logit_s.device)
                 logit_kd_s = logit_s.index_select(1, cls_tensor)
                 logit_kd_t = logit_t.index_select(1, cls_tensor)
-                if not do_mix:
-                    _, target_ce = _remap_for_task(logit_s, y, task_cls)
             if do_mix:
                 ce = mixup_criterion(F.cross_entropy, logit_kd_s, y_a, y_b, lam)
             else:
-                ce = F.cross_entropy(logit_kd_s, target_ce)
-            assert target_ce.max().item() < logit_kd_s.size(1), \
-                "target out of range – label remap 누락!"
+                ce = F.cross_entropy(logit_kd_s, y_local)
 
             kd_prev = torch.tensor(0.0, device=device)
             # ──────── Self‑KD (previous task student) ─────────────
@@ -441,12 +434,18 @@ def student_vib_update(
                         logits_prev = out_prev
 
                     logits_prev = logits_prev.detach()
-                    if task_cls is not None:
-                        logits_prev = logits_prev.index_select(1, cls_tensor)
+                    prev_cls = cfg.get("task_meta", {}).get("prev_class_ids")
+                    if prev_cls:
+                        prev_tensor = torch.tensor(prev_cls, dtype=torch.long, device=logit_s.device)
+                        logits_prev = logits_prev.index_select(1, prev_tensor)
+                        student_prev = logit_s.index_select(1, prev_tensor)
+                    else:
+                        prev_tensor = None
+                        student_prev = logit_s
 
                 T_prev  = cfg.get("prev_kd_temperature", T)
                 kd_prev = F.kl_div(
-                    F.log_softmax(logit_kd_s / T_prev, dim=1),
+                    F.log_softmax(student_prev / T_prev, dim=1),
                     F.softmax(logits_prev / T_prev, dim=1),
                     reduction="batchmean",
                 ) * (T_prev * T_prev)
