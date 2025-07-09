@@ -136,6 +136,15 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
             prev_student.load_state_dict(torch.load(prev_ckpt, map_location="cpu"))
             prev_student.eval()
 
+            # ─ student / prev-student 로드 직후 ─
+            # Task 0, 1  : backbone 전체 학습
+            # Task ≥ 2   : classifier(= head)만 학습, 나머지는 동결
+            for name, param in student.named_parameters():
+                if name.startswith(("head.", "classifier.")):
+                    param.requires_grad_(True)           # 항상 열어 둔다
+                else:
+                    param.requires_grad_(task < 2)       # 0·1번째 Task 만 학습
+
             if logger:
                 skipped = [k for k in prev.keys() if k not in ok]
                 logger.info(
