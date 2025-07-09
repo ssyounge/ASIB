@@ -4,12 +4,26 @@
 import os
 import torch
 
-from data.cifar100_cl import get_cifar100_cl_loaders, _task_classes
+from data.cifar100_cl import get_cifar100_cl_loaders
 from trainer import teacher_vib_update, student_vib_update, simple_finetune
 from models.teachers.teacher_resnet import create_resnet152
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from utils.freeze import freeze_all
 from utils.eval import evaluate_acc
+
+
+def _remap_for_task(logits: torch.Tensor,
+                    target: torch.Tensor,
+                    classes: list[int]) -> tuple[torch.Tensor, torch.Tensor]:
+    """Slice logits/labels to the current task classes."""
+    device = logits.device
+    cls_tensor = torch.tensor(classes, dtype=torch.long, device=device)
+    logits_t = logits.index_select(dim=1, index=cls_tensor)
+    global2local = {c: i for i, c in enumerate(classes)}
+    tgt_local = torch.empty_like(target)
+    for g, l in global2local.items():
+        tgt_local[target == g] = l
+    return logits_t, tgt_local
 
 
 def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
@@ -62,6 +76,16 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
             randaug_M=cfg.get("randaug_M", 0),
             persistent_train=cfg.get("persistent_workers", False),
         )
+
+        train_set = train_loader.dataset
+        if isinstance(train_set, torch.utils.data.Subset):
+            indices = getattr(train_set, 'indices', [])
+            base = getattr(train_set, 'dataset', train_set)
+            targets = [base.targets[i] for i in indices]
+        else:
+            targets = getattr(train_set, 'targets', [])
+        task_classes = sorted({int(t) for t in targets})
+        cfg['task_meta'] = {'classes': task_classes, 'id': task}
 
         if task == 0 and vib_mbm is not None:
             opt_t = torch.optim.Adam(
@@ -138,8 +162,6 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 lr=float(cfg.get("student_lr", 5e-4)),
                 weight_decay=float(cfg.get("student_weight_decay", 5e-4)),
             )
-            cur_classes = _task_classes(task, n_tasks)
-
             student_vib_update(
                 t1,
                 t2,
@@ -151,7 +173,6 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 opt_s,
                 test_loader=test_cur,
                 logger=logger,
-                cur_classes=cur_classes,
                 prev_student=prev_student,
             )
         else:
