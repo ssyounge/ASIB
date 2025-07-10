@@ -355,8 +355,15 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
         torch.save(student.state_dict(), f"{ckpt_dir}/task{task}_student.pth")
 
         # ───────── Task 종료 요약 ─────────
-        acc_cur  = evaluate_acc(student, test_cur,  device=device)  # 현재 task
-        acc_seen = evaluate_acc(student, test_seen, device=device)  # 전체 class
+        cur_cls  = _task_classes(task, n_tasks)
+        seen_cls = sum((_task_classes(t, n_tasks) for t in range(task + 1)), [])
+
+        acc_cur  = evaluate_acc(
+            student, test_cur, device=device, classes=cur_cls
+        )  # 현재 task
+        acc_seen = evaluate_acc(
+            student, test_seen, device=device, classes=seen_cls
+        )  # 전체 class
 
         acc_seen_hist.append(acc_seen)
 
