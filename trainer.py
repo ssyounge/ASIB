@@ -575,7 +575,10 @@ def student_vib_update(
 
             if rep_x is not None and prev_student is not None:
                 with torch.no_grad():
-                    logits_prev_full = prev_student(rep_x)[-1]
+                    prev_out = prev_student(rep_x)
+                    logits_prev_full = (
+                        prev_out[-1] if isinstance(prev_out, tuple) else prev_out
+                    )
                 kd_rep = F.kl_div(
                     F.log_softmax(logit_kd_s[:rep_x.size(0)] / T, dim=1),
                     F.softmax(logits_prev_full / T, dim=1),

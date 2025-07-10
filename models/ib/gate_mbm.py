@@ -49,9 +49,7 @@ class GateMBM(nn.Module):
         fused = self.dropout(fused)
         v = self.pool(fused).flatten(1)
         mu = self.mu(v)
-        min_c = getattr(self, "cmin", -6.0)
-        max_c = getattr(self, "cmax", 2.0)
-        log = self.log(v).clamp(min_c, max_c)
+        log = self.log(v).clamp(self.cmin, self.cmax)
         std = torch.exp(0.5 * log)
         z = mu + torch.randn_like(mu) * std
         # KL per-sample  → mean

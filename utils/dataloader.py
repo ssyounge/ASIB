@@ -32,4 +32,5 @@ class BalancedReplaySampler(torch.utils.data.Sampler):
             cur_ptr += self.cc
 
     def __len__(self):
-        return len(self.cur) // self.cc * self.bs
+        # 전체 샘플 수 (replay + current)
+        return len(self.cur) + len(self.rep)
