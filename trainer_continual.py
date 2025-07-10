@@ -60,11 +60,13 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
         vib_mbm = GateMBM(
             t1.get_feat_dim(),                # teacher-1 feat dim
             t2.get_feat_dim(),                # teacher-2 feat dim
-            cfg["z_dim"],                     # latent z
             num_cls_total,                    # 100-way (확정)
+            cfg["z_dim"],                     # latent z
             beta=cfg.get("beta_bottleneck", 1e-3),
-            clamp_min=cfg.get("latent_clamp_min", -6),
-            clamp_max=cfg.get("latent_clamp_max", 2),
+            clamp=(
+                cfg.get("latent_clamp_min", -6),
+                cfg.get("latent_clamp_max", 2),
+            ),
         ).to(device)
     else:
         vib_mbm = None

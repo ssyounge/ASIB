@@ -288,12 +288,14 @@ def main() -> None:
         vib_mbm = GateMBM(
             in1,
             in2,
-            z_dim,
             cfg.get('num_classes', 100),
+            z_dim,
             beta=beta,
+            clamp=(
+                cfg.get('latent_clamp_min', -6),
+                cfg.get('latent_clamp_max', 2),
+            ),
             dropout_p=cfg.get('gate_dropout', 0.1),
-            clamp_min=cfg.get('latent_clamp_min', -6),
-            clamp_max=cfg.get('latent_clamp_max', 2),
         ).to(device)
     else:
         vib_mbm = None
