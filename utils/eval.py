@@ -34,9 +34,12 @@ def evaluate_acc(
         # --------------------------------------------------------------
         # Continual-learning: slice logits/labels for a subset of classes
         # --------------------------------------------------------------
-        if classes is not None:
-            from trainer_continual import _remap_for_task  # local import
-            logits, y = _remap_for_task(logits, y, classes)
+        if classes is not None:                     # ← 클래스‑하위 집합 평가
+            cls_tensor = torch.tensor(
+                classes, dtype=torch.long, device=logits.device
+            )
+            logits = logits.index_select(1, cls_tensor)
+            y = torch.searchsorted(cls_tensor, y, right=False)
 
         preds = logits.argmax(dim=1)
         correct += (preds == y).sum().item()

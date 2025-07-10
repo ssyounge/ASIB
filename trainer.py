@@ -762,7 +762,8 @@ def student_vib_update(
             hook_s.clear(); hook_t1.clear(); hook_t2.clear()
             running_loss += loss.item() * x.size(0)
             n_samples    += x.size(0)
-            correct += (logit_s.argmax(1) == y).sum().item()
+            # ⬇︎ 현재 task 기준으로 재맵핑된 y_local 사용
+            correct += (logit_s.argmax(1) == y_local).sum().item()
             count += x.size(0)
 
             # ── DEBUG: 5 epoch 간격, 첫 버치만 ───────────────
