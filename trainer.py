@@ -575,10 +575,17 @@ def student_vib_update(
 
             if rep_x is not None and prev_student is not None:
                 with torch.no_grad():
-                    prev_out = prev_student(rep_x)
-                    logits_prev_full = (
-                        prev_out[-1] if isinstance(prev_out, tuple) else prev_out
-                    )
+                    out_prev = prev_student(rep_x)
+                    # prev_student 출력 -> logits 텐서만 추출
+                    if isinstance(out_prev, tuple):
+                        if len(out_prev) == 3:      # (feat_dict, logits, aux)
+                            _, logits_prev_full, _ = out_prev
+                        elif len(out_prev) == 2:    # (feat, logits)
+                            _, logits_prev_full = out_prev
+                        else:                       # (logits,) 단일‑tuple
+                            logits_prev_full = out_prev[-1]
+                    else:                           # tensor
+                        logits_prev_full = out_prev
                 kd_rep = F.kl_div(
                     F.log_softmax(logit_kd_s[:rep_x.size(0)] / T, dim=1),
                     F.softmax(logits_prev_full / T, dim=1),
