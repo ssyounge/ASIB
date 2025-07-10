@@ -29,7 +29,8 @@ notes: |
 n_tasks        : 10      # CIFAR‑100 을 10‑task 로 분할 (tasks/loader 내부 규칙)
 batch_size     : 128     # GPU 메모리에 맞춰 조정
 
-buffer_size          : 2000
+buffer_size          : 500
+replay_ratio       : 0.3
 cutmix_alpha_distill : 0.3
 mixup_alpha          : 0.2
 
