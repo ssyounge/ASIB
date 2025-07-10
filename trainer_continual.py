@@ -17,33 +17,50 @@ from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from utils.freeze import freeze_all
 from utils.eval import evaluate_acc
 import torch.nn as nn
+from types import ModuleType
+import inspect
 
 
 # ── student 모델 안에서 Linear classifier 를 찾아 반환 ──
-def _find_linear_head(model) -> tuple[nn.Linear, list[str]]:
-    """ConvNeXt / ResNet 래퍼 등에서 최종 nn.Linear head 를 찾아
-    (모듈객체, 모듈 경로) 를 돌려준다."""
-
+def _find_linear_head(model, *, n_classes: int | None = None) -> tuple[nn.Linear, list[str]]:
+    """
+    다양한 wrapper 에서 최종 nn.Linear head 를 찾는다.
+    1) 미리 정의한 path 후보 검사 → 2) 재귀 탐색 순으로 진행.
+    반환값: (모듈객체, ["parent", "child", ...] 경로)
+    """
     CANDIDATES = [
-        ["classifier"],             # torchvision ConvNeXt
-        ["head"],                   # timm ConvNeXt
-        ["fc"],                     # ResNet류
-        ["model", "classifier"],    # wrapper.model.classifier
-        ["model", "head"],          # wrapper.model.head
-        ["model", "fc"],            # wrapper.model.fc
+        ["classifier"], ["head"], ["fc"],
+        ["model", "classifier"], ["model", "head"], ["model", "fc"],
+        ["net", "classifier"],   ["net", "head"],   ["net", "fc"],
+        ["backbone", "classifier"], ["backbone", "head"], ["backbone", "fc"],
     ]
 
+    def _get_by_path(root, path):
+        m = root
+        for name in path:
+            if not hasattr(m, name):
+                return None
+            m = getattr(m, name)
+        return m
+
+    # ── 1) 후보 path 빠른 검사 ─────────────────────────
     for path in CANDIDATES:
-        m = model
-        ok = True
-        for p in path:
-            if hasattr(m, p):
-                m = getattr(m, p)
-            else:
-                ok = False
-                break
-        if ok and isinstance(m, nn.Linear):
+        m = _get_by_path(model, path)
+        if isinstance(m, nn.Linear):
             return m, path
+
+    # ── 2) 전체 재귀 탐색 (마지막 Linear 선택) ────────
+    last_linear, last_name = None, None
+    for name, mod in model.named_modules():
+        if isinstance(mod, nn.Linear):
+            if n_classes is None or mod.out_features == n_classes:
+                last_linear, last_name = mod, name
+            else:
+                # 기록해 두고, 일단 계속 순회 – out_features 기준으로 나중에 최대값 사용
+                last_linear, last_name = mod, name
+
+    if last_linear is not None:
+        return last_linear, last_name.split(".")
 
     raise AttributeError("Linear classifier(head) 를 찾지 못했습니다.")
 
@@ -63,7 +80,7 @@ def _expand_head(model, n_new):
     """모델의 최종 nn.Linear head 를 in-place 로 확장."""
     import torch.nn as nn
 
-    old_head, path = _find_linear_head(model)
+    old_head, path = _find_linear_head(model, n_classes=None)
     in_f = old_head.in_features
     out_f_old = old_head.out_features
 
@@ -200,18 +217,23 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
             small_input=True,
             cfg=cfg,
         ).to(device)
+        head, path = _find_linear_head(student, n_classes=NUM_ALL)
+        if logger:
+            logger.info(
+                f"[Task {task}] detected head path = {'.'.join(path)}  (out={head.out_features})"
+            )
 
         # ─── 이어 학습: 이전 task 가중치 로드 ───
         prev_ckpt = f"{ckpt_dir}/task{task-1}_student.pth"
         prev_student = None
         if task > 0 and os.path.isfile(prev_ckpt):
             n_new = 100 // n_tasks           # task 당 class 수 (=10)
-            head, _ = _find_linear_head(student)
+            head, _ = _find_linear_head(student, n_classes=NUM_ALL)
             if head.out_features < (task + 1) * n_new:
                 _expand_head(student, n_new)
 
             if logger:
-                head, _ = _find_linear_head(student)
+                head, _ = _find_linear_head(student, n_classes=NUM_ALL)
                 logger.info(f"[Task {task}] Head dim = {head.out_features}")
 
             student.load_state_dict(
