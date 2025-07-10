@@ -1,3 +1,5 @@
+# methods/ewc.py
+
 import torch, copy
 
 class EWC:
