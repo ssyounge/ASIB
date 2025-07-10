@@ -1,7 +1,10 @@
 # trainer.py
 
+from __future__ import annotations
+
 import os
 import copy
+from typing import Optional
 
 import torch
 import torch.nn.functional as F   # loss 함수(F.cross_entropy 등)용
@@ -13,6 +16,15 @@ from utils.misc import get_amp_components, mixup_data, mixup_criterion
 from utils.eval import evaluate_acc
 from utils.distill_loss import feat_mse_pair
 from modules.losses import compute_vib_loss
+
+
+def split_current_replay(batch, replay_ratio):
+    """Split concatenated (replay + current) batch returned by the sampler."""
+    x, y = batch
+    if replay_ratio == 0.0 or x.size(0) == 0:
+        return (x, y), (None, None)
+    rep_n = int(x.size(0) * replay_ratio)
+    return (x[rep_n:], y[rep_n:]), (x[:rep_n], y[:rep_n])
 
 
 def simple_finetune(
@@ -159,6 +171,7 @@ def teacher_vib_update(
     wandb_run=None,
     *,
     global_step_offset: int = 0,
+    ewc_bank: Optional[list] = None,
 ):
     """Train the VIB module using frozen teachers.
 
@@ -333,6 +346,7 @@ def student_vib_update(
     wandb_run=None,
     *,
     global_step_offset: int = 0,
+    ewc_bank: Optional[list] = None,
 ):
     """Update the student network to mimic the VIB representation.
 
@@ -348,6 +362,7 @@ def student_vib_update(
         cur_classes: (Deprecated) unused. Class slicing now determined by
             ``cfg['task_meta']['classes']`` when ``train_mode`` is ``continual``.
         prev_student: Frozen student from the previous task for self-KD.
+        ewc_bank: List of EWC objects used for regularization.
 
     Returns:
         None.
@@ -387,6 +402,9 @@ def student_vib_update(
     mix_alpha = cfg.get("mixup_alpha", 0.0)
     cutmix_alpha = cfg.get("cutmix_alpha_distill", 0.0)
     do_mix = (mix_alpha > 0) or (cutmix_alpha > 0)
+    ce_criterion = torch.nn.CrossEntropyLoss(
+        label_smoothing=cfg.get("label_smoothing", 0.0)
+    )
 
     vib_mbm.eval()
     student_model.train()
@@ -423,6 +441,19 @@ def student_vib_update(
     hook_t2 = FeatHook(teacher2.backbone, layer_ids)
 
     for ep in range(total_epochs):
+        if cfg.get("reg_decay", None):
+            if ep >= cfg["reg_decay"]["start_epoch"]:
+                p = (ep - cfg["reg_decay"]["start_epoch"]) / (
+                    cfg["reg_decay"]["end_epoch"] - cfg["reg_decay"]["start_epoch"] + 1e-5
+                )
+                decay = max(0.0, 1 - p)
+                cur_smooth = cfg.get("label_smoothing", 0.0) * decay
+                cur_mixup = cfg.get("mixup_alpha", 0.0) * decay
+                ce_criterion.label_smoothing = cur_smooth
+                mix_alpha = cur_mixup
+                do_mix = (mix_alpha > 0) or (cutmix_alpha > 0)
+                if hasattr(loader.dataset, "set_mixup_alpha"):
+                    loader.dataset.set_mixup_alpha(cur_mixup)
         running_loss = 0.0
         n_samples    = 0
         correct = 0
@@ -444,9 +475,20 @@ def student_vib_update(
                     cls_tensor = torch.tensor(task_cls, device=y.device)
                     y_local = torch.searchsorted(cls_tensor, y, right=False)
 
-            if do_mix:
+            (cur_pair, rep_pair) = split_current_replay((x, y_local), replay_ratio=cfg.get("replay_ratio", 0.0))
+            cur_x, cur_y = cur_pair
+            rep_x, rep_y = rep_pair
+
+            if do_mix and cur_x is not None:
                 lam_alpha = mix_alpha if mix_alpha > 0 else cutmix_alpha
-                x, y_a, y_b, lam = mixup_data(x, y_local, alpha=lam_alpha)
+                cur_x, y_a, y_b, lam = mixup_data(cur_x, cur_y, alpha=lam_alpha)
+
+            if rep_x is not None:
+                x = torch.cat([rep_x, cur_x], dim=0)
+                y_local = torch.cat([rep_y, cur_y], dim=0)
+            else:
+                x = cur_x
+                y_local = cur_y
             
             # ─ Teacher feature → synergy target ─────────────────
             with torch.no_grad():
@@ -469,6 +511,7 @@ def student_vib_update(
             else:  # 단일 tensor 리턴 모델
                 logit_s = s_out
                 feat_s = student_model.get_feat()       # 필요 시 구현
+            logit_full_s = logit_s.clone()  # (NEW) 100-way 백업
             z_s = student_proj(feat_s)
 
             # ────────────────────────────────────────────────────
@@ -523,10 +566,35 @@ def student_vib_update(
                     y_b = torch.searchsorted(cls_tensor, y_b, right=False)
                 else:
                     y   = torch.searchsorted(cls_tensor,  y,  right=False)
-            if do_mix:
-                ce = mixup_criterion(F.cross_entropy, logit_kd_s, y_a, y_b, lam)
+            n_cur = cur_x.size(0)
+            if do_mix and cur_x is not None:
+                ce_cur = mixup_criterion(
+                    ce_criterion, logit_kd_s[-n_cur:], y_a, y_b, lam
+                )
             else:
-                ce = F.cross_entropy(logit_kd_s, y_local)
+                ce_cur = ce_criterion(logit_kd_s[-n_cur:], cur_y)
+
+            if rep_x is not None and prev_student is not None:
+                with torch.no_grad():
+                    out_prev = prev_student(rep_x)
+                    # prev_student 출력 -> logits 텐서만 추출
+                    if isinstance(out_prev, tuple):
+                        if len(out_prev) == 3:      # (feat_dict, logits, aux)
+                            _, logits_prev_full, _ = out_prev
+                        elif len(out_prev) == 2:    # (feat, logits)
+                            _, logits_prev_full = out_prev
+                        else:                       # (logits,) 단일‑tuple
+                            logits_prev_full = out_prev[-1]
+                    else:                           # tensor
+                        logits_prev_full = out_prev
+                kd_rep = F.kl_div(
+                    F.log_softmax(logit_full_s[:rep_x.size(0)] / T, dim=1),
+                    F.softmax(logits_prev_full / T, dim=1),
+                    reduction="batchmean",
+                ) * (T ** 2)
+                ce = 0.5 * (ce_cur + kd_rep)
+            else:
+                ce = ce_cur
 
             kd_prev = torch.tensor(0.0, device=device)
             # ──────── Self‑KD (previous task student) ─────────────
@@ -596,7 +664,19 @@ def student_vib_update(
 
             latent_mse = (precision * (z_s - mu_phi_det).pow(2)).sum(1).mean()
             latent_angle = 1 - F.cosine_similarity(z_s, z_t.detach(), dim=1).mean()
-            latent = latent_mse_weight * latent_mse + latent_angle_weight * latent_angle
+            # ─ Latent-loss rescale (스케일 보정) ─────────────────
+            latent_raw = (
+                latent_mse_weight * latent_mse
+                + latent_angle_weight * latent_angle
+            )
+
+            scale_mode = cfg.get("latent_norm", "dim")   # ← default = "dim"
+            if scale_mode == "dim":  # 1 / z_dim
+                latent = latent_raw / z_s.size(1)
+            elif scale_mode == "sqrt":  # 1 / √z_dim
+                latent = latent_raw / (z_s.size(1) ** 0.5)
+            else:  # "none"
+                latent = latent_raw
             if logger is not None:
                 logger.update_metric("cw_mse", float(latent_mse), step=ep + 1)
 
@@ -620,6 +700,12 @@ def student_vib_update(
                 + latent_w*latent
                 + gamma_feat*feat_loss
             )
+
+            if cfg.get("use_ewc", False) and ewc_bank:
+                ewc_loss = 0.0
+                for ewc_obj in ewc_bank:
+                    ewc_loss += ewc_obj.penalty(student_model)
+                loss += cfg.get("ewc_lambda", 30.0) * ewc_loss
 
             if batch_idx == 0 and ep % 10 == 0:
                 print(f"[DEBUG] γ={gamma_feat:.3f}  feat_loss={feat_loss.item():.4f}")

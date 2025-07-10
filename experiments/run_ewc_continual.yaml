@@ -1,0 +1,48 @@
+# experiments/run_ewc_continual.yaml
+
+###############################################################################
+#  ❖  단일 실험 정의 :  **VIB‑KD + EWC + Continual CIFAR‑100**                #
+###############################################################################
+
+# ────────────────────────────── ① 공통 설정 불러오기 ──────────────────────────
+imports:
+  - configs/base.yaml                     # 프로젝트 기본값
+  - configs/scenario/continual.yaml       # 10‑task CIL 설정 (replay 포함)
+
+# ---------------------------------------------------------------------------
+# 방법론 선택
+method: vib                                # VIB‑KD (Gate‑MBM) + EWC 사용
+
+# ────────────────────────────── ② 메타 정보 ────────────────────────────────
+exp_id: vib_cil_ewc_r050                   # 출력 폴더·TensorBoard 런 이름
+tags:
+  - vib
+  - continual
+  - ewc
+notes: |
+  - EWC regularisation 추가 실험
+  - replay_ratio 0.5, buffer_size 100
+  - Grad‑clip / Latent clamp 활성 상태 유지
+
+# ────────────────────────────── ③ 파라미터 override ─────────────────────────
+# * base.yaml / continual.yaml 값을 필요한 부분만 덮어쓰기 *
+n_tasks            : 10        # 100‑class → 10‑task split (10 classes/task)
+buffer_size        : 100       # per‑task replay memory
+replay_ratio       : 0.5       # (replay : current) = 1 : 1
+student_iters      : 25        # 각 task 학습 epoch
+batch_size         : 128
+seed               : 42
+
+# ─ EWC 설정 ────────────────────────────────────────────────────────────────
+use_ewc            : true
+ewc_lambda         : 30.0      # λ · Σ_FIM ‖θ − θ*‖²
+ewc_samples        : 1024      # per‑task FIM 추정 샘플 수
+ewc_online         : false     # accumulate (True) vs. per‑task separate (False)
+ewc_decay          : 1.0       # online 모드일 때만 사용
+
+# ─ 기타 하이퍼파라미터 튜닝 ────────────────────────────────────────────────
+lr_warmup_epochs   : 5
+ema_decay          : 0.992
+cutmix_alpha_distill: 1.0
+latent_clamp_min   : -6
+latent_clamp_max   : 2

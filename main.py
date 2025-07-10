@@ -154,7 +154,7 @@ def main() -> None:
     method = cfg.get('method', 'vib').lower()
     mode   = cfg.get('train_mode', 'standard').lower()
     assert method in {
-        'vib', 'dkd', 'crd', 'vanilla', 'fitnet', 'at', 'ce'
+        'vib', 'dkd', 'crd', 'vanilla', 'fitnet', 'at', 'ce', 'none'
     }, f"unknown method: {method}"
     assert mode   in {'standard', 'continual'}, "unknown train_mode"
 
@@ -288,9 +288,13 @@ def main() -> None:
         vib_mbm = GateMBM(
             in1,
             in2,
-            z_dim,
             cfg.get('num_classes', 100),
+            z_dim,
             beta=beta,
+            clamp=(
+                cfg.get('latent_clamp_min', -6),
+                cfg.get('latent_clamp_max', 2),
+            ),
             dropout_p=cfg.get('gate_dropout', 0.1),
         ).to(device)
     else:

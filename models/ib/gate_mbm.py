@@ -1,5 +1,7 @@
 # models/ib/gate_mbm.py
 
+from __future__ import annotations
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -9,11 +11,21 @@ class GateMBM(nn.Module):
     *beta*  : KL 항에 곱해지는 가중치 (teacher_vib_update 등 외부에서 다시
               scale 하지 않아도 되도록 내부에서 적용)
     """
-    def __init__(self, c_in1: int, c_in2: int, z_dim: int = 512, n_cls: int = 100,
-                 beta: float = 1e-3, dropout_p: float = 0.1):
+    def __init__(
+        self,
+        c_in1: int,
+        c_in2: int,
+        n_cls: int = 100,
+        z_dim: int = 512,
+        beta: float = 1e-3,
+        *,
+        clamp: tuple[float, float] = (-6.0, 2.0),
+        dropout_p: float = 0.1,
+    ):
         super().__init__()
         # ensure scalar value to avoid list * Tensor errors
         self.beta = float(beta)
+        self.cmin, self.cmax = clamp
         c = max(c_in1, c_in2)                        # 정보 보존
         self.proj1 = nn.Conv2d(c_in1, c, 1)          # 업/다운 자동 해결
         self.proj2 = nn.Conv2d(c_in2, c, 1)
@@ -39,8 +51,9 @@ class GateMBM(nn.Module):
         fused = self.dropout(fused)
         v = self.pool(fused).flatten(1)
         mu = self.mu(v)
-        log = self.log(v)
-        z = mu + torch.randn_like(mu) * (0.5 * log).exp()
+        log = self.log(v).clamp(self.cmin, self.cmax)
+        std = torch.exp(0.5 * log)
+        z = mu + torch.randn_like(mu) * std
         # KL per-sample  → mean
         kl = -0.5 * (1 + log - mu.pow(2) - log.exp()).mean()
         kl_scaled = self.beta * kl               # <-- 가중치 적용
