@@ -21,7 +21,7 @@ teacher_dropout_p   : 0.3
 
 # ─ KD 스케줄 (α, T) ─
 kd_alpha_init : 0.2          # 초반 CE 80 : KD 20
-kd_alpha_final: 0.7         # 마지막에 KD 비율 ↑
+kd_alpha_final: 0.5         # 마지막에 KD 비율 ↑
 kd_T_init     : 5            # 너무 높은 T 는 early stage 발산 위험
 kd_T_final    : 2
 kd_warmup_frac: 0.01
