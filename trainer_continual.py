@@ -29,6 +29,23 @@ def _remap_for_task(logits: torch.Tensor,
     return logits_t, tgt_local
 
 
+def _expand_head(model, n_new):
+    """ConvNeXt classifier(Linear) 를 in-place 로 확장."""
+    import torch
+    import torch.nn as nn
+
+    old_head = model.classifier
+    in_f = old_head.in_features
+    out_f_old = old_head.out_features
+
+    new_head = nn.Linear(in_f, out_f_old + n_new)
+    new_head.weight.data[:out_f_old] = old_head.weight.data.clone()
+    new_head.bias.data[:out_f_old] = old_head.bias.data.clone()
+    nn.init.normal_(new_head.weight.data[out_f_old:], std=0.02)
+    nn.init.constant_(new_head.bias.data[out_f_old:], 0.0)
+    model.classifier = new_head.to(old_head.weight.device)
+
+
 def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
     """Run continual-learning training using KD modules."""
     device = cfg.get("device", "cuda")
@@ -155,14 +172,17 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
         prev_ckpt = f"{ckpt_dir}/task{task-1}_student.pth"
         prev_student = None
         if task > 0 and os.path.isfile(prev_ckpt):
-            prev = torch.load(prev_ckpt, map_location="cpu")
-            cur = student.state_dict()
+            n_new = 10
+            if student.classifier.out_features < (task + 1) * n_new:
+                _expand_head(student, n_new)
 
-            # ① 새 모델과 **shape** 이 같은 파라미터만 선택
-            ok = {k: v for k, v in prev.items() if k in cur and v.shape == cur[k].shape}
+            if logger:
+                logger.info(f"[Task {task}] Head dim = {student.classifier.out_features}")
 
-            # ② 로드 (classifier 가중치는 자동 스킵)
-            student.load_state_dict(ok, strict=False)
+            student.load_state_dict(
+                torch.load(prev_ckpt, map_location="cpu"),
+                strict=False
+            )
 
             from utils.model_factory import create_student_by_name
             prev_student = create_student_by_name(
@@ -172,7 +192,10 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 small_input=True,
                 cfg=cfg,
             ).to(device)
-            prev_student.load_state_dict(torch.load(prev_ckpt, map_location="cpu"))
+            prev_student.load_state_dict(
+                torch.load(prev_ckpt, map_location="cpu"),
+                strict=False
+            )
             prev_student.eval()
 
             # ─ student / prev-student 로드 직후 ─
@@ -188,10 +211,8 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                                                      # 학습
 
             if logger:
-                skipped = [k for k in prev.keys() if k not in ok]
                 logger.info(
-                    f"[CIL] task{task}: restore {len(ok)}/{len(prev)} params "
-                    f"(skipped {len(skipped)} classifier params)"
+                    f"[CIL] task{task}: restore from {prev_ckpt}"
                 )
         else:
             prev_student = None
