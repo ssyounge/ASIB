@@ -255,19 +255,26 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
             )
             prev_student.eval()
 
-            # ─ student / prev-student 로드 직후 ─
-            # Task 0, 1  : backbone 전체 학습
-            # Task ≥ 2   : classifier(= head)만 학습, 나머지는 동결
-            for name, param in student.named_parameters():
-                if name.startswith(
-                    ("head.", "classifier.", "fc.", "pre_logits.", "norm.")
-                ):
-                    param.requires_grad_(True)           # 항상 학습
-                else:
-                    param.requires_grad_(task < 2)       # backbone 은 0‑1 task 만
-                                                     # 학습
+            # ───────── Trainable‑scope 설정 ─────────
+            # ① 기본적으로 전체 freeze
+            for p in student.parameters():
+                p.requires_grad_(False)
+
+            # ② Linear head 는 항상 학습
+            head, head_name = _find_linear_head(student)
+            for p in head.parameters():
+                p.requires_grad_(True)
+
+            # ③ Task 0,1 은 backbone 도 학습 (feature 적응 단계)
+            if task < 2:
+                for name, p in student.named_parameters():
+                    if name.startswith(("backbone.", "stem.", "features.", "blocks.")):
+                        p.requires_grad_(True)
 
             if logger:
+                trainable = [n for n, p in student.named_parameters() if p.requires_grad]
+                logger.info(f"[CIL] task{task}: trainable params ⇒ {len(trainable)} tensors "
+                            f"{', '.join(trainable[:5])}{' …' if len(trainable)>5 else ''}")
                 logger.info(
                     f"[CIL] task{task}: restore from {prev_ckpt}"
                 )
