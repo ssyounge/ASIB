@@ -459,13 +459,20 @@ def student_vib_update(
                     cls_tensor = torch.tensor(task_cls, device=y.device)
                     y_local = torch.searchsorted(cls_tensor, y, right=False)
 
-            if do_mix:
-                lam_alpha = mix_alpha if mix_alpha > 0 else cutmix_alpha
-                x, y_a, y_b, lam = mixup_data(x, y_local, alpha=lam_alpha)
-
             (cur_pair, rep_pair) = split_current_replay((x, y_local), replay_ratio=cfg.get("replay_ratio", 0.0))
             cur_x, cur_y = cur_pair
             rep_x, rep_y = rep_pair
+
+            if do_mix and cur_x is not None:
+                lam_alpha = mix_alpha if mix_alpha > 0 else cutmix_alpha
+                cur_x, y_a, y_b, lam = mixup_data(cur_x, cur_y, alpha=lam_alpha)
+
+            if rep_x is not None:
+                x = torch.cat([rep_x, cur_x], dim=0)
+                y_local = torch.cat([rep_y, cur_y], dim=0)
+            else:
+                x = cur_x
+                y_local = cur_y
             
             # ─ Teacher feature → synergy target ─────────────────
             with torch.no_grad():
@@ -542,16 +549,25 @@ def student_vib_update(
                     y_b = torch.searchsorted(cls_tensor, y_b, right=False)
                 else:
                     y   = torch.searchsorted(cls_tensor,  y,  right=False)
-            if do_mix:
-                ce = mixup_criterion(F.cross_entropy, logit_kd_s, y_a, y_b, lam)
+            n_cur = cur_x.size(0)
+            if do_mix and cur_x is not None:
+                ce_cur = mixup_criterion(
+                    F.cross_entropy, logit_kd_s[-n_cur:], y_a, y_b, lam
+                )
             else:
-                n_cur = cur_x.size(0)
-                ce_cur = F.cross_entropy(logit_kd_s[:n_cur], cur_y)
-                if rep_x is not None:
-                    ce_rep = F.cross_entropy(logit_kd_s[n_cur:n_cur + rep_x.size(0)], rep_y)
-                    ce = 0.5 * (ce_cur + ce_rep)
-                else:
-                    ce = ce_cur
+                ce_cur = F.cross_entropy(logit_kd_s[-n_cur:], cur_y)
+
+            if rep_x is not None and prev_student is not None:
+                with torch.no_grad():
+                    logits_prev_full = prev_student(rep_x)[-1]
+                kd_rep = F.kl_div(
+                    F.log_softmax(logit_kd_s[:rep_x.size(0)] / T, dim=1),
+                    F.softmax(logits_prev_full / T, dim=1),
+                    reduction="batchmean",
+                ) * (T ** 2)
+                ce = 0.5 * (ce_cur + kd_rep)
+            else:
+                ce = ce_cur
 
             kd_prev = torch.tensor(0.0, device=device)
             # ──────── Self‑KD (previous task student) ─────────────

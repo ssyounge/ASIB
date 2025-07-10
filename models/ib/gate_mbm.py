@@ -10,10 +10,13 @@ class GateMBM(nn.Module):
               scale 하지 않아도 되도록 내부에서 적용)
     """
     def __init__(self, c_in1: int, c_in2: int, z_dim: int = 512, n_cls: int = 100,
-                 beta: float = 1e-3, dropout_p: float = 0.1):
+                 beta: float = 1e-3, dropout_p: float = 0.1,
+                 clamp_min: float = -6.0, clamp_max: float = 2.0):
         super().__init__()
         # ensure scalar value to avoid list * Tensor errors
         self.beta = float(beta)
+        self.clamp_min = clamp_min
+        self.clamp_max = clamp_max
         c = max(c_in1, c_in2)                        # 정보 보존
         self.proj1 = nn.Conv2d(c_in1, c, 1)          # 업/다운 자동 해결
         self.proj2 = nn.Conv2d(c_in2, c, 1)
@@ -39,7 +42,9 @@ class GateMBM(nn.Module):
         fused = self.dropout(fused)
         v = self.pool(fused).flatten(1)
         mu = self.mu(v)
-        log = self.log(v).clamp(min=-6.0, max=2.0)
+        min_c = getattr(self, "clamp_min", -6.0)
+        max_c = getattr(self, "clamp_max", 2.0)
+        log = self.log(v).clamp(min=min_c, max=max_c)
         std = torch.exp(0.5 * log)
         z = mu + torch.randn_like(mu) * std
         # KL per-sample  → mean

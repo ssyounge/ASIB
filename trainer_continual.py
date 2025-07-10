@@ -63,6 +63,8 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
             cfg["z_dim"],                     # latent z
             num_cls_total,                    # 100-way (확정)
             beta=cfg.get("beta_bottleneck", 1e-3),
+            clamp_min=cfg.get("latent_clamp_min", -6),
+            clamp_max=cfg.get("latent_clamp_max", 2),
         ).to(device)
     else:
         vib_mbm = None
@@ -73,7 +75,7 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
         print("\n" + head)
         if logger is not None:
             logger.info(head)
-        train_loader, test_cur, test_seen = get_cifar100_cl_loaders(
+        train_loader, test_cur, test_seen, dataset, task_split = get_cifar100_cl_loaders(
             root=cfg.get("dataset_root", "./data"),
             task_id=task,
             n_tasks=n_tasks,
@@ -82,7 +84,29 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
             randaug_N=cfg.get("randaug_N", 0),
             randaug_M=cfg.get("randaug_M", 0),
             persistent_train=cfg.get("persistent_workers", False),
+            return_task_split=True,
+            buffer_size=cfg.get("buffer_size", 20),
         )
+
+        if cfg.get("train_mode") == "continual":
+            from utils.dataloader import BalancedReplaySampler
+
+            cur_idx = task_split["cur_indices"]
+            rep_idx = task_split.get("replay_indices", [])
+            sampler = BalancedReplaySampler(
+                cur_idx,
+                rep_idx,
+                batch_size=cfg.get("batch_size", 128),
+                ratio=cfg.get("replay_ratio", 0.5),
+                shuffle=True,
+            )
+            train_loader = torch.utils.data.DataLoader(
+                dataset,
+                batch_size=cfg.get("batch_size", 128),
+                sampler=sampler,
+                num_workers=cfg.get("num_workers", 2),
+                persistent_workers=cfg.get("persistent_workers", False),
+            )
 
         cur_cls = _task_classes(task, n_tasks)
         prev_cls = sum((_task_classes(t, n_tasks) for t in range(task)), [])
