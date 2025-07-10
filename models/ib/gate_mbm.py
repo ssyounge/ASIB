@@ -39,8 +39,9 @@ class GateMBM(nn.Module):
         fused = self.dropout(fused)
         v = self.pool(fused).flatten(1)
         mu = self.mu(v)
-        log = self.log(v)
-        z = mu + torch.randn_like(mu) * (0.5 * log).exp()
+        log = self.log(v).clamp(min=-6.0, max=2.0)
+        std = torch.exp(0.5 * log)
+        z = mu + torch.randn_like(mu) * std
         # KL per-sample  → mean
         kl = -0.5 * (1 + log - mu.pow(2) - log.exp()).mean()
         kl_scaled = self.beta * kl               # <-- 가중치 적용
