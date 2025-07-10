@@ -17,13 +17,13 @@ results_dir: results
 checkpoint_dir: checkpoints
 
 optimizer  : adamw
-student_lr : 1e-3
+student_lr : 2e-3
 lr_schedule: cosine
 student_iters: 100
 
 randaug_N: 2
 randaug_M: 7
-mixup_alpha: 0.2
+mixup_alpha: 0.1
 cutmix_alpha_distill: 0.5
 
 use_amp   : false
