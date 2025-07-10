@@ -33,6 +33,8 @@ latent_mse_weight   : 0.7
 latent_angle_weight : 0.3
 cw_mse_eps: 1e-6                 # 확신도‑가중 MSE용 ε (분모 보호)
 latent_norm: "dim"          # "dim" | "sqrt" | "none"
+latent_clamp_min: -6
+latent_clamp_max: 2
 
 # ─ Feature distillation ─
 feat_layers   : [2, 3]

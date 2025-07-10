@@ -18,6 +18,15 @@ from utils.distill_loss import feat_mse_pair
 from modules.losses import compute_vib_loss
 
 
+def split_current_replay(batch, replay_ratio):
+    """Split concatenated (replay + current) batch returned by the sampler."""
+    x, y = batch
+    if replay_ratio == 0.0 or x.size(0) == 0:
+        return (x, y), (None, None)
+    rep_n = int(x.size(0) * replay_ratio)
+    return (x[rep_n:], y[rep_n:]), (x[:rep_n], y[:rep_n])
+
+
 def simple_finetune(
     model,
     loader,
@@ -453,6 +462,10 @@ def student_vib_update(
             if do_mix:
                 lam_alpha = mix_alpha if mix_alpha > 0 else cutmix_alpha
                 x, y_a, y_b, lam = mixup_data(x, y_local, alpha=lam_alpha)
+
+            (cur_pair, rep_pair) = split_current_replay((x, y_local), replay_ratio=cfg.get("replay_ratio", 0.0))
+            cur_x, cur_y = cur_pair
+            rep_x, rep_y = rep_pair
             
             # ─ Teacher feature → synergy target ─────────────────
             with torch.no_grad():
@@ -532,7 +545,13 @@ def student_vib_update(
             if do_mix:
                 ce = mixup_criterion(F.cross_entropy, logit_kd_s, y_a, y_b, lam)
             else:
-                ce = F.cross_entropy(logit_kd_s, y_local)
+                n_cur = cur_x.size(0)
+                ce_cur = F.cross_entropy(logit_kd_s[:n_cur], cur_y)
+                if rep_x is not None:
+                    ce_rep = F.cross_entropy(logit_kd_s[n_cur:n_cur + rep_x.size(0)], rep_y)
+                    ce = 0.5 * (ce_cur + ce_rep)
+                else:
+                    ce = ce_cur
 
             kd_prev = torch.tensor(0.0, device=device)
             # ──────── Self‑KD (previous task student) ─────────────
