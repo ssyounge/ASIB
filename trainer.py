@@ -511,6 +511,7 @@ def student_vib_update(
             else:  # 단일 tensor 리턴 모델
                 logit_s = s_out
                 feat_s = student_model.get_feat()       # 필요 시 구현
+            logit_full_s = logit_s.clone()  # (NEW) 100-way 백업
             z_s = student_proj(feat_s)
 
             # ────────────────────────────────────────────────────
@@ -587,7 +588,7 @@ def student_vib_update(
                     else:                           # tensor
                         logits_prev_full = out_prev
                 kd_rep = F.kl_div(
-                    F.log_softmax(logit_kd_s[:rep_x.size(0)] / T, dim=1),
+                    F.log_softmax(logit_full_s[:rep_x.size(0)] / T, dim=1),
                     F.softmax(logits_prev_full / T, dim=1),
                     reduction="batchmean",
                 ) * (T ** 2)
