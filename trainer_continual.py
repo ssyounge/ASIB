@@ -16,6 +16,36 @@ from models.teachers.teacher_resnet import create_resnet152
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from utils.freeze import freeze_all
 from utils.eval import evaluate_acc
+import torch.nn as nn
+
+
+# ── student 모델 안에서 Linear classifier 를 찾아 반환 ──
+def _find_linear_head(model) -> tuple[nn.Linear, list[str]]:
+    """ConvNeXt / ResNet 래퍼 등에서 최종 nn.Linear head 를 찾아
+    (모듈객체, 모듈 경로) 를 돌려준다."""
+
+    CANDIDATES = [
+        ["classifier"],             # torchvision ConvNeXt
+        ["head"],                   # timm ConvNeXt
+        ["fc"],                     # ResNet류
+        ["model", "classifier"],    # wrapper.model.classifier
+        ["model", "head"],          # wrapper.model.head
+        ["model", "fc"],            # wrapper.model.fc
+    ]
+
+    for path in CANDIDATES:
+        m = model
+        ok = True
+        for p in path:
+            if hasattr(m, p):
+                m = getattr(m, p)
+            else:
+                ok = False
+                break
+        if ok and isinstance(m, nn.Linear):
+            return m, path
+
+    raise AttributeError("Linear classifier(head) 를 찾지 못했습니다.")
 
 
 def _remap_for_task(logits: torch.Tensor,
@@ -30,11 +60,10 @@ def _remap_for_task(logits: torch.Tensor,
 
 
 def _expand_head(model, n_new):
-    """ConvNeXt classifier(Linear) 를 in-place 로 확장."""
-    import torch
+    """모델의 최종 nn.Linear head 를 in-place 로 확장."""
     import torch.nn as nn
 
-    old_head = model.classifier
+    old_head, path = _find_linear_head(model)
     in_f = old_head.in_features
     out_f_old = old_head.out_features
 
@@ -43,7 +72,11 @@ def _expand_head(model, n_new):
     new_head.bias.data[:out_f_old] = old_head.bias.data.clone()
     nn.init.normal_(new_head.weight.data[out_f_old:], std=0.02)
     nn.init.constant_(new_head.bias.data[out_f_old:], 0.0)
-    model.classifier = new_head.to(old_head.weight.device)
+    # ─ 새 head 를 원래 위치에 다시 꽂아 넣기 ─
+    parent = model
+    for p in path[:-1]:
+        parent = getattr(parent, p)
+    setattr(parent, path[-1], new_head.to(old_head.weight.device))
 
 
 def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
@@ -172,12 +205,14 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
         prev_ckpt = f"{ckpt_dir}/task{task-1}_student.pth"
         prev_student = None
         if task > 0 and os.path.isfile(prev_ckpt):
-            n_new = 10
-            if student.classifier.out_features < (task + 1) * n_new:
+            n_new = 100 // n_tasks           # task 당 class 수 (=10)
+            head, _ = _find_linear_head(student)
+            if head.out_features < (task + 1) * n_new:
                 _expand_head(student, n_new)
 
             if logger:
-                logger.info(f"[Task {task}] Head dim = {student.classifier.out_features}")
+                head, _ = _find_linear_head(student)
+                logger.info(f"[Task {task}] Head dim = {head.out_features}")
 
             student.load_state_dict(
                 torch.load(prev_ckpt, map_location="cpu"),
