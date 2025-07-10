@@ -42,6 +42,9 @@ def get_cifar100_cl_loaders(
     randaug_N: int = 0,
     randaug_M: int = 0,
     persistent_train: bool = False,
+    *,
+    return_task_split: bool = False,
+    buffer_size: int = 20,
 ):
     """Return train/test loaders for a single CIFAR-100 incremental task."""
     assert 0 <= task_id < n_tasks, "invalid task_id"
@@ -68,7 +71,18 @@ def get_cifar100_cl_loaders(
         root=root, train=False, download=True, transform=transform_test
     )
 
-    train_ds = _split_dataset(base_train, class_ids)
+    if return_task_split:
+        dataset = base_train
+        cur_idx = [i for i, t in enumerate(dataset.targets) if t in class_ids]
+        prev_cls = sum((_task_classes(t, n_tasks) for t in range(task_id)), [])
+        rep_idx = []
+        for c in prev_cls:
+            idx_c = [i for i, t in enumerate(dataset.targets) if t == c]
+            rep_idx.extend(idx_c[:buffer_size])
+        task_split = {"cur_indices": cur_idx, "replay_indices": rep_idx}
+        train_ds = dataset
+    else:
+        train_ds = _split_dataset(base_train, class_ids)
     # ① 현재 task-only
     cur_test  = _split_dataset(base_test, class_ids)
     # ② 지금까지 등장한 모든 class
@@ -108,6 +122,8 @@ def get_cifar100_cl_loaders(
         num_workers=num_workers,
         pin_memory=True,
     )
+    if return_task_split:
+        return train_loader, test_loader_cur, test_loader_seen, train_ds, task_split
     return train_loader, test_loader_cur, test_loader_seen
 
 
