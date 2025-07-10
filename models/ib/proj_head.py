@@ -1,5 +1,7 @@
 # models/ib/proj_head.py
 
+from __future__ import annotations
+
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Optional
