@@ -18,6 +18,7 @@ checkpoint_dir: checkpoints
 
 optimizer  : adamw
 student_lr : 2e-3
+min_lr_ratio_student: 0.03
 lr_schedule: cosine
 student_iters: 100
 
