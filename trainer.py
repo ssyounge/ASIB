@@ -522,8 +522,8 @@ def student_vib_update(
             # ②  KD‑스케줄 (progress ∈ [0,1])
             if gran == "epoch":
                 raw_prog = ep / max(total_epochs - 1, 1)
-            else:                      # "step"
-                raw_prog = local_step / max(total_steps - 1, 1)
+            else:  # fallback to step granularity
+                raw_prog = global_step / max(total_steps - 1, 1)
 
             # warm‑up 구간 제외 후, p‑power 스케일 적용
             prog = max(0.0, raw_prog - warmup) / max(1e-6, 1.0 - warmup)
