@@ -1,5 +1,5 @@
 # utils/eval.py
-
+from __future__ import annotations
 import torch
 
 @torch.no_grad()
