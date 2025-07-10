@@ -21,10 +21,16 @@ min_lr_ratio_finetune: 0.1
 # ─ Student Cosine LR 옵션 ─
 lr_warmup_epochs     : 5
 student_warmup_epochs: 3
-min_lr_ratio_student : 0.05
+min_lr_ratio_student : 0.1
 
 # ─ Label & Aug ─
 label_smoothing      : 0.05
+mixup_alpha          : 0.2
+
+# → epoch 60 이후 두 값 0 으로 선형 감쇠
+reg_decay:
+  start_epoch: 60
+  end_epoch:   80
 randaug_default_N    : 2
 randaug_default_M    : 9
 
