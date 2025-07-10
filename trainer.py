@@ -402,6 +402,9 @@ def student_vib_update(
     mix_alpha = cfg.get("mixup_alpha", 0.0)
     cutmix_alpha = cfg.get("cutmix_alpha_distill", 0.0)
     do_mix = (mix_alpha > 0) or (cutmix_alpha > 0)
+    ce_criterion = torch.nn.CrossEntropyLoss(
+        label_smoothing=cfg.get("label_smoothing", 0.0)
+    )
 
     vib_mbm.eval()
     student_model.train()
@@ -438,6 +441,19 @@ def student_vib_update(
     hook_t2 = FeatHook(teacher2.backbone, layer_ids)
 
     for ep in range(total_epochs):
+        if cfg.get("reg_decay", None):
+            if ep >= cfg["reg_decay"]["start_epoch"]:
+                p = (ep - cfg["reg_decay"]["start_epoch"]) / (
+                    cfg["reg_decay"]["end_epoch"] - cfg["reg_decay"]["start_epoch"] + 1e-5
+                )
+                decay = max(0.0, 1 - p)
+                cur_smooth = cfg.get("label_smoothing", 0.0) * decay
+                cur_mixup = cfg.get("mixup_alpha", 0.0) * decay
+                ce_criterion.label_smoothing = cur_smooth
+                mix_alpha = cur_mixup
+                do_mix = (mix_alpha > 0) or (cutmix_alpha > 0)
+                if hasattr(loader.dataset, "set_mixup_alpha"):
+                    loader.dataset.set_mixup_alpha(cur_mixup)
         running_loss = 0.0
         n_samples    = 0
         correct = 0
@@ -552,10 +568,10 @@ def student_vib_update(
             n_cur = cur_x.size(0)
             if do_mix and cur_x is not None:
                 ce_cur = mixup_criterion(
-                    F.cross_entropy, logit_kd_s[-n_cur:], y_a, y_b, lam
+                    ce_criterion, logit_kd_s[-n_cur:], y_a, y_b, lam
                 )
             else:
-                ce_cur = F.cross_entropy(logit_kd_s[-n_cur:], cur_y)
+                ce_cur = ce_criterion(logit_kd_s[-n_cur:], cur_y)
 
             if rep_x is not None and prev_student is not None:
                 with torch.no_grad():
