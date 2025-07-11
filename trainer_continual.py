@@ -236,6 +236,14 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
             small_input=True,
             cfg=cfg,
         ).to(device)
+
+# ---------- NEW : 100-way CE 사전학습 가중치 불러오기 ----------
+        ce_ckpt = cfg.get("student_ce_ckpt")
+        if task == 0 and ce_ckpt and os.path.isfile(ce_ckpt):
+            print(f"[INIT] loading student CE checkpoint → {ce_ckpt}")
+            student.load_state_dict(
+                torch.load(ce_ckpt, map_location="cpu"), strict=False
+            )
         head, path = _find_linear_head(student, n_classes=NUM_ALL)
         if logger:
             logger.info(
