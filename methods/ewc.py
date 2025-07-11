@@ -13,10 +13,11 @@ class EWC:
 
     def __init__(self, model, data_loader, device="cuda",
                  samples: int = 1024, online: bool = False,
-                 decay: float = 1.0):
+                 decay: float = 1.0, lambda_: float = 1.0):
         self.device = device
         self.online = online
         self.decay  = decay
+        self.lambda_ = lambda_
 
         # θ* 저장
         self.theta_star = {n: p.detach().clone()
@@ -64,7 +65,7 @@ class EWC:
             if n in self.fisher:
                 theta_old = self.theta_star[n]
                 loss += torch.sum(self.fisher[n] * (p - theta_old) ** 2)
-        return loss
+        return self.lambda_ * loss
 
     # online EWC: Fisher ← γ·F_old + F_new,  θ* ← θ_now
     def update(self, model, data_loader):

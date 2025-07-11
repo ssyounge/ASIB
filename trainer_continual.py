@@ -11,7 +11,11 @@ import wandb
 
 from data.cifar100_cl import get_cifar100_cl_loaders, _task_classes
 from trainer import teacher_vib_update, student_vib_update, simple_finetune
-from methods.ewc import EWC
+# ============================================================
+# 선택적 regularizer 로드 (EWC, LwF, DER …)
+# ============================================================
+from methods.ewc import EWC          # (규제용)
+from methods.lwf import LwF          # (옵션) 추가 실험 대비
 from models.teachers.teacher_resnet import create_resnet152
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from utils.freeze import freeze_all
@@ -112,6 +116,7 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
     wandb_run = wandb.init(project="kd_monitor", name="run_001")
     global_step_counter = 0
     ewc_bank = []
+    regularizers = ewc_bank  # alias for optional regularizers
 
     t1 = create_resnet152(pretrained=True, small_input=True).to(device)
     t2 = create_efficientnet_b2(pretrained=True, small_input=True).to(device)
@@ -204,7 +209,7 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 writer=writer,
                 wandb_run=wandb_run,
                 global_step_offset=global_step_counter,
-                ewc_bank=ewc_bank,
+                ewc_bank=regularizers,
             )
 
         from utils.model_factory import create_student_by_name
@@ -313,7 +318,7 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 writer=writer,
                 wandb_run=wandb_run,
                 global_step_offset=global_step_counter,
-                ewc_bank=ewc_bank,
+                ewc_bank=regularizers,
             )
 
             if cfg.get("use_ewc", False):
@@ -324,8 +329,9 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                     samples=cfg.get("ewc_samples", 1024),
                     online=cfg.get("ewc_online", False),
                     decay=cfg.get("ewc_decay", 1.0),
+                    lambda_=cfg.get("ewc_lambda", 30.0),
                 )
-                ewc_bank.append(ewc_obj)
+                regularizers.append(ewc_obj)
         else:
             if kd_method == "none":
                 simple_finetune(
@@ -391,8 +397,9 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                     samples=cfg.get("ewc_samples", 1024),
                     online=cfg.get("ewc_online", False),
                     decay=cfg.get("ewc_decay", 1.0),
+                    lambda_=cfg.get("ewc_lambda", 30.0),
                 )
-                ewc_bank.append(ewc_obj)
+                regularizers.append(ewc_obj)
 
         # ───────── Class-Balanced finetune ─────────
         if cfg.get("cb_finetune_epochs", 0) > 0:
