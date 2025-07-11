@@ -274,20 +274,9 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
             )
             prev_student.eval()
 
-            # ───────── Trainable‑scope 설정 ─────────
-            # ① 기본적으로 전체 freeze
+            # (★) partial‑freeze 삭제 → 모든 파라미터 학습
             for p in student.parameters():
-                p.requires_grad_(False)
-
-            # ② Linear head 는 항상 학습
-            head, head_name = _find_linear_head(student)
-            for p in head.parameters():
                 p.requires_grad_(True)
-
-            # ③ 모든 task에서 ConvNeXt stage-3(=최상위)만 학습
-            for name, p in student.named_parameters():
-                if name.startswith(("backbone.stages.3", "backbone.downsample_layers.3")):
-                    p.requires_grad_(True)
 
             if logger:
                 trainable = [n for n, p in student.named_parameters() if p.requires_grad]
