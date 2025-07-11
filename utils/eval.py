@@ -1,5 +1,5 @@
 # utils/eval.py
-
+from __future__ import annotations
 import torch
 
 @torch.no_grad()
@@ -8,6 +8,7 @@ def evaluate_acc(
     loader,
     device: str = "cuda",
     mixup_active: bool = False,   # NEW – 호출 처리를 위한 더미 플래그
+    classes: list[int] | None = None,
 ):
     model.eval()
     correct = 0
@@ -29,6 +30,17 @@ def evaluate_acc(
             logits = out.get("logit", out)
         else:
             logits = out
+
+        # --------------------------------------------------------------
+        # Continual-learning: slice logits/labels for a subset of classes
+        # --------------------------------------------------------------
+        if classes is not None:                     # ← 클래스‑하위 집합 평가
+            cls_tensor = torch.tensor(
+                classes, dtype=torch.long, device=logits.device
+            )
+            logits = logits.index_select(1, cls_tensor)
+            y = torch.searchsorted(cls_tensor, y, right=False)
+
         preds = logits.argmax(dim=1)
         correct += (preds == y).sum().item()
         total += y.size(0)

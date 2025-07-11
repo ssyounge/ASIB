@@ -4,28 +4,28 @@ train_mode   : standard
 teacher_iters: 0
 
 # ─ Fine‑tune(교사+Gate) 설정 ─
-finetune_epochs      : 30
+finetune_epochs      : 10          # 학생 학습 후 과도한 fine-tune 방지
 finetune_lr          : 1e-3
 finetune_weight_decay: 3e-4
 finetune_mixup_alpha : 0.2
 
 finetune_label_smoothing: 0.05
 finetune_partial_freeze: false
-finetune_randaug_N   : 2
-finetune_randaug_M   : 7
+finetune_randaug_N   : 1           # slightly weaker augmentation
+finetune_randaug_M   : 5
 finetune_warmup      : 5
 finetune_sched       : cosine
 min_lr_ratio_finetune: 0.1
 
 
 # ─ Student Cosine LR 옵션 ─
-lr_warmup_epochs     : 5
-student_warmup_epochs: 3
-min_lr_ratio_student : 0.1
+lr_warmup_epochs     : 2
+student_warmup_epochs: 5
+min_lr_ratio_student : 0.03
 
 # ─ Label & Aug ─
-label_smoothing      : 0.05
-mixup_alpha          : 0.2
+label_smoothing      : 0.05       # 0.10 → 0.05
+mixup_alpha          : 0.1        # 0.20 → 0.10
 
 # → epoch 60 이후 두 값 0 으로 선형 감쇠
 reg_decay:

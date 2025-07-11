@@ -22,3 +22,7 @@ tags:                                   # 필요하면 추가
 notes: |
   - β=1e‑3 설정이 지난 sweep 에서 안정적 + 재현성 높았음
   - Gate‑MBM / ConvNeXt‑Tiny 학생 구조, 60 epochs 학습
+
+# ────────────────────────────── ③ 파라미터 override(선택) ────────────────────
+use_amp     : true
+student_iters: 160

@@ -15,7 +15,7 @@ from utils.schedule import cosine_lr_scheduler
 from utils.misc import get_amp_components, mixup_data, mixup_criterion
 from utils.eval import evaluate_acc
 from utils.distill_loss import feat_mse_pair
-from modules.losses import compute_vib_loss
+from modules.losses import compute_vib_loss, kd_kl
 
 
 def split_current_replay(batch, replay_ratio):
@@ -522,7 +522,7 @@ def student_vib_update(
             # ②  KD‑스케줄 (progress ∈ [0,1])
             if gran == "epoch":
                 raw_prog = ep / max(total_epochs - 1, 1)
-            else:                      # "step"
+            else:  # fallback to step granularity
                 raw_prog = local_step / max(total_steps - 1, 1)
 
             # warm‑up 구간 제외 후, p‑power 스케일 적용
@@ -630,11 +630,13 @@ def student_vib_update(
                     reduction="batchmean",
                 ) * (T_prev * T_prev)
 
-            kd = F.kl_div(                       # reduction=batchmean + T² 한 번만
-                F.log_softmax(logit_kd_s / T, dim=1),
-                F.softmax(logit_kd_t.detach() / T, dim=1),
-                reduction="batchmean",
-            ) * (T * T)
+            task_classes = task_cls if cfg.get("kd_mask_curr_task", False) else None
+            kd = kd_kl(
+                logit_s,
+                logit_t.detach(),
+                T,
+                task_classes,
+            )
             # ─ Latent & Angle Loss 병행 ─
             mu_phi_det = mu_phi.detach()
             sigma2_phi = torch.exp(log_var_phi).detach()
@@ -701,11 +703,8 @@ def student_vib_update(
                 + gamma_feat*feat_loss
             )
 
-            if cfg.get("use_ewc", False) and ewc_bank:
-                ewc_loss = 0.0
-                for ewc_obj in ewc_bank:
-                    ewc_loss += ewc_obj.penalty(student_model)
-                loss += cfg.get("ewc_lambda", 30.0) * ewc_loss
+            for reg in (ewc_bank or []):
+                loss += reg.penalty(student_model)
 
             if batch_idx == 0 and ep % 10 == 0:
                 print(f"[DEBUG] γ={gamma_feat:.3f}  feat_loss={feat_loss.item():.4f}")
@@ -762,7 +761,8 @@ def student_vib_update(
             hook_s.clear(); hook_t1.clear(); hook_t2.clear()
             running_loss += loss.item() * x.size(0)
             n_samples    += x.size(0)
-            correct += (logit_s.argmax(1) == y).sum().item()
+            # ⬇︎ 현재 task 기준으로 재맵핑된 y_local 사용
+            correct += (logit_s.argmax(1) == y_local).sum().item()
             count += x.size(0)
 
             # ── DEBUG: 5 epoch 간격, 첫 버치만 ───────────────

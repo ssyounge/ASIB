@@ -17,19 +17,20 @@ results_dir: results
 checkpoint_dir: checkpoints
 
 optimizer  : adamw
-student_lr : 1e-3
+student_lr       : 2e-3       # 3e‑3 → 2e‑3
+min_lr_ratio_student: 0.03
 lr_schedule: cosine
 student_iters: 100
 
 randaug_N: 2
-randaug_M: 7
-mixup_alpha: 0.2
+randaug_M        : 7          # 9 → 7   (세기 완화)
+mixup_alpha      : 0.1        # 0.20 → 0.10
 cutmix_alpha_distill: 0.5
 
-use_amp   : false
+use_amp   : true
 amp_dtype : float16
 use_ema   : true
-ema_decay : 0.995
+ema_decay : 0.99
 ema_initial_decay: 0.90
 ema_warmup_iters : 5
 

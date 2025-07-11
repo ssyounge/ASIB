@@ -11,11 +11,62 @@ import wandb
 
 from data.cifar100_cl import get_cifar100_cl_loaders, _task_classes
 from trainer import teacher_vib_update, student_vib_update, simple_finetune
-from methods.ewc import EWC
+# ============================================================
+# 선택적 regularizer 로드 (EWC, LwF, DER …)
+# ============================================================
+from methods.ewc import EWC          # (규제용)
+from methods.lwf import LwF          # (옵션) 추가 실험 대비
 from models.teachers.teacher_resnet import create_resnet152
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from utils.freeze import freeze_all
 from utils.eval import evaluate_acc
+import torch.nn as nn
+from types import ModuleType
+import inspect
+
+
+# ── student 모델 안에서 Linear classifier 를 찾아 반환 ──
+def _find_linear_head(model, *, n_classes: int | None = None) -> tuple[nn.Linear, list[str]]:
+    """
+    다양한 wrapper 에서 최종 nn.Linear head 를 찾는다.
+    1) 미리 정의한 path 후보 검사 → 2) 재귀 탐색 순으로 진행.
+    반환값: (모듈객체, ["parent", "child", ...] 경로)
+    """
+    CANDIDATES = [
+        ["classifier"], ["head"], ["fc"],
+        ["model", "classifier"], ["model", "head"], ["model", "fc"],
+        ["net", "classifier"],   ["net", "head"],   ["net", "fc"],
+        ["backbone", "classifier"], ["backbone", "head"], ["backbone", "fc"],
+    ]
+
+    def _get_by_path(root, path):
+        m = root
+        for name in path:
+            if not hasattr(m, name):
+                return None
+            m = getattr(m, name)
+        return m
+
+    # ── 1) 후보 path 빠른 검사 ─────────────────────────
+    for path in CANDIDATES:
+        m = _get_by_path(model, path)
+        if isinstance(m, nn.Linear):
+            return m, path
+
+    # ── 2) 전체 재귀 탐색 (마지막 Linear 선택) ────────
+    last_linear, last_name = None, None
+    for name, mod in model.named_modules():
+        if isinstance(mod, nn.Linear):
+            if n_classes is None or mod.out_features == n_classes:
+                last_linear, last_name = mod, name
+            else:
+                # 기록해 두고, 일단 계속 순회 – out_features 기준으로 나중에 최대값 사용
+                last_linear, last_name = mod, name
+
+    if last_linear is not None:
+        return last_linear, last_name.split(".")
+
+    raise AttributeError("Linear classifier(head) 를 찾지 못했습니다.")
 
 
 def _remap_for_task(logits: torch.Tensor,
@@ -27,6 +78,26 @@ def _remap_for_task(logits: torch.Tensor,
     logits_t = logits.index_select(dim=1, index=cls_tensor)
     tgt_local = torch.searchsorted(cls_tensor, target, right=False)
     return logits_t, tgt_local
+
+
+def _expand_head(model, n_new):
+    """모델의 최종 nn.Linear head 를 in-place 로 확장."""
+    import torch.nn as nn
+
+    old_head, path = _find_linear_head(model, n_classes=None)
+    in_f = old_head.in_features
+    out_f_old = old_head.out_features
+
+    new_head = nn.Linear(in_f, out_f_old + n_new)
+    new_head.weight.data[:out_f_old] = old_head.weight.data.clone()
+    new_head.bias.data[:out_f_old] = old_head.bias.data.clone()
+    nn.init.normal_(new_head.weight.data[out_f_old:], std=0.02)
+    nn.init.constant_(new_head.bias.data[out_f_old:], 0.0)
+    # ─ 새 head 를 원래 위치에 다시 꽂아 넣기 ─
+    parent = model
+    for p in path[:-1]:
+        parent = getattr(parent, p)
+    setattr(parent, path[-1], new_head.to(old_head.weight.device))
 
 
 def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
@@ -45,6 +116,7 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
     wandb_run = wandb.init(project="kd_monitor", name="run_001")
     global_step_counter = 0
     ewc_bank = []
+    regularizers = ewc_bank  # alias for optional regularizers
 
     t1 = create_resnet152(pretrained=True, small_input=True).to(device)
     t2 = create_efficientnet_b2(pretrained=True, small_input=True).to(device)
@@ -137,7 +209,7 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 writer=writer,
                 wandb_run=wandb_run,
                 global_step_offset=global_step_counter,
-                ewc_bank=ewc_bank,
+                ewc_bank=regularizers,
             )
 
         from utils.model_factory import create_student_by_name
@@ -150,19 +222,29 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
             small_input=True,
             cfg=cfg,
         ).to(device)
+        head, path = _find_linear_head(student, n_classes=NUM_ALL)
+        if logger:
+            logger.info(
+                f"[Task {task}] detected head path = {'.'.join(path)}  (out={head.out_features})"
+            )
 
         # ─── 이어 학습: 이전 task 가중치 로드 ───
         prev_ckpt = f"{ckpt_dir}/task{task-1}_student.pth"
         prev_student = None
         if task > 0 and os.path.isfile(prev_ckpt):
-            prev = torch.load(prev_ckpt, map_location="cpu")
-            cur = student.state_dict()
+            n_new = 100 // n_tasks           # task 당 class 수 (=10)
+            head, _ = _find_linear_head(student, n_classes=NUM_ALL)
+            if head.out_features < (task + 1) * n_new:
+                _expand_head(student, n_new)
 
-            # ① 새 모델과 **shape** 이 같은 파라미터만 선택
-            ok = {k: v for k, v in prev.items() if k in cur and v.shape == cur[k].shape}
+            if logger:
+                head, _ = _find_linear_head(student, n_classes=NUM_ALL)
+                logger.info(f"[Task {task}] Head dim = {head.out_features}")
 
-            # ② 로드 (classifier 가중치는 자동 스킵)
-            student.load_state_dict(ok, strict=False)
+            student.load_state_dict(
+                torch.load(prev_ckpt, map_location="cpu"),
+                strict=False
+            )
 
             from utils.model_factory import create_student_by_name
             prev_student = create_student_by_name(
@@ -172,26 +254,33 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 small_input=True,
                 cfg=cfg,
             ).to(device)
-            prev_student.load_state_dict(torch.load(prev_ckpt, map_location="cpu"))
+            prev_student.load_state_dict(
+                torch.load(prev_ckpt, map_location="cpu"),
+                strict=False
+            )
             prev_student.eval()
 
-            # ─ student / prev-student 로드 직후 ─
-            # Task 0, 1  : backbone 전체 학습
-            # Task ≥ 2   : classifier(= head)만 학습, 나머지는 동결
-            for name, param in student.named_parameters():
-                if name.startswith(
-                    ("head.", "classifier.", "fc.", "pre_logits.", "norm.")
-                ):
-                    param.requires_grad_(True)           # 항상 학습
-                else:
-                    param.requires_grad_(task < 2)       # backbone 은 0‑1 task 만
-                                                     # 학습
+            # ───────── Trainable‑scope 설정 ─────────
+            # ① 기본적으로 전체 freeze
+            for p in student.parameters():
+                p.requires_grad_(False)
+
+            # ② Linear head 는 항상 학습
+            head, head_name = _find_linear_head(student)
+            for p in head.parameters():
+                p.requires_grad_(True)
+
+            # ③ 모든 task에서 ConvNeXt stage-3(=최상위)만 학습
+            for name, p in student.named_parameters():
+                if name.startswith(("backbone.stages.3", "backbone.downsample_layers.3")):
+                    p.requires_grad_(True)
 
             if logger:
-                skipped = [k for k in prev.keys() if k not in ok]
+                trainable = [n for n, p in student.named_parameters() if p.requires_grad]
+                logger.info(f"[CIL] task{task}: trainable params ⇒ {len(trainable)} tensors "
+                            f"{', '.join(trainable[:5])}{' …' if len(trainable)>5 else ''}")
                 logger.info(
-                    f"[CIL] task{task}: restore {len(ok)}/{len(prev)} params "
-                    f"(skipped {len(skipped)} classifier params)"
+                    f"[CIL] task{task}: restore from {prev_ckpt}"
                 )
         else:
             prev_student = None
@@ -229,7 +318,7 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 writer=writer,
                 wandb_run=wandb_run,
                 global_step_offset=global_step_counter,
-                ewc_bank=ewc_bank,
+                ewc_bank=regularizers,
             )
 
             if cfg.get("use_ewc", False):
@@ -240,8 +329,9 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                     samples=cfg.get("ewc_samples", 1024),
                     online=cfg.get("ewc_online", False),
                     decay=cfg.get("ewc_decay", 1.0),
+                    lambda_=cfg.get("ewc_lambda", 30.0),
                 )
-                ewc_bank.append(ewc_obj)
+                regularizers.append(ewc_obj)
         else:
             if kd_method == "none":
                 simple_finetune(
@@ -307,8 +397,9 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                     samples=cfg.get("ewc_samples", 1024),
                     online=cfg.get("ewc_online", False),
                     decay=cfg.get("ewc_decay", 1.0),
+                    lambda_=cfg.get("ewc_lambda", 30.0),
                 )
-                ewc_bank.append(ewc_obj)
+                regularizers.append(ewc_obj)
 
         # ───────── Class-Balanced finetune ─────────
         if cfg.get("cb_finetune_epochs", 0) > 0:
@@ -334,8 +425,15 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
         torch.save(student.state_dict(), f"{ckpt_dir}/task{task}_student.pth")
 
         # ───────── Task 종료 요약 ─────────
-        acc_cur  = evaluate_acc(student, test_cur,  device=device)  # 현재 task
-        acc_seen = evaluate_acc(student, test_seen, device=device)  # 전체 class
+        cur_cls  = _task_classes(task, n_tasks)
+        seen_cls = sum((_task_classes(t, n_tasks) for t in range(task + 1)), [])
+
+        acc_cur  = evaluate_acc(
+            student, test_cur, device=device, classes=cur_cls
+        )  # 현재 task
+        acc_seen = evaluate_acc(
+            student, test_seen, device=device, classes=seen_cls
+        )  # 전체 class
 
         acc_seen_hist.append(acc_seen)
 
