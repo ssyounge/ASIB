@@ -1,14 +1,14 @@
 # configs/method/vib/continual.yaml
 
 method: vib
-teacher_iters: 20
+teacher_iters      : 5
 mbm_type: GATE
 z_dim: 512
 beta_bottleneck: 0.001
 proj_hidden_dim: 1024
 proj_use_bn: true
 log_kl: false
-student_iters: 35
+student_iters      : 10
 student_lr : 2e-3            # 더 안정적인 학습률
 use_amp: true
 
@@ -19,8 +19,8 @@ gate_dropout        : 0.1
 teacher_dropout_p   : 0.3
 
 # ─ KD 스케줄 (α, T) ─
-kd_mask_curr_task: true      # KD KL 을 현재 태스크 클래스에만 적용
-kd_alpha_init    : 0.0       # warm-start (KD off)
+kd_mask_curr_task  : false
+kd_alpha_init      : 0.2  # ← 0 → 0.2  (초기에도 KD 활성)
 kd_alpha_final   : 0.4       # 이후 천천히 40% 까지
 kd_T_init     : 5
 kd_T_final    : 2
@@ -30,8 +30,8 @@ kd_sched_pow     : 1.0       # 선형 증가
 ce_alpha      : 1.0
 
 # ─ Latent 정렬 ─
-latent_alpha        : 0.2
-latent_warmup_frac  : 0.5
+latent_alpha       : 0.05 # ← 0.2 보다 작게 시작
+latent_warmup_frac : 0.3  # 30 % 시점까지 선형증가
 latent_mse_weight   : 0.7
 latent_angle_weight : 0.3
 cw_mse_eps: 1e-6                 # 확신도‑가중 MSE용 ε (분모 보호)
@@ -52,7 +52,8 @@ ema_decay           : 0.992      # EMA 버퍼 빠르게 반영
 buffer_size         : 2000
 replay_ratio       : 0.5
 n_tasks            : 10
-use_ewc           : false      # EWC 규제 off (VIB 단독 실험)
+use_ewc            : false   # VIB 단독 실험
 ewc_lambda        : 0.0        # 아무 영향 없도록 0
 ewc_online        : false
 ewc_decay         : 0.0
+log_interval       : 200     # step 단위 디버그 출력 주기

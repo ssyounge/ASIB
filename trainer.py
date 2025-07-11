@@ -313,7 +313,7 @@ def teacher_vib_update(
             logger.update_metric(f"teacher_ep{ep + 1}_test_acc",    float(test_acc))
 
         # ────────── DEBUG ④ synergy acc 첫 epoch 후 한 번 출력 ──────────
-        if ep == 0:
+        if ep == 0 or (ep + 1) == cfg.get("teacher_iters", 1):
             from utils.eval import evaluate_mbm_acc
             dbg_acc = evaluate_mbm_acc(
                 teacher1,
@@ -546,11 +546,14 @@ def student_vib_update(
                 latent_w = latent_base
 
             # ─────────────── DEBUG: 스케줄 값 모니터링 ───────────────
-            if batch_idx == 0 and ep in {0, 5, 10, 20, total_epochs - 1}:
-                print(
-                    f"[KD-sched] ep{ep:02d} prog={prog_p:.2f}, "
-                    f"kd={alpha_kd:.3f}, T={T:.2f}, latent_w={latent_w}"
-                )
+            # 첫 3 epoch 은 매 epoch, 이후에는 5 epoch 간격으로 한 번만 출력
+            if batch_idx == 0 and (ep < 3 or ep % 5 == 0):
+                msg_sched = (f"[KD-sched] ep{ep:02d} prog={prog_p:.2f} "
+                             f"α={alpha_kd:.3f} T={T:.2f} "
+                             f"lat_w={latent_w:.3f} clip={clip_cur:.2f}")
+                print(msg_sched)
+                if logger:
+                    logger.info(msg_sched)
 
             # ─ Losses ──────────────────────────────────────────
             logit_kd_s = logit_s
@@ -775,13 +778,15 @@ def student_vib_update(
                         f"latent_w={latent_w:.3f}"
                     )
 
-            # ── DEBUG: 5 epoch 간격, 첫 버치만 ───────────────
-            if batch_idx == 0 and (ep % 5 == 0):
-                print(
-                    f"[DBG] ep{ep:03d} ce={ce.item():.3f} | "
-                    f"kd={kd.item():.3f} | latent={latent.item():.3f} | "
-                    f"feat={feat_loss.item():.3f} | total={loss.item():.3f}"
-                )
+            # ── DEBUG: 첫 3 epoch 은 매 epoch, 이후 5 epoch 간격 ──
+            if batch_idx == 0 and (ep < 3 or ep % 5 == 0):
+                dbg_msg = (f"[DBG] ep{ep:03d} "
+                           f"ce={ce.item():.3f} kd={kd.item():.3f} "
+                           f"lat={latent.item():.3f} feat={feat_loss.item():.3f} "
+                           f"total={loss.item():.3f}")
+                print(dbg_msg)
+                if logger:
+                    logger.info(dbg_msg)
                 if wandb_run is not None:
                     wandb_run.log(
                         {

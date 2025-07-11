@@ -98,10 +98,24 @@ def _expand_head(model, n_new):
     for p in path[:-1]:
         parent = getattr(parent, p)
     setattr(parent, path[-1], new_head.to(old_head.weight.device))
+    print(f"[HEAD] expanded: {out_f_old} → {out_f_old + n_new}")
 
 
 def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
     """Run continual-learning training using KD modules."""
+    if logger is None:
+        import logging, datetime, pathlib
+        log_dir = pathlib.Path(cfg.get("results_dir", "results"))
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_path = log_dir / f"train_{datetime.datetime.now():%Y%m%d_%H%M%S}.log"
+        logging.basicConfig(
+            filename=log_path,
+            level=logging.INFO,
+            format="%(asctime)s %(levelname)s │ %(message)s",
+        )
+        logger = logging.getLogger("train")
+        print(f"[LOGGER] File logging → {log_path}")
+
     device = cfg.get("device", "cuda")
     n_tasks = cfg.get("n_tasks", 10)
     if 100 % n_tasks != 0:
