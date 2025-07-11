@@ -4,14 +4,14 @@ method: vib
 teacher_iters: 20
 mbm_type: GATE
 z_dim: 512
-beta_bottleneck: 5e-4       # KL loss 가 1.0 이상으로 올라오도록 살짝 강화
+beta_bottleneck: 1e-3       # KL loss 가 1.0 이상으로 올라오도록 살짝 강화
 proj_hidden_dim: 1024
 proj_use_bn: true
 log_kl: false
-student_iters: 240          # 학습 길이 확보
-student_lr: 2e-3            # warmup 길어질 때 LR 살짝 ↑
-min_lr_ratio_student: 0.01  # cosine tail 을 1e-5 레벨까지
-lr_warmup_epochs: 5         # 긴 일정에 맞춰 늘림
+student_iters: 100          # 학습 길이 확보
+student_lr: 3e-3            # 더 큰 학습률로 초기 수렴 속도 향상
+min_lr_ratio_student: 0.03  # cosine tail 을 1e-5 레벨까지
+lr_warmup_epochs: 2         # 짧은 일정에 맞춰 축소
 
 # ─ Teacher(VIB‑MBM) 학습 ─
 teacher_lr          : 1e-3
@@ -20,17 +20,17 @@ gate_dropout        : 0.1
 teacher_dropout_p   : 0.3
 
 # ─ KD 스케줄 (α, T) ─
-kd_alpha_init : 0.2          # 초반 CE 80 : KD 20
-kd_alpha_final: 0.5         # 마지막에 KD 비율 ↑
-kd_T_init     : 5            # 너무 높은 T 는 early stage 발산 위험
-kd_T_final    : 2
-kd_warmup_frac: 0.01
-kd_schedule_granularity: epoch
-kd_sched_pow  : 0.5
+kd_alpha_init : 0.4          # 초반부터 KD 비중 확보
+kd_alpha_final: 0.6         # 마지막에 KD 비율 ↑
+kd_T_init     : 4            # 온도 낮춰 정보밀도 ↑
+kd_T_final    : 1.5
+kd_warmup_frac: 0.05
+kd_schedule_granularity: step
+kd_sched_pow  : 1.0
 ce_alpha      : 1.0
 
 # ─ Latent 정렬 ─
-latent_alpha        : 0.5
+latent_alpha        : 0.4
 latent_warmup_frac  : 0.3
 latent_mse_weight   : 0.7
 latent_angle_weight : 0.3
@@ -46,4 +46,4 @@ feat_loss_weight: [0.2, 0.15, 0.1]
 
 # ───── 추가 override (base.yaml 값을 덮어쓰기) ─────
 cutmix_alpha_distill: 1.0        # 강한 CutMix 유지
-ema_decay           : 0.995      # 긴 학습에서 더 안정적인 EMA
+ema_decay           : 0.99       # 짧은 학습에 맞춰 덜 관성적으로 업데이트
