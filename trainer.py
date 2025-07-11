@@ -701,11 +701,8 @@ def student_vib_update(
                 + gamma_feat*feat_loss
             )
 
-            if cfg.get("use_ewc", False) and ewc_bank:
-                ewc_loss = 0.0
-                for ewc_obj in ewc_bank:
-                    ewc_loss += ewc_obj.penalty(student_model)
-                loss += cfg.get("ewc_lambda", 30.0) * ewc_loss
+            for reg in (ewc_bank or []):
+                loss += reg.penalty(student_model)
 
             if batch_idx == 0 and ep % 10 == 0:
                 print(f"[DEBUG] γ={gamma_feat:.3f}  feat_loss={feat_loss.item():.4f}")
