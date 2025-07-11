@@ -8,8 +8,9 @@ beta_bottleneck: 0.001
 proj_hidden_dim: 1024
 proj_use_bn: true
 log_kl: false
-student_iters      : 10
-student_lr : 2e-3            # 더 안정적인 학습률
+student_iters      : 60
+student_lr         : 5e-4
+student_warmup_epochs: 5
 use_amp: true
 
 # ─ Teacher(VIB‑MBM) 학습 ─
@@ -20,18 +21,18 @@ teacher_dropout_p   : 0.3
 
 # ─ KD 스케줄 (α, T) ─
 kd_mask_curr_task  : true      # CL 기본값: 현재 task 10-way KD
-kd_alpha_init      : 0.2  # ← 0 → 0.2  (초기에도 KD 활성)
+kd_alpha_init      : 0.0        # ① 첫 20% 구간 CE 전용
 kd_alpha_final   : 0.4       # 이후 천천히 40% 까지
 kd_T_init     : 5
 kd_T_final    : 2
-kd_warmup_frac   : 0.10      # 앞 10% 구간은 CE 100%
+kd_warmup_frac     : 0.20
 kd_schedule_granularity: epoch
 kd_sched_pow     : 1.0       # 선형 증가
 ce_alpha      : 1.0
 
 # ─ Latent 정렬 ─
 latent_alpha       : 0.05 # ← 0.2 보다 작게 시작
-latent_warmup_frac : 0.3  # 초기 30 % 동안 0, 이후 선형 증가
+latent_warmup_frac : 0.40       # ③ latent loss 늦게 활성
 latent_mse_weight   : 0.7
 latent_angle_weight : 0.3
 cw_mse_eps: 1e-6                 # 확신도‑가중 MSE용 ε (분모 보호)
@@ -47,7 +48,7 @@ feat_weights  : [0.5, 0.5]
 feat_loss_weight: [0.2, 0.15, 0.1]
 
 # ───── 추가 override (base.yaml 값을 덮어쓰기) ─────
-cutmix_alpha_distill: 1.0        # 강한 CutMix 유지
+cutmix_alpha_distill: 0.0       # ② CutMix OFF (초반 안정화)
 ema_decay           : 0.992      # EMA 버퍼 빠르게 반영
 buffer_size         : 2000
 replay_ratio       : 0.5

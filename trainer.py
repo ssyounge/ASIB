@@ -549,12 +549,18 @@ def student_vib_update(
             # ─────────────── DEBUG: 스케줄 값 모니터링 ───────────────
             # 첫 3 epoch 은 매 epoch, 이후에는 5 epoch 간격으로 한 번만 출력
             if batch_idx == 0 and (ep < 3 or ep % 5 == 0):
-                msg_sched = (f"[KD-sched] ep{ep:02d} prog={prog_p:.2f} "
-                             f"α={alpha_kd:.3f} T={T:.2f} "
-                             f"lat_w={latent_w:.3f} clip={clip_cur:.2f}")
-                print(msg_sched)
+                print(
+                    f"[KD-sched] ep{ep:02d} prog={prog_p:.2f} "
+                    f"α={alpha_kd:.3f} T={T:.2f} lat_w={latent_w:.3f} clip={clip_cur:.2f}"
+                )
                 if logger:
-                    logger.info(msg_sched)
+                    logger.info(
+                        f"[KD-sched] ep{ep:02d} prog={prog_p:.2f} "
+                        f"α={alpha_kd:.3f} T={T:.2f} lat_w={latent_w:.3f} clip={clip_cur:.2f}"
+                    )
+                # ---- extra probe (첫 샘플 로짓 확인) ----
+                with torch.no_grad():
+                    print("  logits_s[0][:10] =", logit_s[0, :10].cpu().tolist())
 
             # ─ Losses ──────────────────────────────────────────
             logit_kd_s = logit_s
