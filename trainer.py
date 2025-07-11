@@ -388,7 +388,7 @@ def student_vib_update(
     ce_alpha = cfg.get("ce_alpha", 1.0)       #  CE 가중치
     latent_base = cfg.get("latent_alpha", 1.0)
     latent_warm_frac = cfg.get("latent_warmup_frac", 0.3)
-    latent_w = latent_base
+    latent_w = 0.0
     latent_mse_weight = cfg.get("latent_mse_weight", 0.7)
     latent_angle_weight = cfg.get("latent_angle_weight", 0.3)
     # ─ Grad‑clip 스케줄 파라미터 ─────────────────────────────
@@ -539,11 +539,12 @@ def student_vib_update(
                 tail_prog = (raw_prog - clip_warm_frac) / max(1e-6, 1.0 - clip_warm_frac)
                 clip_cur = clip_init * (1 - tail_prog) + clip_final * tail_prog
 
-            # ─ Latent‑weight 램프‑업 ─
+            # (★) warm‑up 구간(예: 30 %) 동안 latent penalty OFF → 이후 선형 증가
             if raw_prog < latent_warm_frac:
-                latent_w = latent_base * (raw_prog / latent_warm_frac)
+                latent_w = 0.0
             else:
-                latent_w = latent_base
+                slope = (raw_prog - latent_warm_frac) / max(1e-6, 1.0 - latent_warm_frac)
+                latent_w = latent_base * slope
 
             # ─────────────── DEBUG: 스케줄 값 모니터링 ───────────────
             # 첫 3 epoch 은 매 epoch, 이후에는 5 epoch 간격으로 한 번만 출력
@@ -633,7 +634,8 @@ def student_vib_update(
                     reduction="batchmean",
                 ) * (T_prev * T_prev)
 
-            task_classes = task_cls if cfg.get("kd_mask_curr_task", False) else None
+            # (★) CL 모드에서는 무조건 현재 task 클래스만 KD 계산
+            task_classes = task_cls if cfg.get("train_mode") == "continual" else None
             kd = kd_kl(
                 logit_s,
                 logit_t.detach(),

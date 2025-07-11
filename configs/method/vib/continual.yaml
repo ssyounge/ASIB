@@ -19,7 +19,7 @@ gate_dropout        : 0.1
 teacher_dropout_p   : 0.3
 
 # ─ KD 스케줄 (α, T) ─
-kd_mask_curr_task  : false
+kd_mask_curr_task  : true      # CL 기본값: 현재 task 10-way KD
 kd_alpha_init      : 0.2  # ← 0 → 0.2  (초기에도 KD 활성)
 kd_alpha_final   : 0.4       # 이후 천천히 40% 까지
 kd_T_init     : 5
@@ -31,7 +31,7 @@ ce_alpha      : 1.0
 
 # ─ Latent 정렬 ─
 latent_alpha       : 0.05 # ← 0.2 보다 작게 시작
-latent_warmup_frac : 0.3  # 30 % 시점까지 선형증가
+latent_warmup_frac : 0.3  # 초기 30 % 동안 0, 이후 선형 증가
 latent_mse_weight   : 0.7
 latent_angle_weight : 0.3
 cw_mse_eps: 1e-6                 # 확신도‑가중 MSE용 ε (분모 보호)
