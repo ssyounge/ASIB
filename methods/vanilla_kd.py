@@ -6,7 +6,7 @@ import torch
 from typing import Optional
 from tqdm.auto import tqdm
 
-from modules.losses import kd_loss_fn, ce_loss_fn
+from modules.losses import kd_kl, ce_loss_fn
 from utils.eval import evaluate_acc
 from utils.misc import get_amp_components
 from utils.schedule import cosine_lr_scheduler
@@ -84,7 +84,7 @@ class VanillaKDDistiller:
                     else:
                         s_logits = s_out
                     ce = ce_criterion(s_logits, y)
-                    kd = kd_loss_fn(s_logits, t_logits.detach(), T=self.temperature)
+                    kd = kd_kl(s_logits, t_logits.detach(), T=self.temperature)
                     loss = (1 - self.alpha) * ce + self.alpha * kd
                 if scaler:
                     scaler.scale(loss).backward()
