@@ -50,6 +50,7 @@ ema_decay           : 0.992      # EMA 버퍼 빠르게 반영
 buffer_size         : 2000
 replay_ratio       : 0.5
 n_tasks            : 10
-use_ewc           : true
-ewc_lambda        : 10.0
-ewc_online        : true
+use_ewc           : false      # VIB 성능 검증을 위해 EWC 제거
+ewc_lambda        : 0.0        # 아무 영향 없도록 0
+ewc_online        : false
+ewc_decay         : 0.0
