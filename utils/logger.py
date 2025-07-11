@@ -105,6 +105,11 @@ class ExperimentLogger:
     def info(self, msg: str):
         logging.info(msg)
 
+    # --- ADD for backward-compatibility ---
+    def warning(self, *args, **kwargs):
+        """Alias of .info(), so old code can call logger.warning."""
+        return self.info(*args, **kwargs)
+
     def finalize(self):
         """
         1) Calculates total_time_sec
