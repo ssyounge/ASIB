@@ -34,8 +34,17 @@ class EWC:
         collected = 0
         for x, y in loader:
             x, y = x.to(self.device), y.to(self.device)
-            out = model(x)
-            loss = torch.nn.functional.cross_entropy(out, y)
+            # -------------------------------------------------------------
+            # ① AMP 지원 : Fisher 추정도 FP16/FP32 자동 전환
+            # ② VIB 출력 튜플 (logits, mu, logvar) 처리
+            # -------------------------------------------------------------
+            with torch.cuda.amp.autocast(enabled=True):
+                out = model(x)
+                if isinstance(out, (tuple, list)):  # (logits, ...)
+                    out = out[0]
+                elif isinstance(out, dict) and "logits" in out:
+                    out = out["logits"]
+                loss = torch.nn.functional.cross_entropy(out, y)
             grads = torch.autograd.grad(loss,
                                         [p for p in model.parameters()
                                          if p.requires_grad])
