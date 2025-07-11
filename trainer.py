@@ -15,7 +15,7 @@ from utils.schedule import cosine_lr_scheduler
 from utils.misc import get_amp_components, mixup_data, mixup_criterion
 from utils.eval import evaluate_acc
 from utils.distill_loss import feat_mse_pair
-from modules.losses import compute_vib_loss, kd_loss_fn
+from modules.losses import compute_vib_loss, kd_kl
 
 
 def split_current_replay(batch, replay_ratio):
@@ -631,7 +631,7 @@ def student_vib_update(
                 ) * (T_prev * T_prev)
 
             task_classes = task_cls if cfg.get("kd_mask_curr_task", False) else None
-            kd = kd_loss_fn(
+            kd = kd_kl(
                 logit_s,
                 logit_t.detach(),
                 T,
