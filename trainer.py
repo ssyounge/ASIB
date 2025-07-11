@@ -15,7 +15,7 @@ from utils.schedule import cosine_lr_scheduler
 from utils.misc import get_amp_components, mixup_data, mixup_criterion
 from utils.eval import evaluate_acc
 from utils.distill_loss import feat_mse_pair
-from modules.losses import compute_vib_loss
+from modules.losses import compute_vib_loss, kd_loss_fn
 
 
 def split_current_replay(batch, replay_ratio):
@@ -630,11 +630,13 @@ def student_vib_update(
                     reduction="batchmean",
                 ) * (T_prev * T_prev)
 
-            kd = F.kl_div(                       # reduction=batchmean + T² 한 번만
-                F.log_softmax(logit_kd_s / T, dim=1),
-                F.softmax(logit_kd_t.detach() / T, dim=1),
-                reduction="batchmean",
-            ) * (T * T)
+            task_classes = task_cls if cfg.get("kd_mask_curr_task", False) else None
+            kd = kd_loss_fn(
+                logit_s,
+                logit_t.detach(),
+                T,
+                task_classes,
+            )
             # ─ Latent & Angle Loss 병행 ─
             mu_phi_det = mu_phi.detach()
             sigma2_phi = torch.exp(log_var_phi).detach()
