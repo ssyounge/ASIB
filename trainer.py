@@ -765,6 +765,16 @@ def student_vib_update(
             correct += (logit_s.argmax(1) == y_local).sum().item()
             count += x.size(0)
 
+            # ── Step-wise logging ───────────────────────────────
+            if logger is not None and cfg.get("log_interval"):
+                if local_step % int(cfg["log_interval"]) == 0 or local_step == 0:
+                    logger.info(
+                        f"[DBG] ep{ep:03d} stp{local_step:03d} "
+                        f"ce={ce.item():.3f} kd={kd.item():.3f} lat={latent.item():.3f} "
+                        f"α={alpha_kd:.3f} T={T:.2f} "
+                        f"latent_w={latent_w:.3f}"
+                    )
+
             # ── DEBUG: 5 epoch 간격, 첫 버치만 ───────────────
             if batch_idx == 0 and (ep % 5 == 0):
                 print(
