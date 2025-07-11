@@ -308,6 +308,14 @@ def main() -> None:
         small_input=True,
         cfg=cfg,
     ).to(device)
+    if cfg.get('student_ce_ckpt') and os.path.isfile(cfg['student_ce_ckpt']):
+        ckpt = torch.load(cfg['student_ce_ckpt'], map_location="cpu")
+        missing, unexpected = student.load_state_dict(ckpt, strict=False)
+        logger.info(
+            f"[Student] CE-ckpt loaded \u2713  missing={len(missing)}  unexpected={len(unexpected)}"
+        )
+    else:
+        logger.warning("[Student] CE-ckpt **NOT** found \u2192 training from scratch")
     if method == 'vib':
         student_proj = StudentProj(
             in_dim     = student.get_feat_dim(),
