@@ -265,11 +265,10 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
             for p in head.parameters():
                 p.requires_grad_(True)
 
-            # ③ Task 0,1 은 backbone 도 학습 (feature 적응 단계)
-            if task < 2:
-                for name, p in student.named_parameters():
-                    if name.startswith(("backbone.", "stem.", "features.", "blocks.")):
-                        p.requires_grad_(True)
+            # ③ 모든 task에서 ConvNeXt stage-3(=최상위)만 학습
+            for name, p in student.named_parameters():
+                if name.startswith(("backbone.stages.3", "backbone.downsample_layers.3")):
+                    p.requires_grad_(True)
 
             if logger:
                 trainable = [n for n, p in student.named_parameters() if p.requires_grad]
