@@ -23,13 +23,14 @@ if [ -n "${PROJECT_ROOT:-}" ]; then
     cd "$ROOT_DIR"
 fi
 
-# 저장 경로를 명시적으로 지정하려면 환경변수를 사용합니다
-export ASMB_KD_ROOT="${HOME}/ASMB_KD_storage"
+# 저장 경로 환경변수는 외부에서 설정 가능하며,
+# 기본값은 "${HOME}/.asmb_kd" 하위 디렉터리입니다.
+export ASMB_KD_ROOT="${ASMB_KD_ROOT:-$HOME/.asmb_kd}"
 
 # (2) 출력·체크포인트 디렉터리를 "집" 밑으로 옮긴다
 JOB_ID=${SLURM_JOB_ID:-local}
-CKPT_DIR="$HOME/ASMB_KD_checkpoints"      # ← 쓰기 가능한 위치
-OUT_ROOT="$HOME/ASMB_KD_outputs"
+CKPT_DIR="${ASMB_KD_ROOT:-$HOME/.asmb_kd}/checkpoints"      # ← 쓰기 가능한 위치
+OUT_ROOT="${ASMB_KD_ROOT:-$HOME/.asmb_kd}/outputs"
 OUT_DIR="$OUT_ROOT/ibkd_${JOB_ID}"
 
 # 실제로 만들기
