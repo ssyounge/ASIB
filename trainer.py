@@ -489,7 +489,7 @@ def student_vib_update(
             else:
                 x = cur_x
                 y_local = cur_y
-            
+
             # ─ Teacher feature → synergy target ─────────────────
             with torch.no_grad():
                 out1 = teacher1(x)

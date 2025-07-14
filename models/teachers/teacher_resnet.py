@@ -31,7 +31,7 @@ class TeacherResNetWrapper(nn.Module):
         self.feat_channels = 2048
 
         # distillation adapter removed
-    
+
     def forward(self, x, y=None):
         """
         Returns:
