@@ -55,6 +55,7 @@ ewc_online: false
 ewc_decay: 1.0
 
 # ───── Logging options ─────
+exp_name: ibkd
 wandb_project: kd_monitor
 wandb_run_name: run_001
 tb_log_dir: runs/kd_monitor

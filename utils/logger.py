@@ -79,7 +79,8 @@ class ExperimentLogger:
 
     def _generate_exp_id(self, exp_name: str = "exp") -> str:
         """
-        Creates an experiment ID like 'ibkd_noeval_20250704_123456'
+        Creates an experiment ID like '<exp_name>_noeval_20250704_123456'.
+        The prefix comes from ``exp_name`` which defaults to ``"ibkd"``.
         """
         eval_mode = self.config.get("eval_mode", "noeval")
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")

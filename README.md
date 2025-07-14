@@ -94,6 +94,7 @@ pytest
 We rely on Weights & Biases for experiment tracking.
 Configure the project name, run name and TensorBoard log directory via
 `wandb_project`, `wandb_run_name` and `tb_log_dir` in `configs/base.yaml`.
+The experiment prefix can be set with `exp_name` (defaults to `ibkd`).
 If you do not wish to use WandB, run with `WANDB_MODE=disabled`.
 
 ## License

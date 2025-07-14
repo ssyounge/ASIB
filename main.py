@@ -133,7 +133,7 @@ def main() -> None:
     os.makedirs(cfg.get("results_dir", "results"), exist_ok=True)
 
     # logger는 **최종 cfg**가 완성된 뒤에 생성
-    logger = ExperimentLogger(cfg, exp_name="ibkd")
+    logger = ExperimentLogger(cfg, exp_name=cfg.get("exp_name", "ibkd"))
     writer = SummaryWriter(log_dir=cfg.get("tb_log_dir", "runs/kd_monitor"))
     wandb_run = wandb.init(
         project=cfg.get("wandb_project", "kd_monitor"),
