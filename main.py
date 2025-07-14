@@ -116,6 +116,18 @@ def main() -> None:
     cfg['method'] = method
 
     # --------------------------------------------------------------
+    # ❶ 모든 경로를 쓰기 가능한 위치로 치환
+    #    (repo 안 상대경로 →  ~/.asmb_kd/… )
+    # --------------------------------------------------------------
+    cfg['checkpoint_dir'] = to_writable(cfg.get('checkpoint_dir', 'checkpoints'))
+
+    for k in ('teacher1_ckpt', 'teacher2_ckpt', 'student_ce_ckpt'):
+        if k in cfg and cfg[k]:
+            cfg[k] = ",".join(
+                to_writable(p.strip()) for p in str(cfg[k]).split(',')
+            )
+
+    # --------------------------------------------------------------
 
     # cuDNN 자동 튜닝 활성 (deterministic 모드가 아니라면)
     if not cfg.get("deterministic", False):
@@ -131,9 +143,14 @@ def main() -> None:
             cfg_src[k] = "CLI"
 
     # ✔ 자동 경로 보정: repo 안 상대경로 → $HOME/.asmb_kd/
-    for key in ("checkpoint_dir",):
-        if key in cfg:
-            cfg[key] = to_writable(cfg[key])
+    for key in ("checkpoint_dir", "teacher1_ckpt", "teacher2_ckpt", "student_ce_ckpt"):
+        if key in cfg and cfg[key]:
+            if key.startswith("teacher") or key == "student_ce_ckpt":
+                cfg[key] = ",".join(
+                    to_writable(p.strip()) for p in str(cfg[key]).split(',')
+                )
+            else:
+                cfg[key] = to_writable(cfg[key])
 
     # results_dir를 CLI※YAML 최종값으로 덮어쓴 뒤에 생성
     os.makedirs(cfg.get("results_dir", "results"), exist_ok=True)
