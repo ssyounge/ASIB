@@ -26,9 +26,8 @@ import wandb
 from utils.misc import set_random_seed
 from utils.eval import evaluate_acc
 from data.cifar100 import get_cifar100_loaders
-from models.teachers.teacher_resnet import create_resnet152
-from models.teachers.teacher_efficientnet import create_efficientnet_b2
-from utils.model_factory import create_student_by_name               # NEW
+from models.ensemble.snapshot_teacher import SnapshotTeacher
+from utils.model_factory import create_student_by_name, create_teacher_by_name               # NEW
 from trainer import teacher_vib_update, student_vib_update, simple_finetune
 from utils.freeze import freeze_all
 from utils.logger import ExperimentLogger
@@ -204,8 +203,25 @@ def main() -> None:
 
     # ---------- teachers ----------
     if method != 'ce':
-        t1 = create_resnet152(pretrained=True, small_input=True).to(device)
-        t2 = create_efficientnet_b2(pretrained=True, small_input=True).to(device)
+        def _make_teacher(cfg_key, default_name):
+            src = cfg.get(cfg_key)
+            if isinstance(src, str) and src.endswith('.pth'):
+                m = create_teacher_by_name(
+                    default_name,
+                    num_classes=100,
+                    pretrained=False,
+                    small_input=True,
+                )
+                m.load_state_dict(torch.load(src, map_location='cpu'))
+                return m.to(device)
+            elif isinstance(src, str):
+                paths = [s.strip() for s in src.split(',')]
+                return SnapshotTeacher(paths, backbone_name=default_name).to(device)
+            else:
+                raise ValueError(f"invalid {cfg_key}: {src}")
+
+        t1 = _make_teacher('teacher1_ckpt', 'resnet152')
+        t2 = _make_teacher('teacher2_ckpt', 'resnet50')
 
     # optional short fine-tuning before distillation
     ft_epochs = cfg.get('finetune_epochs', 0)

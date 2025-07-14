@@ -124,6 +124,7 @@ def main() -> None:
         weight_decay=float(wd),
     )
     crit = torch.nn.CrossEntropyLoss()
+    ckpt_dir = os.path.dirname(args.ckpt) or "."
 
     best = 0.0
     best_state = copy.deepcopy(model.state_dict())
@@ -151,6 +152,15 @@ def main() -> None:
         if acc > best:
             best = acc
             best_state = copy.deepcopy(model.state_dict())
+
+        # ─ Snapshot‑Ensemble ─
+        snap_int   = cfg.get("snapshot_interval", 10)
+        snap_start = cfg.get("snapshot_start", 20)
+        if ep >= snap_start and ep % snap_int == 0:
+            torch.save(
+                model.state_dict(),
+                f"{ckpt_dir}/snap_ep{ep:03d}.pth",
+            )
 
     torch.save(best_state, args.ckpt)
     print(f"[TeacherCE] best={best:.2f} saved={args.ckpt}")
