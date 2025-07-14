@@ -9,15 +9,15 @@ imports:
   - configs/base.yaml
   - configs/scenario/standard.yaml       # ← standard 시나리오
 
-# ─ repo 내 쓰기 방지: 절대경로 사용 ─────────────────────
-checkpoint_dir: /home/suyoung425/ASMB_KD_checkpoints
+# ─ repo 내 쓰기 방지: 상대경로 사용 ─────────────────────
+checkpoint_dir: checkpoints
 
 # ─ Snapshot & 교사 가중치도 같은 경로로 맞춘다 ──────────
 teacher1_ckpt: >
-  /home/suyoung425/ASMB_KD_checkpoints/snap_ep020.pth,
-  /home/suyoung425/ASMB_KD_checkpoints/snap_ep040.pth,
-  /home/suyoung425/ASMB_KD_checkpoints/snap_ep060.pth
-teacher2_ckpt: /home/suyoung425/ASMB_KD_checkpoints/efficientnet_b2_ft.pth
+  checkpoints/snap_ep020.pth,
+  checkpoints/snap_ep040.pth,
+  checkpoints/snap_ep060.pth
+teacher2_ckpt: checkpoints/efficientnet_b2_ft.pth
 teacher1_type: resnet152
 teacher2_type: efficientnet_b2
 
