@@ -35,7 +35,7 @@ echo "[DEBUG] HOST=$(hostname)"
 
 ## 1) Conda
 source ~/anaconda3/etc/profile.d/conda.sh
-conda activate facil_env
+conda activate tlqkf
 # 디버그 – 지금 파이썬이 conda env 것인지 확인
 "$CONDA_PREFIX/bin/python" - <<'PY'
 import torch, sys; print("[DEBUG] torch", torch.__version__, "| CUDA =", torch.cuda.is_available())
