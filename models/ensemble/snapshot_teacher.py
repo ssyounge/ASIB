@@ -20,17 +20,14 @@ class SnapshotTeacher(nn.Module):
             self.models.append(m)
 
     @torch.no_grad()
-    def forward(self, x, return_feat=False):
+    def forward(self, x):
+        """교사‑API 호환: (feat_dict, logits) tuple 반환"""
         logits_all, feat_all = [], []
         for m in self.models:
-            out = m(x)
-            feat = out[0]["feat_2d"] if isinstance(out, tuple) else None
-            log  = out[1]           if isinstance(out, tuple) else out
-            logits_all.append(log)
-            if return_feat:
-                feat_all.append(feat)
+            feat_dict, logit = m(x)
+            logits_all.append(logit)
+            feat_all.append(feat_dict["feat_2d"])
+
         logit_avg = torch.stack(logits_all).mean(0)
-        if return_feat:
-            feat_avg = torch.stack(feat_all).mean(0)
-            return {"feat_2d": feat_avg}, logit_avg
-        return logit_avg
+        feat_avg = torch.stack(feat_all).mean(0)
+        return {"feat_2d": feat_avg}, logit_avg

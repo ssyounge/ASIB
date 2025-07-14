@@ -216,7 +216,11 @@ def main() -> None:
                 return m.to(device)
             elif isinstance(src, str):
                 paths = [s.strip() for s in src.split(',')]
-                return SnapshotTeacher(paths, backbone_name=default_name).to(device)
+                return SnapshotTeacher(
+                    paths,
+                    backbone_name=default_name,
+                    n_cls=cfg.get("num_classes", 100),
+                ).to(device)
             else:
                 raise ValueError(f"invalid {cfg_key}: {src}")
 
