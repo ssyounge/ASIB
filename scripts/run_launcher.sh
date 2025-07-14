@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -l
 # scripts/run_launcher.sh
 #SBATCH --job-name=launcher_job
 #SBATCH --partition=base_suma_rtx3090
@@ -6,7 +6,6 @@
 #SBATCH --time=04:00:00
 #SBATCH --output=outputs/slurm/%x_%j.out        # SLURM 로그
 # 실행 디렉터리는 제출 위치 기준으로 자동 결정되도록 변경
-#SBATCH --chdir=${SLURM_SUBMIT_DIR:-$PWD}
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
 #-------------------------------------------------------------------
@@ -14,7 +13,8 @@
 #-------------------------------------------------------------------
 set -euo pipefail
 
-# (1) 프로젝트 루트:  --chdir 덕분에 이미 루트
+# (1) 프로젝트 루트: 제출한 곳으로 직접 이동
+cd "${SLURM_SUBMIT_DIR:-$PWD}"
 ROOT_DIR=$(pwd)
 
 # 안전: 그래도 환경변수로 덮어쓰기 허용
@@ -33,10 +33,11 @@ mkdir -p "$OUT_DIR" "$OUT_ROOT/slurm"
 echo "[DEBUG] PWD=$(pwd)"
 echo "[DEBUG] HOST=$(hostname)"
 
-# 1) Conda
+## 1) Conda
 source ~/anaconda3/etc/profile.d/conda.sh
 conda activate facil_env
-python - <<'PY'
+# 디버그 – 지금 파이썬이 conda env 것인지 확인
+"$CONDA_PREFIX/bin/python" - <<'PY'
 import torch, sys; print("[DEBUG] torch", torch.__version__, "| CUDA =", torch.cuda.is_available())
 PY
 
@@ -73,7 +74,7 @@ shift 0   # 인수 필요 없음; 있으면 그대로 Python 쪽으로
 #    main.py 가 method / train_mode 값을 읽어
 #    자동으로 configs/method/***.yaml, configs/scenario/***.yaml 을 merge 합니다.
 
-srun --chdir="$ROOT_DIR" python scripts/launcher.py "$@"
+srun --chdir="$ROOT_DIR" "$CONDA_PREFIX/bin/python" scripts/launcher.py "$@"
 
 # ➜ 주의: 다른 인자(실험 id, 추가 override 등)는
 #     ./run_ibkd.sh --batch_size 256 처럼 이어서 넘기면 됩니다.
