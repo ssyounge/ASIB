@@ -16,8 +16,8 @@ persistent_workers: true
 disable_tqdm: true
 
 device     : cuda
-results_dir: results
-checkpoint_dir: checkpoints
+checkpoint_dir: /home/<USER>/ASMB_KD_checkpoints
+results_dir   : /home/<USER>/ASMB_KD_outputs
 
 optimizer  : adamw
 student_lr       : 2e-3       # 3e‑3 → 2e‑3
