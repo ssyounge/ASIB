@@ -17,7 +17,7 @@ def get_imagenet100_loaders(
     randaug_default_N: int = 2,
     randaug_default_M: int = 9,
 ):
-    """    
+    """
     ImageNet100 size = (224×224)
     Returns:
         train_loader, test_loader

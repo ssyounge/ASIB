@@ -138,7 +138,7 @@ class ATDistiller(nn.Module):
                 loss.backward()
                 optimizer.step()
 
-            
+
                 total_loss += loss.item()*x.size(0)
                 total_num  += x.size(0)
 

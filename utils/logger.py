@@ -44,8 +44,8 @@ class ExperimentLogger:
     """
     Handles experiment configuration + result metrics in a single dict (self.config).
     1) Create a unique exp_id for each run
-    2) Save to JSON (entire config) 
-    3) Save to a unique CSV file (subset of fields), 
+    2) Save to JSON (entire config)
+    3) Save to a unique CSV file (subset of fields),
        and also store that csv_filename in the JSON.
     """
 

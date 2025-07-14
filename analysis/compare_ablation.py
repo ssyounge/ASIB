@@ -48,7 +48,7 @@ def main():
         print(f"[Error] summary.csv not found at {summary_path}")
         return
 
-    df = pd.read_csv(summary_path)  
+    df = pd.read_csv(summary_path)
     # 예: 컬럼 ["method", "teacher_lr", "synergy_ce_alpha", "test_acc", "seed", "epoch"]
 
     # 1) group by key hyperparams => compute mean & std of test_acc

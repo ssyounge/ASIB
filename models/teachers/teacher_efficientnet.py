@@ -26,7 +26,7 @@ class TeacherEfficientNetWrapper(nn.Module):
         self.feat_channels = 1408
 
         # distillation adapter removed
-    
+
     def forward(self, x, y=None):
         """
         Returns:

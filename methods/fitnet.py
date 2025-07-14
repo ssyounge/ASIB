@@ -60,7 +60,7 @@ class FitNetDistiller(nn.Module):
         s_dict, s_logit, _ = self.student(x)      # (feat_dict, logit, ce_loss(opt))
 
         # 1) hint/guided MSE
-        t_feat = t_dict[self.hint_key]  # e.g. [N, C_t, H_t, W_t] 
+        t_feat = t_dict[self.hint_key]  # e.g. [N, C_t, H_t, W_t]
         s_feat = s_dict[self.guided_key]
         if self.regressor is None:          # 첫 호출에서만 생성
             self.regressor = nn.Conv2d(
@@ -157,7 +157,7 @@ class FitNetDistiller(nn.Module):
 
                 optimizer.step()
 
-            
+
                 total_loss += loss.item() * x.size(0)
                 total_num  += x.size(0)
 
