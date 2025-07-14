@@ -207,23 +207,24 @@ def main() -> None:
 
     # ---------- teachers ----------
     if method != 'ce':
-        def _make_teacher(cfg_key, default_name):
+        def _make_teacher(cfg_key, type_key, default_name):
             src = cfg.get(cfg_key, "")
+            teacher_type = cfg.get(type_key, default_name)
             # 1) comma-separated snapshot ensemble
             if isinstance(src, str) and "," in src:
                 src = src.split('#', 1)[0].strip()
                 paths = [p.strip() for p in src.split(',') if p.strip()]
                 return SnapshotTeacher(
                     paths,
-                    backbone_name=default_name,
+                    backbone_name=teacher_type,
                     n_cls=cfg.get("num_classes", 100),
                 ).to(device)
 
             # 2) single checkpoint path
             if isinstance(src, str) and src.endswith('.pth'):
                 m = create_teacher_by_name(
-                    default_name,
-                    num_classes=100,
+                    teacher_type,
+                    num_classes=cfg.get("num_classes", 100),
                     pretrained=False,
                     small_input=True,
                 )
@@ -235,8 +236,8 @@ def main() -> None:
             else:
                 raise ValueError(f"invalid {cfg_key}: {src}")
 
-        t1 = _make_teacher('teacher1_ckpt', 'resnet152')
-        t2 = _make_teacher('teacher2_ckpt', 'efficientnet_b2')
+        t1 = _make_teacher('teacher1_ckpt', 'teacher1_type', 'resnet152')
+        t2 = _make_teacher('teacher2_ckpt', 'teacher2_type', 'efficientnet_b2')
         loaded1 = isinstance(t1, SnapshotTeacher)
         if loaded1:
             print(f"[INFO] Loaded teacher1 snapshot ensemble: {len(t1.models)} models")
