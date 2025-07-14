@@ -5,3 +5,5 @@ pyyaml
 pandas
 wandb              # 로깅 필수
 pytest             # CI 에서 테스트 실행
+tensorboard>=2.14
+wandb>=0.16
