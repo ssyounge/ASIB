@@ -13,9 +13,9 @@
 #-------------------------------------------------------------------
 set -euo pipefail
 
-# (1) 프로젝트 루트: 제출한 곳으로 직접 이동
-cd "${SLURM_SUBMIT_DIR:-$PWD}"
-ROOT_DIR=$(pwd)
+# (1) 프로젝트 루트: 스크립트 위치 기준으로 자동 결정
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT_DIR"
 
 # 안전: 그래도 환경변수로 덮어쓰기 허용
 if [ -n "${PROJECT_ROOT:-}" ]; then

@@ -27,6 +27,9 @@ python scripts/train_teacher.py --teacher resnet152 --ckpt checkpoints/resnet152
 python scripts/train_teacher.py --teacher efficientnet_b2 --ckpt checkpoints/efficientnet_b2_ft.pth
 ```
 
+All helper scripts inside `scripts/` first move to the repository root based on
+their own location, so they can be executed from any working directory.
+
 Pass `--overwrite` to `scripts/fine_tuning.py` to remove an existing checkpoint
 before starting a new run:
 
