@@ -226,6 +226,12 @@ def main() -> None:
 
         t1 = _make_teacher('teacher1_ckpt', 'resnet152')
         t2 = _make_teacher('teacher2_ckpt', 'resnet50')
+        loaded1 = isinstance(t1, SnapshotTeacher)
+        if loaded1:
+            print(f"[INFO] Loaded teacher1 snapshot ensemble: {len(t1.models)} models")
+        loaded2 = isinstance(t2, SnapshotTeacher)
+        if loaded2:
+            print(f"[INFO] Loaded teacher2 snapshot ensemble: {len(t2.models)} models")
 
     # optional short fine-tuning before distillation
     ft_epochs = cfg.get('finetune_epochs', 0)
@@ -234,8 +240,6 @@ def main() -> None:
 
     t1_ckpt = cfg.get('teacher1_ckpt')
     t2_ckpt = cfg.get('teacher2_ckpt')
-    loaded1 = False
-    loaded2 = False
 
     if method != 'ce' and t1_ckpt and os.path.exists(t1_ckpt):
         # PyTorch 1.12 이후만 weights_only 지원 → 버전별 fallback
