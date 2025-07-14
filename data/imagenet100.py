@@ -7,7 +7,7 @@ import torchvision
 import torchvision.transforms as T
 
 def get_imagenet100_loaders(
-    root: str = "./data/imagenet100",
+    root: Optional[str] = None,
     batch_size: int = 128,
     num_workers: int = 2,
     augment: bool = True,
@@ -22,6 +22,13 @@ def get_imagenet100_loaders(
     Returns:
         train_loader, test_loader
     """
+    if root is None:
+        root = (
+            cfg.get("imagenet100_root", "./data/imagenet100")
+            if cfg is not None
+            else "./data/imagenet100"
+        )
+
     if augment:
         aug_ops = [T.RandomResizedCrop(224), T.RandomHorizontalFlip()]
         if cfg is not None:

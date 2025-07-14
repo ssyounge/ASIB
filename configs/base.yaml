@@ -1,6 +1,7 @@
 # configs/base.yaml
 
 dataset_root: ./data
+imagenet100_root: ./data/imagenet100
 num_classes: 100
 student_type: convnext_tiny
 teacher1_ckpt: checkpoints/resnet152_ft.pth
