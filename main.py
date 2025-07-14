@@ -233,7 +233,7 @@ def main() -> None:
                 raise ValueError(f"invalid {cfg_key}: {src}")
 
         t1 = _make_teacher('teacher1_ckpt', 'resnet152')
-        t2 = _make_teacher('teacher2_ckpt', 'resnet50')
+        t2 = _make_teacher('teacher2_ckpt', 'efficientnet_b2')
         loaded1 = isinstance(t1, SnapshotTeacher)
         if loaded1:
             print(f"[INFO] Loaded teacher1 snapshot ensemble: {len(t1.models)} models")
