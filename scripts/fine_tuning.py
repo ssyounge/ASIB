@@ -13,6 +13,7 @@ from data.cifar100 import get_cifar100_loaders
 from utils.model_factory import create_teacher_by_name
 from utils.misc import set_random_seed
 from trainer import simple_finetune
+from utils.path_utils import to_writable
 
 
 TEACHER_CHOICES = ["resnet152", "efficientnet_b2"]
@@ -49,7 +50,7 @@ def main() -> None:
     cfg["overwrite"] = args.overwrite
 
     if args.finetune_ckpt_path is None:
-        ckpt_dir = cfg.get("checkpoint_dir", "checkpoints")
+        ckpt_dir = to_writable(cfg.get("checkpoint_dir", "checkpoints"))
         args.finetune_ckpt_path = os.path.join(
             ckpt_dir, f"{args.teacher_type}_ft.pth"
         )

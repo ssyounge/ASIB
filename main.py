@@ -32,6 +32,7 @@ from trainer import teacher_vib_update, student_vib_update, simple_finetune
 from utils.freeze import freeze_all
 from utils.logger import ExperimentLogger
 from utils.print_cfg import print_hparams
+from utils.path_utils import to_writable
 
 
 def get_method_cfg(method: str, train_mode: str):
@@ -128,6 +129,11 @@ def main() -> None:
         if v is not None:
             cfg[k] = v
             cfg_src[k] = "CLI"
+
+    # ✔ 자동 경로 보정: repo 안 상대경로 → $HOME/.asmb_kd/
+    for key in ("checkpoint_dir",):
+        if key in cfg:
+            cfg[key] = to_writable(cfg[key])
 
     # results_dir를 CLI※YAML 최종값으로 덮어쓴 뒤에 생성
     os.makedirs(cfg.get("results_dir", "results"), exist_ok=True)
@@ -246,6 +252,12 @@ def main() -> None:
                 raise ValueError(f"{cfg_key}: un-recognised format \u2192 {src}")
             else:
                 raise ValueError(f"invalid {cfg_key}: {src}")
+
+        for key in ("teacher1_ckpt", "teacher2_ckpt"):
+            if key in cfg:
+                cfg[key] = ",".join(
+                    to_writable(p.strip()) for p in str(cfg[key]).split(",")
+                )
 
         t1 = _make_teacher('teacher1_ckpt', 'teacher1_type', 'resnet152')
         t2 = _make_teacher('teacher2_ckpt', 'teacher2_type', 'efficientnet_b2')
