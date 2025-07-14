@@ -30,7 +30,10 @@ def get_amp_components(cfg: dict):
     """Return autocast context and scaler based on config."""
     from contextlib import nullcontext
 
-    from torch.amp import GradScaler, autocast
+    try:
+        from torch.amp import GradScaler, autocast
+    except Exception:  # pragma: no cover - fallback for old PyTorch
+        from torch.cuda.amp import GradScaler, autocast
 
     use_amp = cfg.get("use_amp", False)
     init_scale = cfg.get("grad_scaler_init_scale", 1024)
