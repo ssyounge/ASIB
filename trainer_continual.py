@@ -16,8 +16,7 @@ from trainer import teacher_vib_update, student_vib_update, simple_finetune
 # ============================================================
 from methods.ewc import EWC          # (규제용)
 from methods.lwf import LwF          # (옵션) 추가 실험 대비
-from models.teachers.teacher_resnet import create_resnet152
-from models.teachers.teacher_efficientnet import create_efficientnet_b2
+from utils.model_factory import create_teacher_by_name
 from utils.freeze import freeze_all
 from utils.eval import evaluate_acc
 import torch.nn as nn
@@ -135,8 +134,16 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
     ewc_bank = []
     regularizers = ewc_bank  # alias for optional regularizers
 
-    t1 = create_resnet152(pretrained=True, small_input=True).to(device)
-    t2 = create_efficientnet_b2(pretrained=True, small_input=True).to(device)
+    t1 = create_teacher_by_name(
+        cfg.get("teacher1_type", "resnet152"),
+        pretrained=True,
+        small_input=True,
+    ).to(device)
+    t2 = create_teacher_by_name(
+        cfg.get("teacher2_type", "efficientnet_b2"),
+        pretrained=True,
+        small_input=True,
+    ).to(device)
     freeze_all(t1)
     freeze_all(t2)
     t1.eval()
