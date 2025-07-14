@@ -57,7 +57,8 @@ def get_method_cfg(method: str, train_mode: str):
 def main() -> None:
     # ---------- CLI ----------
     parser = argparse.ArgumentParser(description="IB-KD entry point")
-    parser.add_argument('--cfg',
+    parser.add_argument('--cfg', '--config',
+                        dest='cfg',
                         default='configs/base.yaml',
                         help='Comma-separated list of YAML files')
     parser.add_argument('--teacher1_ckpt', type=str, help='Path to teacher-1 checkpoint')
