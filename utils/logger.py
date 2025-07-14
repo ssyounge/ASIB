@@ -2,6 +2,8 @@
 
 import os, sys, csv, json, time, logging
 from datetime import datetime                 # ★ 추가
+from pathlib import Path
+from utils.path_utils import to_writable     # ★ 추가
 from typing import Optional
 
 # ── 0) console logger 설정 (한 줄 timestamp + 색상* 지원)
@@ -73,6 +75,11 @@ class ExperimentLogger:
 
         # Where to save results
         self.results_dir = self.config.get("results_dir", "results")
+        # repo 안 상대경로 → $HOME/.asmb_kd/… 로 안전 변환
+        self.ckpt_dir = Path(
+            to_writable(self.config.get("checkpoint_dir", "checkpoints"))
+        )
+        self.ckpt_dir.mkdir(parents=True, exist_ok=True)
 
         self.start_time      = time.time()     # 러닝타임 측정용
         self.metric_history  = []              # step‑wise metric 로그용
