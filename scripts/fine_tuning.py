@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # scripts/fine_tuning.py
-"""Lightweight teacher fine-tuning script used by run_ibkd.sh."""
+"""Lightweight teacher fine-tuning script used by run_launcher.sh."""
 import argparse
 import os
 import sys

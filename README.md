@@ -40,7 +40,7 @@ python scripts/fine_tuning.py --teacher_type resnet152 --overwrite
 2. **Run IB-KD** using the provided checkpoints:
 
 ```bash
-bash scripts/run_ibkd.sh
+bash scripts/run_launcher.sh
 ```
 
 3. **(Optional) CE baseline** without distillation:
@@ -78,7 +78,7 @@ checkpoints/            # teacher checkpoints
 models/                 # teacher and student architectures
 scripts/
     train_teacher.py    # CE fine-tuning
-    run_ibkd.sh         # distillation entry point
+    run_launcher.sh     # distillation entry point
 utils/
 main.py                 # training driver
 trainer.py              # training loops
