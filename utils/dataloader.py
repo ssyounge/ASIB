@@ -36,7 +36,6 @@ class BalancedReplaySampler(torch.utils.data.Sampler):
 
     def __len__(self):
         """Return the number of samples yielded by the sampler."""
-        # number of batches processed based on current data
-        batches = math.ceil(len(self.cur) / max(1, self.cc))
-        # total samples = current samples + replay samples per batch
-        return len(self.cur) + batches * self.rc
+        cur_samples = len(self.cur)
+        replay_samples = math.ceil(cur_samples / max(1, self.cc)) * self.rc
+        return cur_samples + replay_samples
