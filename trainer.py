@@ -370,7 +370,8 @@ def student_vib_update(
     device = cfg.get("device", "cuda")
     from trainer_continual import _remap_for_task
     best_acc = 0.0
-    ckpt_dir = cfg.get("checkpoint_dir", "checkpoints")
+    from utils.path_utils import to_writable
+    ckpt_dir = to_writable(cfg.get("checkpoint_dir", "checkpoints"))
     os.makedirs(ckpt_dir, exist_ok=True)
     ckpt_best = os.path.join(ckpt_dir, "student_best.pth")
     ckpt_last = os.path.join(ckpt_dir, "student_last.pth")
