@@ -4,10 +4,9 @@
 #       trainer_continual.py에서는 별도 수정이 필요 없습니다.
 from __future__ import annotations
 
-import os
 import torch
 from torch.utils.tensorboard import SummaryWriter
-import wandb
+import os, wandb                   # ← os 먼저 import
 
 from data.cifar100_cl import get_cifar100_cl_loaders, _task_classes
 from trainer import teacher_vib_update, student_vib_update, simple_finetune
@@ -126,9 +125,20 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
 
     acc_seen_hist = []
     writer = SummaryWriter(log_dir=cfg.get("tb_log_dir", "runs/kd_monitor"))
+
+    # ─────────────────────────────────────────
+    #  WandB: API Key 유무에 따라 자동 Fallback
+    #    · ①  환경변수 WANDB_API_KEY 나
+    #    · ②  ~/.config/wandb/settings 에 저장된 키
+    #        둘 다 없으면 → offline 전환
+    # ─────────────────────────────────────────
+    if not (os.environ.get("WANDB_API_KEY") or wandb.api.api_key):
+        os.environ["WANDB_MODE"] = "offline"
+        print("[INFO] W&B API key not found → running in OFFLINE mode")
+
     wandb_run = wandb.init(
         project=cfg.get("wandb_project", "kd_monitor"),
-        name=cfg.get("wandb_run_name", "run_001"),
+        name   =cfg.get("wandb_run_name", "run_001"),
     )
     global_step_counter = 0
     ewc_bank = []

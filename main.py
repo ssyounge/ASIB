@@ -22,7 +22,7 @@ except RuntimeError:
 from models.ib.gate_mbm import GateMBM
 from models.ib.proj_head import StudentProj
 from torch.utils.tensorboard import SummaryWriter
-import wandb
+import os, wandb                   # ← os 먼저 import
 from utils.misc import set_random_seed
 from utils.eval import evaluate_acc
 from data.cifar100 import get_cifar100_loaders
@@ -135,9 +135,20 @@ def main() -> None:
     # logger는 **최종 cfg**가 완성된 뒤에 생성
     logger = ExperimentLogger(cfg, exp_name=cfg.get("exp_name", "ibkd"))
     writer = SummaryWriter(log_dir=cfg.get("tb_log_dir", "runs/kd_monitor"))
+
+    # ─────────────────────────────────────────
+    #  WandB: API Key 유무에 따라 자동 Fallback
+    #    · ①  환경변수 WANDB_API_KEY 나
+    #    · ②  ~/.config/wandb/settings 에 저장된 키
+    #        둘 다 없으면 → offline 전환
+    # ─────────────────────────────────────────
+    if not (os.environ.get("WANDB_API_KEY") or wandb.api.api_key):
+        os.environ["WANDB_MODE"] = "offline"
+        print("[INFO] W&B API key not found → running in OFFLINE mode")
+
     wandb_run = wandb.init(
         project=cfg.get("wandb_project", "kd_monitor"),
-        name=cfg.get("wandb_run_name", "run_001"),
+        name   =cfg.get("wandb_run_name", "run_001"),
     )
     global_step_counter = 0
 
