@@ -41,6 +41,9 @@ python main.py --cfg configs/minimal.yaml --method ce
 ```
 
 Both scripts read default options from `configs/minimal.yaml`.
+Specify comma-separated checkpoint paths under `teacher1_ckpt` or
+`teacher2_ckpt` to load a snapshot ensemble. Place any comments on a separate
+line rather than at the end of the list.
 Set `disable_tqdm: true` in that file to suppress progress bars during training.
 Set `grad_scaler_init_scale` to control the initial scale used by the AMP grad
 scaler.

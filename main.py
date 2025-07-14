@@ -215,6 +215,7 @@ def main() -> None:
                 m.load_state_dict(torch.load(src, map_location='cpu'))
                 return m.to(device)
             elif isinstance(src, str):
+                src = src.split('#', 1)[0].strip()
                 paths = [s.strip() for s in src.split(',')]
                 return SnapshotTeacher(
                     paths,
