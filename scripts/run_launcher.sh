@@ -36,6 +36,10 @@ echo "[DEBUG] HOST=$(hostname)"
 ## 1) Conda
 source ~/anaconda3/etc/profile.d/conda.sh
 conda activate tlqkf
+
+# (선택) W&B API Key – 있을 때만 ↓ 라인 유지, 없으면 그냥 지워두세요
+export WANDB_API_KEY="ca52ce9b353498922ae0cd78cbb5ae0673494e6b"
+
 # 디버그 – 지금 파이썬이 conda env 것인지 확인
 "$CONDA_PREFIX/bin/python" - <<'PY'
 import torch, sys; print("[DEBUG] torch", torch.__version__, "| CUDA =", torch.cuda.is_available())
