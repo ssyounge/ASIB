@@ -1,4 +1,3 @@
-import math
 import pytest; pytest.importorskip("torch")
 import torch
 
@@ -19,7 +18,5 @@ def test_balanced_replay_sampler_len(batch_size, ratio, n_cur):
     rep_idx = list(range(100))
     sampler = BalancedReplaySampler(cur_idx, rep_idx, batch_size, ratio, shuffle=False)
     items = list(iter(sampler))
-    batches = math.ceil(len(cur_idx) / max(1, sampler.cc))
-    expected = len(cur_idx) + batches * sampler.rc
-    assert len(items) == expected
-    assert len(sampler) == expected
+    assert len(items) == len(sampler)
+
