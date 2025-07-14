@@ -28,7 +28,7 @@ def parse_args() -> argparse.Namespace:
 
     ``--config``
         Path to a YAML configuration file. Defaults to
-        ``configs/minimal.yaml``.
+        ``configs/base.yaml``.
     ``--teacher``
         Architecture of the teacher network. Must be one of
         ``resnet152`` or ``efficientnet_b2``.
@@ -48,7 +48,7 @@ def parse_args() -> argparse.Namespace:
     """
 
     p = argparse.ArgumentParser(description="Teacher fine-tuning")
-    p.add_argument("--config", default="configs/minimal.yaml")
+    p.add_argument("--config", default="configs/base.yaml")
     p.add_argument("--teacher", choices=TEACHER_CHOICES, required=True)
     p.add_argument("--epochs", type=int)
     p.add_argument("--lr", type=float)

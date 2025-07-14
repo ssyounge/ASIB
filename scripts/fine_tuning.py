@@ -20,7 +20,7 @@ TEACHER_CHOICES = ["resnet152", "efficientnet_b2"]
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Teacher fine-tuning")
-    p.add_argument("--config", default="configs/minimal.yaml")
+    p.add_argument("--config", default="configs/base.yaml")
     p.add_argument("--teacher_type", choices=TEACHER_CHOICES, required=True)
     p.add_argument("--finetune_ckpt_path")
     p.add_argument("--finetune_epochs", type=int)

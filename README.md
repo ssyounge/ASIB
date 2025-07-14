@@ -37,10 +37,10 @@ bash scripts/run_ibkd.sh
 3. **(Optional) CE baseline** without distillation:
 
 ```bash
-python main.py --config configs/minimal.yaml --method ce
+python main.py --config configs/base.yaml --method ce
 ```
 
-Both scripts read default options from `configs/minimal.yaml`.
+Both scripts read default options from `configs/base.yaml`.
 Specify comma-separated checkpoint paths under `teacher1_ckpt` or
 `teacher2_ckpt` to load a snapshot ensemble. Place any comments on a separate
 line rather than at the end of the list.
@@ -58,13 +58,13 @@ Use `grad_clip_norm_init`, `grad_clip_norm_final` and
 | `fitnet` | FitNets: Hints for Thin Deep Nets | `methods/fitnet.py` |
 
 Use `--method` to override the selected distillation method when calling `main.py`,
-or set `method` in `configs/minimal.yaml`.
+or set `method` in `configs/base.yaml`.
 
 ## Directory Layout
 
 ```
 configs/
-    minimal.yaml        # experiment settings
+    base.yaml           # experiment settings
 checkpoints/            # teacher checkpoints
 models/                 # teacher and student architectures
 scripts/
