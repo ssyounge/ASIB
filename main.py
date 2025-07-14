@@ -134,8 +134,11 @@ def main() -> None:
 
     # logger는 **최종 cfg**가 완성된 뒤에 생성
     logger = ExperimentLogger(cfg, exp_name="ibkd")
-    writer = SummaryWriter(log_dir="runs/kd_monitor")
-    wandb_run = wandb.init(project="kd_monitor", name="run_001")
+    writer = SummaryWriter(log_dir=cfg.get("tb_log_dir", "runs/kd_monitor"))
+    wandb_run = wandb.init(
+        project=cfg.get("wandb_project", "kd_monitor"),
+        name=cfg.get("wandb_run_name", "run_001"),
+    )
     global_step_counter = 0
 
     # ──────────────────────────────────────────────────────────────

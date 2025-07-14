@@ -126,8 +126,11 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
     os.makedirs(ckpt_dir, exist_ok=True)
 
     acc_seen_hist = []
-    writer = SummaryWriter(log_dir="runs/kd_monitor")
-    wandb_run = wandb.init(project="kd_monitor", name="run_001")
+    writer = SummaryWriter(log_dir=cfg.get("tb_log_dir", "runs/kd_monitor"))
+    wandb_run = wandb.init(
+        project=cfg.get("wandb_project", "kd_monitor"),
+        name=cfg.get("wandb_run_name", "run_001"),
+    )
     global_step_counter = 0
     ewc_bank = []
     regularizers = ewc_bank  # alias for optional regularizers
