@@ -130,7 +130,7 @@ def main() -> None:
         cmd = [
             "python",
             str(ROOT / "main.py"),
-            "--cfg",
+            "--config",
             cfg_chain,
             "--results_dir",
             str(results_dir),

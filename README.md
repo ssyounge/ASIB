@@ -37,7 +37,7 @@ bash scripts/run_ibkd.sh
 3. **(Optional) CE baseline** without distillation:
 
 ```bash
-python main.py --cfg configs/minimal.yaml --method ce
+python main.py --config configs/minimal.yaml --method ce
 ```
 
 Both scripts read default options from `configs/minimal.yaml`.
