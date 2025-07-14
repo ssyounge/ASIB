@@ -49,11 +49,10 @@ def main() -> None:
     set_random_seed(cfg.get("seed", 42))
     cfg["overwrite"] = args.overwrite
 
-    if args.finetune_ckpt_path is None:
-        ckpt_dir = to_writable(cfg.get("checkpoint_dir", "checkpoints"))
-        args.finetune_ckpt_path = os.path.join(
-            ckpt_dir, f"{args.teacher_type}_ft.pth"
-        )
+    ckpt_dir = to_writable(cfg.get("checkpoint_dir", "checkpoints"))
+    ckpt_path = args.finetune_ckpt_path or f"{ckpt_dir}/{args.teacher_type}_ft.pth"
+    os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
+    args.finetune_ckpt_path = ckpt_path
 
     loader, _ = get_cifar100_loaders(
         root=cfg.get("dataset_root", "./data"),
