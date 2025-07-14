@@ -35,6 +35,8 @@ class BalancedReplaySampler(torch.utils.data.Sampler):
             cur_ptr += self.cc
 
     def __len__(self):
-        # 전체 배치 수를 계산하여 샘플 수를 구하기
+        """Return the number of samples yielded by the sampler."""
+        # number of batches processed based on current data
         batches = math.ceil(len(self.cur) / max(1, self.cc))
-        return batches * self.bs
+        # total samples = current samples + replay samples per batch
+        return len(self.cur) + batches * self.rc
