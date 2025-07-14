@@ -10,6 +10,10 @@
 
 set -euo pipefail
 
+# (1) 프로젝트 루트: 스크립트 위치 기준으로 자동 결정
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT_DIR"
+
 # ───────── Conda 환경 ─────────
 source ~/anaconda3/etc/profile.d/conda.sh
 conda activate tlqkf              # ← 당신이 만든 env 이름
