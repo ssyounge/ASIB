@@ -7,10 +7,16 @@ This repository provides a lightweight implementation of **Adaptive Synergy Mani
 Install the minimal dependencies:
 
 ```bash
-# The analysis scripts rely on pandas.
-pip install torch torchvision PyYAML tqdm pandas
+# ①  필수 라이브러리
+pip install -r requirements.txt
+
+# ②  (선택) GPU 용 PyTorch\u202f휠 직접 설치
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+
+# ③  테스트 실행
+pytest  # 모든 테스트가 PASS 또는 SKIP 없이 실행돼야 합니다.
 ```
-The project only requires **torch**, **torchvision**, **PyYAML**, **tqdm** and **pandas**.
+The project only requires **torch**, **torchvision**, **pyyaml**, **tqdm** and **pandas**.
 
 ## Workflow
 
@@ -77,17 +83,16 @@ trainer.py              # training loops
 
 ## Testing
 
-PyTorch must be installed for tests to run. Install it with:
+Run all tests:
 
 ```bash
-pip install torch torchvision
+pytest
 ```
 
-Then run:
+## Logging
 
-```bash
-pytest -q
-```
+We rely on Weights & Biases for experiment tracking.
+If you do not wish to use WandB, run with WANDB_MODE=disabled.
 
 ## License
 

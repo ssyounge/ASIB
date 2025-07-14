@@ -1,5 +1,7 @@
-torch
-torchvision>=0.15
-PyYAML
+torch>=2.1
+torchvision>=0.16
 tqdm
+pyyaml
 pandas
+wandb              # 로깅 필수
+pytest             # CI 에서 테스트 실행

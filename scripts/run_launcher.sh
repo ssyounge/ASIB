@@ -5,7 +5,8 @@
 #SBATCH --gres=gpu:1
 #SBATCH --time=04:00:00
 #SBATCH --output=outputs/slurm/%x_%j.out        # SLURM 로그
-#SBATCH --chdir=/home/suyoung425/ASMB_KD        # ★ 프로젝트 루트 고정
+# 실행 디렉터리는 제출 위치 기준으로 자동 결정되도록 변경
+#SBATCH --chdir=${SLURM_SUBMIT_DIR:-$PWD}
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
 #-------------------------------------------------------------------
