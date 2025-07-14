@@ -23,11 +23,14 @@ if [ -n "${PROJECT_ROOT:-}" ]; then
     cd "$ROOT_DIR"
 fi
 
-# (2) 출력 디렉터리
+# (2) 출력·체크포인트 디렉터리를 "집" 밑으로 옮긴다
 JOB_ID=${SLURM_JOB_ID:-local}
-OUT_ROOT="$ROOT_DIR/outputs"
-OUT_DIR="$OUT_ROOT/results/ibkd_${JOB_ID}"
-mkdir -p "$OUT_DIR" "$OUT_ROOT/slurm"
+CKPT_DIR="$HOME/ASMB_KD_checkpoints"      # ← 쓰기 가능한 위치
+OUT_ROOT="$HOME/ASMB_KD_outputs"
+OUT_DIR="$OUT_ROOT/ibkd_${JOB_ID}"
+
+# 실제로 만들기
+mkdir -p "$CKPT_DIR" "$OUT_DIR" "$OUT_ROOT/slurm"
 
 # 0) 디버그용 정보
 echo "[DEBUG] PWD=$(pwd)"
@@ -45,8 +48,7 @@ export WANDB_API_KEY="ca52ce9b353498922ae0cd78cbb5ae0673494e6b"
 import torch, sys; print("[DEBUG] torch", torch.__version__, "| CUDA =", torch.cuda.is_available())
 PY
 
-# 1) 체크포인트 경로 (루트 기준 절대경로로)
-CKPT_DIR="$ROOT_DIR/checkpoints"
+# 1) 체크포인트 경로는 위에서 지정된 디렉터리 사용
 T1_CKPT="$CKPT_DIR/resnet152_ft.pth"
 T2_CKPT="$CKPT_DIR/efficientnet_b2_ft.pth"
 
