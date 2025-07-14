@@ -205,7 +205,18 @@ def main() -> None:
     # ---------- teachers ----------
     if method != 'ce':
         def _make_teacher(cfg_key, default_name):
-            src = cfg.get(cfg_key)
+            src = cfg.get(cfg_key, "")
+            # 1) comma-separated snapshot ensemble
+            if isinstance(src, str) and "," in src:
+                src = src.split('#', 1)[0].strip()
+                paths = [p.strip() for p in src.split(',') if p.strip()]
+                return SnapshotTeacher(
+                    paths,
+                    backbone_name=default_name,
+                    n_cls=cfg.get("num_classes", 100),
+                ).to(device)
+
+            # 2) single checkpoint path
             if isinstance(src, str) and src.endswith('.pth'):
                 m = create_teacher_by_name(
                     default_name,
@@ -215,14 +226,9 @@ def main() -> None:
                 )
                 m.load_state_dict(torch.load(src, map_location='cpu'))
                 return m.to(device)
-            elif isinstance(src, str):
-                src = src.split('#', 1)[0].strip()
-                paths = [s.strip() for s in src.split(',')]
-                return SnapshotTeacher(
-                    paths,
-                    backbone_name=default_name,
-                    n_cls=cfg.get("num_classes", 100),
-                ).to(device)
+
+            if src:
+                raise ValueError(f"{cfg_key}: un-recognised format \u2192 {src}")
             else:
                 raise ValueError(f"invalid {cfg_key}: {src}")
 

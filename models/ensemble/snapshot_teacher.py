@@ -20,14 +20,26 @@ class SnapshotTeacher(nn.Module):
             self.models.append(m)
 
     @torch.no_grad()
-    def forward(self, x):
-        """교사‑API 호환: (feat_dict, logits) tuple 반환"""
+    def forward(self, x, return_feat: bool = False):
+        """Return averaged logits and, optionally, features."""
         logits_all, feat_all = [], []
         for m in self.models:
-            feat_dict, logit = m(x)
-            logits_all.append(logit)
-            feat_all.append(feat_dict["feat_2d"])
+            out = m(x)
+            feat = out[0]["feat_2d"] if isinstance(out, tuple) else None
+            log = out[1] if isinstance(out, tuple) else out
+            logits_all.append(log)
+            feat_all.append(feat)
 
         logit_avg = torch.stack(logits_all).mean(0)
-        feat_avg = torch.stack(feat_all).mean(0)
+        feat_avg = (
+            torch.stack(feat_all).mean(0) if feat_all[0] is not None else None
+        )
         return {"feat_2d": feat_avg}, logit_avg
+
+    @property
+    def backbone(self):
+        """Expose backbone of the first teacher for hook registration."""
+        return self.models[0].backbone
+
+    def get_feat_dim(self) -> int:
+        return self.models[0].get_feat_dim()
