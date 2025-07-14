@@ -117,7 +117,7 @@ def main() -> None:
     procs = []
     for idx, param in enumerate(param_sets):
         tmp_yaml = tempfile.NamedTemporaryFile(
-            suffix=".yaml", mode="w", delete=False, dir="/tmp"
+            suffix=".yaml", mode="w", delete=False
         )
         yaml.safe_dump({**global_ovr, **param}, tmp_yaml)
         tmp_yaml.close()
