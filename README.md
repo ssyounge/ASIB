@@ -92,7 +92,9 @@ pytest
 ## Logging
 
 We rely on Weights & Biases for experiment tracking.
-If you do not wish to use WandB, run with WANDB_MODE=disabled.
+Configure the project name, run name and TensorBoard log directory via
+`wandb_project`, `wandb_run_name` and `tb_log_dir` in `configs/base.yaml`.
+If you do not wish to use WandB, run with `WANDB_MODE=disabled`.
 
 ## License
 
