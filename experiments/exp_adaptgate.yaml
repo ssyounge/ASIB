@@ -1,0 +1,18 @@
+# Snapshot-Ensemble + Adaptive-Gate 실험 구성
+imports:
+  - configs/base.yaml
+  - configs/method/vib/standard.yaml      # adaptive_gate: true 가 이미 포함
+
+# ---- 교사 설정 ----
+teacher1_type: snapshot
+teacher1_ckpt: >
+  checkpoints/snapshots/resnet152_ft.pth,
+  checkpoints/snapshots/snap_ep020.pth,
+  checkpoints/snapshots/snap_ep040.pth,
+  checkpoints/snapshots/snap_ep060.pth
+
+# (옵션) 백본명 명시 – 기본은 resnet152
+snapshot_backbone: resnet152
+
+# ---- 실험 식별자 ----
+exp_id: adapt_gate_snap
