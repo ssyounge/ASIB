@@ -29,14 +29,16 @@ if [ -n "${PROJECT_ROOT:-}" ]; then
     cd "$ROOT_DIR"
 fi
 
-# 저장 경로 환경변수는 외부에서 설정 가능하며,
-# 기본값은 "${HOME}/.asmb_kd" 하위 디렉터리입니다.
-export ASMB_KD_ROOT="${ASMB_KD_ROOT:-$HOME/.asmb_kd}"
+# (2) 출력·체크포인트 디렉터리를 "집" 밑으로 옮긴다
+## 1) Conda
+source ~/anaconda3/etc/profile.d/conda.sh
+conda activate tlqkf
+export ASMB_KD_ROOT=/home/suyoung425/ASMB_KD
 
 # (2) 출력·체크포인트 디렉터리를 "집" 밑으로 옮긴다
 JOB_ID=${SLURM_JOB_ID:-local}
-CKPT_DIR="${ASMB_KD_ROOT:-$HOME/.asmb_kd}/checkpoints"      # ← 쓰기 가능한 위치
-OUT_ROOT="${ASMB_KD_ROOT:-$HOME/.asmb_kd}/outputs"
+CKPT_DIR="${ASMB_KD_ROOT}/checkpoints"      # ← 쓰기 가능한 위치
+OUT_ROOT="${ASMB_KD_ROOT}/outputs"
 OUT_DIR="$OUT_ROOT/ibkd_${JOB_ID}"
 
 # 실제로 만들기
@@ -45,10 +47,6 @@ mkdir -p "$CKPT_DIR" "$OUT_DIR" "$OUT_ROOT/slurm"
 # 0) 디버그용 정보
 echo "[DEBUG] PWD=$(pwd)"
 echo "[DEBUG] HOST=$(hostname)"
-
-## 1) Conda
-source ~/anaconda3/etc/profile.d/conda.sh
-conda activate tlqkf
 
 # (선택) W&B API Key – 있을 때만 ↓ 라인 유지, 없으면 그냥 지워두세요
 export WANDB_API_KEY="ca52ce9b353498922ae0cd78cbb5ae0673494e6b"

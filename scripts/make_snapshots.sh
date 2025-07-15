@@ -23,8 +23,12 @@ cd "$ROOT_DIR" || { echo "[ERROR] cd $ROOT_DIR failed"; exit 1; }
 source ~/anaconda3/etc/profile.d/conda.sh
 conda activate tlqkf              # ← 당신이 만든 env 이름
 
+# ───────── 실험 기본 경로 ─────────
+#  ※ 파이썬 코드의 to_writable() 가 ${ASMB_KD_ROOT} 를 expand 합니다.
+export ASMB_KD_ROOT=/home/suyoung425/ASMB_KD
+
 # ───────── 스냅샷 파라미터 ─────────
-CKPT_DIR="${ASMB_KD_ROOT:-$HOME/.asmb_kd}/checkpoints/snapshots"          # 저장 폴더
+CKPT_DIR="${ASMB_KD_ROOT}/checkpoints/snapshots"
 EPOCHS=60                               # 총 epoch
 INTERVAL=20                             # 몇 epoch마다 저장?
 MODEL=resnet152                         # 교사 backbone
