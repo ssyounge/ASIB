@@ -51,6 +51,7 @@ def main() -> None:
 
     ckpt_dir = to_writable(cfg.get("checkpoint_dir", "checkpoints"))
     ckpt_path = args.finetune_ckpt_path or f"{ckpt_dir}/{args.teacher_type}_ft.pth"
+    ckpt_path = to_writable(ckpt_path)   # ensure writable location
     os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
     args.finetune_ckpt_path = ckpt_path
 
