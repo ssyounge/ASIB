@@ -71,6 +71,28 @@ export ASMB_KD_ROOT="$PWD"
 python main.py --config configs/base.yaml
 ```
 
+## Overlap Experiments
+
+1. **Train overlap teachers** with cross entropy:
+
+```bash
+python scripts/train_teacher_overlap.py --teacher resnet152 --ckpt checkpoints/resnet152_overlap.pth
+```
+
+2. **Run VIB-KD** for overlapping teachers:
+
+```bash
+bash scripts/run_vib_overlap.sh
+```
+
+After training, aggregate the results:
+
+```bash
+python analysis/compare_ablation.py \
+    --summary_csv results/summary.csv \
+    --out_path results/ablation_summary.csv
+```
+
 ## Distillation Methods
 
 | `method` | Reference | Implementation |
@@ -90,7 +112,9 @@ checkpoints/            # teacher checkpoints
 models/                 # teacher and student architectures
 scripts/
     train_teacher.py    # CE fine-tuning
+    train_teacher_overlap.py  # overlap teachers
     run_launcher.sh     # distillation entry point
+    run_vib_overlap.sh  # overlap VIB entry
 utils/
 main.py                 # training driver
 trainer.py              # training loops
