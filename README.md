@@ -60,6 +60,17 @@ scaler.
 Use `grad_clip_norm_init`, `grad_clip_norm_final` and
 `grad_clip_warmup_frac` to schedule gradient clipping during student updates.
 
+### Paths
+
+Any relative paths for checkpoints and outputs are resolved under
+``${ASMB_KD_ROOT}`` (defaults to ``${HOME}/.asmb_kd``). Set this variable to
+redirect all generated files. A common setup is to use the repository root:
+
+```bash
+export ASMB_KD_ROOT="$PWD"
+python main.py --config configs/base.yaml
+```
+
 ## Distillation Methods
 
 | `method` | Reference | Implementation |
