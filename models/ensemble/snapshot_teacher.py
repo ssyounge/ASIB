@@ -1,6 +1,8 @@
 from __future__ import annotations
-import torch, torch.nn as nn
-from utils.model_factory import create_teacher_by_name
+import torch
+import torch.nn as nn
+# NOTE: circular-import 해결을 위해
+#       create_teacher_by_name 는 __init__ 안에서 늦게 import 합니다.
 
 class SnapshotTeacher(nn.Module):
     def __init__(self,
@@ -8,11 +10,15 @@ class SnapshotTeacher(nn.Module):
                  backbone_name: str = "resnet50",
                  n_cls: int = 100):
         super().__init__()
+        from utils.model_factory import create_teacher_by_name  # delayed import
+
         self.models = nn.ModuleList()
         for p in ckpt_paths:
-            m = create_teacher_by_name(backbone_name,
-                                       num_classes=n_cls,
-                                       pretrained=False)
+            m = create_teacher_by_name(
+                backbone_name,
+                num_classes=n_cls,
+                pretrained=False,
+            )
             m.load_state_dict(torch.load(p, map_location="cpu"))
             m.eval()
             for param in m.parameters():
