@@ -29,11 +29,11 @@ EPOCHS=60                               # 총 epoch
 INTERVAL=20                             # 몇 epoch마다 저장?
 MODEL=resnet152                         # 교사 backbone
 
-# Conda env의 python 바이너리를 쓰고, 새 파일명 fine_tuning.py 사용
+# ───────── 교사 스냅샷 트레이닝 ─────────
 mkdir -p "$CKPT_DIR"
-"$CONDA_PREFIX/bin/python"  "$ROOT_DIR/scripts/fine_tuning.py" \
-       --teacher_type "$MODEL" \
+"$CONDA_PREFIX/bin/python"  "$ROOT_DIR/scripts/train_teacher.py" \
+       --teacher "$MODEL" \
        --epochs "$EPOCHS" \
+       --lr 1e-3 \                       # 필요 시 수정
        --snapshot_interval "$INTERVAL" \
-       --ckpt_dir "$CKPT_DIR" \
-       --finetune_lr 1e-3            # 필요 시 수정
+       --ckpt "$CKPT_DIR/${MODEL}_ft.pth"

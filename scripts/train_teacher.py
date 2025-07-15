@@ -55,6 +55,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--wd", type=float)
     p.add_argument("--batch_size", type=int)
     p.add_argument("--ckpt", required=True)
+    # --- NEW: snapshot 옵션 (CLI > YAML) ----------------------------
+    p.add_argument("--snapshot_interval", type=int,
+                   help="Save an extra checkpoint every N epochs")
+    p.add_argument("--snapshot_start", type=int,
+                   help="Start saving snapshots from this epoch")
     p.add_argument("--device", default="cuda")
     return p.parse_args()
 
@@ -154,8 +159,16 @@ def main() -> None:
             best_state = copy.deepcopy(model.state_dict())
 
         # ─ Snapshot‑Ensemble ─
-        snap_int   = cfg.get("snapshot_interval", 10)
-        snap_start = cfg.get("snapshot_start", 20)
+        snap_int   = (
+            args.snapshot_interval
+            if args.snapshot_interval is not None
+            else cfg.get("snapshot_interval", 10)
+        )
+        snap_start = (
+            args.snapshot_start
+            if args.snapshot_start is not None
+            else cfg.get("snapshot_start", 20)
+        )
         if ep >= snap_start and ep % snap_int == 0:
             torch.save(
                 model.state_dict(),
