@@ -19,9 +19,11 @@ class VIBHead(nn.Module):
         logvar = self.fc_logvar(x)
         return mu, logvar
 
-    def kl_beta(self, global_step, cfg):
-        """Return KL scaling factor with warm-up."""
-        warm_len = 0.3 * cfg.student_iters
+    def kl_beta(self, global_step: int, cfg: dict):
+        """Return KL-scaling factor with warm-up."""
+        student_iters = cfg.get("student_iters", 1)
+        beta = cfg.get("beta_bottleneck", 1e-3)
+        warm_len = 0.3 * student_iters
         if global_step < warm_len:
-            return cfg.beta_bottleneck * (global_step / warm_len)
-        return cfg.beta_bottleneck
+            return beta * (global_step / warm_len)
+        return beta
