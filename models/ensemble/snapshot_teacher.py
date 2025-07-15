@@ -19,6 +19,7 @@ class SnapshotTeacher(nn.Module):
                 backbone_name,
                 num_classes=n_cls,
                 pretrained=False,
+                small_input=True,      # CIFAR scale -> conv1 3x3
                 allow_empty_ckpt=True,
             )
             try:
