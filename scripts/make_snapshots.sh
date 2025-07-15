@@ -31,9 +31,9 @@ MODEL=resnet152                         # 교사 backbone
 
 # ───────── 교사 스냅샷 트레이닝 ─────────
 mkdir -p "$CKPT_DIR"
-"$CONDA_PREFIX/bin/python"  "$ROOT_DIR/scripts/train_teacher.py" \
-       --teacher "$MODEL" \
-       --epochs "$EPOCHS" \
-       --lr 1e-3 \                       # 필요 시 수정
-       --snapshot_interval "$INTERVAL" \
-       --ckpt "$CKPT_DIR/${MODEL}_ft.pth"
+"$CONDA_PREFIX/bin/python" "$ROOT_DIR/scripts/train_teacher.py" \
+    --teacher "$MODEL" \
+    --epochs "$EPOCHS" \
+    --lr 1e-3 \
+    --snapshot_interval "$INTERVAL" \
+    --ckpt "$CKPT_DIR/${MODEL}_ft.pth"
