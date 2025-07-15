@@ -243,21 +243,21 @@ def main() -> None:
     if method != 'ce':
         def _make_teacher(cfg_key, type_key, default_name):
             src = cfg.get(cfg_key, "")
-            teacher_type = cfg.get(type_key, default_name)
-            # 1) comma-separated snapshot ensemble
-            if isinstance(src, str) and "," in src:
-                src = src.split('#', 1)[0].strip()
-                paths = [p.strip() for p in src.split(',') if p.strip()]
+            t_type = cfg.get(type_key, default_name)
+
+            # teacher_type == snapshot → ckpt 문자열을 list 로 변환
+            if t_type == "snapshot":
+                ckpts = [p.strip() for p in str(src).split(",") if p.strip()]
                 return SnapshotTeacher(
-                    paths,
-                    backbone_name=teacher_type,
+                    ckpt_paths=ckpts,
+                    backbone_name=default_name,
                     n_cls=cfg.get("num_classes", 100),
                 ).to(device)
 
             # 2) single checkpoint path
             if isinstance(src, str) and src.endswith('.pth'):
                 m = create_teacher_by_name(
-                    teacher_type,
+                    t_type,
                     num_classes=cfg.get("num_classes", 100),
                     pretrained=False,
                     small_input=True,
