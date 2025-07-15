@@ -41,7 +41,9 @@ class VanillaKDDistiller:
     ) -> float:
         cfg = {**self.cfg, **(cfg or {})}
         device = device or cfg.get("device", "cuda")
-        self.teacher.eval()
+        # ───────── 장치 일치 보장 ─────────
+        # teacher 가 CPU 에 남아 있으면 forward 시 device mismatch 발생
+        self.teacher.to(device).eval()
         self.student.to(device)
         optimizer = torch.optim.AdamW(
             self.student.parameters(), lr=float(lr), weight_decay=float(weight_decay)
@@ -86,7 +88,7 @@ class VanillaKDDistiller:
                     ce = ce_criterion(s_logits, y)
                     kd = kd_kl(s_logits, t_logits.detach(), T=self.temperature)
                     loss = (1 - self.alpha) * ce + self.alpha * kd
-                if scaler:
+                if scaler is not None:
                     scaler.scale(loss).backward()
                     scaler.step(optimizer)
                     scaler.update()
