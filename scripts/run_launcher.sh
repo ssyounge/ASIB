@@ -13,9 +13,15 @@
 #-------------------------------------------------------------------
 set -euo pipefail
 
-# (1) 프로젝트 루트: 스크립트 위치 기준으로 자동 결정
-ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT_DIR"
+# (1) 프로젝트 루트 결정 ---------------------------------------------
+#    ① SLURM 환경이면  $SLURM_SUBMIT_DIR   (제출 위치) 사용
+#    ② 아니면 스크립트 상대 경로(BASH_SOURCE)로 계산
+if [ -n "${SLURM_SUBMIT_DIR:-}" ]; then
+    ROOT_DIR="$(cd "$SLURM_SUBMIT_DIR" && pwd -P)"
+else
+    ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+fi
+cd "$ROOT_DIR" || { echo "[ERROR] cd $ROOT_DIR failed"; exit 1; }
 
 # 안전: 그래도 환경변수로 덮어쓰기 허용
 if [ -n "${PROJECT_ROOT:-}" ]; then
@@ -65,7 +71,7 @@ ft_teacher () {
       echo "[INFO] $MODEL ckpt exists → skip fine-tune"
   else
       echo "[INFO] fine-tuning $MODEL → $CKPT"
-        python scripts/fine_tuning.py \
+        "$CONDA_PREFIX/bin/python" "$ROOT_DIR/scripts/fine_tuning.py" \
             --config configs/base.yaml \
             --teacher_type "$MODEL" \
             --finetune_ckpt_path "$CKPT" \
@@ -84,7 +90,7 @@ shift 0   # 인수 필요 없음; 있으면 그대로 Python 쪽으로
 #    main.py 가 method / train_mode 값을 읽어
 #    자동으로 configs/method/***.yaml, configs/scenario/***.yaml 을 merge 합니다.
 
-srun --chdir="$ROOT_DIR" "$CONDA_PREFIX/bin/python" scripts/launcher.py "$@"
+srun --chdir="$ROOT_DIR" "$CONDA_PREFIX/bin/python" "$ROOT_DIR/scripts/launcher.py" "$@"
 
 # ➜ 주의: 다른 인자(실험 id, 추가 override 등)는
 #     ./run_launcher.sh --batch_size 256 처럼 이어서 넘기면 됩니다.

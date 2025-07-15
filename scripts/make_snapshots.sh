@@ -11,9 +11,13 @@
 
 set -euo pipefail
 
-# (1) 프로젝트 루트: 스크립트 위치 기준으로 자동 결정
-ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT_DIR"
+# (1) 프로젝트 루트
+if [ -n "${SLURM_SUBMIT_DIR:-}" ]; then
+    ROOT_DIR="$(cd "$SLURM_SUBMIT_DIR" && pwd -P)"
+else
+    ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+fi
+cd "$ROOT_DIR" || { echo "[ERROR] cd $ROOT_DIR failed"; exit 1; }
 
 # ───────── Conda 환경 ─────────
 source ~/anaconda3/etc/profile.d/conda.sh
@@ -27,7 +31,7 @@ MODEL=resnet152                         # 교사 backbone
 
 # Conda env의 python 바이너리를 쓰고, 새 파일명 fine_tuning.py 사용
 mkdir -p "$CKPT_DIR"
-"$CONDA_PREFIX/bin/python"  scripts/fine_tuning.py \
+"$CONDA_PREFIX/bin/python"  "$ROOT_DIR/scripts/fine_tuning.py" \
        --teacher_type "$MODEL" \
        --epochs "$EPOCHS" \
        --snapshot_interval "$INTERVAL" \
