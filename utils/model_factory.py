@@ -26,6 +26,7 @@ def create_teacher_by_name(
     dropout_p: float = 0.3,
     ckpt: str | None = None,
     *,
+    split_ckpt: bool = True,        # 새 인자
     allow_empty_ckpt: bool = False,
     cfg: Optional[dict] = None,
 ):
@@ -50,12 +51,26 @@ def create_teacher_by_name(
 
     # Snapshot ensemble teacher
     if teacher_type.lower() == "snapshot":
-        # cfg 에서 가져온 콤마 구분 문자열 → ['file1.pth', 'file2.pth', …]
-        ckpt_raw = ckpt if ckpt is not None else (cfg or {}).get("teacher1_ckpt", "")
-        if (ckpt_raw is None or ckpt_raw == "") and not allow_empty_ckpt:
-            raise AssertionError("[SnapshotTeacher] teacher1_ckpt 가 비었습니다.")
+        # ────────────────────────────────────────────────────────
+        # snapshot 교사는 'ckpt1,ckpt2,…' 형식 문자열을 리스트화
+        # ────────────────────────────────────────────────────────
+        if split_ckpt and isinstance(ckpt, str):
+            ckpt = [p.strip() for p in ckpt.split(",") if p.strip()]
 
-        ckpts = [p.strip() for p in str(ckpt_raw).split(",") if p.strip()]
+        if (
+            (ckpt is None or ckpt == "" or (isinstance(ckpt, list) and len(ckpt) == 0))
+            and not allow_empty_ckpt
+        ):
+            raise AssertionError(
+                "[SnapshotTeacher] teacher1_ckpt 가 비었습니다."
+            )
+
+        ckpt_raw = ckpt if ckpt is not None else (cfg or {}).get("teacher1_ckpt", "")
+        ckpts = (
+            ckpt_raw
+            if isinstance(ckpt_raw, list)
+            else [p.strip() for p in str(ckpt_raw).split(",") if p.strip()]
+        )
         if not ckpts and not allow_empty_ckpt:
             raise AssertionError(
                 f"[SnapshotTeacher] teacher1_ckpt 가 비었습니다. (현재 값='{ckpt_raw}')"
