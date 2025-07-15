@@ -5,6 +5,8 @@ from typing import Optional
 
 from models.teachers.teacher_resnet import create_resnet152
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
+# Snapshot ensemble support
+from models.ensemble.snapshot_teacher import SnapshotTeacher
 from models.students.student_convnext import (
     create_convnext_tiny,
     create_convnext_small,
@@ -42,6 +44,14 @@ def create_teacher_by_name(
             dropout_p=dropout_p,
             cfg=cfg,
         )
+
+    # Snapshot ensemble teacher
+    if teacher_type.lower() == "snapshot":
+        ckpt_list = (cfg or {}).get("teacher1_ckpt", "")
+        ckpts = [p.strip() for p in ckpt_list.split(",") if p.strip()]
+        assert ckpts, "[SnapshotTeacher] teacher1_ckpt 가 비었습니다."
+        base = (cfg or {}).get("snapshot_backbone", "resnet152")
+        return SnapshotTeacher(ckpts, backbone_name=base, n_cls=num_classes)
     raise ValueError(
         f"Unknown teacher_type: {teacher_type} (expected 'resnet152' or 'efficientnet_b2')"
     )
