@@ -35,4 +35,4 @@ class StudentProj(nn.Module):
     def forward(self, x):
         x = x.flatten(1)
         z = self.net(x)
-        return F.normalize(z) if self._normalize else z
+        return F.normalize(z, dim=1) if self._normalize else z
