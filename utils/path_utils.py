@@ -12,7 +12,8 @@ def to_writable(path: str | os.PathLike, *, env_var: str = "ASMB_KD_ROOT") -> st
     - Relative paths are resolved under ``$ASMB_KD_ROOT`` (or ``$HOME/.asmb_kd``).
     The parent directory is created if it does not exist.
     """
-    p = pathlib.Path(path)
+    # tilde(`~`) 확장 + 이후 절대경로 판단
+    p = pathlib.Path(path).expanduser()
     if p.is_absolute():
         abs_path = p
     else:

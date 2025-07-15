@@ -580,13 +580,18 @@ def student_vib_update(
                     y_b = torch.searchsorted(cls_tensor, y_b, right=False)
                 else:
                     y   = torch.searchsorted(cls_tensor,  y,  right=False)
+            # ── current-batch CE (replay 비율 100 %일 때 n_cur=0 보호) ──
             n_cur = cur_x.size(0)
-            if do_mix and cur_x is not None:
-                ce_cur = mixup_criterion(
-                    ce_criterion, logit_kd_s[-n_cur:], y_a, y_b, lam
-                )
+            if n_cur == 0:
+                ce_cur = torch.tensor(0.0, device=device)
             else:
-                ce_cur = ce_criterion(logit_kd_s[-n_cur:], cur_y)
+                ce_target_slice = logit_kd_s[-n_cur:]
+                if do_mix:
+                    ce_cur = mixup_criterion(
+                        ce_criterion, ce_target_slice, y_a, y_b, lam
+                    )
+                else:
+                    ce_cur = ce_criterion(ce_target_slice, cur_y)
 
             if rep_x is not None and prev_student is not None:
                 with torch.no_grad():

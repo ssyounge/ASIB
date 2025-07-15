@@ -9,12 +9,17 @@ import math
 class BalancedReplaySampler(torch.utils.data.Sampler):
     """Sample from replay and current indices to keep a given ratio per batch."""
 
-    def __init__(self, cur_indices, rep_indices, batch_size, ratio=0.5, shuffle=True):
+    def __init__(self, cur_indices, rep_indices, batch_size,
+                 ratio: float = 0.5, shuffle: bool = True):
+        # ── sanity-check: 0 ≤ ratio < 1  (ratio=1 → cc = 0 ⇒ 무한 루프 위험)
+        if not (0.0 <= ratio < 1.0):
+            raise ValueError("ratio must be in [0, 1).")
         self.cur = list(cur_indices)
         self.rep = list(rep_indices)
-        self.bs = batch_size
-        self.rc = int(batch_size * ratio)
-        self.cc = batch_size - self.rc
+        self.bs  = batch_size
+        self.rc  = int(batch_size * ratio)           # replay per batch
+        # 최소 1 개의 current 샘플을 보장
+        self.cc  = max(1, batch_size - self.rc)      # current per batch
         self.shuffle = shuffle
 
     def __iter__(self):
@@ -37,5 +42,5 @@ class BalancedReplaySampler(torch.utils.data.Sampler):
     def __len__(self):
         """Return the number of samples yielded by the sampler."""
         cur_samples = len(self.cur)
-        replay_samples = math.ceil(cur_samples / max(1, self.cc)) * self.rc
+        replay_samples = math.ceil(cur_samples / self.cc) * self.rc
         return cur_samples + replay_samples
