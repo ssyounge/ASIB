@@ -3,7 +3,7 @@
 #SBATCH --job-name=launcher_job
 #SBATCH --partition=base_suma_rtx3090
 #SBATCH --gres=gpu:1
-#SBATCH --time=04:00:00
+#SBATCH --time=24:00:00
 #SBATCH --output=outputs/slurm/%x_%j.out        # SLURM 로그
 # 실행 디렉터리는 제출 위치 기준으로 자동 결정되도록 변경
 #SBATCH --cpus-per-task=4
