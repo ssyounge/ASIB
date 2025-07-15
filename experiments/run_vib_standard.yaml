@@ -9,9 +9,6 @@ imports:
   - configs/base.yaml
   - configs/scenario/standard.yaml       # ← standard 시나리오
 
-# ─ repo 내 쓰기 방지: 상대경로 사용 ─────────────────────
-checkpoint_dir: checkpoints
-
 # ─ Snapshot & 교사 가중치도 같은 경로로 맞춘다 ──────────
 teacher1_ckpt: >
   checkpoints/snap_ep020.pth,
