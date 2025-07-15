@@ -3,7 +3,7 @@
 #SBATCH --job-name=snap_res152
 #SBATCH --partition=base_suma_rtx3090
 #SBATCH --gres=gpu:1
-#SBATCH --time=02:00:00
+#SBATCH --time=24:00:00
 #SBATCH --output=outputs/slurm/%x_%j.out
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
