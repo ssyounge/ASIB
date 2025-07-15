@@ -18,3 +18,11 @@ def test_forward_flattened_inputs():
     f2 = torch.randn(4, 16)
     _, logit, _, _, _, _ = mbm(f1, f2)
     assert logit.shape == (4, 100)
+
+
+def test_forward_adaptive_gate():
+    mbm = GateMBM(16, 16, 100, 256, adaptive=True, gate_hidden=32)
+    f1 = torch.randn(2, 16, 4, 4)
+    f2 = torch.randn(2, 16, 4, 4)
+    _, logit, _, _, _, _ = mbm(f1, f2)
+    assert logit.shape == (2, 100)

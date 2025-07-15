@@ -8,8 +8,12 @@ import torch.nn.functional as F
 
 class GateMBM(nn.Module):
     """
-    *beta*  : KL 항에 곱해지는 가중치 (teacher_vib_update 등 외부에서 다시
-              scale 하지 않아도 되도록 내부에서 적용)
+    GateMBM  (Adaptive-Gate 옵션 포함)
+    -----------------------------------
+    · *adaptive* == False  → 기존 fixed-gate (채널별 학습 파라미터)
+    · *adaptive* == True   → **샘플별 스칼라 gate \u03b1(x)** 를 작은 MLP 로 예측
+
+    beta  : KL 항 가중치 (외부에서 재-scale 하지 않음)
     """
     def __init__(
         self,
@@ -21,6 +25,9 @@ class GateMBM(nn.Module):
         *,
         clamp: tuple[float, float] = (-6.0, 2.0),
         dropout_p: float = 0.1,
+        *,
+        adaptive: bool = False,
+        gate_hidden: int = 128,
     ):
         super().__init__()
         # ensure scalar value to avoid list * Tensor errors
@@ -29,7 +36,16 @@ class GateMBM(nn.Module):
         c = max(c_in1, c_in2)                        # 정보 보존
         self.proj1 = nn.Conv2d(c_in1, c, 1)          # 업/다운 자동 해결
         self.proj2 = nn.Conv2d(c_in2, c, 1)
-        self.gate = nn.Parameter(torch.zeros(1, c, 1, 1))  # 0 -> 0.5 after sigmoid
+        self.adaptive = adaptive
+        if adaptive:
+            self.gate_mlp = nn.Sequential(
+                nn.Linear(2 * c, gate_hidden),
+                nn.ReLU(inplace=True),
+                nn.Linear(gate_hidden, 1),
+                nn.Sigmoid(),
+            )
+        else:
+            self.gate = nn.Parameter(torch.zeros(1, c, 1, 1))  # 0 -> 0.5 after sigmoid
         self.pool = nn.AdaptiveAvgPool2d(1)
         self.dropout = nn.Dropout(dropout_p)
         self.mu = nn.Linear(c, z_dim)
@@ -46,7 +62,13 @@ class GateMBM(nn.Module):
         # ── ② 1×1 Conv 로 channel 맞추기 ─────────────────────────────
         f1 = self.proj1(f1)
         f2 = self.proj2(f2)
-        g = torch.sigmoid(self.gate)
+        if self.adaptive:
+            v1 = self.pool(f1).flatten(1)
+            v2 = self.pool(f2).flatten(1)
+            alpha = self.gate_mlp(torch.cat([v1, v2], dim=1))
+            g = alpha.view(-1, 1, 1, 1)
+        else:
+            g = torch.sigmoid(self.gate)
         fused = g * f1 + (1 - g) * f2
         fused = self.dropout(fused)
         v = self.pool(fused).flatten(1)
