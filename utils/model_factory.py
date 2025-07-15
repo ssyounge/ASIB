@@ -47,11 +47,15 @@ def create_teacher_by_name(
 
     # Snapshot ensemble teacher
     if teacher_type.lower() == "snapshot":
-        ckpt_list = (cfg or {}).get("teacher1_ckpt", "")
-        ckpts = [p.strip() for p in ckpt_list.split(",") if p.strip()]
-        assert ckpts, "[SnapshotTeacher] teacher1_ckpt 가 비었습니다."
+        # cfg 에서 가져온 콤마 구분 문자열 → ['file1.pth', 'file2.pth', …]
+        ckpt_raw = (cfg or {}).get("teacher1_ckpt", "")
+        ckpts = [p.strip() for p in ckpt_raw.split(",") if p.strip()]
+        assert ckpts, (
+            "[SnapshotTeacher] teacher1_ckpt 가 비었습니다. "
+            f"(현재 값='{ckpt_raw}')"
+        )
         base = (cfg or {}).get("snapshot_backbone", "resnet152")
-        return SnapshotTeacher(ckpts, backbone_name=base, n_cls=num_classes)
+        return SnapshotTeacher(ckpt_paths=ckpts, backbone_name=base, n_cls=num_classes)
     raise ValueError(
         f"Unknown teacher_type: {teacher_type} (expected 'resnet152' or 'efficientnet_b2')"
     )
