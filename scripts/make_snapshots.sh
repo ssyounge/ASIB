@@ -1,3 +1,4 @@
+# scripts/make_snapshots.sh
 #!/bin/bash
 #SBATCH --job-name=snap_res152
 #SBATCH --partition=base_suma_rtx3090
