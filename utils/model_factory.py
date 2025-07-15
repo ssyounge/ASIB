@@ -24,6 +24,9 @@ def create_teacher_by_name(
     pretrained: bool = True,
     small_input: bool = False,
     dropout_p: float = 0.3,
+    ckpt: str | None = None,
+    *,
+    allow_empty_ckpt: bool = False,
     cfg: Optional[dict] = None,
 ):
     """Factory for teacher models in this minimal repo."""
@@ -48,12 +51,16 @@ def create_teacher_by_name(
     # Snapshot ensemble teacher
     if teacher_type.lower() == "snapshot":
         # cfg 에서 가져온 콤마 구분 문자열 → ['file1.pth', 'file2.pth', …]
-        ckpt_raw = (cfg or {}).get("teacher1_ckpt", "")
-        ckpts = [p.strip() for p in ckpt_raw.split(",") if p.strip()]
-        assert ckpts, (
-            "[SnapshotTeacher] teacher1_ckpt 가 비었습니다. "
-            f"(현재 값='{ckpt_raw}')"
-        )
+        ckpt_raw = ckpt if ckpt is not None else (cfg or {}).get("teacher1_ckpt", "")
+        if (ckpt_raw is None or ckpt_raw == "") and not allow_empty_ckpt:
+            raise AssertionError("[SnapshotTeacher] teacher1_ckpt 가 비었습니다.")
+
+        ckpts = [p.strip() for p in str(ckpt_raw).split(",") if p.strip()]
+        if not ckpts and not allow_empty_ckpt:
+            raise AssertionError(
+                f"[SnapshotTeacher] teacher1_ckpt 가 비었습니다. (현재 값='{ckpt_raw}')"
+            )
+
         base = (cfg or {}).get("snapshot_backbone", "resnet152")
         return SnapshotTeacher(ckpt_paths=ckpts, backbone_name=base, n_cls=num_classes)
     raise ValueError(
