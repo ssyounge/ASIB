@@ -5,11 +5,16 @@ imports:
 
 # ---- 교사 설정 ----
 teacher1_type: snapshot
-teacher1_ckpt: >
-  checkpoints/snapshots/resnet152_ft.pth,
-  checkpoints/snapshots/snap_ep020.pth,
-  checkpoints/snapshots/snap_ep040.pth,
-  checkpoints/snapshots/snap_ep060.pth
+teacher1_ckpt: "${ASMB_KD_ROOT}/checkpoints/snapshots/resnet152_ft.pth,\
+  ${ASMB_KD_ROOT}/checkpoints/snapshots/snap_ep020.pth,\
+  ${ASMB_KD_ROOT}/checkpoints/snapshots/snap_ep040.pth,\
+  ${ASMB_KD_ROOT}/checkpoints/snapshots/snap_ep060.pth"
+
+# (efficientnet-B2 단일 교사 CKPT 예시)
+teacher2_ckpt: "${ASMB_KD_ROOT}/checkpoints/efficientnet_b2_ft.pth"
+
+# 공통 체크포인트 폴더도 동일 변수 사용
+checkpoint_dir: "${ASMB_KD_ROOT}/checkpoints"
 
 # (옵션) 백본명 명시 – 기본은 resnet152
 snapshot_backbone: resnet152

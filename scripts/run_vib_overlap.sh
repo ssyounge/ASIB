@@ -21,17 +21,17 @@ else
 fi
 cd "$ROOT_DIR" || { echo "[ERROR] cd $ROOT_DIR failed"; exit 1; }
 
+# Activate conda environment
+source ~/anaconda3/etc/profile.d/conda.sh
+conda activate tlqkf
+export ASMB_KD_ROOT=/home/suyoung425/ASMB_KD
+
 # Output and checkpoint directories
-export ASMB_KD_ROOT="${ASMB_KD_ROOT:-$HOME/.asmb_kd}"
 CKPT_DIR="$ASMB_KD_ROOT/checkpoints"
 OUT_ROOT="$ASMB_KD_ROOT/outputs"
 JOB_ID=${SLURM_ARRAY_JOB_ID:-${SLURM_JOB_ID:-local}}
 OUT_DIR="$OUT_ROOT/vib_overlap_${JOB_ID}"
 mkdir -p "$CKPT_DIR" "$OUT_DIR" "$OUT_ROOT/slurm"
-
-# Activate conda environment
-source ~/anaconda3/etc/profile.d/conda.sh
-conda activate tlqkf
 
 # Rho values for the job array
 RHO_VALUES=(0.0 0.2 0.4 0.6 0.8 1.0)
