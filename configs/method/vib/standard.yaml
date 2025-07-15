@@ -9,32 +9,32 @@ proj_hidden_dim: 1024
 proj_use_bn: true
 log_kl: false
 student_iters: 100          # 학습 길이 확보
-student_lr       : 2e-3       # 3e‑3 → 2e‑3
-min_lr_ratio_student: 0.03  # cosine tail 을 1e-5 레벨까지
+student_lr       : 3e-3       # 더 강한 신호 대응
+min_lr_ratio_student: 0.05    # tail lr 과도한 감소 방지
 lr_warmup_epochs: 2         # 짧은 일정에 맞춰 축소
 
 # ─ Teacher(VIB‑MBM) 학습 ─
 teacher_lr          : 1e-3
 teacher_weight_decay: 5e-4
 gate_dropout        : 0.1
-teacher_dropout_p   : 0.3
+teacher_dropout_p   : 0.1      # 교사 출력 quality ↑
 # ─ Adaptive Gate 옵션 추가 ─
 adaptive_gate   : true
 gate_hidden_dim : 128
 
-# ─ KD 스케줄 (안전한 Warm‑start) ─
-kd_alpha_init    : 0.0       # 첫 10 % epoch 은 CE 100 %
-kd_alpha_final   : 0.4       # 이후 40 % 까지 선형 증가
-kd_T_init     : 4            # 온도 낮춰 정보밀도 ↑
-kd_T_final    : 1.5
-kd_warmup_frac   : 0.10
-kd_sched_pow     : 1.0
+# ─ KD 스케줄 (가속) ─
+kd_alpha_init    : 0.1
+kd_alpha_final   : 0.6
+kd_T_init        : 3          # final 1.5 유지
+kd_T_final       : 1.5
+kd_warmup_frac   : 0.02
+kd_sched_pow     : 0.5
 kd_schedule_granularity: epoch  # step → epoch
 ce_alpha      : 1.0
 
 # ─ Latent 정렬 ─
-latent_alpha        : 0.4
-latent_warmup_frac  : 0.3
+latent_alpha        : 0.5
+latent_warmup_frac  : 0.1
 latent_mse_weight   : 0.7
 latent_angle_weight : 0.3
 cw_mse_eps: 1e-6                 # 확신도‑가중 MSE용 ε (분모 보호)
@@ -45,8 +45,8 @@ latent_clamp_max: 2
 # ─ Feature distillation ─
 feat_layers   : [2, 3]
 feat_weights  : [0.5, 0.5]
-feat_loss_weight: [0.2, 0.15, 0.1]
+feat_loss_weight: [0.3, 0.2, 0.1]
 
 # ───── 추가 override (base.yaml 값을 덮어쓰기) ─────
 cutmix_alpha_distill: 1.0        # 강한 CutMix 유지
-ema_decay           : 0.99       # 짧은 학습에 맞춰 덜 관성적으로 업데이트
+ema_decay           : 0.995      # EMA 관성 소폭 ↑
