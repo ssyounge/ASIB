@@ -25,7 +25,6 @@ class GateMBM(nn.Module):
         *,
         clamp: tuple[float, float] = (-6.0, 2.0),
         dropout_p: float = 0.1,
-        *,
         adaptive: bool = False,
         gate_hidden: int = 128,
     ):
