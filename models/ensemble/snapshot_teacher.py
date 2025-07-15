@@ -10,6 +10,7 @@ class SnapshotTeacher(nn.Module):
                  backbone_name: str = "resnet50",
                  n_cls: int = 100):
         super().__init__()
+        assert len(ckpt_paths) > 0, "ckpt_paths 리스트가 비었습니다 (엔셀블 구성 불가)"
         from utils.model_factory import create_teacher_by_name  # delayed import
 
         self.models = nn.ModuleList()
