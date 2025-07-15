@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import copy
 from typing import Optional
+from utils.path_utils import to_writable   # ★ 추가
 
 import torch
 import torch.nn.functional as F   # loss 함수(F.cross_entropy 등)용
@@ -37,7 +38,7 @@ def simple_finetune(
     cfg=None,
     ckpt_path="finetuned_best.pth",
 ):
-    """Class-balanced 미세조정 루프.
+    """Class‑balanced 미세조정 루프.
 
     - ``model.train()`` 으로 그래프를 활성화하고
     - ``torch.set_grad_enabled(True)`` 로 ``no_grad`` 상황을 차단한다.
@@ -46,6 +47,8 @@ def simple_finetune(
     남긴다. ``overwrite`` 옵션을 주면 기존 체크포인트를 무시하고 다시 학습을
     시작한다.
     """
+    ckpt_path = to_writable(ckpt_path)         # ★ repo 상대경로 → 안전 경로
+
     if os.path.exists(ckpt_path) and not (cfg or {}).get("overwrite", False):
         model.load_state_dict(torch.load(ckpt_path, map_location=device))
         print(f"[FineTune] loaded checkpoint → {ckpt_path}")
