@@ -4,7 +4,7 @@
 #SBATCH --job-name=vib_overlap
 #SBATCH --partition=base_suma_rtx3090
 #SBATCH --gres=gpu:1
-#SBATCH --time=04:00:00
+#SBATCH --time=24:00:00
 #SBATCH --output=outputs/slurm/%x_%A_%a.out
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
