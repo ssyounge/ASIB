@@ -1,5 +1,6 @@
 # scripts/make_snapshots.sh
-#!/bin/bash
+
+#!/bin/bash -l                 # ✅ 첫 줄에 바로 shebang
 #SBATCH --job-name=snap_res152
 #SBATCH --partition=base_suma_rtx3090
 #SBATCH --gres=gpu:1
