@@ -8,12 +8,14 @@ import pathlib
 def to_writable(path: str | os.PathLike, *, env_var: str = "ASMB_KD_ROOT") -> str:
     """Return a writable absolute path.
 
+    - Environment variables inside ``path`` are expanded.
     - Absolute paths are returned unchanged.
     - Relative paths are resolved under ``$ASMB_KD_ROOT`` (or ``$HOME/.asmb_kd``).
     The parent directory is created if it does not exist.
     """
-    # tilde(`~`) 확장 + 이후 절대경로 판단
-    p = pathlib.Path(path).expanduser()
+    # expand env vars then tilde(`~`) and determine absolute path
+    expanded = os.path.expandvars(path)
+    p = pathlib.Path(expanded).expanduser()
     if p.is_absolute():
         abs_path = p
     else:
