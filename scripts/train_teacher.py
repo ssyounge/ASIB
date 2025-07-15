@@ -54,7 +54,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--lr", type=float)
     p.add_argument("--wd", type=float)
     p.add_argument("--batch_size", type=int)
-    p.add_argument("--ckpt", required=True)
+    # --ckpt 생략 시  checkpoints/<teacher>_ft.pth  로 저장
+    p.add_argument(
+        "--ckpt",
+        help="Path to save best checkpoint "
+             "(default: checkpoints/<teacher>_ft.pth)",
+    )
     # --- NEW: snapshot 옵션 (CLI > YAML) ----------------------------
     p.add_argument("--snapshot_interval", type=int,
                    help="Save an extra checkpoint every N epochs")
@@ -90,7 +95,10 @@ def main() -> None:
     cfg = load_cfg(args.config)
     set_random_seed(cfg.get("seed", 42))
 
-    # --- 경로 보장 ---------------------------------------------------------
+    # ----- ckpt 기본 경로 유도 --------------------------------------------
+    if args.ckpt is None:
+        args.ckpt = f"checkpoints/{args.teacher}_ft.pth"
+
     os.makedirs(os.path.dirname(args.ckpt) or ".", exist_ok=True)
 
     batch_size = args.batch_size or cfg.get("batch_size", 128)
