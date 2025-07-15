@@ -19,6 +19,7 @@ class SnapshotTeacher(nn.Module):
                 backbone_name,
                 num_classes=n_cls,
                 pretrained=False,
+                allow_empty_ckpt=True,
             )
             m.load_state_dict(torch.load(p, map_location="cpu"))
             m.eval()
