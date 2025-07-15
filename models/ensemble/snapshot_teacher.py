@@ -21,7 +21,13 @@ class SnapshotTeacher(nn.Module):
                 pretrained=False,
                 allow_empty_ckpt=True,
             )
-            m.load_state_dict(torch.load(p, map_location="cpu"))
+            try:
+                state = torch.load(p, map_location="cpu")
+            except FileNotFoundError as e:
+                raise FileNotFoundError(
+                    f"{p} not found. Ensure ASMB_KD_ROOT points to the directory containing your checkpoints."
+                ) from e
+            m.load_state_dict(state)
             m.eval()
             for param in m.parameters():
                 param.requires_grad_(False)
