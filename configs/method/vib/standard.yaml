@@ -18,6 +18,9 @@ teacher_lr          : 1e-3
 teacher_weight_decay: 5e-4
 gate_dropout        : 0.1
 teacher_dropout_p   : 0.3
+# ─ Adaptive Gate 옵션 추가 ─
+adaptive_gate   : true
+gate_hidden_dim : 128
 
 # ─ KD 스케줄 (안전한 Warm‑start) ─
 kd_alpha_init    : 0.0       # 첫 10 % epoch 은 CE 100 %

@@ -372,6 +372,8 @@ def main() -> None:
                 cfg.get('latent_clamp_max', 2),
             ),
             dropout_p=cfg.get('gate_dropout', 0.1),
+            adaptive=cfg.get('adaptive_gate', False),
+            gate_hidden=cfg.get('gate_hidden_dim', 128),
         ).to(device)
     else:
         vib_mbm = None
