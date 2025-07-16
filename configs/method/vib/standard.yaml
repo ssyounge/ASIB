@@ -1,7 +1,7 @@
 # configs/method/vib/standard.yaml
 
 method: vib
-teacher_iters: 20
+teacher_iters: 0
 mbm_type: GATE
 z_dim: 512
 beta_bottleneck: 1e-3       # KL loss 가 1.0 이상으로 올라오도록 살짝 강화
@@ -13,28 +13,30 @@ student_lr       : 3e-3       # 더 강한 신호 대응
 min_lr_ratio_student: 0.05    # tail lr 과도한 감소 방지
 lr_warmup_epochs: 2         # 짧은 일정에 맞춰 축소
 
-# ─ Teacher(VIB‑MBM) 학습 ─
+# ─ Teacher inference only ─
 teacher_lr          : 1e-3
 teacher_weight_decay: 5e-4
 gate_dropout        : 0.1
-teacher_dropout_p   : 0.1      # 교사 출력 quality ↑
+teacher_dropout_p   : 0.0
+teacher1_ckpt       : /home/suyoung425/ASMB_KD/checkpoints/snapshots/resnet152_ft.pth
+# 두 번째 교사 제거 → ensemble 단일화
 # ─ Adaptive Gate 옵션 추가 ─
 adaptive_gate   : true
 gate_hidden_dim : 128
 
-# ─ KD 스케줄 (가속) ─
-kd_alpha_init    : 0.1
+# ─ KD 스케줄 ─
+kd_alpha_init    : 0.0        # 첫 10 % CE 100 %
 kd_alpha_final   : 0.6
-kd_T_init        : 3          # final 1.5 유지
+kd_T_init        : 4.0        # 정보량 확보
 kd_T_final       : 1.5
-kd_warmup_frac   : 0.02
-kd_sched_pow     : 0.5
+kd_warmup_frac   : 0.10
+kd_sched_pow     : 1.0
 kd_schedule_granularity: epoch  # step → epoch
 ce_alpha      : 1.0
 
 # ─ Latent 정렬 ─
-latent_alpha        : 0.5
-latent_warmup_frac  : 0.1
+latent_alpha        : 0.35
+latent_warmup_frac  : 0.3
 latent_mse_weight   : 0.7
 latent_angle_weight : 0.3
 cw_mse_eps: 1e-6                 # 확신도‑가중 MSE용 ε (분모 보호)
@@ -50,3 +52,10 @@ feat_loss_weight: [0.3, 0.2, 0.1]
 # ───── 추가 override (base.yaml 값을 덮어쓰기) ─────
 cutmix_alpha_distill: 1.0        # 강한 CutMix 유지
 ema_decay           : 0.995      # EMA 관성 소폭 ↑
+
+# ─ Optimization ─
+grad_clip_norm_init: 2.0        # 과도한 클립 완화
+grad_clip_warmup_frac: 0.2
+
+# ─ DataLoader ─
+num_workers: 12         # CPU 코어 ≥12 기준
