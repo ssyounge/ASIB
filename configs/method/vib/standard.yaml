@@ -58,4 +58,4 @@ grad_clip_norm_init: 2.0        # 과도한 클립 완화
 grad_clip_warmup_frac: 0.2
 
 # ─ DataLoader ─
-num_workers: 12         # CPU 코어 ≥12 기준
+num_workers: 4         # 컨테이너 4‑CPU 기준
