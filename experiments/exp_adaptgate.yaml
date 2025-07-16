@@ -4,8 +4,8 @@ imports:
   - configs/method/vib/standard.yaml      # adaptive_gate: true 가 이미 포함
 
 # ---- 교사 설정 ----
-teacher1_type: snapshot
-teacher1_ckpt: "${ASMB_KD_ROOT}/checkpoints/snapshots/resnet152_ft.pth,\
+teacher1_type: resnet152
+teacher1_ckpt: "${ASMB_KD_ROOT}/checkpoints/resnet152_ft.pth,\
   ${ASMB_KD_ROOT}/checkpoints/snapshots/snap_ep020.pth,\
   ${ASMB_KD_ROOT}/checkpoints/snapshots/snap_ep040.pth,\
   ${ASMB_KD_ROOT}/checkpoints/snapshots/snap_ep060.pth"
