@@ -7,6 +7,7 @@ from typing import Mapping, Any, Optional, Sequence, Tuple
 import torch
 import torchvision
 import torchvision.transforms as T
+from utils.transform_utils import SafeToTensor
 
 __all__ = ["get_overlap_loaders"]
 
@@ -53,12 +54,12 @@ def get_overlap_loaders(
             aug_ops.append(
                 T.RandAugment(num_ops=randaug_default_N, magnitude=randaug_default_M)
             )
-        aug_ops.extend([T.ToTensor(), T.Normalize(_MEAN, _STD)])
+        aug_ops.extend([SafeToTensor(), T.Normalize(_MEAN, _STD)])
         transform_train = T.Compose(aug_ops)
     else:
-        transform_train = T.Compose([T.ToTensor(), T.Normalize(_MEAN, _STD)])
+        transform_train = T.Compose([SafeToTensor(), T.Normalize(_MEAN, _STD)])
 
-    transform_test = T.Compose([T.ToTensor(), T.Normalize(_MEAN, _STD)])
+    transform_test = T.Compose([SafeToTensor(), T.Normalize(_MEAN, _STD)])
 
     base_train = torchvision.datasets.CIFAR100(
         root=root, train=True, download=True, transform=transform_train

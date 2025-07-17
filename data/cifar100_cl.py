@@ -4,6 +4,7 @@
 import torch
 import torchvision
 import torchvision.transforms as T
+from utils.transform_utils import SafeToTensor
 from functools import lru_cache
 
 # ------------------------------------------------------------------
@@ -54,13 +55,13 @@ def get_cifar100_cl_loaders(
     if randaug_N > 0 and randaug_M > 0:
         ops.append(T.RandAugment(num_ops=randaug_N, magnitude=randaug_M))
     ops.extend([
-        T.ToTensor(),
+        SafeToTensor(),
         T.Normalize((0.5071, 0.4865, 0.4409), (0.2673, 0.2564, 0.2762)),
     ])
     transform_train = T.Compose(ops)
 
     transform_test = T.Compose([
-        T.ToTensor(),
+        SafeToTensor(),
         T.Normalize((0.5071, 0.4865, 0.4409), (0.2673, 0.2564, 0.2762)),
     ])
 
@@ -136,8 +137,12 @@ def get_balanced_loader(
     root: str = "./data",
 ):
     """Return a class-balanced loader using replay buffer and current data."""
-    ops = [T.RandomCrop(32, padding=4), T.RandomHorizontalFlip(), T.ToTensor(),
-           T.Normalize((0.5071, 0.4865, 0.4409), (0.2673, 0.2564, 0.2762))]
+    ops = [
+        T.RandomCrop(32, padding=4),
+        T.RandomHorizontalFlip(),
+        SafeToTensor(),
+        T.Normalize((0.5071, 0.4865, 0.4409), (0.2673, 0.2564, 0.2762)),
+    ]
     transform = T.Compose(ops)
 
     base_train = torchvision.datasets.CIFAR100(

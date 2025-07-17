@@ -5,6 +5,7 @@ from typing import Mapping, Any, Optional
 import torch
 import torchvision
 import torchvision.transforms as T
+from utils.transform_utils import SafeToTensor
 
 def get_imagenet100_loaders(
     root: Optional[str] = None,
@@ -39,7 +40,7 @@ def get_imagenet100_loaders(
         else:
             aug_ops.append(T.RandAugment(num_ops=randaug_default_N, magnitude=randaug_default_M))
         aug_ops.extend([
-            T.ToTensor(),
+            SafeToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
         transform_train = T.Compose(aug_ops)
@@ -47,14 +48,14 @@ def get_imagenet100_loaders(
         transform_train = T.Compose([
             T.Resize(256),
             T.CenterCrop(224),
-            T.ToTensor(),
+            SafeToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406],
                         std=[0.229, 0.224, 0.225])
         ])
     transform_test = T.Compose([
         T.Resize(256),
         T.CenterCrop(224),
-        T.ToTensor(),
+        SafeToTensor(),
         T.Normalize(mean=[0.485, 0.456, 0.406],
                     std=[0.229, 0.224, 0.225])
     ])
