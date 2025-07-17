@@ -16,7 +16,7 @@ from utils.schedule import cosine_lr_scheduler
 from utils.misc import get_amp_components, mixup_data, mixup_criterion
 from utils.eval import evaluate_acc
 from utils.distill_loss import feat_mse_pair
-from modules.losses import compute_vib_loss, kd_kl
+from modules.losses import compute_vib_loss, kd_kl, ce_loss_fn
 
 
 def split_current_replay(batch, replay_ratio):
@@ -123,6 +123,10 @@ def simple_finetune(
                     model.parameters(), (cfg or {}).get("grad_clip_norm", 1.0)
                 )
                 scaler.step(optimizer)
+                # ───────── AMP under/over‑flow guard ─────────
+                if not scaler.is_enabled():
+                    print("[WARN] GradScaler disabled itself (under‑flow). "
+                          "Try higher lr or use_amp=False")
                 scaler.update()
             else:
                 loss.backward()
@@ -270,6 +274,10 @@ def teacher_vib_update(
                         step=global_step,
                     )
                 scaler.step(optimizer)
+                # ───────── AMP under/over‑flow guard ─────────
+                if not scaler.is_enabled():
+                    print("[WARN] GradScaler disabled itself (under‑flow). "
+                          "Try higher lr or use_amp=False")
                 scaler.update()
             else:
                 loss.backward()
@@ -491,7 +499,18 @@ def student_vib_update(
                 x, y = batch
                 t_cache = None                        # ← cache miss
 
-            x, y = x.to(device), y.to(device)
+            # ─────────────────────────────────────────
+            # BASIC SANITY CHECK (once per run) ──────
+            #   · label dtype / shape
+            #   · mix‑style(one‑hot) 여부
+            #   · student param grad flow
+            # ─────────────────────────────────────────
+            if (ep == 0 and batch_idx == 0):
+                if y.ndim == 2 and y.size(1) > 1 and y.sum(dim=1).ne(1).any():
+                    print("[WARN] labels look like MixUp tensors → using one‑hot CE")
+                print(f"[DBG] label dtype={y.dtype}  shape={y.shape}")
+
+            x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
 
             # ───── (1‑A) 입력 텐서 분포 체크 – 최초 1 batch ─────
             if batch_idx == 0 and ep == 0:
@@ -625,10 +644,13 @@ def student_vib_update(
                 ce_target_slice = logit_kd_s[-n_cur:]
                 if do_mix:
                     ce_cur = mixup_criterion(
-                        ce_criterion, ce_target_slice, y_a, y_b, lam
+                        ce_loss_fn, ce_target_slice, y_a, y_b, lam
                     )
                 else:
-                    ce_cur = ce_criterion(ce_target_slice, cur_y)
+                    ce_cur = ce_loss_fn(
+                        ce_target_slice, cur_y,
+                        label_smoothing=ce_criterion.label_smoothing,
+                    )
 
             if rep_x is not None and prev_student is not None:
                 with torch.no_grad():
@@ -801,6 +823,10 @@ def student_vib_update(
                         step=global_step,
                     )
                 scaler.step(optimizer)
+                # ───────── AMP under/over‑flow guard ─────────
+                if not scaler.is_enabled():
+                    print("[WARN] GradScaler disabled itself (under‑flow). "
+                          "Try higher lr or use_amp=False")
                 scaler.update()
             else:
                 loss.backward()
@@ -829,6 +855,19 @@ def student_vib_update(
                         step=global_step,
                     )
                 optimizer.step()
+            # ───────── grad flow 확인 ─────────
+            if (ep == 0 and batch_idx == 0):
+                g_mean = torch.stack([
+                    p.grad.detach().abs().mean()
+                    for p in student_model.parameters()
+                    if p.requires_grad and p.grad is not None
+                ]).mean().item()
+                if g_mean < 1e-8:
+                    raise RuntimeError(
+                        f"[Fatal] grad mean ≈ 0  ( {g_mean:e} )  ➜ "
+                        "optimizer param‑list 와의 requires_grad 설정 오류"
+                    )
+
             hook_s.clear()
             if hook_t1 is not None:
                 hook_t1.clear(); hook_t2.clear()
