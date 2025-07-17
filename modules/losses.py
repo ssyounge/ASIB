@@ -41,11 +41,15 @@ def ce_loss_fn(logits: torch.Tensor, labels: torch.Tensor,
       • labels int   → 기존 방식
       • labels float → one‑hot / mixup
     """
-    if labels.dtype in (torch.float, torch.float16, torch.bfloat16):
-        # mixup / cutmix → soft‑label CE
+    # soft‑label(=MixUp/one‑hot) ↔ int label 모두 지원
+    if labels.dtype.is_floating_point:
         log_p = F.log_softmax(logits, dim=1)
         return -(labels * log_p).sum(dim=1).mean()
-    return F.cross_entropy(logits, labels, label_smoothing=label_smoothing)
+    return F.cross_entropy(
+        logits,
+        labels,
+        label_smoothing=label_smoothing,
+    )
 
 
 def dkd_loss(student_logits: torch.Tensor, teacher_logits: torch.Tensor, labels: torch.Tensor,
