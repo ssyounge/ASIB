@@ -1,3 +1,5 @@
+# tests/test_sampler.py
+
 import pytest; pytest.importorskip("torch")
 import torch
 
