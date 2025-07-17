@@ -493,6 +493,10 @@ def student_vib_update(
 
             x, y = x.to(device), y.to(device)
 
+            # ───── (1‑A) 입력 텐서 분포 체크 – 최초 1 batch ─────
+            if batch_idx == 0 and ep == 0:
+                print(f"[CHK] input mean={x.mean():.4f} std={x.std():.4f}")
+
             task_cls = None
             y_local = y
             if cfg.get("train_mode") == "continual" and cfg.get("task_meta"):
@@ -506,10 +510,12 @@ def student_vib_update(
             rep_x, rep_y = rep_pair
 
             if do_mix and cur_x is not None:
+                # (2‑A) MixUp 은 task‑local 레이블로 수행해야 함
                 lam_alpha = mix_alpha if mix_alpha > 0 else cutmix_alpha
-                cur_x, y_a, y_b, lam = mixup_data(cur_x, cur_y, alpha=lam_alpha)
+                cur_x, y_a, y_b, lam = mixup_data(cur_x, cur_y.clone(), alpha=lam_alpha)
 
-            if rep_x is not None:
+            # (2‑D) rep_x 가 비어있을 때 torch.cat 보호
+            if rep_x is not None and rep_x.numel() > 0:
                 x = torch.cat([rep_x, cur_x], dim=0)
                 y_local = torch.cat([rep_y, cur_y], dim=0)
             else:
@@ -547,6 +553,15 @@ def student_vib_update(
             logit_full_s = logit_s.clone()  # (NEW) 100-way 백업
             z_s = student_proj(feat_s)
 
+            # ───── (1‑C) 로짓/잠재벡터 분포 모니터링 ─────
+            if batch_idx == 0 and ep < 3:     # 초기 3 epoch 만 출력
+                print(
+                    f"[LOGITS] ep{ep} "
+                    f"student μ={logit_s.mean():.3f}|σ={logit_s.std():.3f} "
+                    f"teacher μ={logit_t.mean():.3f}|σ={logit_t.std():.3f} "
+                    f"z_s μ={z_s.mean():.3f}|σ={z_s.std():.3f}"
+                )
+
             # ────────────────────────────────────────────────────
             # ①  step 계산
             local_step  = ep * len(loader) + batch_idx
@@ -580,8 +595,8 @@ def student_vib_update(
                 latent_w = latent_base * slope
 
             # ─────────────── DEBUG: 스케줄 값 모니터링 ───────────────
-            # 첫 3 epoch 은 매 epoch, 이후에는 5 epoch 간격으로 한 번만 출력
-            if batch_idx == 0 and (ep < 3 or ep % 5 == 0):
+            # (1‑B) KD‑스케줄은 모든 epoch 에 기록
+            if batch_idx == 0:
                 # ① KD‑스케줄 메시지는 버퍼에만 저장
                 sched_msgs.append(
                     f"[KD-sched] ep{ep:02d} prog={prog_p:.2f} "
@@ -736,10 +751,13 @@ def student_vib_update(
                 seg = len(gamma_schedule)
                 cur_seg = int(ep / (total_epochs / seg))
                 gamma_feat = gamma_schedule[min(cur_seg, seg - 1)]
+
+            # (2‑B) prev_student 없으면 prev_kd_alpha = 0
+            prev_kd_alpha = cfg.get("prev_kd_alpha", 0.5) if prev_student is not None else 0.0
             loss = (
                 ce_alpha*ce
                 + alpha_kd*kd
-                + cfg.get("prev_kd_alpha", 0.5) * kd_prev
+                + prev_kd_alpha * kd_prev
                 + latent_w*latent
                 + gamma_feat*feat_loss
             )
@@ -757,6 +775,11 @@ def student_vib_update(
             if scaler is not None:
                 scaler.scale(loss).backward()
                 scaler.unscale_(optimizer)
+
+                # ───── (1‑D) NaN / Inf gradient 검출 ─────
+                for n, p in student_model.named_parameters():
+                    if p.grad is not None and (torch.isnan(p.grad).any() or torch.isinf(p.grad).any()):
+                        raise RuntimeError(f"❌ NaN/Inf in grad [{n}] at ep{ep}‑stp{batch_idx}")
                 grad_norm = torch.sqrt(
                     sum(p.grad.detach().pow(2).sum() for p in params if p.grad is not None)
                 ).item()
@@ -781,6 +804,10 @@ def student_vib_update(
                 scaler.update()
             else:
                 loss.backward()
+
+                for n, p in student_model.named_parameters():
+                    if p.grad is not None and (torch.isnan(p.grad).any() or torch.isinf(p.grad).any()):
+                        raise RuntimeError(f"❌ NaN/Inf in grad [{n}] at ep{ep}‑stp{batch_idx}")
                 grad_norm = torch.sqrt(
                     sum(p.grad.detach().pow(2).sum() for p in params if p.grad is not None)
                 ).item()
