@@ -1,3 +1,5 @@
+# tests/test_continual.py
+
 import pytest; pytest.importorskip("torch")
 import torch
 from data.cifar100_cl import set_class_order, get_cifar100_cl_loaders
