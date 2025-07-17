@@ -627,10 +627,6 @@ def main() -> None:
             student,
             test_loader,
             device,
-            mixup_active=(
-                cfg.get("mixup_alpha", 0) > 0
-                or cfg.get("cutmix_alpha_distill", 0) > 0
-            ),
         )
         print(f"Final student accuracy: {acc:.2f}%")
         logger.update_metric("test_acc", float(acc))

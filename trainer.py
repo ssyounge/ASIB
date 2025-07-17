@@ -103,9 +103,12 @@ def simple_finetune(
                 logit_s = out[1] if isinstance(out, tuple) else out
 
                 if mixup_alpha > 0.0:
-                    ce = mixup_criterion(criterion, logit_s, y_a, y_b, lam)
+                    ce = mixup_criterion(ce_loss_fn, logit_s, y_a, y_b, lam)
                 else:
-                    ce = criterion(logit_s, y)
+                    ce = ce_loss_fn(
+                        logit_s, y,
+                        label_smoothing=criterion.label_smoothing,
+                    )
 
                 if (cfg or {}).get("mbm_type") == "VIB":
                     z = model.get_latent() if hasattr(model, "get_latent") else None
@@ -420,9 +423,8 @@ def student_vib_update(
     mix_alpha = cfg.get("mixup_alpha", 0.0)
     cutmix_alpha = cfg.get("cutmix_alpha_distill", 0.0)
     do_mix = (mix_alpha > 0) or (cutmix_alpha > 0)
-    ce_criterion = torch.nn.CrossEntropyLoss(
-        label_smoothing=cfg.get("label_smoothing", 0.0)
-    )
+    ce_criterion = ce_loss_fn  # alias
+    ce_criterion.label_smoothing = cfg.get("label_smoothing", 0.0)
 
     vib_mbm.eval()
     student_model.train()
@@ -1025,7 +1027,6 @@ def student_vib_update(
     if cfg.get("use_ema", False) and test_loader is not None:
         final_ema_acc = evaluate_acc(
             ema_model, test_loader, device=device,
-            mixup_active=(cfg.get("mixup_alpha", 0) > 0 or cfg.get("cutmix_alpha_distill", 0) > 0),
         )
         logger.update_metric("final_test_acc", float(final_ema_acc))
         print(f"Final student EMA accuracy: {final_ema_acc:.2f}%")

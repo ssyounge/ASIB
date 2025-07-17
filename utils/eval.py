@@ -7,7 +7,6 @@ def evaluate_acc(
     model,
     loader,
     device: str = "cuda",
-    mixup_active: bool = False,   # NEW – 호출 처리를 위한 더미 플래그
     classes: list[int] | None = None,
 ):
     model.eval()
@@ -17,10 +16,8 @@ def evaluate_acc(
         x, y = x.to(device), y.to(device)
         # ─ Label squeeze & one‑hot → index ─
         y = y.squeeze()
-        if y.ndim > 1:           # one‑hot / soft
+        if y.ndim > 1:           # one‑hot OR soft
             y = y.argmax(dim=1)
-        # 학습-평가 공통 호출을 위해 mixup_active 플래그만 받는다.
-        # 평가 시엔 실제 MixUp 입력이 없으므로 로직 변화 없음.
         out = model(x)
         # (2‑C) ConvNeXt 등에서 feat_dict 포함 3‑tuple 반환 시 2‑번째가 logits
         if isinstance(out, tuple):
