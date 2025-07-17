@@ -28,7 +28,7 @@ student_iters: 50             # 기본 에폭 단축
 
 # ───────────── Teacher-cache 옵션 ─────────────
 # cache/*.pt 은 tools/build_teacher_cache.py 로 한-번만 만들어 두면 됩니다.
-use_teacher_cache : true
+use_teacher_cache : false
 teacher_cache_path: cache/res152_train.pt     # ← 캐시 파일
 # (저장된 key 중 필요한 것만 골라서 GPU 로 복사)
 teacher_cache_items: [logits, z]
