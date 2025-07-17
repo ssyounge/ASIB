@@ -27,11 +27,11 @@ adaptive_gate   : true
 gate_hidden_dim : 128
 
 # ─ KD 스케줄 ─
-kd_alpha_init    : 0.25
+kd_alpha_init    : 0.0        # first 5 % epochs KD OFF
+kd_warmup_frac   : 0.10       # linear warmup until 10 %
 kd_alpha_final   : 0.6
 kd_T_init        : 3.5
 kd_T_final       : 1.5
-kd_warmup_frac   : 0.05       # first 5 % epochs
 kd_sched_pow     : 0.9
 kd_schedule_granularity: epoch  # step → epoch
 ce_alpha      : 1.0

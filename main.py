@@ -408,18 +408,30 @@ def main() -> None:
     student = create_student_by_name(
         cfg.get("student_type", "convnext_tiny"),   # ex) "convnext_small"
         num_classes=cfg.get('num_classes', 100),
-        pretrained=True,
+        pretrained=False,
         small_input=True,
         cfg=cfg,
     ).to(device)
-    if cfg.get('student_ce_ckpt') and os.path.isfile(cfg['student_ce_ckpt']):
-        ckpt = torch.load(cfg['student_ce_ckpt'], map_location="cpu")
+    ce_path = cfg.get('student_ce_ckpt')
+    if ce_path and os.path.isfile(ce_path):
+        ckpt = torch.load(ce_path, map_location="cpu")
         missing, unexpected = student.load_state_dict(ckpt, strict=False)
         logger.info(
             f"[Student] CE-ckpt loaded \u2713  missing={len(missing)}  unexpected={len(unexpected)}"
         )
     else:
-        logger.warning("[Student] CE-ckpt **NOT** found \u2192 training from scratch")
+        # fallback to ImageNet weights from timm if available
+        try:
+            import timm
+            timm_state = timm.create_model(
+                cfg.get("student_type", "convnext_tiny"),
+                pretrained=True,
+                num_classes=cfg.get('num_classes', 100),
+            ).state_dict()
+            missing, _ = student.load_state_dict(timm_state, strict=False)
+            logger.info(f"Fallback preload from timm \u2013 missing={len(missing)}")
+        except Exception:
+            logger.warning("[Student] CE-ckpt **NOT** found \u2192 training from scratch")
     if method == 'vib':
         student_proj = StudentProj(
             in_dim     = student.get_feat_dim(),

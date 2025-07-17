@@ -12,15 +12,26 @@ def kd_kl(
     teacher_logits: torch.Tensor,
     T: float = 1.0,
     task_classes: list[int] | None = None,
+    T_t: float | None = None,
 ) -> torch.Tensor:
-    """Knowledge distillation KL loss with optional task masking."""
+    """Knowledge distillation KL loss with optional task masking.
+
+    Args:
+        student_logits: Student output logits.
+        teacher_logits: Teacher output logits.
+        T: Temperature for the student logits.
+        task_classes: Optional subset of classes for task masking.
+        T_t: Optional temperature for teacher logits. If ``None`` the
+            same ``T`` value is used.
+    """
     if task_classes is not None:
         idx = torch.tensor(task_classes, device=student_logits.device)
         student_logits = student_logits.index_select(1, idx)
         teacher_logits = teacher_logits.index_select(1, idx)
 
     log_s = F.log_softmax(student_logits / T, dim=1)
-    soft_t = F.softmax(teacher_logits / T, dim=1)
+    temp_t = T if T_t is None else T_t
+    soft_t = F.softmax(teacher_logits / temp_t, dim=1)
     return F.kl_div(log_s, soft_t, reduction="batchmean") * (T * T)
 
 
