@@ -454,6 +454,12 @@ def student_vib_update(
         hook_t1 = hook_t2 = None        # cache 모드 → teacher hook 생략
 
     for ep in range(total_epochs):
+        # ───────────────────────────────
+        # (A) 1-epoch 동안 누적해 두었다가
+        #     마지막에 한꺼번에 출력할 메시지 버퍼
+        # ───────────────────────────────
+        sched_msgs: list[str]  = []   # KD‑스케줄 메시지
+        dbg_msgs:   list[str]  = []   # 세부 DBG 로그
         if cfg.get("reg_decay", None):
             if ep >= cfg["reg_decay"]["start_epoch"]:
                 p = (ep - cfg["reg_decay"]["start_epoch"]) / (
@@ -576,18 +582,11 @@ def student_vib_update(
             # ─────────────── DEBUG: 스케줄 값 모니터링 ───────────────
             # 첫 3 epoch 은 매 epoch, 이후에는 5 epoch 간격으로 한 번만 출력
             if batch_idx == 0 and (ep < 3 or ep % 5 == 0):
-                print(
+                # ① KD‑스케줄 메시지는 버퍼에만 저장
+                sched_msgs.append(
                     f"[KD-sched] ep{ep:02d} prog={prog_p:.2f} "
                     f"α={alpha_kd:.3f} T={T:.2f} lat_w={latent_w:.3f} clip={clip_cur:.2f}"
                 )
-                if logger:
-                    logger.info(
-                        f"[KD-sched] ep{ep:02d} prog={prog_p:.2f} "
-                        f"α={alpha_kd:.3f} T={T:.2f} lat_w={latent_w:.3f} clip={clip_cur:.2f}"
-                    )
-                # ---- extra probe (첫 샘플 로짓 확인) ----
-                with torch.no_grad():
-                    print("  logits_s[0][:10] =", logit_s[0, :10].cpu().tolist())
 
             # ─ Losses ──────────────────────────────────────────
             logit_kd_s = logit_s
@@ -749,7 +748,10 @@ def student_vib_update(
                 loss += reg.penalty(student_model)
 
             if batch_idx == 0 and ep % 10 == 0:
-                print(f"[DEBUG] γ={gamma_feat:.3f}  feat_loss={feat_loss.item():.4f}")
+                # ② 상세 DBG 메시지도 버퍼에만 저장
+                dbg_msgs.append(
+                    f"[DEBUG] γ={gamma_feat:.3f}  feat_loss={feat_loss.item():.4f}"
+                )
             optimizer.zero_grad()      # (전역 step은 이미 계산되어 있음)
             params = list(student_model.parameters()) + list(student_proj.parameters())
             if scaler is not None:
@@ -890,14 +892,42 @@ def student_vib_update(
             if ema_model is not None:
                 ema_acc = evaluate_acc(ema_model, test_loader, device=device)
 
-        msg = (
-            f"[Student] ep {ep + 1:03d}/{cfg.get('student_iters', 1)} "
-            f"loss {avg_loss:.4f} train_acc {train_acc:.2f}%  "
+        # ─────────────────────────────────────────────
+        # ① 핵심 요약 한 줄 – 가장 먼저 콘솔·log ·wandb 에 출력
+        # ─────────────────────────────────────────────
+        head = (
+            f"[Student] ep {ep + 1:03d}/{total_epochs} "
+            f"loss {avg_loss:.4f}  "
+            f"train_acc {train_acc:.2f}%  "
             f"test_acc {student_acc:.2f}%"
         )
         if ema_acc is not None:
-            msg += f"  ema_acc {ema_acc:.2f}%"
-        print(msg)
+            head += f"  ema_acc {ema_acc:.2f}%"
+        print(head)
+        if logger:
+            logger.info(head)
+
+        # wandb : epoch-level 핵심 지표 로깅
+        if wandb_run is not None:
+            wandb_run.log(
+                {
+                    "epoch":      ep + 1,
+                    "train_acc":  train_acc,
+                    "test_acc":   student_acc,
+                    "ema_acc":    ema_acc if ema_acc is not None else 0.0,
+                    "loss":       avg_loss,
+                    "lr":         optimizer.param_groups[0]["lr"],
+                },
+                step=global_step,   # 동일 step 사용
+            )
+
+        # ─────────────────────────────────────────────
+        # ② 누적해 둔 세부 메시지를 이어서 출력
+        # ─────────────────────────────────────────────
+        for m in sched_msgs + dbg_msgs:
+            print(m)
+            if logger:
+                logger.info(m)
 
         if scheduler is not None:
             scheduler.step()
