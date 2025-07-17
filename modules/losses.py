@@ -34,8 +34,17 @@ def kd_loss_fn(
     return kd_kl(student_logits, teacher_logits, T=T, task_classes=task_classes)
 
 
-def ce_loss_fn(logits: torch.Tensor, labels: torch.Tensor, label_smoothing: float = 0.0) -> torch.Tensor:
-    """Cross-entropy loss with optional label smoothing."""
+def ce_loss_fn(logits: torch.Tensor, labels: torch.Tensor,
+               label_smoothing: float = 0.0) -> torch.Tensor:
+    """
+    Cross‑entropy that 자동판별:
+      • labels int   → 기존 방식
+      • labels float → one‑hot / mixup
+    """
+    if labels.dtype in (torch.float, torch.float16, torch.bfloat16):
+        # mixup / cutmix → soft‑label CE
+        log_p = F.log_softmax(logits, dim=1)
+        return -(labels * log_p).sum(dim=1).mean()
     return F.cross_entropy(logits, labels, label_smoothing=label_smoothing)
 
 

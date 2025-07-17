@@ -15,11 +15,9 @@ def evaluate_acc(
     total = 0
     for x, y in loader:
         x, y = x.to(device), y.to(device)
-        # labels from mixup/cutmix loaders may be one-hot encoded
-        # or have an extra singleton dimension. Squeeze first and
-        # only apply argmax when a class dimension is present.
+        # ─ Label squeeze & one‑hot → index ─
         y = y.squeeze()
-        if mixup_active and y.ndim > 1:
+        if y.ndim > 1:           # one‑hot / soft
             y = y.argmax(dim=1)
         # 학습-평가 공통 호출을 위해 mixup_active 플래그만 받는다.
         # 평가 시엔 실제 MixUp 입력이 없으므로 로직 변화 없음.
