@@ -302,6 +302,23 @@ def main() -> None:
     t1_ckpt = cfg.get('teacher1_ckpt')
     t2_ckpt = cfg.get('teacher2_ckpt')
 
+    # Warn early if any teacher checkpoints are missing
+    if method != 'ce':
+        def _warn_missing(ckpt, label):
+            for p in str(ckpt).split(','):
+                p = p.strip()
+                if not p:
+                    continue
+                if not os.path.exists(p):
+                    logger.warning(
+                        f"{label} checkpoint not found \u2192 expected at {p}"
+                    )
+
+        if t1_ckpt:
+            _warn_missing(t1_ckpt, 'teacher1_ckpt')
+        if t2_ckpt:
+            _warn_missing(t2_ckpt, 'teacher2_ckpt')
+
     if method != 'ce' and t1_ckpt and os.path.exists(t1_ckpt):
         # PyTorch 1.12 이후만 weights_only 지원 → 버전별 fallback
         try:
