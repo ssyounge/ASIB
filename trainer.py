@@ -717,6 +717,7 @@ def student_vib_update(
                 logit_t.detach(),
                 T,
                 task_classes,
+                T_t=4.0,
             )
             # ─ Latent & Angle Loss 병행 ─
             mu_phi_det = mu_phi.detach()

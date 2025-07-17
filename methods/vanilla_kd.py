@@ -86,7 +86,12 @@ class VanillaKDDistiller:
                     else:
                         s_logits = s_out
                     ce = ce_criterion(s_logits, y)
-                    kd = kd_kl(s_logits, t_logits.detach(), T=self.temperature)
+                    kd = kd_kl(
+                        s_logits,
+                        t_logits.detach(),
+                        T=self.temperature,
+                        T_t=4.0,
+                    )
                     loss = (1 - self.alpha) * ce + self.alpha * kd
                 if scaler is not None:
                     scaler.scale(loss).backward()
