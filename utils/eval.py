@@ -24,8 +24,12 @@ def evaluate_acc(
         # 학습-평가 공통 호출을 위해 mixup_active 플래그만 받는다.
         # 평가 시엔 실제 MixUp 입력이 없으므로 로직 변화 없음.
         out = model(x)
+        # (2‑C) ConvNeXt 등에서 feat_dict 포함 3‑tuple 반환 시 2‑번째가 logits
         if isinstance(out, tuple):
-            logits = out[1]
+            if len(out) == 3:
+                _, logits, _ = out
+            else:
+                logits = out[1]
         elif isinstance(out, dict):
             logits = out.get("logit", out)
         else:
