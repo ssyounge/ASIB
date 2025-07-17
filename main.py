@@ -31,7 +31,6 @@ from utils.model_factory import create_student_by_name, create_teacher_by_name  
 from trainer import teacher_vib_update, student_vib_update, simple_finetune
 from utils.freeze import freeze_all
 from utils.logger import ExperimentLogger
-from utils.print_cfg import print_hparams
 from utils.path_utils import to_writable
 
 
@@ -176,11 +175,16 @@ def main() -> None:
     global_step_counter = 0
 
     # ──────────────────────────────────────────────────────────────
-    #   (A) 전체 테이블 +  (B) 그룹별 테이블 동시 출력
+    #   그룹별 하이퍼파라미터 출력
     # --------------------------------------------------------------
     from utils.print_cfg import print_hparams_grouped
-    print_hparams(cfg,          title="All Hyper‑parameters", log_fn=logger.info)
-    print_hparams_grouped(cfg,  src_map=cfg_src,              log_fn=logger.info)
+
+    print_hparams_grouped(
+        cfg,
+        src_map=cfg_src,
+        log_fn=logger.info,
+        include_unmapped=True,
+    )
 
 
     device = cfg.get('device', 'cuda')
