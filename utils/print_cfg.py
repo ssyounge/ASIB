@@ -1,5 +1,8 @@
 # utils/print_cfg.py
 from __future__ import annotations
+# -*- coding: utf-8 -*-
+from collections import defaultdict
+from typing import Dict, Callable, Any, List, Tuple
 
 # ────────────────────────────────────────
 # NEW ①  공통 테이블 렌더러 (단일 그룹·가로 정렬)
@@ -27,28 +30,41 @@ def _render_table(rows, title="Hyper‑parameters", ascii_only=False, log_fn=pri
 # NEW ②  그룹별 하이퍼파라미터 출력
 # ----------------------------------------------------------------------------
 def print_hparams_grouped(
-    cfg: dict,
-    src_map: dict[str, str] | None = None,
+    cfg: Dict[str, Any],
+    src_map: Dict[str, str],
+    log_fn: Callable[[str], None] = print,
     *,
-    ascii_only: bool = False,
-    log_fn=print,
-):
+    include_unmapped: bool = True,
+    order: Tuple[str, ...] = ("base", "scenario", "method", "CLI", "others"),
+) -> None:
     """
-    cfg     : 최종 머지된 dict
-    src_map : 각 key → 'base' / 'scenario' / 'method' / 'sweep' / 'CLI' ...
-              (없으면 모두 'unknown' 으로 처리)
+    cfg      : 최종 머지된 dict
+    src_map  : {key: "base" | "scenario" | "method" | "CLI" …}
+    include_unmapped : True → src_map 에 없는 key 는 자동으로 others 로
     """
-    from collections import defaultdict
 
-    src_map = src_map or {}
-    grouped: dict[str, list[tuple[str, any]]] = defaultdict(list)
+    groups: Dict[str, List[Tuple[str, Any]]] = defaultdict(list)
     for k, v in cfg.items():
-        grouped[src_map.get(k, "others")].append((k, v))
+        label = src_map.get(k, "others" if include_unmapped else None)
+        if label is None:
+            continue
+        groups[label].append((k, v))
 
-    pref_order = ["base", "scenario", "method", "sweep", "CLI", "others"]
-    for grp in sorted(grouped.keys(), key=lambda g: (pref_order.index(g) if g in pref_order else 999, g)):
-        rows = sorted(grouped[grp], key=lambda kv: kv[0])
-        _render_table(rows, title=f"[{grp}] Hyper‑parameters", ascii_only=ascii_only, log_fn=log_fn)
+    ordered_groups = list(order) + [g for g in groups if g not in order]
+
+    for g_name in ordered_groups:
+        if g_name not in groups:
+            continue
+        params = sorted(groups[g_name])
+        width_k = max(len(k) for k, _ in params)
+        width_v = max(len(str(v)) for _, v in params)
+        border  = "─" * (width_k + width_v + 7)
+        log_fn(f"┌{border}┐")
+        log_fn(f"│ [{g_name}] Hyper‑parameters ({len(params)}) │")
+        log_fn(f"├{'─'*width_k}┬{'─'*width_v}┤")
+        for k, v in params:
+            log_fn(f"│ {k:<{width_k}} │ {str(v):<{width_v}} │")
+        log_fn(f"└{border}┘")
 
 def print_hparams(
     cfg,
