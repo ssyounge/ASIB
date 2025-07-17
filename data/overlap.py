@@ -6,6 +6,7 @@ from __future__ import annotations
 import torch
 import torchvision
 import torchvision.transforms as T
+from utils.transform_utils import SafeToTensor
 from typing import Tuple
 
 
@@ -40,11 +41,11 @@ def get_overlap_loaders(
     transform_train = T.Compose([
         T.RandomCrop(32, padding=4),
         T.RandomHorizontalFlip(),
-        T.ToTensor(),
+        SafeToTensor(),
         T.Normalize((0.5071, 0.4865, 0.4409), (0.2673, 0.2564, 0.2762)),
     ])
     transform_test = T.Compose([
-        T.ToTensor(),
+        SafeToTensor(),
         T.Normalize((0.5071, 0.4865, 0.4409), (0.2673, 0.2564, 0.2762)),
     ])
 

@@ -3,6 +3,7 @@
 import warnings
 from torchvision.datasets import CIFAR100
 import os, torch, torchvision.transforms as T
+from utils.transform_utils import SafeToTensor
 from typing import Mapping, Any, Optional
 
 # ──────────────────────────────────────────────────────────────
@@ -67,18 +68,18 @@ def get_cifar100_loaders(
         else:
             aug_ops.append(T.RandAugment(num_ops=randaug_default_N, magnitude=randaug_default_M))
         aug_ops.extend([
-            T.ToTensor(),
+            SafeToTensor(),
             T.Normalize((0.5071, 0.4865, 0.4409), (0.2673, 0.2564, 0.2762)),
         ])
         transform_train = T.Compose(aug_ops)
     else:
         transform_train = T.Compose([
-            T.ToTensor(),
+            SafeToTensor(),
             T.Normalize((0.5071,0.4865,0.4409),
                         (0.2673,0.2564,0.2762))
         ])
     transform_test = T.Compose([
-        T.ToTensor(),
+        SafeToTensor(),
         T.Normalize((0.5071,0.4865,0.4409),
                     (0.2673,0.2564,0.2762))
     ])
