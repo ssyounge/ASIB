@@ -477,7 +477,14 @@ def student_vib_update(
             leave=False,
             disable=cfg.get("disable_tqdm", False),
         )
-        for batch_idx, (x, y) in enumerate(epoch_loader):
+        # 2-tuple(batch) ↔ 3-tuple(cache 포함) 모두 지원
+        for batch_idx, batch in enumerate(epoch_loader):
+            if len(batch) == 3:
+                x, y, t_cache = batch                 # ← cache hit
+            else:
+                x, y = batch
+                t_cache = None                        # ← cache miss
+
             x, y = x.to(device), y.to(device)
 
             task_cls = None
@@ -597,7 +604,7 @@ def student_vib_update(
                 else:
                     y   = torch.searchsorted(cls_tensor,  y,  right=False)
             # ── current-batch CE (replay 비율 100 %일 때 n_cur=0 보호) ──
-            n_cur = cur_x.size(0)
+            n_cur = 0 if cur_x is None else cur_x.size(0)
             if n_cur == 0:
                 ce_cur = torch.tensor(0.0, device=device)
             else:
