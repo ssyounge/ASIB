@@ -207,7 +207,13 @@ def teacher_vib_update(
             leave=False,
             disable=cfg.get("disable_tqdm", False),
         )
-        for batch_idx, (x, y) in enumerate(epoch_loader):
+        for batch_idx, batch in enumerate(epoch_loader):
+            # cache 모드면 3‑tuple, 아니면 2‑tuple
+            if len(batch) == 3:
+                x, y, t_cache = batch
+            else:
+                x, y = batch
+                t_cache = None
             x, y = x.to(device), y.to(device)
             with torch.no_grad():
                 out1 = teacher1(x)
@@ -441,8 +447,11 @@ def student_vib_update(
         gamma_feat = float(_gamma_cfg)
 
     hook_s  = FeatHook(student_model.backbone, layer_ids)
-    hook_t1 = FeatHook(teacher1.backbone, layer_ids)
-    hook_t2 = FeatHook(teacher2.backbone, layer_ids)
+    if not cfg.get("use_teacher_cache", False):
+        hook_t1 = FeatHook(teacher1.backbone, layer_ids)
+        hook_t2 = FeatHook(teacher2.backbone, layer_ids)
+    else:
+        hook_t1 = hook_t2 = None        # cache 모드 → teacher hook 생략
 
     for ep in range(total_epochs):
         if cfg.get("reg_decay", None):
@@ -494,14 +503,21 @@ def student_vib_update(
                 x = cur_x
                 y_local = cur_y
 
-            # ─ Teacher feature → synergy target ─────────────────
-            with torch.no_grad():
-                out1 = teacher1(x)
-                out2 = teacher2(x)
-                t1_dict = out1[0] if isinstance(out1, tuple) else out1
-                t2_dict = out2[0] if isinstance(out2, tuple) else out2
-                feat1, feat2 = t1_dict["feat_2d"], t2_dict["feat_2d"]
-                z_t, logit_t, _, _, mu_phi, log_var_phi = vib_mbm(feat1, feat2)
+            # ─ Teacher cache or  live-forward ───────────────────
+            if t_cache is not None:           # ★ 캐시 hit
+                logit_t = t_cache["logits"].to(device)
+                z_t     = t_cache["z"].to(device)
+                # latent‑loss를 쓰지 않을 것이므로 dummy
+                mu_phi      = torch.zeros_like(z_t)
+                log_var_phi = torch.zeros_like(z_t)
+            else:                             # 기존 방식
+                with torch.no_grad():
+                    out1 = teacher1(x)
+                    out2 = teacher2(x)
+                    t1_dict = out1[0] if isinstance(out1, tuple) else out1
+                    t2_dict = out2[0] if isinstance(out2, tuple) else out2
+                    feat1, feat2 = t1_dict["feat_2d"], t2_dict["feat_2d"]
+                    z_t, logit_t, _, _, mu_phi, log_var_phi = vib_mbm(feat1, feat2)
 
             # ─ Student forward ─────────────────────────────────
             s_out = student_model(x)
@@ -702,13 +718,12 @@ def student_vib_update(
             if logger is not None:
                 logger.update_metric("cw_mse", float(latent_mse), step=ep + 1)
 
-            feat_loss = feat_mse_pair(
-                hook_s.features,
-                hook_t1.features,
-                hook_t2.features,
-                layer_ids,
-                layer_w,
-            )
+            if hook_t1 is not None:     # 실시간 teacher 가 있을 때만 계산
+                feat_loss = feat_mse_pair(
+                    hook_s.features, hook_t1.features, hook_t2.features,
+                    layer_ids, layer_w)
+            else:
+                feat_loss = torch.tensor(0.0, device=device)
 
             if gamma_schedule is not None:
                 # 3‑단계 스케줄 (구간 길이가 같지 않아도 OK)
@@ -778,7 +793,9 @@ def student_vib_update(
                         step=global_step,
                     )
                 optimizer.step()
-            hook_s.clear(); hook_t1.clear(); hook_t2.clear()
+            hook_s.clear()
+            if hook_t1 is not None:
+                hook_t1.clear(); hook_t2.clear()
             running_loss += loss.item() * x.size(0)
             n_samples    += x.size(0)
             # ⬇︎ 현재 task 기준으로 재맵핑된 y_local 사용
