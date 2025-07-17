@@ -1,3 +1,5 @@
+# tests/test_snapshot_teacher.py
+
 import pytest; pytest.importorskip("torch")
 
 from models.ensemble import SnapshotTeacher
