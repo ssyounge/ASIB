@@ -1,7 +1,7 @@
 # configs/method/vib/standard.yaml
 
 method: vib
-teacher_iters: 0
+teacher_iters: 5        # 또는 10 (GPU 여유 따라)
 mbm_type: GATE
 z_dim: 512
 beta_bottleneck: 1e-3       # KL loss 가 1.0 이상으로 올라오도록 살짝 강화
@@ -25,11 +25,11 @@ adaptive_gate   : true
 gate_hidden_dim : 128
 
 # ─ KD 스케줄 ─
-kd_alpha_init    : 0.25       # 첫 epoch부터 KD 신호 투입
+kd_alpha_init    : 0.0
 kd_alpha_final   : 0.6
 kd_T_init        : 3.0
 kd_T_final       : 1.5
-kd_warmup_frac   : 0.05       # 5 % 이내 warm‑up 완료
+kd_warmup_frac   : 0.10       # 10 % 이후 선형 증가(기존 유지)
 kd_sched_pow     : 1.0
 kd_schedule_granularity: epoch  # step → epoch
 ce_alpha      : 1.0
@@ -47,7 +47,8 @@ latent_clamp_max: 2
 # ─ Feature distillation ─
 feat_layers   : [2, 3]
 feat_weights  : [0.5, 0.5]
-feat_loss_weight: [0.3, 0.2, 0.1]
+feat_loss_weight: [0.0, 0.0, 0.0]   # 속도 ↑; 나중에 다시 켜도 됨
+                                    # teacher_iters > 0 일 때만 feat_loss 사용
 
 # ───── 추가 override (base.yaml 값을 덮어쓰기) ─────
 cutmix_alpha_distill: 1.0        # 강한 CutMix 유지
