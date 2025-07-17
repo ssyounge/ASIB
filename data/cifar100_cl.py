@@ -54,10 +54,11 @@ def get_cifar100_cl_loaders(
     ops = [T.RandomCrop(32, padding=4), T.RandomHorizontalFlip()]
     if randaug_N > 0 and randaug_M > 0:
         ops.append(T.RandAugment(num_ops=randaug_N, magnitude=randaug_M))
-    ops.extend([
+
+    ops = ops + [
         SafeToTensor(),
         T.Normalize((0.5071, 0.4865, 0.4409), (0.2673, 0.2564, 0.2762)),
-    ])
+    ]
     transform_train = T.Compose(ops)
 
     transform_test = T.Compose([

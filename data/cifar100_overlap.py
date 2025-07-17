@@ -44,18 +44,18 @@ def get_overlap_loaders(
     assert 0.0 <= rho <= 1.0, "rho must be in [0, 1]"
 
     if augment:
-        aug_ops = [T.RandomCrop(32, padding=4), T.RandomHorizontalFlip()]
+        ops = [T.RandomCrop(32, padding=4), T.RandomHorizontalFlip()]
         if cfg is not None:
             randaug_default_N = cfg.get("randaug_default_N", randaug_default_N)
             randaug_default_M = cfg.get("randaug_default_M", randaug_default_M)
         if randaug_N > 0 and randaug_M > 0:
-            aug_ops.append(T.RandAugment(num_ops=randaug_N, magnitude=randaug_M))
+            ops.append(T.RandAugment(num_ops=randaug_N, magnitude=randaug_M))
         else:
-            aug_ops.append(
+            ops.append(
                 T.RandAugment(num_ops=randaug_default_N, magnitude=randaug_default_M)
             )
-        aug_ops.extend([SafeToTensor(), T.Normalize(_MEAN, _STD)])
-        transform_train = T.Compose(aug_ops)
+        ops = ops + [SafeToTensor(), T.Normalize(_MEAN, _STD)]
+        transform_train = T.Compose(ops)
     else:
         transform_train = T.Compose([SafeToTensor(), T.Normalize(_MEAN, _STD)])
 
