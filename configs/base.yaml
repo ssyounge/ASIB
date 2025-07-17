@@ -5,9 +5,10 @@ imagenet100_root: ./data/imagenet100
 num_classes: 100
 student_type: convnext_tiny
 teacher1_ckpt: checkpoints/resnet152_ft.pth
-teacher2_ckpt: checkpoints/efficientnet_b2_ft.pth
+# ─ 두 번째 교사 제거(단일 teacher 운용) ─
+# teacher2_ckpt: checkpoints/efficientnet_b2_ft.pth
 teacher1_type: resnet152
-teacher2_type: efficientnet_b2
+# teacher2_type: efficientnet_b2
 
 batch_size : 128
 replay_ratio: 0.5
@@ -20,10 +21,10 @@ checkpoint_dir: checkpoints
 results_dir   : results
 
 optimizer  : adamw
-student_lr       : 2e-3       # 3e‑3 → 2e‑3
-min_lr_ratio_student: 0.03
+student_lr       : 5e-3       # 기본값 상향(override 와 일치)
+min_lr_ratio_student: 0.05
 lr_schedule: cosine
-student_iters: 100
+student_iters: 50             # 기본 에폭 단축
 
 randaug_N: 2
 randaug_M        : 7          # 9 → 7   (세기 완화)

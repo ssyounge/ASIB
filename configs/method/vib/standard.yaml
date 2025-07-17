@@ -8,10 +8,10 @@ beta_bottleneck: 1e-3       # KL loss 가 1.0 이상으로 올라오도록 살�
 proj_hidden_dim: 1024
 proj_use_bn: true
 log_kl: false
-student_iters: 100          # 학습 길이 확보
-student_lr       : 3e-3       # 더 강한 신호 대응
-min_lr_ratio_student: 0.05    # tail lr 과도한 감소 방지
-lr_warmup_epochs: 2         # 짧은 일정에 맞춰 축소
+student_iters: 50            #  ≈ 1시간 이내에 결과 확인
+student_lr       : 5e-3
+min_lr_ratio_student: 0.05
+lr_warmup_epochs: 0          # warm‑up 제거
 
 # ─ Teacher inference only ─
 teacher_lr          : 1e-3
@@ -25,11 +25,11 @@ adaptive_gate   : true
 gate_hidden_dim : 128
 
 # ─ KD 스케줄 ─
-kd_alpha_init    : 0.0        # 첫 10 % CE 100 %
+kd_alpha_init    : 0.25       # 첫 epoch부터 KD 신호 투입
 kd_alpha_final   : 0.6
-kd_T_init        : 4.0        # 정보량 확보
+kd_T_init        : 3.0
 kd_T_final       : 1.5
-kd_warmup_frac   : 0.10
+kd_warmup_frac   : 0.05       # 5 % 이내 warm‑up 완료
 kd_sched_pow     : 1.0
 kd_schedule_granularity: epoch  # step → epoch
 ce_alpha      : 1.0
@@ -54,8 +54,8 @@ cutmix_alpha_distill: 1.0        # 강한 CutMix 유지
 ema_decay           : 0.995      # EMA 관성 소폭 ↑
 
 # ─ Optimization ─
-grad_clip_norm_init: 2.0        # 과도한 클립 완화
-grad_clip_warmup_frac: 0.2
+grad_clip_norm_init: 1.0        # clip 완화 + 해제 시점 당김
+grad_clip_warmup_frac: 0.05
 
 # ─ DataLoader ─
 num_workers: 4         # 컨테이너 4‑CPU 기준
