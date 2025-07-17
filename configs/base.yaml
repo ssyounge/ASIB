@@ -26,6 +26,15 @@ min_lr_ratio_student: 0.05
 lr_schedule: cosine
 student_iters: 50             # 기본 에폭 단축
 
+# ───────────── Teacher-cache 옵션 ─────────────
+# cache/*.pt 은 tools/build_teacher_cache.py 로 한-번만 만들어 두면 됩니다.
+use_teacher_cache : true
+teacher_cache_path: cache/res152_train.pt     # ← 캐시 파일
+# (저장된 key 중 필요한 것만 골라서 GPU 로 복사)
+teacher_cache_items: [logits, z]
+
+# 캐시 모드에선 feature-distill 을 끄는 편이 빠릅니다.
+feat_loss_weight: [0.0, 0.0, 0.0]
 randaug_N: 2
 randaug_M        : 7          # 9 → 7   (세기 완화)
 mixup_alpha      : 0.1        # 0.20 → 0.10

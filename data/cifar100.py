@@ -1,10 +1,41 @@
 # data/cifar100.py
 
 import warnings
-import torch
-import torchvision
-import torchvision.transforms as T
+from torchvision.datasets import CIFAR100
+import os, torch, torchvision.transforms as T
 from typing import Mapping, Any, Optional
+
+# ──────────────────────────────────────────────────────────────
+# ①  Teacher-cache 를 포함한 전용 Dataset
+#    (cache_path 가 None 이면 정상 CIFAR100 과 동일하게 동작)
+# ──────────────────────────────────────────────────────────────
+class CIFAR100Cached(CIFAR100):
+    def __init__(self, *args,
+                 cache_path: str | None = None,
+                 cache_items: list[str] | None = None,
+                 **kw):
+        super().__init__(*args, **kw)
+        self.cache = None
+        if cache_path and os.path.isfile(cache_path):
+            self.cache = torch.load(cache_path, map_location="cpu")
+            if cache_items:                       # 불필요한 key 제거
+                keep = set(cache_items)
+                self.cache = {k: v for k, v in self.cache.items() if k in keep}
+
+    def __getitem__(self, index):
+        img, target = super().__getitem__(index)
+        if self.transform:
+            img = self.transform(img)
+        if self.cache is None:
+            return img, target                    # ↩︎ 기존과 동일 (2‑tuple)
+        sample_cache = {k: v[index] for k, v in self.cache.items()}
+        return img, target, sample_cache          # ↩︎ (3‑tuple) 로 반환
+
+
+# ──────────────────────────────────────────────────────────────
+# ②  기존 get_cifar100_loaders 의 시그니처에 cache 인수 2개 추가
+#    (호출부 diff 는 main.py 에 있음)
+# ──────────────────────────────────────────────────────────────
 
 def get_cifar100_loaders(
     root: str = "./data",
@@ -18,6 +49,8 @@ def get_cifar100_loaders(
     randaug_default_M: int = 9,
     persistent_train: bool = False,
     persistent_test: Optional[bool] = None,
+    cache_path: str | None = None,
+    cache_items: list[str] | None = None,
 ):
     """
     CIFAR-100 size = (32x32)
@@ -50,13 +83,15 @@ def get_cifar100_loaders(
                     (0.2673,0.2564,0.2762))
     ])
 
-    train_dataset = torchvision.datasets.CIFAR100(
-        root=root,
-        train=True,
-        download=True,
-        transform=transform_train
-    )
-    test_dataset = torchvision.datasets.CIFAR100(
+    if cache_path:
+        train_dataset = CIFAR100Cached(
+            root=root, train=True, download=True, transform=transform_train,
+            cache_path=cache_path, cache_items=cache_items)
+    else:
+        train_dataset = CIFAR100(
+            root=root, train=True, download=True, transform=transform_train
+        )
+    test_dataset = CIFAR100(
         root=root,
         train=False,
         download=True,

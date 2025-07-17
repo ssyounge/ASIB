@@ -237,6 +237,11 @@ def main() -> None:
         randaug_M=cfg.get('randaug_M', 0),
         persistent_train=cfg.get('persistent_workers', False),
         persistent_test=False,
+        cache_path=(
+            cfg.get('teacher_cache_path')
+            if cfg.get('use_teacher_cache', False) else None
+        ),
+        cache_items=cfg.get('teacher_cache_items', []),
     )
 
     # ---------- teachers ----------
