@@ -3,7 +3,7 @@
 import warnings
 from torchvision.datasets import CIFAR100
 import os, torch, torchvision.transforms as T
-from utils.transform_utils import SafeToTensor
+from utils.transform_utils import SafeToTensor, EnsurePIL
 from typing import Mapping, Any, Optional
 
 # ──────────────────────────────────────────────────────────────
@@ -59,7 +59,11 @@ def get_cifar100_loaders(
         train_loader, test_loader
     """
     if augment:
-        ops = [T.RandomCrop(32, padding=4), T.RandomHorizontalFlip()]
+        ops = [
+            T.RandomCrop(32, padding=4),
+            T.RandomHorizontalFlip(),
+            EnsurePIL(),
+        ]
         if cfg is not None:
             randaug_default_N = cfg.get("randaug_default_N", randaug_default_N)
             randaug_default_M = cfg.get("randaug_default_M", randaug_default_M)
@@ -68,7 +72,7 @@ def get_cifar100_loaders(
         else:
             ops.append(T.RandAugment(num_ops=randaug_default_N, magnitude=randaug_default_M))
 
-        ops = ops + [
+        ops += [
             SafeToTensor(),
             T.Normalize((0.5071, 0.4865, 0.4409), (0.2673, 0.2564, 0.2762)),
         ]
