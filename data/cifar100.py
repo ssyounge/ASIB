@@ -6,6 +6,8 @@ import os, torch, torchvision.transforms as T
 from utils.transform_utils import SafeToTensor, EnsurePIL
 from typing import Mapping, Any, Optional
 
+__all__ = ["get_cifar100_loaders", "get_overlap_loaders", "CIFAR100Cached"]
+
 # ──────────────────────────────────────────────────────────────
 # ①  Teacher-cache 를 포함한 전용 Dataset
 #    (cache_path 가 None 이면 정상 CIFAR100 과 동일하게 동작)
@@ -157,3 +159,51 @@ def get_cifar100_loaders(
         **dl_kwargs_test,
     )
     return train_loader, test_loader
+
+
+def get_overlap_loaders(
+    rho: float,
+    *,
+    root: str = "./data",
+    batch_size: int = 128,
+    num_workers: int = 0,
+    augment: bool = True,
+    randaug_N: int = 0,
+    randaug_M: int = 0,
+    cfg: Optional[Mapping[str, Any]] = None,
+    randaug_default_N: int = 2,
+    randaug_default_M: int = 9,
+    persistent_train: bool = False,
+    persistent_test: Optional[bool] = None,
+):
+    """Return two overlap train loaders and their class lists.
+
+    This is a thin wrapper around :func:`data.cifar100_overlap.get_overlap_loaders`
+    that additionally returns the class ids used for each split.
+    """
+
+    from . import cifar100_overlap
+
+    tl1, tl2, _, _ = cifar100_overlap.get_overlap_loaders(
+        rho,
+        root=root,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        augment=augment,
+        randaug_N=randaug_N,
+        randaug_M=randaug_M,
+        cfg=cfg,
+        randaug_default_N=randaug_default_N,
+        randaug_default_M=randaug_default_M,
+        persistent_train=persistent_train,
+        persistent_test=persistent_test,
+    )
+
+    classes = list(range(100))
+    first = classes[:50]
+    second = classes[50:]
+    n_overlap = int(round(50 * rho))
+    cls_t1 = first
+    cls_t2 = first[:n_overlap] + second[:50 - n_overlap]
+
+    return tl1, tl2, cls_t1, cls_t2
