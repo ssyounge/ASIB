@@ -14,7 +14,7 @@ batch_size : 128
 replay_ratio: 0.5
 num_workers: 4                   # 컨테이너 4‑CPU 기준
 persistent_workers: true
-disable_tqdm: false           # 진행률 모니터링 편의
+disable_tqdm: true           
 
 device     : cuda
 checkpoint_dir: checkpoints
