@@ -44,7 +44,8 @@ jobs:
 
     # ⚠ first‑wins → scenario 를 **먼저** 넣어 method: ce 보존
     # 첫 파일이 finetune_ce  (마지막 wins 규칙 → method: ce 유지)
-    cfg: configs/scenario/finetune_ce.yaml,configs/base.yaml
+# ① base → ② finetune_ce   (마지막 wins → method: ce 유지)
+    cfg: configs/base.yaml,configs/scenario/finetune_ce.yaml
 
 # ------------------------------------------------------------
 # ②  Gate-VIB  KD   (Teacher 캐시 + 큰 배치 + Accum 2)
@@ -64,4 +65,5 @@ jobs:
 
     # KD 단계도 method 가 vib 로 남도록 kd_speed 를 **맨 앞**에
     # kd_speed → vib/standard → base  (마지막 wins → method: vib 유지)
-    cfg: configs/scenario/kd_speed.yaml,configs/method/vib/standard.yaml,configs/base.yaml
+# ① base → ② vib/standard 기본값 → ③ kd_speed(override, method:vib)
+    cfg: configs/base.yaml,configs/method/vib/standard.yaml,configs/scenario/kd_speed.yaml
