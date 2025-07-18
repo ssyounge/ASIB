@@ -24,8 +24,8 @@ student_warmup_epochs: 5
 min_lr_ratio_student : 0.03
 
 # ─ Label & Aug ─
-label_smoothing      : 0.05       # 0.10 → 0.05
-mixup_alpha          : 0.1        # 0.20 → 0.10
+label_smoothing      : 0.1       # 0.10 → 0.05
+mixup_alpha          : 0.0        # 0.20 → 0.10
 
 # → epoch 60 이후 두 값 0 으로 선형 감쇠
 reg_decay:
