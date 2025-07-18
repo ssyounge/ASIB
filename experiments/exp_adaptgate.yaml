@@ -2,8 +2,8 @@
 
 # Snapshot-Ensemble + Adaptive-Gate 실험 구성
 imports:
-  - configs/base.yaml
-  - configs/method/vib/standard.yaml      # adaptive_gate: true 가 이미 포함
+  - configs/base.yaml     # <-- 공통 기본값만 global import
+  # 개별 Job 에서 필요한 method/scenario 를 따로 불러옵니다.
 
 # ---- 교사 설정 ----
 teacher1_type: resnet152
@@ -45,7 +45,7 @@ jobs:
     # base → scenario  (Last-wins 규칙에 맞춰 scenario 가 최종값)
     cfg:
       - configs/base.yaml
-      - configs/scenario/finetune_ce.yaml
+      - configs/scenario/finetune_ce.yaml   # → method: ce 만 적용
 
 # ------------------------------------------------------------
 # ②  Gate-VIB  KD   (Teacher 캐시 + 큰 배치 + Accum 2)
@@ -66,4 +66,5 @@ jobs:
     # KD 도 base 를 먼저, kd_speed 를 나중에
     cfg:
       - configs/base.yaml
-      - configs/scenario/kd_speed.yaml
+      - configs/method/vib/standard.yaml    # adaptive-gate + VIB 기본
+      - configs/scenario/kd_speed.yaml      # speed-tuned override
