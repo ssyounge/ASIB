@@ -22,11 +22,11 @@ results_dir   : results
 
 optimizer  : adamw
 ## 조금 높은 LR + 더 긴 warm‑up
-student_lr       : 4e-3
-min_lr_ratio_student: 0.02   # cosine 최저 LR ↓
+student_lr       : 5e-4            # CE-warm-start 미세조정
+min_lr_ratio_student: 0.01  # cosine 최저 LR ↓
 student_warmup_epochs: 10    # 네트워크 안정화 후 본격 학습
 lr_schedule: cosine
-student_iters: 50             # 기본 에폭 단축
+student_iters: 250          # 학습량 2.5×
 
 # ───────────── Teacher-cache 옵션 ─────────────
 # cache/*.pt 은 tools/build_teacher_cache.py 로 한-번만 만들어 두면 됩니다.
@@ -39,8 +39,8 @@ teacher_cache_items: [logits, z]
 feat_loss_weight: [0.0, 0.0, 0.0]
 randaug_N: 2
 randaug_M        : 7          # 9 → 7   (세기 완화)
-mixup_alpha      : 0.1        # 0.20 → 0.10
-cutmix_alpha_distill: 0.5
+mixup_alpha      : 0.1            # KD 단계에선 MixUp 강도 줄임
+cutmix_alpha_distill: 0.1   # Noise-robust but 보수적으로
 
 use_amp   : true
 amp_dtype : float16
@@ -60,7 +60,7 @@ grad_scaler_init_scale: 1024
 patch_stride2 : false
 seed: 42
 student_weight_decay: 5e-4
-student_ce_ckpt: student_ce_best.pth
+student_ce_ckpt: /home/suyoung425/ASMB_KD/checkpoints/convnext_ce77.pth
 use_ewc: false
 ewc_lambda: 30.0
 ewc_samples: 1024
