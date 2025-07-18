@@ -17,7 +17,7 @@ from utils.misc import get_amp_components, mixup_data, mixup_criterion
 from utils.eval import evaluate_acc
 from utils.distill_loss import feat_mse_pair
 from modules.losses import compute_vib_loss, kd_kl, ce_loss_fn
-
+from utils.ema import ModelEMA
 
 def split_current_replay(batch, replay_ratio):
     """Split concatenated (replay + current) batch returned by the sampler."""
@@ -429,6 +429,13 @@ def student_vib_update(
     vib_mbm.eval()
     student_model.train()
     ema_model = None
+        if cfg.get("use_ema", False):
+        ema_model = ModelEMA(
+            student_model,
+            decay=cfg.get("ema_decay", 0.999),
+            device=device,
+            skip_keys=("gate.",),
+        )
     total_epochs = cfg.get("student_iters", 1)
     global_step = global_step_offset
     if scheduler is None:
@@ -826,6 +833,8 @@ def student_vib_update(
                         step=global_step,
                     )
                 scaler.step(optimizer)
+                if ema_model is not None:
+                    ema_model.update(student_model)
                 # ───────── AMP under/over‑flow guard ─────────
                 if not scaler.is_enabled():
                     print("[WARN] GradScaler disabled itself (under‑flow). "
@@ -858,6 +867,8 @@ def student_vib_update(
                         step=global_step,
                     )
                 optimizer.step()
+                if ema_model is not None:
+                    ema_model.update(student_model)
             # ───────── grad flow 확인 ─────────
             if (ep == 0 and batch_idx == 0):
                 g_mean = torch.stack([
@@ -959,7 +970,7 @@ def student_vib_update(
         if test_loader is not None:
             student_acc = evaluate_acc(student_model, test_loader, device=device)
             if ema_model is not None:
-                ema_acc = evaluate_acc(ema_model, test_loader, device=device)
+                ema_acc = evaluate_acc(ema_model.ema, test_loader, device=device)
 
         # ─────────────────────────────────────────────
         # ① 핵심 요약 한 줄 – 가장 먼저 콘솔·log ·wandb 에 출력
@@ -1027,7 +1038,7 @@ def student_vib_update(
 # ─ 최종 EMA 성능 저장 ──────────────────────────────
     if cfg.get("use_ema", False) and test_loader is not None:
         final_ema_acc = evaluate_acc(
-            ema_model, test_loader, device=device,
+            ema_model.ema, test_loader, device=device,
         )
         logger.update_metric("final_test_acc", float(final_ema_acc))
         print(f"Final student EMA accuracy: {final_ema_acc:.2f}%")
