@@ -53,7 +53,7 @@ feat_loss_weight: [0.0, 0.0, 0.0]   # 속도 ↑; 나중에 다시 켜도 됨
                                     # teacher_iters > 0 일 때만 feat_loss 사용
 
 # ───── 추가 override (base.yaml 값을 덮어쓰기) ─────
-cutmix_alpha_distill: 1.0        # 강한 CutMix 유지
+cutmix_alpha_distill: 0.5        # 강한 CutMix 유지
 ema_decay           : 0.999      # EMA 관성 소폭 ↑
 
 # ─ Optimization ─
