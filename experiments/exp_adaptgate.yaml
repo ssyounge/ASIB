@@ -23,3 +23,46 @@ snapshot_backbone: resnet152
 
 # ---- 실험 식별자 ----
 exp_id: adapt_gate_snap
+
+# ============================================================
+#   Adapt-Gate 2-Stage 파이프라인
+#     1) ConvNeXt-Tiny  CE 파인튜닝
+#     2) Gate-VIB-KD  (Teacher 캐시 + AccumSteps)
+# ------------------------------------------------------------
+#   사용법:  sbatch scripts/run_launcher.sh experiments/exp_adaptgate.yaml
+# ============================================================
+
+name: adapt_gate_speed
+
+jobs:
+
+# ------------------------------------------------------------
+# ①  CE  파인튜닝  (12 epoch, 부분 freeze)
+# ------------------------------------------------------------
+  - id: ce_ft
+    gpus: 1                # 1×A100 이면 35~45 분
+
+    # 두 파일을 ,(쉼표)로 이어서 main.py --cfg 에 넘김
+    cfg: |
+      configs/base.yaml,
+      configs/scenario/finetune_ce.yaml
+
+# ------------------------------------------------------------
+# ②  Gate-VIB  KD   (Teacher 캐시 + 큰 배치 + Accum 2)
+#     ※ ①이 끝나야 student_ce_ckpt 가 생성되므로 deps 지정
+# ------------------------------------------------------------
+  - id: kd_speed
+    deps: [ce_ft]          # ← ce_ft 완료 후에만 실행
+    gpus: 1
+
+    # 캐시가 없다면 최초 1회 자동 생성
+    pre_cmd: |
+      if [ ! -f cache/rs152_effb2_cifar100.pt ]; then
+        python utils/make_cache.py \
+               --cfg configs/base.yaml \
+               --out cache/rs152_effb2_cifar100.pt
+      fi
+
+    cfg: |
+      configs/base.yaml,
+      configs/scenario/kd_speed.yaml
