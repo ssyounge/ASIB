@@ -43,7 +43,9 @@ jobs:
     gpus: 1                # 1×A100 이면 35~45 분
 
     # base → scenario  (Last-wins 규칙에 맞춰 scenario 가 최종값)
-    cfg: "configs/base.yaml,configs/scenario/finetune_ce.yaml"
+    cfg:
+      - configs/base.yaml
+      - configs/scenario/finetune_ce.yaml
 
 # ------------------------------------------------------------
 # ②  Gate-VIB  KD   (Teacher 캐시 + 큰 배치 + Accum 2)
@@ -62,4 +64,6 @@ jobs:
       fi
 
     # KD 도 base 를 먼저, kd_speed 를 나중에
-    cfg: "configs/base.yaml,configs/scenario/kd_speed.yaml"
+    cfg:
+      - configs/base.yaml
+      - configs/scenario/kd_speed.yaml
