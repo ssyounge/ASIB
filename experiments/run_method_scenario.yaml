@@ -1,4 +1,4 @@
-# experiments/run_<method>_<scenario>.yaml
+# experiments/run_method_scenario.yaml
 
 ###############################################################################
 #  ❖  단일 실험 정의 파일 템플릿                                              #
