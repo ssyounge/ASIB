@@ -43,9 +43,7 @@ jobs:
     gpus: 1                # 1×A100 이면 35~45 분
 
     # 두 파일을 ,(쉼표)로 이어서 main.py --cfg 에 넘김
-    cfg: |
-      configs/base.yaml,
-      configs/scenario/finetune_ce.yaml
+    cfg: "configs/base.yaml,configs/scenario/finetune_ce.yaml"
 
 # ------------------------------------------------------------
 # ②  Gate-VIB  KD   (Teacher 캐시 + 큰 배치 + Accum 2)
@@ -63,6 +61,4 @@ jobs:
                --out cache/rs152_effb2_cifar100.pt
       fi
 
-    cfg: |
-      configs/base.yaml,
-      configs/scenario/kd_speed.yaml
+    cfg: "configs/base.yaml,configs/scenario/kd_speed.yaml"
