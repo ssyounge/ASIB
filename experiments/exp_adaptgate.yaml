@@ -42,10 +42,8 @@ jobs:
   - id: ce_ft
     gpus: 1                # 1×A100 이면 35~45 분
 
-    # base 보다 앞에 두어서 finetune_ce 값이 우선 적용
-    cfg:
-      - configs/scenario/finetune_ce.yaml   # ← override 우선
-      - configs/base.yaml
+    # ⚠️ scenario 를 먼저, base 를 뒤에 둡니다 (first‑wins 병합)
+    cfg: "configs/scenario/finetune_ce.yaml,configs/base.yaml"
 
 # ------------------------------------------------------------
 # ②  Gate-VIB  KD   (Teacher 캐시 + 큰 배치 + Accum 2)
@@ -63,6 +61,5 @@ jobs:
                --out cache/rs152_effb2_cifar100.pt
       fi
 
-    cfg:
-      - configs/scenario/kd_speed.yaml      # ← override 우선
-      - configs/base.yaml
+    # 동일하게 KD 도 순서 교체
+    cfg: "configs/scenario/kd_speed.yaml,configs/base.yaml"

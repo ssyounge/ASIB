@@ -4,8 +4,9 @@
 method: vib
 train_mode: standard
 
-# ---- ① Student warm-start ----
-student_ce_ckpt: outputs/ft_ce/student_ce_ft.pth
+# ---- ① Student warm‑start ----
+# CE 단계가 저장한 정확한 경로로 고정
+student_ce_ckpt: "${ASMB_KD_ROOT}/outputs/ft_ce/student_ce_ft.pth"
 
 # ---- ② 캐시 사용 ----
 use_teacher_cache: True
