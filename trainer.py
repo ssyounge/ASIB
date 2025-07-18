@@ -500,6 +500,7 @@ def student_vib_update(
             leave=False,
             disable=cfg.get("disable_tqdm", False),
         )
+        accum_steps = cfg.get("accum_steps", 1)
         # 2-tuple(batch) ↔ 3-tuple(cache 포함) 모두 지원
         for batch_idx, batch in enumerate(epoch_loader):
             if len(batch) == 3:
@@ -802,10 +803,11 @@ def student_vib_update(
                 dbg_msgs.append(
                     f"[DEBUG] γ={gamma_feat:.3f}  feat_loss={feat_loss.item():.4f}"
                 )
-            optimizer.zero_grad()      # (전역 step은 이미 계산되어 있음)
+            if (batch_idx % accum_steps) == 0:
+                optimizer.zero_grad(set_to_none=True)
             params = list(student_model.parameters()) + list(student_proj.parameters())
             if scaler is not None:
-                scaler.scale(loss).backward()
+                scaler.scale(loss / accum_steps).backward()
                 scaler.unscale_(optimizer)
 
                 # ───── (1‑D) NaN / Inf gradient 검출 ─────
@@ -832,16 +834,18 @@ def student_vib_update(
                         },
                         step=global_step,
                     )
-                scaler.step(optimizer)
-                if ema_model is not None:
-                    ema_model.update(student_model)
+                if (batch_idx % accum_steps) == accum_steps - 1:
+                    scaler.step(optimizer)
+                    if ema_model is not None:
+                        ema_model.update(student_model)
                 # ───────── AMP under/over‑flow guard ─────────
                 if not scaler.is_enabled():
                     print("[WARN] GradScaler disabled itself (under‑flow). "
                           "Try higher lr or use_amp=False")
-                scaler.update()
+                if (batch_idx % accum_steps) == accum_steps - 1:
+                    scaler.update()
             else:
-                loss.backward()
+                (loss / accum_steps).backward()
 
                 for n, p in student_model.named_parameters():
                     if p.grad is not None and (torch.isnan(p.grad).any() or torch.isinf(p.grad).any()):
@@ -866,9 +870,10 @@ def student_vib_update(
                         },
                         step=global_step,
                     )
-                optimizer.step()
-                if ema_model is not None:
-                    ema_model.update(student_model)
+                if (batch_idx % accum_steps) == accum_steps - 1:
+                    optimizer.step()
+                    if ema_model is not None:
+                        ema_model.update(student_model)
             # ───────── grad flow 확인 ─────────
             if (ep == 0 and batch_idx == 0):
                 g_mean = torch.stack([

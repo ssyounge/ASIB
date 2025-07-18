@@ -1,0 +1,26 @@
+# ------------------------------------------------------------
+#  CIFAR-100  ConvNeXt-Tiny  초경량 CE 파인튜닝
+# ------------------------------------------------------------
+method: ce                  # ← 1단계는‘순수 CE’
+train_mode: standard
+
+# ----- Dataloader & Aug -----
+batch_size: 256             # GPU 여유되면 512 까지
+randaug_N: 2
+randaug_M: 7
+
+# ----- 파인튜닝 전용 -----
+finetune_epochs: 12
+finetune_warmup: 2
+finetune_lr: 1e-3           # classifier / LN 계열
+finetune_lr_backbone: 1e-4  # 동결 안된 backbone 파트
+finetune_label_smoothing: 0.05
+finetune_mixup_alpha: 0.2
+
+# ↘ ConvNeXt 예시 : stage0~1(=전체의 50 %) 고정
+finetune_partial_freeze: True
+finetune_freeze_scope: "backbone.stages[:2]"
+
+# 체크포인트 경로
+results_dir: outputs/ft_ce
+student_ce_ckpt: outputs/ft_ce/student_ce_ft.pth
