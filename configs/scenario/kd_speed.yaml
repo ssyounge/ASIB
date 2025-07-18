@@ -1,0 +1,31 @@
+# ------------------------------------------------------------
+#   CE-warm  +  Gate-VIB-KD  (speed tuned)
+# ------------------------------------------------------------
+method: vib
+train_mode: standard
+
+# ---- ① Student warm-start ----
+student_ce_ckpt: outputs/ft_ce/student_ce_ft.pth
+
+# ---- ② 캐시 사용 ----
+use_teacher_cache: True
+# 한 번만 만들면 재사용 :  python utils/make_cache.py --cfg <이전 KD yml>
+teacher_cache_path: cache/rs152_effb2_cifar100.pt
+teacher_cache_items: ["logits", "z"]
+
+# ---- ③ 큰 배치 & Gradient Accumulation ----
+batch_size: 512        # 실제 GPU 메모리
+accum_steps: 2         # 512×2 ≒ 1024 샘플 / step
+
+# ---- ④ 속도 중심 하이퍼 (Rapid-KD) ----
+student_iters: 60      # 100 → 60 epoch
+student_lr: 1e-3       # 빠른 수렴
+kd_alpha_init: 0.5
+kd_alpha_final: 0.8
+kd_T_init: 2.0
+kd_T_final: 1.0
+latent_alpha: 0.0      # latent / feat loss OFF
+feat_loss_weight: 0.0
+use_ema: False
+
+results_dir: outputs/kd_speed
