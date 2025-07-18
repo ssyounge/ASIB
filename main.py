@@ -423,13 +423,19 @@ def main() -> None:
         # fallback to ImageNet weights from timm if available
         try:
             import timm
-            timm_state = timm.create_model(
+            timm_model = timm.create_model(
                 cfg.get("student_type", "convnext_tiny"),
                 pretrained=True,
-                num_classes=cfg.get('num_classes', 100),
-            ).state_dict()
-            missing, _ = student.load_state_dict(timm_state, strict=False)
-            logger.info(f"Fallback preload from timm \u2013 missing={len(missing)}")
+                num_classes=1000,
+            )
+            timm_state = {
+                k: v for k, v in timm_model.state_dict().items()
+                if not k.startswith(("head.", "classifier"))
+            }
+            missing, unexpected = student.load_state_dict(timm_state, strict=False)
+            logger.info(
+                f"timm preload \u2192 missing={len(missing)}  unexpected={len(unexpected)}"
+            )
         except Exception:
             logger.warning("[Student] CE-ckpt **NOT** found \u2192 training from scratch")
     if method == 'vib':
