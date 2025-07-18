@@ -34,7 +34,7 @@ kd_T_init        : 3.5
 kd_T_final       : 1.5
 kd_sched_pow     : 0.9
 kd_schedule_granularity: epoch  # step → epoch
-ce_alpha      : 1.0
+ce_alpha      : 1.5
 
 # ─ Latent 정렬 ─
 latent_alpha        : 0.35
