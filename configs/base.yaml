@@ -60,7 +60,8 @@ grad_scaler_init_scale: 1024
 patch_stride2 : false
 seed: 42
 student_weight_decay: 5e-4
-student_ce_ckpt: checkpoints/convnext_ce77.pth
+# ⚠️ 여기서 지정하면 모든 시나리오가 덮어쓰기 당함 → 삭제
+# student_ce_ckpt: checkpoints/convnext_ce77.pth
 use_ewc: false
 ewc_lambda: 30.0
 ewc_samples: 1024
