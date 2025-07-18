@@ -923,45 +923,6 @@ def student_vib_update(
                     )
         avg_loss = running_loss / max(1, n_samples)
         train_acc = 100.0 * correct / max(count, 1)
-        # ─ EMA 추적 ─────────────────────────────────
-        if cfg.get("use_ema", False):
-            if ep == 0:                             # 초기 스냅샷
-                try:
-                    # 빠르고 간단하지만, weight_norm 모듈이 있을 땐 실패할 수 있음
-                    ema_model = copy.deepcopy(student_model).eval()
-                except RuntimeError:
-                    # fallback: 새 인스턴스 생성 후 state_dict 복사
-                    stype = cfg.get("student_type", "convnext_tiny")
-                    n_cls = getattr(
-                        student_model.backbone.classifier[2], "out_features", 100
-                    )
-                    ema_model = create_student_by_name(
-                        stype,
-                        num_classes=n_cls,
-                        pretrained=False,
-                        small_input=True,
-                        cfg=cfg,
-                    ).to(device)
-                    ema_model.load_state_dict(student_model.state_dict(), strict=True)
-                    ema_model.eval()
-                # BN·Dropout 모두 eval 고정
-                for m in ema_model.modules():
-                    m.training = False
-            with torch.no_grad():
-                # warm-up: 초기에는 빠르게, 점점 느리게
-                base = cfg.get("ema_decay", 0.995)     # 최종 목표치
-                warm = cfg.get("ema_warmup_iters", 5)  # 앞 N epoch
-                init = cfg.get("ema_initial_decay", 0.90)  # 초기 decay
-                cur  = min(ep, warm) / warm
-                d = base * cur + (1 - cur) * init      # init → base 로 선형 전환
-                for p_ema, p in zip(ema_model.parameters(),
-                                    student_model.parameters()):
-                    p_ema.data.mul_(d).add_(p.data, alpha=1 - d)
-                # BN running_mean / var 동기화
-                for b_ema, b in zip(ema_model.buffers(),
-                                    student_model.buffers()):
-                    if b_ema.dtype == torch.float32:
-                        b_ema.copy_(b)
 
         # ─ 테스트 정확도 ────────────────────────────
         # ───────── epoch‑end 평가 ─────────
