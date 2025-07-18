@@ -14,15 +14,17 @@ batch_size : 128
 replay_ratio: 0.5
 num_workers: 4                   # 컨테이너 4‑CPU 기준
 persistent_workers: true
-disable_tqdm: true
+disable_tqdm: false           # 진행률 모니터링 편의
 
 device     : cuda
 checkpoint_dir: checkpoints
 results_dir   : results
 
 optimizer  : adamw
-student_lr       : 5e-3       # 기본값 상향(override 와 일치)
-min_lr_ratio_student: 0.05
+## 조금 높은 LR + 더 긴 warm‑up
+student_lr       : 4e-3
+min_lr_ratio_student: 0.02   # cosine 최저 LR ↓
+student_warmup_epochs: 10    # 네트워크 안정화 후 본격 학습
 lr_schedule: cosine
 student_iters: 50             # 기본 에폭 단축
 
@@ -50,9 +52,9 @@ ema_warmup_iters : 5
 eval_after_train : true
 grad_clip_norm   : 1.0
 # ─ Grad‑clip 스케줄 옵션 ─
-grad_clip_norm_init:   1.0   # 시작 값
+grad_clip_norm_init:   0.5   # 초기 gradient 폭 줄이기
 grad_clip_norm_final:  0.0   # 끝 값(0 = 해제)
-grad_clip_warmup_frac: 0.5   # 학습 절반까지 클리핑 유지
+grad_clip_warmup_frac: 0.10  # 더 오래 유지
 grad_scaler_init_scale: 1024
 
 patch_stride2 : false
