@@ -1,3 +1,5 @@
+# experiments/exp_adaptgate.yaml
+
 # Snapshot-Ensemble + Adaptive-Gate 실험 구성
 imports:
   - configs/base.yaml
