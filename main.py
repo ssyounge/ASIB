@@ -104,8 +104,9 @@ def main() -> None:
     method = (args.method or cfg.get('method'))
     if method is None:
         raise ValueError(
-            "method 가 지정되지 않았습니다. "
-            "(control.yaml 에 method: ..., 또는 --method 인수)"
+            "method 항목이 설정되지 않았습니다.\n"
+            "  · 아무 YAML 파일에   method: <ce|vib|dkd|...>   를 넣거나\n"
+            "  · CLI 에서         --method <ce|vib|...>        를 지정하세요."
         )
     method = method.lower()
     method_yaml = get_method_cfg(method, scenario) or {}
