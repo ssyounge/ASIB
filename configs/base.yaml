@@ -60,7 +60,7 @@ grad_scaler_init_scale: 1024
 patch_stride2 : false
 seed: 42
 student_weight_decay: 5e-4
-student_ce_ckpt: /home/suyoung425/ASMB_KD/checkpoints/convnext_ce77.pth
+student_ce_ckpt: checkpoints/convnext_ce77.pth
 use_ewc: false
 ewc_lambda: 30.0
 ewc_samples: 1024
