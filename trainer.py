@@ -429,7 +429,7 @@ def student_vib_update(
     vib_mbm.eval()
     student_model.train()
     ema_model = None
-        if cfg.get("use_ema", False):
+    if cfg.get("use_ema", False):
         ema_model = ModelEMA(
             student_model,
             decay=cfg.get("ema_decay", 0.999),
