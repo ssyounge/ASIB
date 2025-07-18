@@ -42,10 +42,10 @@ jobs:
   - id: ce_ft
     gpus: 1                # 1×A100 이면 35~45 분
 
-    # base → scenario  (Last-wins 규칙에 맞춰 scenario 가 최종값)
+    # ⚠ first‑wins → scenario 를 **먼저** 넣어 method: ce 보존
     cfg:
+      - configs/scenario/finetune_ce.yaml   # method: ce
       - configs/base.yaml
-      - configs/scenario/finetune_ce.yaml   # → method: ce 만 적용
 
 # ------------------------------------------------------------
 # ②  Gate-VIB  KD   (Teacher 캐시 + 큰 배치 + Accum 2)
@@ -63,8 +63,8 @@ jobs:
                --out cache/rs152_effb2_cifar100.pt
       fi
 
-    # KD 도 base 를 먼저, kd_speed 를 나중에
+    # KD 단계도 method 가 vib 로 남도록 kd_speed 를 **맨 앞**에
     cfg:
+      - configs/scenario/kd_speed.yaml      # method: vib
+      - configs/method/vib/standard.yaml    # 세부 VIB 기본값
       - configs/base.yaml
-      - configs/method/vib/standard.yaml    # adaptive-gate + VIB 기본
-      - configs/scenario/kd_speed.yaml      # speed-tuned override
