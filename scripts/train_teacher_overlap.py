@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-scripts/train_teacher_overlap.py
+# scripts/train_teacher_overlap.py
 """Train two teachers on overlapping CIFAR-100 splits."""
 
 from __future__ import annotations
