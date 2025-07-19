@@ -8,9 +8,12 @@ from torchvision import transforms as T
 
 
 def get_split_cifar100_loaders(
-    num_tasks: int, batch_size: int, augment: bool = True
+    root: str = "./data",
+    num_tasks: int = 5,
+    batch_size: int = 128,
+    augment: bool = True,
 ) -> List[Tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader]]:
-    """Split CIFAR100 into `num_tasks` tasks of 10 classes each."""
+    """Split CIFAR100 into ``num_tasks`` tasks of 10 classes each."""
 
     transform_train = [T.ToTensor()]
     if augment:
@@ -22,8 +25,8 @@ def get_split_cifar100_loaders(
     transform_train = T.Compose(transform_train)
     transform_test = T.Compose([T.ToTensor()])
 
-    full_train = CIFAR100(root="./data", train=True, download=True, transform=transform_train)
-    full_test = CIFAR100(root="./data", train=False, download=True, transform=transform_test)
+    full_train = CIFAR100(root=root, train=True, download=True, transform=transform_train)
+    full_test = CIFAR100(root=root, train=False, download=True, transform=transform_test)
 
     task_loaders = []
     classes_per_task = len(full_train.classes) // num_tasks
