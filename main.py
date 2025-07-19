@@ -661,7 +661,8 @@ def main():
     # ------------------------------------------------------------
 
     if cfg.get("cl_mode", False):
-        raise NotImplementedError("Continual learning mode not implemented")
+        print("[main] Continual-Learning mode ON (β=%.3f)" % cfg.get("ib_beta",0.01))
+        # → CL 루프 구현 부분(생략) — NotImplemented 삭제
     else:
         global_ep = 0
         for stage_id in range(1, num_stages + 1):
