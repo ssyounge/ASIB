@@ -556,6 +556,34 @@ def main():
         cfg=cfg,
     ).to(device)
 
+    # ── NEW: ① 학생 feature dim 자동 추론 → mbm_query_dim -----------------
+    if cfg.get("mbm_query_dim", 0) in (0, None):
+        with torch.no_grad(), torch.autocast(device_type="cuda", enabled=False):
+            dummy = torch.randn(1, 3, 32, 32, device=device)
+            feat_dict, _, _ = student_model(dummy)
+            qdim = feat_dict.get("distill_feat", feat_dict.get("feat_2d")).shape[-1]
+            cfg["mbm_query_dim"] = int(qdim)
+            print(f"[Auto-cfg] mbm_query_dim ← {qdim}")
+
+    # ── NEW: ② 문자열 숫자 → float/int 캐스팅 --------------------------------
+    _num_keys = [
+        "teacher_lr",
+        "student_lr",
+        "teacher_weight_decay",
+        "student_weight_decay",
+        "reg_lambda",
+        "mbm_reg_lambda",
+        "kd_alpha",
+        "ce_alpha",
+        "ib_beta",
+    ]
+    for k in _num_keys:
+        if k in cfg and isinstance(cfg[k], str):
+            try:
+                cfg[k] = float(cfg[k])
+            except ValueError:
+                pass  # ignore
+
     if cfg.get("student_ckpt"):
         student_model.load_state_dict(
             torch.load(
