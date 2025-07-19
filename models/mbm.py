@@ -5,7 +5,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import List, Optional, Tuple
 
+# 기존 MBM
 from .la_mbm import LightweightAttnMBM
+# 신규 IB-MBM (선택적 import)
+try:
+    from modules.ib_mbm import IB_MBM
+except ImportError:
+    IB_MBM = None
 
 class ManifoldBridgingModule(nn.Module):
     """Fuses teacher features using optional MLP, convolutional and attention paths."""
@@ -114,8 +120,14 @@ def build_from_teachers(
     else:
         in_ch_4d = out_ch_4d = None
 
-    mbm_type = cfg.get("mbm_type", "MLP")
-    if mbm_type == "LA":
+    mbm_type = cfg.get("mbm_type", "MLP").lower()
+    if mbm_type == "ib_mbm" and IB_MBM is not None:
+        mbm = IB_MBM(
+            d_in=max(feat_dims),
+            d_emb=cfg.get("mbm_out_dim", 512),
+            beta=cfg.get("ib_beta", 0.01),
+        )
+    elif mbm_type == "la":
         qdim = cfg.get("mbm_query_dim")
         if qdim is None or qdim <= 0:
             qdim = query_dim
