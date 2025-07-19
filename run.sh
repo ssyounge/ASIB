@@ -7,9 +7,6 @@
 #SBATCH --output=outputs/asmb_%j/run.log
 #SBATCH --error=outputs/asmb_%j/run.log
 
-# tqdm 완전 OFF
-export PROGRESS=0
-
 # Create a unique output directory per SLURM job
 JOB_ID=${SLURM_JOB_ID:-manual}
 OUTPUT_DIR="outputs/asmb_${JOB_ID}"
@@ -19,4 +16,8 @@ source ~/.bashrc
 conda activate tlqkf
 
 # Launch experiments using the unified script
+
 bash scripts/run_experiments.sh --mode loop --output_dir "$OUTPUT_DIR"
+
+# 로그 파일 tail 을 바로 확인하려면 (옵션)
+# tail -f "$OUTPUT_DIR/train.log"

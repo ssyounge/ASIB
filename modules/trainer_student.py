@@ -3,6 +3,7 @@
 import torch
 import torch.nn.functional as F
 import copy
+import logging
 from utils.progress import smart_tqdm
 from models.la_mbm import LightweightAttnMBM
 from modules.ib_mbm import IB_MBM
@@ -11,6 +12,11 @@ from modules.losses import kd_loss_fn, ce_loss_fn, ib_loss
 from modules.disagreement import sample_weights_from_disagreement
 from utils.misc import mixup_data, cutmix_data, mixup_criterion, get_amp_components
 from utils.schedule import get_tau
+
+try:
+    import wandb
+except ModuleNotFoundError:
+    wandb = None
 
 def student_distillation_update(
     teacher_wrappers,
@@ -253,7 +259,19 @@ def student_distillation_update(
         # (C) validate
         test_acc = eval_student(student_model, testloader, cfg["device"], cfg)
 
-        logger.info(f"[StudentDistill ep={ep+1}] loss={ep_loss:.4f}, testAcc={test_acc:.2f}, best={best_acc:.2f}")
+        logging.info(
+            "[StudentDistill ep=%d] loss=%.4f testAcc=%.2f best=%.2f",
+            ep + 1,
+            ep_loss,
+            test_acc,
+            best_acc,
+        )
+        if wandb and wandb.run:
+            wandb.log({
+                "student/loss": ep_loss,
+                "student/acc": test_acc,
+                "student/epoch": global_ep + ep + 1,
+            })
 
         # ── NEW: per-epoch logging ───────────────────────────────
         logger.update_metric(f"student_ep{ep+1}_acc", test_acc)
