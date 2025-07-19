@@ -4,8 +4,9 @@ import torch
 import copy
 from utils.progress import smart_tqdm
 from models.la_mbm import LightweightAttnMBM
+from modules.ib_mbm import IB_MBM
 
-from modules.losses import kd_loss_fn, ce_loss_fn
+from modules.losses import kd_loss_fn, ce_loss_fn, ib_loss
 from utils.schedule import get_tau
 from utils.misc import get_amp_components
 
@@ -33,7 +34,8 @@ def eval_synergy(
     """
 
     autocast_ctx, _ = get_amp_components(cfg or {})
-    la_mode = isinstance(mbm, LightweightAttnMBM) or (cfg or {}).get("mbm_type") == "LA"
+    la_mode = isinstance(mbm, (LightweightAttnMBM, IB_MBM)) \
+              or (cfg or {}).get("mbm_type", "").lower() in ("la", "ib_mbm")
     correct, total = 0, 0
     for x, y in loader:
         x, y = x.to(device), y.to(device)
@@ -50,7 +52,10 @@ def eval_synergy(
             if la_mode:
                 assert student_model is not None, "student_model required for LA MBM"
                 s_feat = student_model(x)[0][cfg.get("feat_kd_key", "feat_2d")]
-                fsyn, _, _, _ = mbm(s_feat, [f1_2d, f2_2d])
+                if isinstance(mbm, IB_MBM):
+                    fsyn, _, _ = mbm(s_feat, torch.stack([f1_2d, f2_2d], dim=1))
+                else:
+                    fsyn, _, _, _ = mbm(s_feat, [f1_2d, f2_2d])
             else:
                 fsyn = mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
             zsyn = synergy_head(fsyn)
@@ -107,7 +112,8 @@ def teacher_adaptive_update(
     logger.info(f"[TeacherAdaptive] Using teacher_epochs={teacher_epochs}")
 
     autocast_ctx, scaler = get_amp_components(cfg)
-    la_mode = isinstance(mbm, LightweightAttnMBM) or cfg.get("mbm_type") == "LA"
+    la_mode = isinstance(mbm, (LightweightAttnMBM, IB_MBM)) \
+              or cfg.get("mbm_type", "").lower() in ("la", "ib_mbm")
     for ep in range(teacher_epochs):
         for tw in teacher_wrappers:
             tw.train()
@@ -144,11 +150,25 @@ def teacher_adaptive_update(
 
                 # (C) MBM + synergy_head
                 if la_mode:
-                    syn_feat, attn, _, _ = mbm(s_feat, feats_2d)
+                    if isinstance(mbm, IB_MBM):
+                        syn_feat, mu, logvar = mbm(
+                            s_feat, torch.stack(feats_2d, dim=1)
+                        )
+                        attn = None
+                        ib_loss_val = 0.0
+                        if cfg.get("use_ib", False):
+                            ib_loss_val = ib_loss(
+                                syn_feat, mu, logvar, y, decoder=synergy_head,
+                                beta=cfg.get("ib_beta", 1e-2)
+                            )
+                    else:
+                        syn_feat, attn, _, _ = mbm(s_feat, feats_2d)
+                        ib_loss_val = 0.0
                     fsyn = syn_feat
                 else:
                     fsyn = mbm(feats_2d, feats_4d)
                     attn = None
+                    ib_loss_val = 0.0
                 zsyn = synergy_head(fsyn)
 
                 # (D) compute loss (KL + synergyCE)
@@ -164,7 +184,7 @@ def teacher_adaptive_update(
                     attn_sum += attn.mean().item() * x.size(0)
 
                 feat_kd_loss = torch.tensor(0.0, device=cfg["device"])
-                if la_mode and cfg.get("feat_kd_alpha", 0) > 0:
+                if la_mode and cfg.get("feat_kd_alpha", 0) > 0 and not isinstance(mbm, IB_MBM):
                     s_flat = s_feat.view(s_feat.size(0), -1)
                     f_flat = fsyn.detach().view(fsyn.size(0), -1)
                     if s_flat.size(1) == f_flat.size(1):
@@ -182,6 +202,7 @@ def teacher_adaptive_update(
                 cfg["teacher_adapt_alpha_kd"] * loss_kd
                 + synergy_ce_loss
                 + cfg.get("feat_kd_alpha", 0) * feat_kd_loss
+                + ib_loss_val
             )
 
             # --- 1) L2 regularization on teacher parameters ---
