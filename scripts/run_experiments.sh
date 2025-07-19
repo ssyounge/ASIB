@@ -8,7 +8,7 @@ OUTPUT_DIR="" # This will be populated by the --output_dir argument
 
 BASE_CONFIG=${BASE_CONFIG:-configs/default.yaml}
 USE_CONDA=${USE_CONDA:-1}
-CONDA_ENV=${CONDA_ENV:-facil_env}
+CONDA_ENV=${CONDA_ENV:-tlqkf}
 
 activate_conda() {
   if [ "$USE_CONDA" -eq 1 ]; then
