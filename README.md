@@ -97,8 +97,8 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 ```
 2. *(Optional)* **Create and activate a Conda environment**:
 ```bash
-conda create -n facil_env python=3.9
-conda activate facil_env
+conda create -n tlqkf python=3.9
+conda activate tlqkf
 ```
 3. **Install dependencies**:
 ```bash
@@ -106,7 +106,7 @@ pip install -r requirements.txt  # includes pandas for analysis
 ```
 
 The unified script `run_experiments.sh` automatically tries to activate a
-Conda environment named `facil_env`. If you use a different environment name,
+Conda environment named `tlqkf`. If you use a different environment name,
 set the `CONDA_ENV` variable accordingly. You can also skip activation
 entirely by exporting `USE_CONDA=0` before running the script. Run experiments
 directly with `bash scripts/run_experiments.sh --mode {loop,sweep}`.
