@@ -122,8 +122,15 @@ def build_from_teachers(
 
     mbm_type = cfg.get("mbm_type", "MLP").lower()
     if mbm_type == "ib_mbm" and IB_MBM is not None:
+        qdim = cfg.get("mbm_query_dim")
+        if qdim is None or qdim <= 0:
+            raise ValueError(
+                "[IB_MBM] cfg.mbm_query_dim (student feature dim) 필요합니다 "
+                "(e.g. 2048 for ResNet-152)."
+            )
         mbm = IB_MBM(
-            d_in=max(feat_dims),
+            q_dim=qdim,
+            kv_dim=max(feat_dims),
             d_emb=cfg.get("mbm_out_dim", 512),
             beta=cfg.get("ib_beta", 0.01),
         )
