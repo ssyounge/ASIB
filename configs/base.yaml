@@ -68,6 +68,13 @@ ewc_samples: 1024
 ewc_online: false
 ewc_decay: 1.0
 
+##############################
+# 기본 Distillation 방법 기본값
+#  · CE‑파인튜닝 Job   → 그대로 'ce'
+#  · KD  Job          → 아래 YAML에서 'vib' 등으로 다시 덮어씀
+method: ce
+train_mode: standard
+
 # ───── Logging options ─────
 exp_name: ibkd
 wandb_project: kd_monitor
