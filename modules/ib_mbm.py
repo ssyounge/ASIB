@@ -8,10 +8,16 @@ from torch.distributions import Normal, kl_divergence
 class IB_MBM(nn.Module):
     """Information-Bottleneck Manifold-Bridging-Module."""
 
-    def __init__(self, d_in: int, d_emb: int, beta: float = 1e-2) -> None:
+    def __init__(
+        self,
+        q_dim: int,
+        kv_dim: int,
+        d_emb: int,
+        beta: float = 1e-2,
+    ) -> None:
         super().__init__()
-        self.q_proj = nn.Linear(d_in, d_emb)
-        self.kv_proj = nn.Linear(d_in, d_emb)
+        self.q_proj = nn.Linear(q_dim, d_emb)
+        self.kv_proj = nn.Linear(kv_dim, d_emb)
         self.attn = nn.MultiheadAttention(d_emb, 1, batch_first=True)
         self.mu = nn.Linear(d_emb, d_emb)
         self.logvar = nn.Linear(d_emb, d_emb)
