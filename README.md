@@ -7,11 +7,13 @@
 ## Quick-start
 ```bash
 # IID 학습
-python main.py --config configs/iid.yaml
+python main.py --config configs/default.yaml
 
 # Continual-Learning (Split-CIFAR 5 tasks 예시)
-python main.py --config configs/cl.yaml --cl_mode 1 --num_tasks 5
+python main.py --config configs/default.yaml --cl_mode 1 --num_tasks 5
 ```
+
+`--cl_mode 1` 활성화 후 `--num_tasks` 값을 지정하면 별도의 CL 전용 YAML 없이 연속 학습을 수행할 수 있습니다.
 
 ## 주요 config 플래그
 * `mbm_type` : **mlp | la | ib_mbm**
