@@ -26,10 +26,7 @@ def smart_tqdm(iterable, desc=None, **kwargs):
     """
     kwargs.setdefault("file", sys.stdout)
     kwargs.setdefault("leave", False)
-
-    # 터미널 X 또는 환경변수 `PROGRESS=0|false` 이면 끈다
-    env_off = os.environ.get("PROGRESS", "0").lower() in ("0", "false", "off", "no")
-
-    if "disable" not in kwargs:
-        kwargs["disable"] = env_off or (not sys.stdout.isatty())
+    # PROGRESS=1 을 주면 강제 활성화, 기본은 OFF
+    env_flag = os.environ.get("PROGRESS", "0").lower() in ("1", "true", "yes", "on")
+    kwargs["disable"] = not env_flag
     return tqdm(iterable, desc=desc, **kwargs)

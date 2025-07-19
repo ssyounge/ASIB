@@ -134,6 +134,7 @@ run_loop() {
           cp "$CFG_TMP" "${OUTDIR}/config.yaml"
 
           if [ "$METHOD" = "asmb" ]; then
+          # 모든 stdout·stderr 을 같은 log 로 tee
           python main.py \
             --config "${CFG_TMP}" \
             --teacher1_type "${T1}" \
@@ -177,7 +178,7 @@ run_loop() {
             --cutmix_alpha_distill ${cutmix_alpha_distill} \
             --label_smoothing ${label_smoothing} \
             --method ${METHOD}
-          fi
+          fi 2>&1 | tee -a "${OUTDIR}/train.log"
                 done            # closes STAGE loop
               done              # closes 'for H_BETA' loop
             done                # closes 'for SC_ALPHA' loop
@@ -226,7 +227,7 @@ run_sweep() {
         --teacher2_bn_head_only ${teacher2_bn_head_only} \
         --student_freeze_level ${student_freeze_level} \
         --label_smoothing ${label_smoothing} \
-        --method ${METHOD}
+        --method ${METHOD} 2>&1 | tee -a "${OUTPUT_DIR}/train.log"
       done
     done
   done

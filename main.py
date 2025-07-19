@@ -8,10 +8,9 @@ Implements a multi-stage distillation flow using:
 Repeated for 'num_stages' times, as in ASMB multi-stage self-training.
 """
 
-import argparse
+import argparse, logging, os
 import copy
 import torch
-import os
 import yaml
 from utils.cl_utils import ReplayBuffer, EWC          # NEW
 from typing import Optional
@@ -19,6 +18,12 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR, StepLR
 
 from utils.logger import ExperimentLogger
+from utils.logging_setup import setup_logging, log_hparams
+# — W&B --------------------------------------------------------
+try:
+    import wandb
+except ModuleNotFoundError:
+    wandb = None
 from utils.misc import set_random_seed, check_label_range, get_model_num_classes
 from modules.disagreement import compute_disagreement_rate
 from modules.trainer_teacher import teacher_adaptive_update
@@ -316,6 +321,22 @@ def main():
     base_cfg = load_config(args.config)
     cli_cfg = {k: v for k, v in vars(args).items() if v is not None}
     cfg = {**base_cfg, **cli_cfg}
+
+    # ────────────────── LOGGING & W&B ──────────────────
+    log_file = setup_logging(cfg)
+    log_hparams(cfg)
+
+    if cfg.get("use_wandb", False):
+        if wandb is None:
+            logging.warning("[W&B] wandb not installed ‑‑ skipping")
+        else:
+            wandb.init(
+                project=cfg.get("wandb_project", "kd_monitor"),
+                entity=cfg.get("wandb_entity") or None,
+                name=cfg.get("wandb_run_name") or cfg.get("exp_id", "run"),
+                config=cfg,
+            )
+            logging.info("[W&B] dashboard → %s", wandb.run.url)
 
     # convert learning rate and weight decay fields to float when merged
     for key in (

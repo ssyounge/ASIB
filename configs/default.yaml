@@ -13,6 +13,20 @@ amp_dtype: float16
 grad_scaler_init_scale: 1024
 
 log_filename: "train.log"
+# 로그 상세도 ― "INFO" | "DEBUG"
+log_level: "DEBUG"
+
+######################
+# WandB 사용 여부
+######################
+use_wandb: true
+wandb_project: "kd_monitor"
+wandb_entity: "kakamy0820-yonsei-university"   # ← 필요 없으면 빈칸
+# run name 미지정 시 exp_id 가 그대로 사용됨
+wandb_run_name: ""
+
+# 모든 하이퍼파라미터 표 형태로 로그 파일에 출력
+log_all_hparams: true
 save_checkpoint: true
 ckpt_dir: "./checkpoints"
 
