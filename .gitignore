@@ -102,6 +102,10 @@ __pypackages__/
 # 아래 항목들은 이미 있지만, 명확성을 위해 다시 확인합니다.
 # .pth, .tar.gz와 같은 모델 체크포인트나 데이터셋은 추적하지 않습니다.
 *.pth
+wandb/
+__pycache__/
+*.log
+.pytest_cache/
 *.tar.gz
 data/cifar-100-python/
 

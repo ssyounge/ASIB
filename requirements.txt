@@ -4,4 +4,4 @@ timm
 PyYAML
 tqdm
 pandas
-einops               # (IB-MBM에 optional)
+einops>=0.6

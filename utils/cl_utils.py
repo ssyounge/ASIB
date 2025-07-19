@@ -16,8 +16,14 @@ class ReplayBuffer:
         if len(self.buffer) > self.capacity:
             self.buffer = random.sample(self.buffer, self.capacity)
 
-    def sample(self, n: int):
-        return random.sample(self.buffer, min(n, len(self.buffer)))
+    def sample(self, n: int, device="cpu"):
+        batch = random.sample(self.buffer, min(n, len(self.buffer)))
+        if not batch:
+            return [], [], []
+        xs, ys, tids = zip(*batch)
+        xs = torch.stack(xs).to(device)
+        ys = torch.tensor(ys, device=device)
+        return xs, ys, tids
 
 
 class EWC:
