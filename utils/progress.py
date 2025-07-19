@@ -1,6 +1,6 @@
 # utils/progress.py
 
-# tqdm 표시 기본 OFF ➜ PROGRESS=1 로 켜기
+# tqdm 표시 기본 ON (tty에서만) ➜ PROGRESS=0 으로 끄기
 from tqdm import tqdm
 import sys, os
 
@@ -26,7 +26,8 @@ def smart_tqdm(iterable, desc=None, **kwargs):
     """
     kwargs.setdefault("file", sys.stdout)
     kwargs.setdefault("leave", False)
-    # PROGRESS=1 을 주면 강제 활성화, 기본은 OFF
-    env_flag = os.environ.get("PROGRESS", "0").lower() in ("1", "true", "yes", "on")
-    kwargs["disable"] = not env_flag
+    if "disable" not in kwargs:
+        # 1) 환경변수 PROGRESS=0 → 무조건 OFF
+        env_off = os.getenv("PROGRESS", "1") == "0"
+        kwargs["disable"] = env_off or not sys.stdout.isatty()
     return tqdm(iterable, desc=desc, **kwargs)
