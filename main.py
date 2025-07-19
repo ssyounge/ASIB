@@ -98,7 +98,9 @@ def create_student_by_name(
         )
 
     else:
-        raise ValueError(f"[create_student_by_name] unknown student_name={student_name}")# MBM
+        raise ValueError(
+            f"[create_student_by_name] unknown student_name={student_name}"
+        )
 
 from models.mbm import ManifoldBridgingModule, SynergyHead, build_from_teachers
 
