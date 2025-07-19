@@ -5,8 +5,9 @@ import torch.nn.functional as F
 import copy
 from utils.progress import smart_tqdm
 from models.la_mbm import LightweightAttnMBM
+from modules.ib_mbm import IB_MBM
 
-from modules.losses import kd_loss_fn, ce_loss_fn
+from modules.losses import kd_loss_fn, ce_loss_fn, ib_loss
 from modules.disagreement import sample_weights_from_disagreement
 from utils.misc import mixup_data, cutmix_data, mixup_criterion, get_amp_components
 from utils.schedule import get_tau
@@ -65,7 +66,11 @@ def student_distillation_update(
     logger.info(f"[StudentDistill] Using student_epochs={student_epochs}")
 
     autocast_ctx, scaler = get_amp_components(cfg)
-    la_mode = isinstance(mbm, LightweightAttnMBM) or cfg.get("mbm_type") == "LA"
+    # ---------------------------------------------------------
+    # MBM type check: LA or IB (query required) vs. baseline MLP
+    # ---------------------------------------------------------
+    la_mode = isinstance(mbm, (LightweightAttnMBM, IB_MBM)) \
+              or cfg.get("mbm_type", "").lower() in ("la", "ib_mbm")
     for ep in range(student_epochs):
         cur_tau = get_tau(cfg, global_ep + ep)
         distill_loss_sum = 0.0
@@ -114,13 +119,30 @@ def student_distillation_update(
 
                 if la_mode:
                     s_feat = feat_dict[cfg.get("feat_kd_key", "feat_2d")]
-                    syn_feat, attn, student_q_proj, teacher_attn_out = mbm(
-                        s_feat, [f1_2d, f2_2d]
-                    )
+                    if isinstance(mbm, IB_MBM):
+                        # IB-MBM returns z, mu, logvar
+                        syn_feat, mu, logvar = mbm(
+                            s_feat, torch.stack([f1_2d, f2_2d], dim=1)
+                        )
+                        attn = None
+                        # optional IB loss
+                        if cfg.get("use_ib", False):
+                            ib_beta = cfg.get("ib_beta", 1e-2)
+                            ib_loss_val = ib_loss(
+                                syn_feat, mu, logvar, y, decoder=synergy_head, beta=ib_beta
+                            )
+                        else:
+                            ib_loss_val = torch.tensor(0.0, device=cfg["device"])
+                    else:  # LA MBM
+                        syn_feat, attn, student_q_proj, teacher_attn_out = mbm(
+                            s_feat, [f1_2d, f2_2d]
+                        )
+                        ib_loss_val = torch.tensor(0.0, device=cfg["device"])
                     fsyn = syn_feat
-                    attn_sum += attn.mean().item() * x.size(0)
+                    attn_sum += (attn.mean().item() if attn is not None else 0.0) * x.size(0)
                 else:
                     fsyn = mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
+                    ib_loss_val = torch.tensor(0.0, device=cfg["device"])
                 zsyn = synergy_head(fsyn)
 
                 if mix_mode != "none":
@@ -161,7 +183,7 @@ def student_distillation_update(
 
             feat_kd_val = torch.tensor(0.0, device=cfg["device"])
             if cfg.get("feat_kd_alpha", 0) > 0:
-                if la_mode:
+                if la_mode and not isinstance(mbm, IB_MBM):
                     feat_kd_val = F.mse_loss(student_q_proj, teacher_attn_out.detach())
                 else:
                     key = cfg.get("feat_kd_key", "feat_2d")
@@ -198,6 +220,7 @@ def student_distillation_update(
                 cfg["ce_alpha"] * ce_loss_val
                 + cfg["kd_alpha"] * kd_loss_val
                 + cfg.get("feat_kd_alpha", 0.0) * feat_kd_val
+                + ib_loss_val
             )
 
             optimizer.zero_grad()
