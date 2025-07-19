@@ -97,7 +97,7 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 ```
 2. *(Optional)* **Create and activate a Conda environment**:
 ```bash
-conda create -n tlqkf python=3.9
+conda create -n tlqkf python=3.12.11
 conda activate tlqkf
 ```
 3. **Install dependencies**:
