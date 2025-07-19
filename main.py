@@ -367,6 +367,8 @@ def main() -> None:
                 weight_decay=cfg.get("finetune_weight_decay", 0.0),
                 cfg={**cfg, "finetune_eval_loader": test_loader},   # NEW
                 ckpt_path=t1_ckpt or "checkpoints/teacher1_ft.pth",
+                logger=logger,
+                writer=writer,
             )
         if not loaded2:
             simple_finetune(
@@ -378,6 +380,8 @@ def main() -> None:
                 weight_decay=cfg.get("finetune_weight_decay", 0.0),
                 cfg={**cfg, "finetune_eval_loader": test_loader},   # NEW
                 ckpt_path=t2_ckpt or "checkpoints/teacher2_ft.pth",
+                logger=logger,
+                writer=writer,
             )
     if method != 'ce':
         freeze_all(t1)
@@ -633,6 +637,8 @@ def main() -> None:
             weight_decay=cfg.get('student_weight_decay', 0.0),
             cfg=cfg,
             ckpt_path=ce_ckpt,
+            logger=logger,
+            writer=writer,
         )
         acc = evaluate_acc(student, test_loader, device)
         logger.update_metric("student_acc", float(acc))

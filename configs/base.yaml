@@ -80,3 +80,4 @@ exp_name: ibkd
 wandb_project: kd_monitor
 wandb_run_name: run_001
 tb_log_dir: runs/kd_monitor
+log_interval: 100        # 100 mini-batches마다 한 줄
