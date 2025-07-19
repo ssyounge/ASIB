@@ -13,7 +13,7 @@ OUTPUT_DIR="outputs/asmb_${JOB_ID}"
 mkdir -p "$OUTPUT_DIR"
 
 source ~/.bashrc
-conda activate facil_env
+conda activate tlqkf
 
 # Launch experiments using the unified script
 bash scripts/run_experiments.sh --mode loop --output_dir "$OUTPUT_DIR"
