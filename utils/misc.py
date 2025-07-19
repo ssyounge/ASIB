@@ -4,6 +4,21 @@ import os
 import torch
 import random
 import numpy as np
+import inspect
+
+# ── NEW: backwards-compatible torch.load ──────────────────────
+if "weights_only" not in inspect.signature(torch.load).parameters:
+    _orig_torch_load = torch.load
+
+    def _patched_torch_load(*args, **kwargs):
+        kwargs.pop("weights_only", None)
+        return _orig_torch_load(*args, **kwargs)
+
+    torch.load = _patched_torch_load
+    print(
+        "[utils.misc]  ⚠  PyTorch <2.1 detected → 'weights_only' patched for torch.load()."
+    )
+# ───────────────────────────────────────────────────────────────
 
 def set_random_seed(seed: int = 42, deterministic: bool = True) -> None:
     """Fix random seeds for reproducibility.

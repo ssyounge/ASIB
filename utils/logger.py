@@ -110,8 +110,8 @@ class ExperimentLogger:
         # Ensure results directory exists
         os.makedirs(self.results_dir, exist_ok=True)
 
-        # 2) JSON file path (fixed name within results_dir)
-        json_path = os.path.join(self.results_dir, "summary.json")
+        # 2) JSON  ▶  exp_id.json  (+ latest.json link)
+        json_path = os.path.join(self.results_dir, f"{self.exp_id}.json")
 
         # 3) CSV file path (fixed name)
         csv_filename = "summary.csv"
@@ -120,7 +120,18 @@ class ExperimentLogger:
 
         # Save the JSON (all info)
         save_json(self.config, json_path)
-        print(f"[ExperimentLogger] JSON saved => {json_path}")
+        print(f"[ExperimentLogger] JSON saved ⇒ {json_path}")
+
+        # 최신 결과 가리키는 심링크/복사본
+        latest_path = os.path.join(self.results_dir, "latest.json")
+        try:
+            if os.path.islink(latest_path) or os.path.exists(latest_path):
+                os.remove(latest_path)
+            os.symlink(os.path.basename(json_path), latest_path)
+        except OSError:
+            # 심링크가 안 되는 파일시스템이면 그만 복사
+            import shutil
+            shutil.copy2(json_path, latest_path)
 
         # 4) Write CSV
         #   - 기본 열 + 모든 ep* 또는 teacher_ep* key 자동 포함

@@ -8,10 +8,10 @@ from torchvision import transforms as T
 
 
 def get_split_cifar100_loaders(
-    root: str = "./data",
     num_tasks: int = 5,
     batch_size: int = 128,
     augment: bool = True,
+    root: str = "./data",
 ) -> List[Tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader]]:
     """Split CIFAR100 into ``num_tasks`` tasks of 10 classes each."""
 
