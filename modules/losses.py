@@ -63,6 +63,30 @@ def hybrid_kd_loss_fn(student_logits, teacher_logits, labels, alpha=0.5, T=4.0):
     return alpha * ce + (1 - alpha) * kd
 
 
+# ---------- Information Bottleneck ----------
+def ib_loss(z, mu, logvar, labels, decoder, beta: float = 1e-2):
+    """I(B;Y) - β·I(B;T) 형태의 IB loss.
+
+    Parameters
+    ----------
+    z : Tensor
+        Re-parameterised sample.
+    mu, logvar : Tensor
+        Encoder statistics.
+    labels : Tensor
+        Ground-truth labels.
+    decoder : nn.Module
+        Module producing logits from z.
+    beta : float, optional
+        Trade-off coefficient.
+    """
+    suff = torch.nn.CrossEntropyLoss()(decoder(z), labels)
+    q = torch.distributions.Normal(mu, torch.exp(0.5 * logvar))
+    p = torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(mu))
+    minm = beta * torch.distributions.kl.kl_divergence(q, p).mean()
+    return suff + minm
+
+
 def dkd_loss(student_logits, teacher_logits, labels, alpha=1.0, beta=1.0, temperature=4.0):
     """Decoupled Knowledge Distillation loss."""
     if student_logits.dim() > 2:

@@ -18,3 +18,14 @@ ckpt_dir: "./checkpoints"
 
 finetune_ckpt1: "./checkpoints/teacher1_finetuned.pth"
 finetune_ckpt2: "./checkpoints/teacher2_finetuned.pth"
+
+# === Information Bottleneck MBM ===
+mbm_type: ib_mbm        # {mlp, la, ib_mbm}
+use_ib: true            # ablation toggle
+ib_beta: 0.01           # IB trade-off β
+
+# === Continual-Learning ===
+cl_mode: false          # true → Split-CIFAR etc.
+num_tasks: 10
+replay_ratio: 0.5
+lambda_ewc: 0.4

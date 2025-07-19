@@ -13,6 +13,7 @@ import copy
 import torch
 import os
 import yaml
+from utils.cl_utils import ReplayBuffer, EWC          # NEW
 from typing import Optional
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR, StepLR
@@ -178,6 +179,11 @@ def parse_args():
         default="asmb",
         help="Distillation method name (for run_experiments.sh compatibility)",
     )
+    # Continual-Learning
+    parser.add_argument("--cl_mode", type=int)
+    parser.add_argument("--num_tasks", type=int)
+    parser.add_argument("--replay_ratio", type=float)
+    parser.add_argument("--lambda_ewc", type=float)
     return parser.parse_args()
 
 def load_config(cfg_path):
@@ -650,60 +656,65 @@ def main():
             gamma=cfg.get("student_gamma", 0.1),
         )
 
-    # 8) multi-stage distillation
+    # ------------------------------------------------------------
+    # 8) IID vs. Continual-Learning loop
+    # ------------------------------------------------------------
 
-    global_ep = 0
-    for stage_id in range(1, num_stages + 1):
-        print(f"\n=== Stage {stage_id}/{num_stages} ===")
+    if cfg.get("cl_mode", False):
+        raise NotImplementedError("Continual learning mode not implemented")
+    else:
+        global_ep = 0
+        for stage_id in range(1, num_stages + 1):
+            print(f"\n=== Stage {stage_id}/{num_stages} ===")
 
-        teacher_epochs = cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5))
-        student_epochs = cfg.get("student_iters", cfg.get("student_epochs_per_stage", 15))
+            teacher_epochs = cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5))
+            student_epochs = cfg.get("student_iters", cfg.get("student_epochs_per_stage", 15))
 
-        # (A) Teacher adaptive update
-        teacher_adaptive_update(
-            teacher_wrappers=teacher_wrappers,
-            mbm=mbm,
-            synergy_head=synergy_head,
-            student_model=student_model,
-            trainloader=train_loader,
-            testloader=test_loader,
-            cfg=cfg,
-            logger=logger,
-            optimizer=teacher_optimizer,
-            scheduler=teacher_scheduler,
-            global_ep=global_ep,
-        )
+            # (A) Teacher adaptive update
+            teacher_adaptive_update(
+                teacher_wrappers=teacher_wrappers,
+                mbm=mbm,
+                synergy_head=synergy_head,
+                student_model=student_model,
+                trainloader=train_loader,
+                testloader=test_loader,
+                cfg=cfg,
+                logger=logger,
+                optimizer=teacher_optimizer,
+                scheduler=teacher_scheduler,
+                global_ep=global_ep,
+            )
 
-        global_ep += teacher_epochs
+            global_ep += teacher_epochs
 
-        dis_rate = compute_disagreement_rate(
-            teacher1,
-            teacher2,
-            test_loader,
-            device=device,
-            cfg=cfg,
-            mode=cfg.get("disagree_mode", "both_wrong"),
-        )
-        print(f"[Stage {stage_id}] Teacher disagreement= {dis_rate:.2f}%")
-        logger.update_metric(f"stage{stage_id}_disagreement_rate", dis_rate)
+            dis_rate = compute_disagreement_rate(
+                teacher1,
+                teacher2,
+                test_loader,
+                device=device,
+                cfg=cfg,
+                mode=cfg.get("disagree_mode", "both_wrong"),
+            )
+            print(f"[Stage {stage_id}] Teacher disagreement= {dis_rate:.2f}%")
+            logger.update_metric(f"stage{stage_id}_disagreement_rate", dis_rate)
 
-        # (B) Student distillation
-        final_acc = student_distillation_update(
-            teacher_wrappers=teacher_wrappers,
-            mbm=mbm,
-            synergy_head=synergy_head,
-            student_model=student_model,
-            trainloader=train_loader,
-            testloader=test_loader,
-            cfg=cfg,
-            logger=logger,
-            optimizer=student_optimizer,
-            scheduler=student_scheduler,
-            global_ep=global_ep,
-        )
-        global_ep += student_epochs
-        print(f"[Stage {stage_id}] Student final acc= {final_acc:.2f}%")
-        logger.update_metric(f"stage{stage_id}_student_acc", final_acc)
+            # (B) Student distillation
+            final_acc = student_distillation_update(
+                teacher_wrappers=teacher_wrappers,
+                mbm=mbm,
+                synergy_head=synergy_head,
+                student_model=student_model,
+                trainloader=train_loader,
+                testloader=test_loader,
+                cfg=cfg,
+                logger=logger,
+                optimizer=student_optimizer,
+                scheduler=student_scheduler,
+                global_ep=global_ep,
+            )
+            global_ep += student_epochs
+            print(f"[Stage {stage_id}] Student final acc= {final_acc:.2f}%")
+            logger.update_metric(f"stage{stage_id}_student_acc", final_acc)
 
     # 8) save final
     ckpt_dir = cfg.get("ckpt_dir", cfg["results_dir"])
