@@ -1,3 +1,24 @@
+# ASIB-CL : Information-Bottleneck KD with Continual-Learning
+
+**ASIB-CL** 확장은 기존 ASMB_KD 프레임워크에  
+*Information-Bottleneck Manifold Bridging Module* (IB-MBM)과  
+*Continual-Learning* (Replay + EWC) 지원을 추가합니다.
+
+## Quick-start
+```bash
+# IID 학습
+python main.py --config configs/iid.yaml
+
+# Continual-Learning (Split-CIFAR 5 tasks 예시)
+python main.py --config configs/cl.yaml --cl_mode 1 --num_tasks 5
+```
+
+## 주요 config 플래그
+* `mbm_type` : **mlp | la | ib_mbm**
+* `use_ib`   : true / false  (IB ablation)
+* `cl_mode`  : true → CL 활성화
+* `num_tasks`, `replay_ratio`, `lambda_ewc`
+
 # ASMB Knowledge Distillation Framework
 
 This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-stage knowledge distillation framework, along with various KD methods (FitNet, CRD, AT, DKD, VanillaKD, etc.) and a partial-freeze mechanism for large models.
