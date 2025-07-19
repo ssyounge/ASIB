@@ -37,6 +37,8 @@ def simple_finetune(
     weight_decay=0.0,
     cfg=None,
     ckpt_path="finetuned_best.pth",
+    logger=None,
+    writer=None,
 ):
     """Class‑balanced 미세조정 루프.
 
@@ -93,7 +95,7 @@ def simple_finetune(
         model.train()
         running_loss = 0.0
         count = 0
-        for x, y in loader:
+        for i, (x, y) in enumerate(loader):
             x, y = x.to(device), y.to(device)
             if mixup_alpha > 0.0:
                 x, y_a, y_b, lam = mixup_data(x, y, alpha=mixup_alpha)
@@ -140,6 +142,19 @@ def simple_finetune(
 
             running_loss += loss.item() * x.size(0)
             count += x.size(0)
+
+            if (i + 1) % (cfg or {}).get("log_interval", 100) == 0:
+                if logger is not None:
+                    logger.info(
+                        f"[ep{ep:03d}] it {i+1:04d}/{len(loader)} "
+                        f"loss {loss.item():.4f}  lr {optimizer.param_groups[0]['lr']:.3e}"
+                    )
+                if writer is not None:
+                    writer.add_scalar(
+                        "train/loss_step",
+                        loss.item(),
+                        global_step=ep * len(loader) + i,
+                    )
 
         acc = evaluate_acc(model, eval_loader, device=device)
         avg_loss = running_loss / max(count, 1)

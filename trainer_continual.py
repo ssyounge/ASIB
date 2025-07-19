@@ -373,6 +373,8 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                     device=device,
                     weight_decay=float(cfg.get("student_weight_decay", 5e-4)),
                     cfg=cfg,
+                    logger=logger,
+                    writer=writer,
                 )
             elif kd_method == "dkd":
                 from methods.dkd import DKDDistiller as Distiller
@@ -451,6 +453,8 @@ def run_continual(cfg: dict, kd_method: str, logger=None) -> None:
                 weight_decay=0.0,
                 cfg=cfg,
                 ckpt_path=f"{ckpt_dir}/task{task}_student_ft.pth",
+                logger=logger,
+                writer=writer,
             )
 
         torch.save(student.state_dict(), f"{ckpt_dir}/task{task}_student.pth")
