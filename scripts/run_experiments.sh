@@ -60,6 +60,8 @@ generate_config() {
     synergy_head_dropout=${head_dropout} \
     synergy_ce_alpha=${synergy_ce_alpha} \
     hybrid_beta=${hybrid_beta} \
+    distill_hidden_dim=${distill_hidden_dim} \
+    distill_out_dim=${distill_out_dim} \   # NEW
     use_partial_freeze=${use_partial_freeze} \
     teacher1_use_adapter=${teacher1_use_adapter} \
     teacher1_bn_head_only=${teacher1_bn_head_only} \
