@@ -7,6 +7,9 @@
 #SBATCH --output=outputs/asmb_%j/run.log
 #SBATCH --error=outputs/asmb_%j/run.log
 
+# tqdm 진행막대 끄기 (로그 청결)
+export TQDM_DISABLE=1
+
 # Create a unique output directory per SLURM job
 JOB_ID=${SLURM_JOB_ID:-manual}
 OUTPUT_DIR="outputs/asmb_${JOB_ID}"
