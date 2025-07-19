@@ -100,6 +100,23 @@ def main():
     cli_cfg = {k: v for k, v in vars(args).items() if v is not None}
     cfg = {**base_cfg, **cli_cfg}
 
+    # ──────────────────────────────────────────────────────────────
+    # YAML/CLI override 로 인해 숫자가 문자열로 들어올 수 있다.
+    # Optimizer 쪽에서 TypeError 가 나지 않도록 미리 float 캐스팅.
+    for key in (
+        "teacher_lr", "student_lr",
+        "teacher_weight_decay", "student_weight_decay",
+        "ce_alpha", "kd_alpha",
+        "reg_lambda", "mbm_reg_lambda",
+    ):
+        if key in cfg and isinstance(cfg[key], str):
+            try:
+                cfg[key] = float(cfg[key])
+            except ValueError:
+                # 빈 문자열 등은 그대로 둠
+                pass
+    # ──────────────────────────────────────────────────────────────
+
     method = cfg.get("method", args.method)
     if method != "asmb":
         cfg["use_partial_freeze"] = False

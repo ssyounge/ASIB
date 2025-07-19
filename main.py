@@ -618,6 +618,19 @@ def main():
                 f"[Warning] mbm_out_dim ({cfg['mbm_out_dim']}) does not match the student feature dimension ({feat_dim})."
             )
 
+        # 이미 student_feat_dim 을 이용해 mbm_query_dim 은 채워놓은 상태
+        if "mbm_query_dim" not in cfg or cfg["mbm_query_dim"] <= 0:
+            cfg["mbm_query_dim"] = feat_dim
+            print(f"[Auto-cfg] mbm_query_dim ← {cfg['mbm_query_dim']}")
+
+        # mbm_out_dim 이 query_dim 과 다르면 경고만 뜨는데,
+        # 특별한 이유가 없으면 동일하게 맞춰 주는 편이 안전하다.
+        if cfg.get("mbm_out_dim") != cfg["mbm_query_dim"]:
+            print(
+                f"[Auto-cfg] mbm_out_dim 조정: {cfg['mbm_out_dim']} → {cfg['mbm_query_dim']}"
+            )
+            cfg["mbm_out_dim"] = cfg["mbm_query_dim"]
+
     # Validate or infer MBM query dimension
     mbm_query_dim = cfg.get("mbm_query_dim", 0)
     if cfg.get("mbm_type", "MLP") == "LA":
