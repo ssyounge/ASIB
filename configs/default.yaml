@@ -16,19 +16,21 @@ log_filename: "train.log"
 # 로그 상세도 ― "INFO" | "DEBUG"
 log_level: "DEBUG"
 
-######################
-# WandB 사용 여부
-######################
-use_wandb: true
-wandb_project: "kd_monitor"
-wandb_entity: "kakamy0820-yonsei-university"   # ← 필요 없으면 빈칸
-# run name 미지정 시 exp_id 가 그대로 사용됨
-wandb_run_name: ""
-
-# 모든 하이퍼파라미터 표 형태로 로그 파일에 출력
-log_all_hparams: true
 save_checkpoint: true
 ckpt_dir: "./checkpoints"
+
+# ────────────── Logging & Dashboard ──────────────
+log_all_hparams: true        # 모든 하이퍼파라미터 표 형태 출력
+disable_tqdm: true           # progress-bar 숨기기(=PROGRESS=0)
+
+# ────────────── Weights & Biases ────────────────
+use_wandb: true
+wandb_entity: "kakamy0820-yonsei-university"
+wandb_project: "kd_monitor"
+# run name 미지정 시 exp_id 가 그대로 사용됨
+wandb_run_name: ""
+# (선택) 키를 여기서 직접 지정하면 `wandb login` 생략 가능
+wandb_api_key: ""            # ""이면 env/W&B login 사용
 
 finetune_ckpt1: "./checkpoints/teacher1_finetuned.pth"
 finetune_ckpt2: "./checkpoints/teacher2_finetuned.pth"
