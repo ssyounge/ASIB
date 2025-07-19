@@ -71,6 +71,12 @@ class ExperimentLogger:
         # For timing
         self.start_time = time.time()
 
+        # ── (옵션) 모든 하이퍼파라미터 즉시 출력 ───────────────
+        if self.config.get("log_all_hparams", False):
+            import pprint, logging
+            logging.getLogger().setLevel(self.config.get("log_level", "DEBUG"))
+            pprint.pprint(self.config, width=120)
+
     def _generate_exp_id(self, exp_name="exp"):
         """
         Creates an experiment ID like 'eval_experiment_synergy_20240805_153210'

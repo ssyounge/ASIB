@@ -322,6 +322,14 @@ def main():
     cli_cfg = {k: v for k, v in vars(args).items() if v is not None}
     cfg = {**base_cfg, **cli_cfg}
 
+    # ── tqdm 전체 OFF ─────────────────────────────
+    if cfg.get("disable_tqdm", False):
+        os.environ["PROGRESS"] = "0"    # utils.progress 에서 사용
+
+    # ── W&B API-key (config 우선) ────────────────
+    if cfg.get("use_wandb", False) and cfg.get("wandb_api_key", ""):
+        os.environ.setdefault("WANDB_API_KEY", str(cfg["wandb_api_key"]))
+
     # ────────────────── LOGGING & W&B ──────────────────
     log_file = setup_logging(cfg)
     log_hparams(cfg)
