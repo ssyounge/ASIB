@@ -8,7 +8,7 @@ Implements a multi-stage distillation flow using:
 Repeated for 'num_stages' times, as in ASMB multi-stage self-training.
 """
 
-import argparse, logging, os
+import argparse, logging, os, json
 import copy
 import torch
 import yaml
@@ -18,7 +18,9 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR, StepLR
 
 from utils.logger import ExperimentLogger
-from utils.logging_setup import setup_logging, log_hparams
+from utils.logging_setup import get_logger
+# --- 중복 방지 플래그
+_HP_LOGGED = False
 # — W&B --------------------------------------------------------
 try:
     import wandb
@@ -331,8 +333,20 @@ def main():
         os.environ.setdefault("WANDB_API_KEY", str(cfg["wandb_api_key"]))
 
     # ────────────────── LOGGING & W&B ──────────────────
-    log_file = setup_logging(cfg)
-    log_hparams(cfg)
+    exp_dir = cfg.get("results_dir", ".")
+    logger = get_logger(
+        exp_dir,
+        level=cfg.get("log_level", "INFO"),
+        stream_level="INFO" if cfg.get("log_level", "INFO").upper() == "DEBUG" else cfg.get("log_level", "INFO")
+    )
+    cfg["logger"] = logger
+
+    global _HP_LOGGED
+    if not _HP_LOGGED:
+        logger.info("HParams:\n" + json.dumps(cfg, indent=2))
+        if wandb is not None and wandb.run:
+            wandb.config.update(cfg, allow_val_change=False)
+        _HP_LOGGED = True
 
     if cfg.get("use_wandb", False):
         if wandb is None:
@@ -358,13 +372,13 @@ def main():
         if key in cfg:
             cfg[key] = float(cfg[key])
 
-    logger = ExperimentLogger(cfg, exp_name="asmb_experiment")
-    logger.update_metric("use_amp", cfg.get("use_amp", False))
-    logger.update_metric("amp_dtype", cfg.get("amp_dtype", "float16"))
-    logger.update_metric("mbm_type", cfg.get("mbm_type", "MLP"))
-    logger.update_metric("mbm_r", cfg.get("mbm_r"))
-    logger.update_metric("mbm_n_head", cfg.get("mbm_n_head"))
-    logger.update_metric("mbm_learnable_q", cfg.get("mbm_learnable_q"))
+    exp_logger = ExperimentLogger(cfg, exp_name="asmb_experiment")
+    exp_logger.update_metric("use_amp", cfg.get("use_amp", False))
+    exp_logger.update_metric("amp_dtype", cfg.get("amp_dtype", "float16"))
+    exp_logger.update_metric("mbm_type", cfg.get("mbm_type", "MLP"))
+    exp_logger.update_metric("mbm_r", cfg.get("mbm_r"))
+    exp_logger.update_metric("mbm_n_head", cfg.get("mbm_n_head"))
+    exp_logger.update_metric("mbm_learnable_q", cfg.get("mbm_learnable_q"))
 
     device = cfg.get("device", "cuda")
     if device == "cuda" and not torch.cuda.is_available():
@@ -399,7 +413,7 @@ def main():
 
     num_classes = len(train_loader.dataset.classes)
     cfg["num_classes"] = num_classes
-    logger.update_metric("num_classes", num_classes)
+    exp_logger.update_metric("num_classes", num_classes)
     check_label_range(train_loader.dataset, num_classes)
     check_label_range(test_loader.dataset, num_classes)
 
@@ -543,8 +557,8 @@ def main():
     te2_acc = eval_teacher(teacher2, test_loader, device=device, cfg=cfg)
     print(f"[Main] Teacher1 ({teacher1_type}) testAcc={te1_acc:.2f}%")
     print(f"[Main] Teacher2 ({teacher2_type}) testAcc={te2_acc:.2f}%")
-    logger.update_metric("teacher1_test_acc", te1_acc)
-    logger.update_metric("teacher2_test_acc", te2_acc)
+    exp_logger.update_metric("teacher1_test_acc", te1_acc)
+    exp_logger.update_metric("teacher2_test_acc", te2_acc)
 
     # 5) Student
     student_name  = cfg.get("student_type", "resnet_adapter")   # e.g. resnet_adapter / efficientnet_adapter / swin_adapter
@@ -609,7 +623,7 @@ def main():
         feat_dim = student_model.get_feat_dim()
         if cfg.get("mbm_out_dim") in (None, 0):
             cfg["mbm_out_dim"] = feat_dim
-            logger.update_metric("mbm_out_dim", feat_dim)
+            exp_logger.update_metric("mbm_out_dim", feat_dim)
             print(
                 f"[Info] mbm_out_dim set to student feature dimension {feat_dim}"
             )
@@ -752,7 +766,7 @@ def main():
                 trainloader=train_loader,
                 testloader=test_loader,
                 cfg=cfg,
-                logger=logger,
+                logger=exp_logger,
                 optimizer=teacher_optimizer,
                 scheduler=teacher_scheduler,
                 global_ep=global_ep,
@@ -769,7 +783,7 @@ def main():
                 mode=cfg.get("disagree_mode", "both_wrong"),
             )
             print(f"[Stage {stage_id}] Teacher disagreement= {dis_rate:.2f}%")
-            logger.update_metric(f"stage{stage_id}_disagreement_rate", dis_rate)
+            exp_logger.update_metric(f"stage{stage_id}_disagreement_rate", dis_rate)
 
             # (B) Student distillation
             final_acc = student_distillation_update(
@@ -780,14 +794,14 @@ def main():
                 trainloader=train_loader,
                 testloader=test_loader,
                 cfg=cfg,
-                logger=logger,
+                logger=exp_logger,
                 optimizer=student_optimizer,
                 scheduler=student_scheduler,
                 global_ep=global_ep,
             )
             global_ep += student_epochs
             print(f"[Stage {stage_id}] Student final acc= {final_acc:.2f}%")
-            logger.update_metric(f"stage{stage_id}_student_acc", final_acc)
+            exp_logger.update_metric(f"stage{stage_id}_student_acc", final_acc)
 
     # 8) save final
     ckpt_dir = cfg.get("ckpt_dir", cfg["results_dir"])
@@ -795,8 +809,8 @@ def main():
     student_ckpt_path = os.path.join(ckpt_dir, "student_final.pth")
     torch.save(student_model.state_dict(), student_ckpt_path)
     print(f"[main] Distillation done => {student_ckpt_path}")
-    logger.update_metric("final_student_ckpt", student_ckpt_path)
-    logger.finalize()
+    exp_logger.update_metric("final_student_ckpt", student_ckpt_path)
+    exp_logger.finalize()
 
 if __name__ == "__main__":
     main()

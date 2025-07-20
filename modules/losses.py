@@ -69,7 +69,7 @@ def hybrid_kd_loss_fn(student_logits, teacher_logits, labels, alpha=0.5, T=4.0):
 
 # ---------- Information Bottleneck ----------
 def ib_loss(mu, logvar, beta: float = 1e-3, reduction: str = "mean"):
-    """Return β · KL\big(N(μ,σ^2) \| N(0,1)\big).
+    r"""Return β · KL\big(N(μ,σ^2) \| N(0,1)\big).
 
     Inputs are sanitized to avoid NaN/Inf issues when using mixed precision.
     """
