@@ -21,15 +21,22 @@ def setup_logging(cfg: dict):
     log_file = os.path.join(cfg.get("results_dir", "."), cfg.get("log_filename", "train.log"))
     _ensure_dir(log_file)
 
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s │ %(levelname)-5s │ %(message)s",
-        datefmt="%m-%d %H:%M:%S",
-        handlers=[
-            logging.FileHandler(log_file, mode="a"),
-            logging.StreamHandler(sys.stdout),
-        ],
-    )
+    fh = logging.FileHandler(log_file, mode="a")
+    ch = logging.StreamHandler(sys.stdout)
+
+    logger = logging.getLogger()
+    logger.setLevel(level)
+
+    # ── 중복 추가 방지 ────────────────────────────────
+    if not any(isinstance(h, logging.FileHandler) and getattr(h, "baseFilename", None) == log_file for h in logger.handlers):
+        logger.addHandler(fh)
+
+    if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
+        logger.addHandler(ch)
+
+    # 다른 서브‑logger 로 메시지가 두 번 올라오지 않도록
+    logger.propagate = False
+
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     logging.info("[logging_setup] log_file => %s   (level=%s)", log_file, logging.getLevelName(level))
     return log_file
