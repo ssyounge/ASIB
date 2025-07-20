@@ -157,9 +157,9 @@ def teacher_adaptive_update(
                         attn = None
                         ib_loss_val = 0.0
                         if cfg.get("use_ib", False):
+                            mu, logvar = mu.float(), logvar.float()
                             ib_loss_val = ib_loss(
-                                syn_feat, mu, logvar, y, decoder=synergy_head,
-                                beta=cfg.get("ib_beta", 1e-2)
+                                mu, logvar, beta=cfg.get("ib_beta", 1e-3)
                             )
                     else:
                         syn_feat, attn, _, _ = mbm(s_feat, feats_2d)
