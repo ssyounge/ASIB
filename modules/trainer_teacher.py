@@ -178,7 +178,9 @@ def teacher_adaptive_update(
                     y,
                     label_smoothing=cfg.get("label_smoothing", 0.0),
                 )
-                synergy_ce_loss = cfg["synergy_ce_alpha"] * loss_ce
+                # ① 누락 시 기본값 0.6
+                synergy_weight = cfg.get("synergy_ce_alpha", 0.6)
+                synergy_ce_loss = synergy_weight * loss_ce
 
                 if la_mode and attn is not None:
                     attn_sum += attn.mean().item() * x.size(0)
