@@ -170,7 +170,7 @@ def student_distillation_update(
                     s_logit, zsyn, T=cur_tau, reduction="none"
                 ).sum(dim=1)
 
-            # (B1) disagreement-based sample weights
+            # ── (B1) sample-weights (always same dtype as losses) ───────────
             if cfg.get("use_disagree_weight", False):
                 weights = sample_weights_from_disagreement(
                     t1_dict["logit"],
@@ -181,7 +181,9 @@ def student_distillation_update(
                     lambda_low=cfg.get("disagree_lambda_low", 1.0),
                 )
             else:
-                weights = torch.ones_like(y, dtype=torch.float32, device=y.device)
+                weights = torch.ones_like(y, dtype=s_logit.dtype, device=y.device)
+
+            weights = weights.to(s_logit.dtype)
 
             # apply sample weights to CE and KD losses computed above
             ce_loss_val = (weights * ce_vec).mean()
@@ -213,7 +215,10 @@ def student_distillation_update(
                         )
 
                     s_flat = s_feat.view(s_feat.size(0), -1)
-                    f_flat = fsyn_use.detach().view(fsyn_use.size(0), -1)
+                    # ensure same dtype to avoid Float↔Half mismatch
+                    f_flat = fsyn_use.detach().view(fsyn_use.size(0), -1).to(
+                        s_flat.dtype
+                    )
                     if s_flat.size(1) == f_flat.size(1):
                         feat_kd_val = torch.nn.functional.mse_loss(s_flat, f_flat)
                     else:
