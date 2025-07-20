@@ -68,26 +68,16 @@ def hybrid_kd_loss_fn(student_logits, teacher_logits, labels, alpha=0.5, T=4.0):
 
 
 # ---------- Information Bottleneck ----------
-def ib_loss(mu, logvar, beta: float = 1e-3, reduction: str = "mean"):
-    r"""Return β · KL\big(N(μ,σ^2) \| N(0,1)\big).
+def ib_loss(mu, logvar, beta: float = 1e-3, eps: float = 1e-6):
+    r"""Return β · KL(N(μ,σ²) ‖ N(0,1)).
 
-    Inputs are sanitized to avoid NaN/Inf issues when using mixed precision.
-    """
+    fp16 under-/overflow 방지를 위해 float32 캐스팅 후 clipping을 적용한다."""
 
-    # ----- NaN / Inf sanitize -----
-    mu = torch.nan_to_num(mu.float(), nan=0.0, posinf=1e4, neginf=-1e4)
-    logvar = torch.clamp(torch.nan_to_num(logvar.float(), nan=0.0), -10.0, 10.0)
+    mu = mu.float()
+    logvar = torch.clamp(logvar.float(), -10.0, 10.0)
 
-    # analytic KL  (N(μ,σ²) ‖ N(0,1))
-    var = torch.exp(logvar)
-    kl = 0.5 * (mu.pow(2) + var - 1.0 - logvar)
-
-    if reduction == "mean":
-        kl = kl.mean()
-    elif reduction == "sum":
-        kl = kl.sum()
-
-    return beta * kl
+    kl_elem = -0.5 * (1 + logvar - mu.pow(2) - logvar.exp())
+    return beta * kl_elem.mean()
 
 
 def dkd_loss(student_logits, teacher_logits, labels, alpha=1.0, beta=1.0, temperature=4.0):
