@@ -1,5 +1,6 @@
 """공통 로깅/모니터링 초기화."""
 import logging, os, sys, json, pprint
+import wandb
 from datetime import datetime
 
 try:
@@ -9,7 +10,9 @@ try:
 except ImportError:
     _RICH_OK = False
 
-__all__ = ["setup_logging", "log_hparams"]
+__all__ = ["setup_logging", "log_hparams", "get_logger"]
+
+_LOGGERS = {}        # cache (exp-id → logger)
 
 
 def _ensure_dir(path):
@@ -73,3 +76,54 @@ def log_hparams(cfg):
     with open(dst, "w") as f:
         json.dump(cfg, f, indent=2, default=str)
     logging.info("[logging_setup] hparams saved => %s", dst)
+
+
+def _wandb_log(text: str):
+    """stream train.log line ↔️ W&B console tab"""
+    if wandb.run is not None:
+        wandb.log({"logs": text}, commit=False)
+
+
+def get_logger(
+    exp_dir: str,
+    log_file: str = "train.log",
+    level: str = "INFO",
+    stream_level: str = "WARNING",
+):
+    """Return a logger that writes to file, console, and optionally W&B."""
+    gkey = os.path.abspath(os.path.join(exp_dir, log_file))
+    if gkey in _LOGGERS:
+        return _LOGGERS[gkey]
+
+    os.makedirs(exp_dir, exist_ok=True)
+    logger = logging.getLogger(gkey)
+    logger.setLevel(logging.DEBUG)
+
+    f_hdl = logging.FileHandler(gkey, mode="a", encoding="utf-8")
+    f_fmt = logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    f_hdl.setFormatter(f_fmt)
+    f_hdl.setLevel(getattr(logging, level.upper()))
+    logger.addHandler(f_hdl)
+
+    s_hdl = logging.StreamHandler(sys.stdout)
+    s_fmt = logging.Formatter("%(levelname)s | %(message)s")
+    s_hdl.setFormatter(s_fmt)
+    s_hdl.setLevel(getattr(logging, stream_level.upper()))
+    logger.addHandler(s_hdl)
+
+    class _WBHandler(logging.Handler):
+        def emit(self, record):
+            _wandb_log(self.format(record))
+
+    if wandb.run is not None:
+        wb_hdl = _WBHandler()
+        wb_hdl.setFormatter(f_fmt)
+        wb_hdl.setLevel(getattr(logging, level.upper()))
+        logger.addHandler(wb_hdl)
+
+    _LOGGERS[gkey] = logger
+    logger.propagate = False
+    return logger
