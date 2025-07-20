@@ -67,6 +67,8 @@ class ExperimentLogger:
 
         # Where to save results
         self.results_dir = self.config.get("results_dir", "results")
+        # ensure results_dir is recorded in config for downstream users
+        self.config.setdefault("results_dir", self.results_dir)
 
         # For timing
         self.start_time = time.time()
