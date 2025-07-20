@@ -293,8 +293,9 @@ class ASMBDistiller(nn.Module):
                     w1, w2 = None, None
                 zsyn = self.synergy_head(syn_feat)
 
-                # (i) -KL(s_logit, zsyn)
-                kl_val = kd_loss_fn(zsyn, s_logit, T=cur_tau)  # 여기선 sign 주의
+                # (i) KL(s_logit, zsyn)
+                # Synergy 가 Student 와 가까워지도록 **그대로 최소화**합니다.
+                kl_val = kd_loss_fn(zsyn, s_logit, T=cur_tau)
                 # (ii) synergy CE
                 ce_val = ce_loss_fn(
                     zsyn,
@@ -317,7 +318,7 @@ class ASMBDistiller(nn.Module):
                     reg_loss += (p**2).sum()
 
                 loss = (
-                    (-1.0) * kl_val
+                    kl_val
                     + synergy_ce
                     + self.feat_kd_alpha * feat_loss
                     + self.reg_lambda * reg_loss
