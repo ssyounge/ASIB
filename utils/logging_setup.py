@@ -148,7 +148,7 @@ def setup_logger(cfg: dict):
         level=logging.DEBUG,
         format="%(asctime)s │ %(levelname)-5s │ %(message)s",
         handlers=[fh_train, fh_run, ch],
-        force=True,
+        force=True,        # 중복 logger 초기화 방지
     )
     logger = logging.getLogger("KD")
 
