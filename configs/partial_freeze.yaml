@@ -17,7 +17,7 @@ teacher1_freeze_bn: false
 teacher2_freeze_level: 2   # EfficientNet-B2: 마지막 3 block train
 teacher2_freeze_bn: true
 
-student_freeze_level: 1    # student: layer4 + adapter train
-student_freeze_bn: false
-student_use_adapter: true
+student_freeze_level: 0        # freeze off
+student_freeze_bn: false       # BN 업데이트 허용
+student_use_adapter: true      # adapter 는 그대로 사용
 num_workers: 2
