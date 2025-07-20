@@ -118,7 +118,6 @@ def parse_args():
     parser.add_argument('--ce_alpha', type=float)
     parser.add_argument('--ib_beta', type=float)
     parser.add_argument('--teacher_adapt_epochs', type=int)
-    parser.add_argument('--student_epochs_per_stage', type=int)
     parser.add_argument('--use_ib', type=lambda x: str(x).lower()=='true')
     # ---------------------------------------------- #
 
