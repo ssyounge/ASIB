@@ -367,7 +367,6 @@ def main():
         level=cfg.get("log_level", "INFO"),
         stream_level="INFO" if cfg.get("log_level", "INFO").upper() == "DEBUG" else cfg.get("log_level", "INFO")
     )
-    cfg["logger"] = logger
 
     global _HP_LOGGED
     if not _HP_LOGGED:
