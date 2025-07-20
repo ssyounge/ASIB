@@ -15,13 +15,14 @@ grad_scaler_init_scale: 1024
 log_filename: "train.log"
 # 로그 상세도 ― "INFO" | "DEBUG"
 log_level: "DEBUG"
+log_step_interval: 100     # 100 step마다 detail 로그
 
 save_checkpoint: true
 ckpt_dir: "./checkpoints"
 
 # ────────────── Logging & Dashboard ──────────────
 log_all_hparams: true        # 모든 하이퍼파라미터 표 형태 출력
-disable_tqdm: true           # progress-bar 숨기기(=PROGRESS=0)
+disable_tqdm: false          # 진행바 ON
 
 # ────────────── Weights & Biases ────────────────
 use_wandb: true
