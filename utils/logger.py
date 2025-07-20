@@ -6,12 +6,15 @@ import json
 import time
 from datetime import datetime
 
+
+def _json_default(obj):
+    """Fallback serialization for unsupported objects."""
+    return str(obj)
+
 def save_json(exp_dict, save_path):
-    """
-    Save exp_dict (configs + results) as a JSON file.
-    """
-    with open(save_path, 'w') as f:
-        json.dump(exp_dict, f, indent=4)
+    """Save ``exp_dict`` (configs + results) as a JSON file."""
+    with open(save_path, "w") as f:
+        json.dump(exp_dict, f, indent=4, default=_json_default)
 
 def save_csv_row(exp_dict, csv_path, fieldnames, write_header_if_new=True):
     """
@@ -113,6 +116,8 @@ class ExperimentLogger:
         # 1) total time
         total_time = time.time() - self.start_time
         self.config["total_time_sec"] = total_time
+        # drop unserializable objects before saving
+        self.config.pop("logger", None)
 
 
         # Ensure results directory exists
