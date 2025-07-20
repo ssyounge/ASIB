@@ -114,10 +114,19 @@ from models.mbm import ManifoldBridgingModule, SynergyHead, build_from_teachers
 def parse_args():
     parser = argparse.ArgumentParser()
 
+    # ------------ sweep override flag -------------  #
+    parser.add_argument('--ce_alpha', type=float)
+    parser.add_argument('--ib_beta', type=float)
+    parser.add_argument('--teacher_adapt_epochs', type=int)
+    parser.add_argument('--student_epochs_per_stage', type=int)
+    parser.add_argument('--use_ib', type=lambda x: str(x).lower()=='true')
+    # ---------------------------------------------- #
+
     # (1) YAML 파일
     parser.add_argument("--config", type=str,
                         default="configs/default.yaml",
                         help="Path to yaml config for distillation")
+    parser.add_argument("--hparams", type=str, default=None)
 
     # (2) sweep 할 때 바꿀 필드들 ▶ YAML 값을 CLI-인자가 **덮어쓰도록** 할 목적
     parser.add_argument("--teacher1_type", type=str)
@@ -201,6 +210,14 @@ def load_config(cfg_path):
         with open(cfg_path, 'r') as f:
             return yaml.safe_load(f)
     return {}
+
+def load_cfg(cfg_path, hparams_path=None):
+    cfg = load_config(cfg_path)
+    if hparams_path and os.path.exists(hparams_path):
+        with open(hparams_path, 'r') as f:
+            hp = yaml.safe_load(f) or {}
+        cfg.update(hp)
+    return cfg
 
 def create_teacher_by_name(
     teacher_name,
@@ -320,9 +337,21 @@ def main():
     args = parse_args()
 
     # 2) load config from YAML
-    base_cfg = load_config(args.config)
+    base_cfg = load_cfg(args.config, args.hparams)
     cli_cfg = {k: v for k, v in vars(args).items() if v is not None}
     cfg = {**base_cfg, **cli_cfg}
+    # ---- apply sweep overrides if not None ---- #
+    for k in [
+        'ce_alpha',
+        'ib_beta',
+        'teacher_adapt_epochs',
+        'student_epochs_per_stage',
+        'use_ib',
+    ]:
+        v = getattr(args, k)
+        if v is not None:
+            cfg[k] = v
+    # ------------------------------------------- #
 
     # ── tqdm 전체 OFF ─────────────────────────────
     if cfg.get("disable_tqdm", False):
