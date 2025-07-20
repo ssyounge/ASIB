@@ -17,6 +17,10 @@ def _ensure_dir(path):
 
 
 def setup_logging(cfg: dict):
+    # ── 중복 로그 핸들러 방지 ─────────────────────────────
+    for h in logging.root.handlers[:]:
+        logging.root.removeHandler(h)
+
     level = getattr(logging, cfg.get("log_level", "INFO").upper(), logging.INFO)
     log_file = os.path.join(cfg.get("results_dir", "."), cfg.get("log_filename", "train.log"))
     _ensure_dir(log_file)
