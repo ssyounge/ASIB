@@ -10,6 +10,8 @@ parameters:
   use_ib:        {values: [false, true]}      # ablation
   ib_beta:       {values: [0.0, 0.001, 0.01]}
   seed:          {values: [42, 777]}
+  teacher1_type: {value: resnet152}
+  teacher2_type: {value: efficientnet_b2}
 
 command:
   - ${env}
