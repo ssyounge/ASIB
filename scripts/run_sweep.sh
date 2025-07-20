@@ -26,11 +26,24 @@ export WANDB_ENTITY="kakamy0820-yonsei-university"
 export WANDB_PROJECT="kd_monitor"
 # export WANDB_API_KEY="<원하면_직접_기입>"
 
-# ---------- Sweep 생성 (array 0번만) ----------
+# ---------------------------------------------------------------------------
+#  Sweep 생성 (array-id 0) →  stdout 파싱으로 SWEEP_ID 추출
+# ---------------------------------------------------------------------------
 SWEEP_FILE="sweeps/asmb_grid.yaml"
 if [[ "${AGENT_ID}" == "0" ]]; then
     echo "📡  Creating sweep from ${SWEEP_FILE} ..."
-    SWEEP_ID=$(wandb sweep --quiet "${SWEEP_FILE}" | tail -n1 | awk '{print $NF}')
+    CREATE_LOG=$(wandb sweep "${SWEEP_FILE}" 2>&1)
+    echo "${CREATE_LOG}"
+
+    # 예시 출력:
+    # wandb: Run `wandb agent kakamy0820-yonsei-university/kd_monitor/xyz123` to run agents.
+    SWEEP_PATH=$(echo "${CREATE_LOG}" | grep -oE 'wandb agent [^`]*' | head -n1 | awk '{print $3}')
+    SWEEP_ID=${SWEEP_PATH##*/}           # xyz123
+
+    if [[ -z "${SWEEP_ID}" ]]; then
+        echo "❌  Sweep ID 파싱 실패, 로그 확인 필요"; exit 1
+    fi
+
     echo "${SWEEP_ID}" | tee "sweep_id_${JOB_ID}.txt"
 fi
 
