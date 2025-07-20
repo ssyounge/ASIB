@@ -22,7 +22,7 @@ small_input: true
 # Lists used by run_experiments.sh when looping
 teacher1_list: ["resnet152"]
 teacher2_list: ["efficientnet_b2", "swin_tiny"]
-student_list: ["resnet_adapter", "resnet152_adapter"]
+student_list: ["resnet_adapter"]      # 첫 실험은 하나로 충분
 method_list: ["asmb", "vanilla_kd", "dkd", "crd", "at", "fitnet"] # "asmb", "vanilla_kd", "dkd", "crd", "at", "fitnet"
 
 # Partial-freeze / adapter options
@@ -40,8 +40,8 @@ swin_adapter_dim: 64  # hidden size for student_swin_adapter
 # ===============================================================
 # 3. Fine-tuning Hyperparameters
 # ===============================================================
-finetune_epochs: 200
-finetune_lr: 0.001
+finetune_epochs: 10                  # teacher 성능 ↑ → distill 성능 ↑
+finetune_lr: 3e-4                    # backbone 을 크게 흔들지 않는 범위
 finetune_weight_decay: 0.0005
 finetune_use_cutmix: true
 finetune_cutmix_alpha: 1.0
@@ -54,12 +54,13 @@ teacher_lr: 3e-4
 student_lr: 5e-4
 teacher_weight_decay: 1e-4
 student_weight_decay: 3e-4
-ce_alpha: 0.3
-kd_alpha: 0.4
+ce_alpha: 0.25
+kd_alpha: 0.45               # KD 비중 ↑ (교사 성능 높아서 효과적)
 cutmix_alpha_distill: 0.0  # CutMix alpha used during distillation
 
 # Learning rate schedule
 lr_schedule: "cosine"       # "step" or "cosine"
+lr_warmup_epochs: 2          # 10% warm-up
 teacher_step_size: 10
 teacher_gamma: 0.1
 student_step_size: 10
@@ -69,23 +70,24 @@ student_gamma: 0.1
 temperature_schedule: "linear_decay"
 tau_start: 6.0
 tau_end: 2.0
-tau_decay_epochs: 40
-mbm_out_dim: 1024
+tau_decay_epochs: 4          # stage 수와 동일하게
+mbm_out_dim: 2048            # student feat_dim 과 일치
 mbm_reg: 2e-5         # default sweep value
-reg_lambda: 5e-5      # teacher L2 regularisation
+reg_lambda: 2e-5             # L2 강도 살짝 완화
 mbm_dropout: 0.1      # dropout prob inside MBM
 head_dropout: 0.0     # dropout prob for synergy head
 
 # Sweep/loop variables
 # N_STAGE_LIST accepts a space-separated list of stage counts,
 # e.g. "2 3 4 5" to run multiple values in a batch script.
-n_stage_list: 5
+num_stages: 4
+n_stage_list: 4
 sc_alpha_list: "0.6" # 0.3 0.6
 # Additional sweep lists
 hybrid_beta_list: "0.1"       # e.g. "0.1 0.5 0.9"
 # Epoch sweep lists
-teacher_adapt_epochs_list: "10"
-student_epochs_per_stage_list: "40"
+teacher_adapt_epochs_list: "3"
+student_epochs_per_stage_list: "15"
 # Teacher adaptation
 teacher_adapt_alpha_kd: 1.0
 mbm_lr_factor: 2.0
@@ -111,15 +113,15 @@ label_smoothing: 0.0
 mixup_alpha: 0.2
 
 # --- Feature KD ---
-feat_kd_alpha: 0.3
+feat_kd_alpha: 0.2           # logit KD 비중이 커졌으므로 약간 ↓
 feat_kd_key: "feat_2d"
 feat_kd_norm: "none"
 rkd_loss_weight: 1.0
 rkd_gamma: 0.6
 
 # --- Disagreement weighting ---
-use_disagree_weight: false
-disagree_mode: "pred"
-disagree_lambda_high: 1.0
-disagree_lambda_low: 1.0
+use_disagree_weight: true
+disagree_mode: "both_wrong"
+disagree_lambda_high: 1.2
+disagree_lambda_low: 0.8
 
