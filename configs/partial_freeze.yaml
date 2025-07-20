@@ -9,13 +9,15 @@
 # Actual patterns depend on the architecture; see modules/partial_freeze.py
 
 
+teacher1_freeze_level: 2   # ResNet-152: layer3+4 train
+
+# BN / LN 업데이트 허용 (adapter 가 새 BN 을 학습해야 안정)
 teacher1_freeze_bn: false
-teacher1_freeze_level: 2
 
+teacher2_freeze_level: 2   # EfficientNet-B2: 마지막 3 block train
 teacher2_freeze_bn: true
-teacher2_freeze_level: 2
 
+student_freeze_level: 1    # student: layer4 + adapter train
 student_freeze_bn: false
-student_freeze_level: 2
 student_use_adapter: true
 num_workers: 2
