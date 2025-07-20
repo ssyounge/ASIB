@@ -9,7 +9,7 @@ parameters:
   student_epochs_per_stage: {value: 12}
   use_ib:        {values: [false, true]}      # ablation
   ib_beta:       {values: [0.0, 0.001, 0.01]}
-  synergy_ce_alpha:{value: 0.6}
+  synergy_ce_alpha: {value: 0.6}
   seed:          {values: [42, 777]}
   teacher1_type: {value: resnet152}
   teacher2_type: {value: efficientnet_b2}
