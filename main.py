@@ -26,7 +26,7 @@ try:
     import wandb
 except ModuleNotFoundError:
     wandb = None
-from utils.misc import set_random_seed, check_label_range, get_model_num_classes
+from utils.misc import set_random_seed, check_label_range, get_model_num_classes, sanitize_cfg
 from modules.disagreement import compute_disagreement_rate
 from modules.trainer_teacher import teacher_adaptive_update
 from modules.trainer_student import student_distillation_update
@@ -343,7 +343,7 @@ def main():
 
     global _HP_LOGGED
     if not _HP_LOGGED:
-        logger.info("HParams:\n" + json.dumps(cfg, indent=2))
+        logger.info("HParams:\n" + json.dumps(sanitize_cfg(cfg), indent=2))
         if wandb is not None and wandb.run:
             wandb.config.update(cfg, allow_val_change=False)
         _HP_LOGGED = True

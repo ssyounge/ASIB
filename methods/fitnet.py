@@ -62,11 +62,21 @@ class FitNetDistiller(nn.Module):
         # 1) hint/guided MSE
         t_feat = t_dict[self.hint_key]  # e.g. [N, C_t, H_t, W_t] 
         s_feat = s_dict[self.guided_key]
-        # 학생 특징맵을 변환기의 채널로 변환 후, 스승의 공간 크기에 맞춰 풀링
-        s_feat_regressed = self.regressor(s_feat)
-        s_feat_resized = F.adaptive_avg_pool2d(
-            s_feat_regressed, (t_feat.shape[2], t_feat.shape[3])
+        s_feat_resized = F.interpolate(
+            s_feat, size=t_feat.shape[-2:], mode="bilinear", align_corners=False
         )
+
+        # 채널 불일치 시 1×1 Conv projection
+        if s_feat_resized.shape[1] != t_feat.shape[1]:
+            if not hasattr(self, "_proj_conv"):
+                self._proj_conv = torch.nn.Conv2d(
+                    in_channels=s_feat_resized.shape[1],
+                    out_channels=t_feat.shape[1],
+                    kernel_size=1,
+                    bias=False,
+                ).to(s_feat.device)
+            s_feat_resized = self._proj_conv(s_feat_resized)
+
         hint_loss = F.mse_loss(s_feat_resized, t_feat)
 
         # 2) CE

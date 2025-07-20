@@ -5,6 +5,19 @@ import torch
 import random
 import numpy as np
 import inspect
+import logging
+import copy
+
+# ----------------------------------------------------------------------------
+def sanitize_cfg(cfg: dict) -> dict:
+    """Return a JSON-serializable copy of ``cfg``."""
+    cfg_clean = {}
+    for k, v in cfg.items():
+        if isinstance(v, logging.Logger):
+            cfg_clean[k] = str(v)
+        else:
+            cfg_clean[k] = v
+    return cfg_clean
 
 # ── NEW: backwards-compatible torch.load ──────────────────────
 if "weights_only" not in inspect.signature(torch.load).parameters:
