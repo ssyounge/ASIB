@@ -52,7 +52,7 @@ finetune_alpha: 1.0
 # ===============================================================
 # 4. Distillation Hyperparameters
 # ===============================================================
-teacher_lr: 3e-4
+teacher_lr: 1e-4
 student_lr: 0.001              # full fine-tune 에 맞춰 2× 상승
 teacher_weight_decay: 1e-4
 student_weight_decay: 3e-4
@@ -62,7 +62,7 @@ cutmix_alpha_distill: 0.0  # CutMix alpha used during distillation
 
 # Learning rate schedule
 lr_schedule: "cosine"       # "step" or "cosine"
-lr_warmup_epochs: 3                   # warm-up 3 ep (60 ep × 5 %)
+lr_warmup_epochs: 5
 teacher_step_size: 10
 teacher_gamma: 0.1
 student_step_size: 10
@@ -75,7 +75,7 @@ tau_end: 2.0
 tau_decay_epochs: 4          # stage 수와 동일하게
 mbm_out_dim: 2048            # student feat_dim 과 일치
 mbm_reg: 2e-5         # default sweep value
-ib_beta: 0.005                 # 정보량 제약 완화
+ib_beta: 0.001
 reg_lambda: 2e-5             # L2 강도 살짝 완화
 mbm_dropout: 0.1      # dropout prob inside MBM
 head_dropout: 0.0     # dropout prob for synergy head
@@ -86,6 +86,7 @@ head_dropout: 0.0     # dropout prob for synergy head
 num_stages: 4
 n_stage_list: 4
 sc_alpha_list: "0.6" # 0.3 0.6
+hybrid_beta: 0.2
 # Additional sweep lists
 hybrid_beta_list: "0.1"       # e.g. "0.1 0.5 0.9"
 # Epoch sweep lists
@@ -106,7 +107,7 @@ mbm_learnable_q: true
 mbm_query_dim: 0
 
 # Misc
-grad_clip_norm: 1.0
+grad_clip_norm: 2.0
 
 # ===============================================================
 # 5. Other Advanced Options

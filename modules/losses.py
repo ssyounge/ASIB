@@ -44,6 +44,10 @@ def kd_loss_fn(student_logits, teacher_logits, T=4.0, reduction="batchmean"):
     if teacher_logits.dim() > 2:
         teacher_logits = teacher_logits.mean(dim=tuple(range(2, teacher_logits.dim())))
 
+    # half-precision overflow 방지
+    student_logits = student_logits.float()
+    teacher_logits = teacher_logits.float()
+
     # student prob (with log) under temperature
     s_log_probs = F.log_softmax(student_logits / T, dim=1)
     # teacher prob under temperature
@@ -64,27 +68,26 @@ def hybrid_kd_loss_fn(student_logits, teacher_logits, labels, alpha=0.5, T=4.0):
 
 
 # ---------- Information Bottleneck ----------
-def ib_loss(z, mu, logvar, labels, decoder, beta: float = 1e-2):
-    """I(B;Y) - β·I(B;T) 형태의 IB loss.
+def ib_loss(mu, logvar, beta: float = 1e-3, reduction: str = "mean"):
+    """Return β · KL\big(N(μ,σ^2) \| N(0,1)\big).
 
-    Parameters
-    ----------
-    z : Tensor
-        Re-parameterised sample.
-    mu, logvar : Tensor
-        Encoder statistics.
-    labels : Tensor
-        Ground-truth labels.
-    decoder : nn.Module
-        Module producing logits from z.
-    beta : float, optional
-        Trade-off coefficient.
+    Inputs are sanitized to avoid NaN/Inf issues when using mixed precision.
     """
-    suff = torch.nn.CrossEntropyLoss()(decoder(z), labels)
-    q = torch.distributions.Normal(mu, torch.exp(0.5 * logvar))
-    p = torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(mu))
-    minm = beta * torch.distributions.kl.kl_divergence(q, p).mean()
-    return suff + minm
+
+    # ----- NaN / Inf sanitize -----
+    mu = torch.nan_to_num(mu.float(), nan=0.0, posinf=1e4, neginf=-1e4)
+    logvar = torch.clamp(torch.nan_to_num(logvar.float(), nan=0.0), -10.0, 10.0)
+
+    # analytic KL  (N(μ,σ²) ‖ N(0,1))
+    var = torch.exp(logvar)
+    kl = 0.5 * (mu.pow(2) + var - 1.0 - logvar)
+
+    if reduction == "mean":
+        kl = kl.mean()
+    elif reduction == "sum":
+        kl = kl.sum()
+
+    return beta * kl
 
 
 def dkd_loss(student_logits, teacher_logits, labels, alpha=1.0, beta=1.0, temperature=4.0):
