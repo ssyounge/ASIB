@@ -133,10 +133,9 @@ def student_distillation_update(
                         attn = None
                         # optional IB loss
                         if cfg.get("use_ib", False):
-                            ib_beta = cfg.get("ib_beta", 1e-2)
-                            ib_loss_val = ib_loss(
-                                syn_feat, mu, logvar, y, decoder=synergy_head, beta=ib_beta
-                            )
+                            ib_beta = cfg.get("ib_beta", 1e-3)
+                            mu, logvar = mu.float(), logvar.float()
+                            ib_loss_val = ib_loss(mu, logvar, beta=ib_beta)
                         else:
                             ib_loss_val = torch.tensor(0.0, device=cfg["device"])
                     else:  # LA MBM

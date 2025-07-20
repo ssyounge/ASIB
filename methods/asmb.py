@@ -293,8 +293,7 @@ class ASMBDistiller(nn.Module):
                     w1, w2 = None, None
                 zsyn = self.synergy_head(syn_feat)
 
-                # (i) KL(s_logit, zsyn)
-                # Synergy 가 Student 와 가까워지도록 **그대로 최소화**합니다.
+                # (i)  KL(zsyn \u2016 s_logit) \u2190 최소화 방향 그대로 사용
                 kl_val = kd_loss_fn(zsyn, s_logit, T=cur_tau)
                 # (ii) synergy CE
                 ce_val = ce_loss_fn(
@@ -329,6 +328,7 @@ class ASMBDistiller(nn.Module):
 
                 optimizer.zero_grad()
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(params, max_norm=2.0)
                 optimizer.step()
 
                 bs = x.size(0)
