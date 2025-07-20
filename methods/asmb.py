@@ -60,6 +60,8 @@ class ASMBDistiller(nn.Module):
         self.num_stages = num_stages
         self.device = device
         self.config = config if config is not None else {}
+        self.log_int = int(self.config.get("log_step_interval", 100))
+        self.logger = self.config.get("logger")
 
         # 기본 Loss
         self.ce_loss_fn = nn.CrossEntropyLoss()
@@ -181,15 +183,15 @@ class ASMBDistiller(nn.Module):
         best_student_state = copy.deepcopy(self.student.state_dict())
 
         for stage in range(1, self.num_stages+1):
-            if logger:
-                logger.info(f"\n[ASMB] Stage {stage}/{self.num_stages} 시작.")
+            if self.logger:
+                self.logger.info(f"\n[ASMB] Stage {stage}/{self.num_stages} 시작.")
 
             # (A) Teacher Update
             self._teacher_adaptive_update(
                 train_loader,
                 optimizer=teacher_optimizer,
                 epochs=epochs_per_stage,
-                logger=logger,
+                logger=self.logger,
             )
             # (optional) synergy eval
 
@@ -200,7 +202,7 @@ class ASMBDistiller(nn.Module):
                 optimizer=student_optimizer,
                 scheduler=student_scheduler,
                 epochs=epochs_per_stage,
-                logger=logger,
+                logger=self.logger,
                 label_smoothing=self.config.get("label_smoothing", 0.0),
             )
             if acc > best_acc:
@@ -209,8 +211,8 @@ class ASMBDistiller(nn.Module):
 
         # 마지막에 best 복원
         self.student.load_state_dict(best_student_state)
-        if logger:
-            logger.info(f"[ASMB] Done. best student acc= {best_acc:.2f}")
+        if self.logger:
+            self.logger.info(f"[ASMB] Done. best student acc= {best_acc:.2f}")
         return best_acc
 
     def _teacher_adaptive_update(
@@ -261,6 +263,7 @@ class ASMBDistiller(nn.Module):
 
         self.teacher1.train()
         self.teacher2.train()
+        logger = logger or self.logger
         self.mbm.train()
         self.synergy_head.train()
         self.student.eval()   # Student 고정
@@ -336,8 +339,8 @@ class ASMBDistiller(nn.Module):
                 total_num  += bs
 
             avg_loss = total_loss / total_num
-            if logger:
-                logger.info(f"[TeacherUpdate] ep={ep} => loss={avg_loss:.4f}")
+            if self.logger:
+                self.logger.info(f"[TeacherUpdate] ep={ep} => loss={avg_loss:.4f}")
 
     def _student_distill_update(
         self,
@@ -359,6 +362,7 @@ class ASMBDistiller(nn.Module):
         # freeze teacher
         self.teacher1.eval()
         self.teacher2.eval()
+        logger = logger or self.logger
         for p in self.teacher1.parameters():
             p.requires_grad = False
         for p in self.teacher2.parameters():
@@ -473,8 +477,8 @@ class ASMBDistiller(nn.Module):
             if test_loader is not None:
                 acc = self.evaluate(test_loader)
 
-            if logger:
-                logger.info(f"[StudentDistill] ep={ep} => loss={avg_loss:.4f}, acc={acc:.2f}")
+            if self.logger:
+                self.logger.info(f"[StudentDistill] ep={ep} => loss={avg_loss:.4f}, acc={acc:.2f}")
 
             if acc > best_acc:
                 best_acc = acc
