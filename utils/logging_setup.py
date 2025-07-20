@@ -1,5 +1,6 @@
 """공통 로깅/모니터링 초기화."""
 import logging, os, sys, json, pprint
+from pathlib import Path
 import wandb
 from datetime import datetime
 
@@ -10,7 +11,7 @@ try:
 except ImportError:
     _RICH_OK = False
 
-__all__ = ["setup_logging", "log_hparams", "get_logger"]
+__all__ = ["setup_logging", "log_hparams", "get_logger", "setup_logger"]
 
 _LOGGERS = {}        # cache (exp-id → logger)
 
@@ -126,4 +127,32 @@ def get_logger(
 
     _LOGGERS[gkey] = logger
     logger.propagate = False
+    return logger
+
+
+def setup_logger(cfg: dict):
+    """Return a basic three-channel logger (train.log, run.log, console)."""
+    log_dir = Path(cfg.get("results_dir", "."))
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    fh_train = logging.FileHandler(log_dir / "train.log", mode="w")
+    fh_train.setLevel(logging.DEBUG)
+
+    fh_run = logging.FileHandler(log_dir / "run.log", mode="w")
+    fh_run.setLevel(logging.INFO)
+
+    ch = logging.StreamHandler(sys.stdout)
+    ch.setLevel(logging.INFO if cfg.get("disable_tqdm", False) else logging.WARNING)
+
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s │ %(levelname)-5s │ %(message)s",
+        handlers=[fh_train, fh_run, ch],
+        force=True,
+    )
+    logger = logging.getLogger("KD")
+
+    if cfg.get("log_all_hparams", False):
+        logger.info("HParams:")
+        logger.info(json.dumps(cfg, indent=2, default=str))
     return logger
