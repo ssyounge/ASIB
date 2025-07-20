@@ -26,7 +26,9 @@ student_list: ["resnet_adapter"]      # 첫 실험은 하나로 충분
 method_list: ["asmb", "vanilla_kd", "dkd", "crd", "at", "fitnet"] # "asmb", "vanilla_kd", "dkd", "crd", "at", "fitnet"
 
 # Partial-freeze / adapter options
-use_partial_freeze: true
+use_partial_freeze: false      # 첫 실험은 full fine-tune 로 성능 ceiling 파악
+student_freeze_level: 0        # head 만 고정 (실제로는 전체 학습)
+student_use_adapter: true
 teacher1_use_adapter: 0
 teacher1_bn_head_only: 0
 teacher2_use_adapter: 0
@@ -51,16 +53,16 @@ finetune_alpha: 1.0
 # 4. Distillation Hyperparameters
 # ===============================================================
 teacher_lr: 3e-4
-student_lr: 5e-4
+student_lr: 0.001              # full fine-tune 에 맞춰 2× 상승
 teacher_weight_decay: 1e-4
 student_weight_decay: 3e-4
 ce_alpha: 0.25
-kd_alpha: 0.45               # KD 비중 ↑ (교사 성능 높아서 효과적)
+kd_alpha: 0.55                 # logit KD 비중 ↑ (freeze 해제 됐으므로 수용력↑)
 cutmix_alpha_distill: 0.0  # CutMix alpha used during distillation
 
 # Learning rate schedule
 lr_schedule: "cosine"       # "step" or "cosine"
-lr_warmup_epochs: 2          # 10% warm-up
+lr_warmup_epochs: 3                   # warm-up 3 ep (60 ep × 5 %)
 teacher_step_size: 10
 teacher_gamma: 0.1
 student_step_size: 10
@@ -73,6 +75,7 @@ tau_end: 2.0
 tau_decay_epochs: 4          # stage 수와 동일하게
 mbm_out_dim: 2048            # student feat_dim 과 일치
 mbm_reg: 2e-5         # default sweep value
+ib_beta: 0.005                 # 정보량 제약 완화
 reg_lambda: 2e-5             # L2 강도 살짝 완화
 mbm_dropout: 0.1      # dropout prob inside MBM
 head_dropout: 0.0     # dropout prob for synergy head
@@ -87,7 +90,7 @@ sc_alpha_list: "0.6" # 0.3 0.6
 hybrid_beta_list: "0.1"       # e.g. "0.1 0.5 0.9"
 # Epoch sweep lists
 teacher_adapt_epochs_list: "3"
-student_epochs_per_stage_list: "15"
+student_epochs_per_stage_list: "12"   # full fine-tune 는 수렴 빠르므로 12 ep 로 균형
 # Teacher adaptation
 teacher_adapt_alpha_kd: 1.0
 mbm_lr_factor: 2.0
@@ -113,7 +116,7 @@ label_smoothing: 0.0
 mixup_alpha: 0.2
 
 # --- Feature KD ---
-feat_kd_alpha: 0.2           # logit KD 비중이 커졌으므로 약간 ↓
+feat_kd_alpha: 0.15            # logit KD 증가에 따라 비중 소폭 ↓
 feat_kd_key: "feat_2d"
 feat_kd_norm: "none"
 rkd_loss_weight: 1.0
