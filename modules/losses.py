@@ -69,9 +69,9 @@ def hybrid_kd_loss_fn(student_logits, teacher_logits, labels, alpha=0.5, T=4.0):
 
 # ---------- Information Bottleneck ----------
 def ib_loss(mu, logvar, beta: float = 1e-3):
-    r"""Return β · KL\big(N(μ,σ²) \| N(0,1)\big).
+    r"""Return β · KL\big(N(μ,σ²) \| N(0, 1)\big).
 
-    fp16 under-/overflow 방지를 위해 float32 캐스팅 후 clipping을 적용한다."""
+    fp16 under-/overflow 방지를 위해 float32 캐스팅 후 clipping을 적용한다."""  # <- r-string 로 SyntaxWarning 제거
 
     mu = mu.float()
     logvar = torch.clamp(logvar.float(), -10.0, 10.0)
