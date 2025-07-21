@@ -48,6 +48,7 @@ finetune_weight_decay: 0.0005
 finetune_use_cutmix: true
 finetune_cutmix_alpha: 1.0
 finetune_alpha: 1.0
+force_refinetune: false
 
 # ===============================================================
 # 4. Distillation Hyperparameters
