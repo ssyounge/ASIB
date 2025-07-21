@@ -47,8 +47,10 @@ parameters:             # ---- Hyper-search 공간 ----
 # 실행 커맨드 (W&B 새 규격: list 형)
 command:
   - ${env}
-  - python
-  - main.py
-  - "--config=configs/default.yaml"
-  - "--hparams=configs/hparams.yaml"
+  - bash
+  - scripts/run_experiments.sh
+  - --mode
+  - loop
+  - --output_dir
+  - outputs/sweep_${RUN_ID}
   - ${args}
