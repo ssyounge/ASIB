@@ -6,7 +6,7 @@ from utils.progress import smart_tqdm
 from models.la_mbm import LightweightAttnMBM
 from modules.ib_mbm import IB_MBM
 
-from modules.losses import kd_loss_fn, ce_loss_fn, ib_loss
+from modules.losses import kd_loss_fn, ce_loss_fn, ib_loss, certainty_weights
 from utils.schedule import get_tau, get_beta
 from utils.misc import get_amp_components
 
@@ -171,12 +171,27 @@ def teacher_adaptive_update(
                 zsyn = synergy_head(fsyn)
 
                 # (D) compute loss (KL + synergyCE)
-                loss_kd         = kd_loss_fn(zsyn, s_logit, T=cur_tau)
-                loss_ce         = ce_loss_fn(
-                    zsyn,
-                    y,
-                    label_smoothing=cfg.get("label_smoothing", 0.0),
-                )
+                if cfg.get("use_ib", False) and isinstance(mbm, IB_MBM):
+                    ce_vec = ce_loss_fn(
+                        zsyn,
+                        y,
+                        label_smoothing=cfg.get("label_smoothing", 0.0),
+                        reduction="none",
+                    )
+                    kd_vec = kd_loss_fn(
+                        zsyn, s_logit, T=cur_tau, reduction="none"
+                    ).sum(dim=1)
+                    cw = certainty_weights(logvar).mean(dim=1).to(zsyn.dtype)
+                    loss_ce = (cw * ce_vec).mean()
+                    loss_kd = (cw * kd_vec).mean()
+                else:
+                    loss_kd = kd_loss_fn(zsyn, s_logit, T=cur_tau)
+                    loss_ce = ce_loss_fn(
+                        zsyn,
+                        y,
+                        label_smoothing=cfg.get("label_smoothing", 0.0),
+                    )
+
                 # ① 누락 시 기본값 0.6
                 synergy_weight = cfg.get("synergy_ce_alpha", 0.6)
                 synergy_ce_loss = synergy_weight * loss_ce
