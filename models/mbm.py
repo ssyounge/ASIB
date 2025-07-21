@@ -144,6 +144,7 @@ def build_from_teachers(
             n_head=cfg.get("mbm_n_head", 1),
             learnable_q=cfg.get("mbm_learnable_q", False),
             query_dim=qdim,
+            loop_threshold=cfg.get("mbm_loop_threshold", 8),
         )
     else:
         mbm = ManifoldBridgingModule(
