@@ -119,6 +119,18 @@ def parse_args():
     # ------------ sweep override flag -------------  #
     parser.add_argument('--ce_alpha', type=float)
     parser.add_argument('--ib_beta', type=float)
+    parser.add_argument('--kd_alpha', type=float)
+    parser.add_argument('--hybrid_beta', type=float)
+
+    # temperature schedule
+    parser.add_argument('--tau_start', type=float)
+    parser.add_argument('--tau_end', type=float)
+    parser.add_argument('--tau_decay_epochs', type=int)
+
+    # optimisation / schedule
+    parser.add_argument('--student_lr', type=float)
+    parser.add_argument('--student_epochs_per_stage', type=int)
+
     parser.add_argument('--teacher_adapt_epochs', type=int)
     parser.add_argument('--use_ib', type=lambda x: str(x).lower()=='true')
     # ---------------------------------------------- #
@@ -136,15 +148,12 @@ def parse_args():
     parser.add_argument("--teacher2_ckpt", type=str)
     parser.add_argument("--num_stages",   type=int)
     parser.add_argument("--synergy_ce_alpha", type=float)    # α
-    parser.add_argument("--hybrid_beta", type=float)
     parser.add_argument("--student_type", type=str)
     
     # 편의용 하이퍼파라미터
     parser.add_argument("--batch_size", type=int)
     parser.add_argument("--teacher_lr", type=float)
     parser.add_argument("--teacher_weight_decay", type=float)
-    parser.add_argument("--student_lr", type=float)
-    parser.add_argument("--student_epochs_per_stage", type=int)
     parser.add_argument("--epochs",     type=int)            # 예: teacher_iters
     parser.add_argument("--results_dir", type=str)
     parser.add_argument("--ckpt_dir", type=str, default=None)
@@ -356,10 +365,10 @@ def main():
     # ---- apply sweep overrides if not None ---- #
     # sweep/CLI 값이 None 이 아니면 cfg 덮어쓰기
     for k in [
-        "ce_alpha",
-        "ib_beta",
+        "ce_alpha", "kd_alpha", "ib_beta", "hybrid_beta",
+        "tau_start", "tau_end", "tau_decay_epochs",
+        "student_lr", "student_epochs_per_stage",
         "teacher_adapt_epochs",
-        "student_epochs_per_stage",
         "use_ib",
         "use_partial_freeze",    # ← 추가
         "student_freeze_level",
