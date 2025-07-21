@@ -60,6 +60,7 @@ generate_config() {
     synergy_head_dropout=${head_dropout} \
     synergy_ce_alpha=${synergy_ce_alpha} \
     hybrid_beta=${hybrid_beta} \
+    ib_beta=${ib_beta} \
     distill_hidden_dim=${distill_hidden_dim} \
     distill_out_dim=${distill_out_dim} \   # NEW
     use_partial_freeze=${use_partial_freeze} \
@@ -144,6 +145,7 @@ run_loop() {
             --num_stages ${STAGE} \
             --synergy_ce_alpha ${SC_ALPHA} \
             --hybrid_beta ${H_BETA} \
+            --ib_beta ${ib_beta} \
             --teacher_lr ${teacher_lr} \
             --student_lr ${student_lr} \
             --batch_size ${batch_size} \
@@ -216,6 +218,7 @@ run_sweep() {
         --teacher2_type "${T2}" \
         --synergy_ce_alpha ${sc_alpha} \
         --hybrid_beta ${h_beta} \
+        --ib_beta ${ib_beta} \
         --device ${device} \
         --finetune_epochs 0 \
         --data_aug ${data_aug} \
