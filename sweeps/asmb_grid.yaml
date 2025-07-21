@@ -8,7 +8,8 @@ parameters:
 
   # ───────── Sweep 축 ─────────
   ce_alpha:      {values: [0.30, 0.40]}
-  hybrid_beta:   {values: [0.0, 0.1, 0.2]}
+  # asmb 파이프라인은 β를 list‑형 문자열로 받습니다.
+  hybrid_beta_list: {values: ["0.0", "0.1", "0.2"]}
 
   use_ib:        {values: [false, true]}
   ib_beta:       {values: [0.0, 0.001, 0.01]}
