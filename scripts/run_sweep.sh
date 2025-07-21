@@ -35,22 +35,20 @@ if [[ "${AGENT_ID}" == "0" ]]; then
     CREATE_LOG=$(wandb sweep "${SWEEP_FILE}" 2>&1)   # 표준·오류 모두 캡처
     echo "${CREATE_LOG}"
 
-    # 출력 중  “…/entity/project/<SWEEP_ID>”  에서 마지막 토큰만 뽑음
-    SWEEP_ID=$(printf '%s\n' "${CREATE_LOG}" \
-               | sed -n 's/.*wandb agent [^/]*\/\([^[:space:]]*\).*/\1/p' \
-               | head -n1)
+    # wandb sweep 출력에서 전체 경로를 그대로 추출
+    SWEEP_PATH=$(echo "${CREATE_LOG}" | grep -oE 'wandb agent [^`]*' | awk '{print $3}')
 
-    if [[ -z "${SWEEP_ID}" ]]; then
-        echo "❌  Sweep ID 파싱 실패"; exit 1
+    if [[ -z "${SWEEP_PATH}" ]]; then
+        echo "❌  Sweep path 파싱 실패"; exit 1
     fi
-    echo "${SWEEP_ID}" | tee "sweep_id_${JOB_ID}.txt"
+    echo "${SWEEP_PATH}" | tee "sweep_id_${JOB_ID}.txt"
 fi
 
-# 다른 agent 들은 Sweep ID 준비될 때까지 대기
+# 다른 agent 들은 Sweep 경로 준비될 때까지 대기
 while [[ ! -f "sweep_id_${JOB_ID}.txt" ]]; do sleep 5; done
-SWEEP_ID=$(cat "sweep_id_${JOB_ID}.txt")
+SWEEP_PATH=$(cat "sweep_id_${JOB_ID}.txt")
 
-echo "🚀  Launching W&B agent ${AGENT_ID} for sweep ${SWEEP_ID}"
+echo "🚀  Launching W&B agent ${AGENT_ID} for sweep ${SWEEP_PATH}"
 # logs/* 의 step‑별 출력은 wandb 내부에 저장, SLURM log 로도 기본 info 출력
-wandb agent "${WANDB_ENTITY}/${WANDB_PROJECT}/${SWEEP_ID}"
+wandb agent "${SWEEP_PATH}"
 
