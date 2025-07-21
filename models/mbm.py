@@ -2,7 +2,6 @@
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from typing import List, Optional, Tuple
 
 # 기존 MBM
@@ -110,8 +109,6 @@ def build_from_teachers(
             feat_dims.append(getattr(t, "distill_dim"))
         else:
             feat_dims.append(t.get_feat_dim())
-    in_dim = sum(feat_dims)
-
     use_4d = bool(cfg.get("mbm_use_4d", False))
     if use_4d:
         channels = [t.get_feat_channels() for t in teachers]

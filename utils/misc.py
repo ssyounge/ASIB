@@ -6,7 +6,6 @@ import random
 import numpy as np
 import inspect
 import logging
-import copy
 
 # ----------------------------------------------------------------------------
 def sanitize_cfg(cfg: dict) -> dict:

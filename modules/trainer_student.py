@@ -151,12 +151,14 @@ def student_distillation_update(
                 zsyn = synergy_head(fsyn)
 
                 if mix_mode != "none":
-                    ce_obj = lambda pred, target: ce_loss_fn(
-                        pred,
-                        target,
-                        label_smoothing=cfg.get("label_smoothing", 0.0),
-                        reduction="none",
-                    )
+                    def ce_obj(pred, target):
+                        return ce_loss_fn(
+                            pred,
+                            target,
+                            label_smoothing=cfg.get("label_smoothing", 0.0),
+                            reduction="none",
+                        )
+
                     ce_vec = mixup_criterion(ce_obj, s_logit, y_a, y_b, lam)
                 else:
                     ce_vec = ce_loss_fn(
