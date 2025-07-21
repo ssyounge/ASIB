@@ -13,6 +13,7 @@ from modules.losses import (
     rkd_angle_loss,
 )
 from utils.schedule import get_tau
+from utils.misc import get_amp_components
 from models import LightweightAttnMBM
 
 class ASMBDistiller(nn.Module):
@@ -168,6 +169,9 @@ class ASMBDistiller(nn.Module):
         teacher_optimizer = optim.Adam(
             teacher_params, lr=teacher_lr, weight_decay=weight_decay
         )
+        teacher_scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            teacher_optimizer, T_max=self.num_stages
+        )
 
         student_params = [p for p in self.student.parameters() if p.requires_grad]
         student_optimizer = optim.AdamW(
@@ -207,6 +211,9 @@ class ASMBDistiller(nn.Module):
             if acc > best_acc:
                 best_acc = acc
                 best_student_state = copy.deepcopy(self.student.state_dict())
+
+            teacher_scheduler.step()
+            self._unfreeze_teacher()
 
         # 마지막에 best 복원
         self.student.load_state_dict(best_student_state)
@@ -267,78 +274,99 @@ class ASMBDistiller(nn.Module):
         self.synergy_head.train()
         self.student.eval()   # Student 고정
 
+        autocast_ctx, scaler = get_amp_components(self.config)
+
         for ep in range(1, epochs+1):
             cur_tau = get_tau(self.config, ep-1)
             total_loss, total_num = 0.0, 0
             for x, y in train_loader:
                 x, y = x.to(self.device), y.to(self.device)
 
-                with torch.no_grad():
-                    # student feature + logit
-                    feat_dict, s_logit, _ = self.student(x)
-                    s_feat = feat_dict[self.config.get("feat_kd_key", "feat_2d")]
-                    # teacher feats
-                    t1 = self.teacher1(x)
-                    t2 = self.teacher2(x)
-                    key = "distill_feat" if self.config.get("use_distillation_adapter", False) else "feat_2d"
-                    f1 = [t1[key], t2[key]]
-                    f2 = [t1.get("feat_4d"), t2.get("feat_4d")]
+                with autocast_ctx:
+                    with torch.no_grad():
+                        # student feature + logit
+                        feat_dict, s_logit, _ = self.student(x)
+                        s_feat = feat_dict[self.config.get("feat_kd_key", "feat_2d")]
+                        # teacher feats
+                        t1 = self.teacher1(x)
+                        t2 = self.teacher2(x)
+                        key = "distill_feat" if self.config.get("use_distillation_adapter", False) else "feat_2d"
+                        f1 = [t1[key], t2[key]]
+                        f2 = [t1.get("feat_4d"), t2.get("feat_4d")]
 
-                # synergy
-                if self.la_mode:
-                    syn_feat, attn, _, _ = self.mbm(s_feat, f1)
-                    attn_flat = attn.squeeze(1)
-                    _, _ = attn_flat[:, 0], attn_flat[:, 1]
-                else:
-                    syn_feat = self.mbm(f1, f2)
-                    attn = None
-                zsyn = self.synergy_head(syn_feat)
+                    # synergy
+                    if self.la_mode:
+                        syn_feat, attn, _, _ = self.mbm(s_feat, f1)
+                        attn_flat = attn.squeeze(1)
+                        _, _ = attn_flat[:, 0], attn_flat[:, 1]
+                    else:
+                        syn_feat = self.mbm(f1, f2)
+                        attn = None
+                    zsyn = self.synergy_head(syn_feat)
 
-                # (i)  KL(zsyn \u2016 s_logit) \u2190 최소화 방향 그대로 사용
-                kl_val = kd_loss_fn(zsyn, s_logit, T=cur_tau)
-                # (ii) synergy CE
-                ce_val = ce_loss_fn(
-                    zsyn,
-                    y,
-                    label_smoothing=self.config.get("label_smoothing", 0.0)
-                )
-                synergy_ce = self.synergy_ce_alpha * ce_val
-
-                feat_loss = torch.tensor(0.0, device=s_feat.device)
-                if self.feat_kd_alpha > 0:
-                    feat_loss = F.mse_loss(
-                        s_feat.view(s_feat.size(0), -1),
-                        syn_feat.detach().view(s_feat.size(0), -1),
+                    # (i)  KL(zsyn \u2016 s_logit)
+                    kl_val = kd_loss_fn(zsyn, s_logit, T=cur_tau)
+                    # (ii) synergy CE
+                    ce_val = ce_loss_fn(
+                        zsyn,
+                        y,
+                        label_smoothing=self.config.get("label_smoothing", 0.0)
                     )
+                    synergy_ce = self.synergy_ce_alpha * ce_val
 
-                # 정규화
-                # (단순 L2) => MBM + teacher head ...
-                reg_loss = 0.0
-                for p in params:
-                    reg_loss += (p**2).sum()
+                    feat_loss = torch.tensor(0.0, device=s_feat.device)
+                    if self.feat_kd_alpha > 0:
+                        feat_loss = F.mse_loss(
+                            s_feat.view(s_feat.size(0), -1),
+                            syn_feat.detach().view(s_feat.size(0), -1),
+                        )
 
-                loss = (
-                    kl_val
-                    + synergy_ce
-                    + self.feat_kd_alpha * feat_loss
-                    + self.reg_lambda * reg_loss
-                )
+                    reg_loss = 0.0
+                    for p in params:
+                        reg_loss += (p**2).sum()
+
+                    bs = x.size(0)
+                    reg_loss = reg_loss / bs
+
+                    loss = (
+                        kl_val
+                        + synergy_ce
+                        + self.feat_kd_alpha * feat_loss
+                        + self.reg_lambda * reg_loss
+                    )
 
                 if logger is not None and attn is not None:
                     logger.debug(f"attn_mean={attn.mean().item():.4f}")
 
                 optimizer.zero_grad()
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(params, max_norm=2.0)
-                optimizer.step()
+                if scaler is not None:
+                    scaler.scale(loss).backward()
+                    torch.nn.utils.clip_grad_norm_(params, max_norm=2.0)
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(params, max_norm=2.0)
+                    optimizer.step()
 
                 bs = x.size(0)
                 total_loss += loss.item()*bs
                 total_num  += bs
 
             avg_loss = total_loss / total_num
-            if self.logger:
-                self.logger.info(f"[TeacherUpdate] ep={ep} => loss={avg_loss:.4f}")
+        if self.logger:
+            self.logger.info(f"[TeacherUpdate] ep={ep} => loss={avg_loss:.4f}")
+
+    def _unfreeze_teacher(self):
+        """Set ``requires_grad=True`` for teacher components."""
+        for p in self.teacher1.parameters():
+            p.requires_grad = True
+        for p in self.teacher2.parameters():
+            p.requires_grad = True
+        for p in self.mbm.parameters():
+            p.requires_grad = True
+        for p in self.synergy_head.parameters():
+            p.requires_grad = True
 
     def _student_distill_update(
         self,
@@ -373,6 +401,8 @@ class ASMBDistiller(nn.Module):
         for p in self.synergy_head.parameters():
             p.requires_grad = False
 
+        autocast_ctx, scaler = get_amp_components(self.config)
+
         # ``optimizer`` and ``scheduler`` are constructed outside so that the
         # learning rate schedule spans all stages
         best_acc = 0.0
@@ -385,16 +415,17 @@ class ASMBDistiller(nn.Module):
             for x, y in train_loader:
                 x, y = x.to(self.device), y.to(self.device)
 
-                with torch.no_grad():
-                    # teacher feats
-                    t1 = self.teacher1(x)
-                    t2 = self.teacher2(x)
-                    f1 = [t1["feat_2d"], t2["feat_2d"]]
-                    f2 = [t1.get("feat_4d"), t2.get("feat_4d")]
+                with autocast_ctx:
+                    with torch.no_grad():
+                        # teacher feats
+                        t1 = self.teacher1(x)
+                        t2 = self.teacher2(x)
+                        f1 = [t1["feat_2d"], t2["feat_2d"]]
+                        f2 = [t1.get("feat_4d"), t2.get("feat_4d")]
 
-                # student forward (query)
-                feat_dict, s_logit, _ = self.student(x)
-                s_feat = feat_dict[self.config.get("feat_kd_key", "feat_2d")]
+                    # student forward (query)
+                    feat_dict, s_logit, _ = self.student(x)
+                    s_feat = feat_dict[self.config.get("feat_kd_key", "feat_2d")]
 
                 if self.la_mode:
                     syn_feat, attn, _, _ = self.mbm(s_feat, f1)
@@ -455,15 +486,32 @@ class ASMBDistiller(nn.Module):
                     + self.feat_kd_alpha * feat_loss
                     + self.config.get("rkd_loss_weight", 0.0) * rkd_val
                 )
-                beta = self.config.get("hybrid_beta", 0.0)
-                loss = (1 - beta) * loss_asmb + beta * kd_vanilla
+                beta = min(self.config.get("hybrid_beta", 0.0), 1.0)
+                alpha_eff = self.alpha
+                kd_coeff = 1 - self.alpha
+                if beta + alpha_eff > 1:
+                    scale = (1 - beta) / (alpha_eff + kd_coeff)
+                    alpha_eff *= scale
+                    kd_coeff *= scale
+                loss = (
+                    alpha_eff * ce_val
+                    + kd_coeff * kd_val
+                    + self.feat_kd_alpha * feat_loss
+                    + self.config.get("rkd_loss_weight", 0.0) * rkd_val
+                    + beta * kd_vanilla
+                )
 
                 if logger is not None and attn is not None:
                     logger.debug(f"attn_mean={attn.mean().item():.4f}")
 
                 optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+                if scaler is not None:
+                    scaler.scale(loss).backward()
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    loss.backward()
+                    optimizer.step()
 
                 bs = x.size(0)
                 total_loss += loss.item()*bs
