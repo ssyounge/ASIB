@@ -1,6 +1,5 @@
 # models/students/student_efficientnet_adapter.py
 
-import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models import efficientnet_b2, EfficientNet_B2_Weights

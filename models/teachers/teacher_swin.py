@@ -1,6 +1,5 @@
 # models/teachers/teacher_swin.py
 
-import torch
 import torch.nn as nn
 from typing import Optional
 from .adapters import DistillationAdapter

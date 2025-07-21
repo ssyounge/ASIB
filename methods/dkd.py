@@ -3,7 +3,6 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
 from typing import Optional
 from modules.losses import ce_loss_fn, dkd_loss
 
@@ -57,7 +56,6 @@ class DKDDistiller(nn.Module):
         # teacher
         with torch.no_grad():
             t_out = self.teacher(x)
-            t_dict = t_out
             t_logit = t_out["logit"]
         # student
         s_dict, s_logit, _ = self.student(x)

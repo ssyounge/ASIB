@@ -1,9 +1,7 @@
 # models/students/student_swin_adapter.py
 
-import torch
 import torch.nn as nn
 import timm
-import torch.nn.functional as F
 from typing import Optional
 
 class StudentSwinAdapter(nn.Module):

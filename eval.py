@@ -13,7 +13,7 @@ import os
 
 from data.cifar100 import get_cifar100_loaders
 from data.imagenet100 import get_imagenet100_loaders
-from models.mbm import ManifoldBridgingModule, SynergyHead, build_from_teachers
+from models.mbm import build_from_teachers
 from models.la_mbm import LightweightAttnMBM
 from utils.logger import ExperimentLogger
 from utils.misc import set_random_seed, get_amp_components
@@ -187,12 +187,16 @@ def main():
 
         # load single model ckpt
         if cfg["ckpt_path"]:
-            ckpt = torch.load(cfg["ckpt_path"], map_location=device, weights_only=True)
+            ckpt = torch.load(
+                cfg["ckpt_path"],
+                map_location=device,
+                weights_only=True,
+            )
             if "model_state" in ckpt:
                 model.load_state_dict(ckpt["model_state"], strict=False)
             else:
                 model.load_state_dict(ckpt, strict=False)
-        print(f"[Eval single] loaded from {cfg['ckpt_path']}")
+            print(f"[Eval single] loaded from {cfg['ckpt_path']}")
         else:
             print("[Eval single] no ckpt => random init")
 
