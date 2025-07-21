@@ -32,13 +32,10 @@ export WANDB_PROJECT="kd_monitor"
 SWEEP_FILE="sweeps/asmb_grid.yaml"
 if [[ "${AGENT_ID}" == "0" ]]; then
     echo "📡  Creating sweep from ${SWEEP_FILE} ..."
-    CREATE_LOG=$(wandb sweep "${SWEEP_FILE}" 2>&1)
-    echo "${CREATE_LOG}"
+    CREATE_JSON=$(wandb sweep --json "${SWEEP_FILE}" 2>&1)
+    echo "${CREATE_JSON}"
 
-    # 예시 출력:
-    # wandb: Run `wandb agent kakamy0820-yonsei-university/kd_monitor/xyz123` to run agents.
-    SWEEP_PATH=$(echo "${CREATE_LOG}" | grep -oE 'wandb agent [^`]*' | head -n1 | awk '{print $3}')
-    SWEEP_ID=${SWEEP_PATH##*/}           # xyz123
+    SWEEP_ID=$(echo "${CREATE_JSON}" | python -c 'import sys,json;print(json.load(sys.stdin).get("sweep_id",""))')
 
     if [[ -z "${SWEEP_ID}" ]]; then
         echo "❌  Sweep ID 파싱 실패, 로그 확인 필요"; exit 1
