@@ -7,7 +7,7 @@ from models.la_mbm import LightweightAttnMBM
 from modules.ib_mbm import IB_MBM
 
 from modules.losses import kd_loss_fn, ce_loss_fn, ib_loss
-from utils.schedule import get_tau
+from utils.schedule import get_tau, get_beta
 from utils.misc import get_amp_components
 
 def _cpu_state_dict(module: torch.nn.Module):
@@ -158,9 +158,8 @@ def teacher_adaptive_update(
                         ib_loss_val = 0.0
                         if cfg.get("use_ib", False):
                             mu, logvar = mu.float(), logvar.float()
-                            ib_loss_val = ib_loss(
-                                mu, logvar, beta=cfg.get("ib_beta", 1e-3)
-                            )
+                            ib_beta = get_beta(cfg, global_ep + ep)
+                            ib_loss_val = ib_loss(mu, logvar, beta=ib_beta)
                     else:
                         syn_feat, attn, _, _ = mbm(s_feat, feats_2d)
                         ib_loss_val = 0.0

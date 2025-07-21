@@ -18,3 +18,18 @@ def get_tau(cfg: dict, epoch: int) -> float:
     else:  # fixed
         tau = T0
     return float(tau)
+
+
+def get_beta(cfg: dict, epoch: int) -> float:
+    """Return β for the Information Bottleneck KL term at ``epoch``.
+
+    The value ramps linearly from ``0`` to ``cfg["ib_beta"]`` over
+    ``cfg.get("ib_beta_warmup_epochs", 0)`` epochs.
+    """
+
+    beta = float(cfg.get("ib_beta", 1e-3))
+    warmup = int(cfg.get("ib_beta_warmup_epochs", 0))
+    if warmup > 0:
+        scale = min(float(epoch) / warmup, 1.0)
+        beta *= scale
+    return beta
