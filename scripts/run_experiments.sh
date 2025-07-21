@@ -166,7 +166,8 @@ run_loop() {
             --mixup_alpha ${mixup_alpha} \
             --cutmix_alpha_distill ${cutmix_alpha_distill} \
             --label_smoothing ${label_smoothing} \
-            --method ${METHOD}
+            --method ${METHOD} \
+            "${EXTRA_ARGS[@]}"
           else
           python scripts/run_single_teacher.py \
             --config "${CFG_TMP}" \
@@ -183,7 +184,8 @@ run_loop() {
             --mixup_alpha ${mixup_alpha} \
             --cutmix_alpha_distill ${cutmix_alpha_distill} \
             --label_smoothing ${label_smoothing} \
-            --method ${METHOD}
+            --method ${METHOD} \
+            "${EXTRA_ARGS[@]}"
           fi 2>&1 | tee -a "${OUTDIR}/train.log"
                 done            # closes STAGE loop
               done              # closes 'for H_BETA' loop
@@ -241,6 +243,10 @@ run_sweep() {
 }
 
 MODE=""
+# ---------- 인자 파싱 ----------
+#   알 수 없는 옵션은 EXTRA_ARGS 배열에 보관해서
+#   나중에 python main.py ... "${EXTRA_ARGS[@]}" 로 그대로 전달한다.
+POSITIONAL=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --mode)
@@ -252,11 +258,13 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     *)
-      echo "Unknown argument: $1" >&2
-      exit 1
+      POSITIONAL+=("$1")      # ← pass-through
+      shift
       ;;
   esac
 done
+# 파이썬 커맨드에 붙일 여분 인자
+EXTRA_ARGS=("${POSITIONAL[@]}")
 
 if [ -z "$MODE" ]; then
   echo "Usage: $0 --mode {loop,sweep} [--output_dir DIR]" >&2
