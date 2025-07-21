@@ -6,6 +6,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from typing import Optional
 from modules.losses import ce_loss_fn
+from utils.misc import get_amp_components
 
 def single_layer_at_loss(f_s, f_t, p=2):
     """
@@ -95,6 +96,7 @@ class ATDistiller(nn.Module):
         cfg=None,
     ):
         self.to(device)
+        autocast_ctx, scaler = get_amp_components(cfg or self.cfg)
 
         if cfg is not None:
             lr = cfg.get("student_lr", lr)
@@ -132,11 +134,17 @@ class ATDistiller(nn.Module):
             total_loss, total_num = 0.0, 0
             for x, y in train_loader:
                 x, y = x.to(device), y.to(device)
-                loss, _ = self.forward(x, y)
+                with autocast_ctx:
+                    loss, _ = self.forward(x, y)
 
                 optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+                if scaler is not None:
+                    scaler.scale(loss).backward()
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    loss.backward()
+                    optimizer.step()
 
             
                 total_loss += loss.item()*x.size(0)
