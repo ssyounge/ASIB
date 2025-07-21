@@ -87,10 +87,9 @@ class ASMBDistiller(nn.Module):
 
         # 2) mbm => synergy with query if available
         if self.la_mode:
-            syn_feat, attn, _, _ = self.mbm(s_feat, feats_2d)
+            syn_feat, _, _, _ = self.mbm(s_feat, feats_2d)
         else:
             syn_feat = self.mbm(feats_2d, feats_4d)
-            attn = None
         zsyn = self.synergy_head(syn_feat)
 
         # CE
@@ -289,11 +288,10 @@ class ASMBDistiller(nn.Module):
                 if self.la_mode:
                     syn_feat, attn, _, _ = self.mbm(s_feat, f1)
                     attn_flat = attn.squeeze(1)
-                    w1, w2 = attn_flat[:, 0], attn_flat[:, 1]
+                    _, _ = attn_flat[:, 0], attn_flat[:, 1]
                 else:
                     syn_feat = self.mbm(f1, f2)
                     attn = None
-                    w1, w2 = None, None
                 zsyn = self.synergy_head(syn_feat)
 
                 # (i)  KL(zsyn \u2016 s_logit) \u2190 최소화 방향 그대로 사용

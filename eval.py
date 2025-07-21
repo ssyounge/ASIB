@@ -13,7 +13,7 @@ import os
 
 from data.cifar100 import get_cifar100_loaders
 from data.imagenet100 import get_imagenet100_loaders
-from models.mbm import ManifoldBridgingModule, SynergyHead, build_from_teachers
+from models.mbm import build_from_teachers
 from models.la_mbm import LightweightAttnMBM
 from utils.logger import ExperimentLogger
 from utils.misc import set_random_seed, get_amp_components

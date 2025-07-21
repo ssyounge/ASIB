@@ -14,7 +14,6 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import argparse
-import copy
 import torch
 import yaml
 from typing import Optional
@@ -36,7 +35,6 @@ from modules.partial_freeze import (
     partial_freeze_teacher_efficientnet,
     partial_freeze_teacher_swin,
 )
-from utils.freeze import freeze_all
 
 # cutmix finetune
 from modules.cutmix_finetune_teacher import finetune_teacher_cutmix, eval_teacher
