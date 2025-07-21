@@ -101,6 +101,7 @@ distill_hidden_dim: 1024  # same for 모든 교사
 distill_out_dim: 512      # 모든 교사 512-D
 
 # MBM options (타입은 default.yaml에서 상속/고정)
+mbm_type: ib_mbm
 mbm_r: 4
 mbm_n_head: 1
 mbm_learnable_q: true
