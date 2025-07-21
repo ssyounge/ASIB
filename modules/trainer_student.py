@@ -8,7 +8,7 @@ from utils.progress import smart_tqdm
 from models.la_mbm import LightweightAttnMBM
 from modules.ib_mbm import IB_MBM
 
-from modules.losses import kd_loss_fn, ce_loss_fn, ib_loss
+from modules.losses import kd_loss_fn, ce_loss_fn, ib_loss, certainty_weights
 from modules.disagreement import sample_weights_from_disagreement
 from utils.misc import mixup_data, cutmix_data, mixup_criterion, get_amp_components
 from utils.schedule import get_tau
@@ -185,6 +185,10 @@ def student_distillation_update(
                 weights = torch.ones_like(y, dtype=s_logit.dtype, device=y.device)
 
             weights = weights.to(s_logit.dtype)
+
+            if cfg.get("use_ib", False) and isinstance(mbm, IB_MBM):
+                cw = certainty_weights(logvar).mean(dim=1).to(s_logit.dtype)
+                weights = weights * cw
 
             # apply sample weights to CE and KD losses computed above
             ce_loss_val = (weights * ce_vec).mean()
