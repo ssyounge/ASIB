@@ -62,7 +62,7 @@ generate_config() {
     hybrid_beta=${hybrid_beta} \
     ib_beta=${ib_beta} \
     distill_hidden_dim=${distill_hidden_dim} \
-    distill_out_dim=${distill_out_dim} \   # NEW
+    distill_out_dim=${distill_out_dim} \
     use_partial_freeze=${use_partial_freeze} \
     teacher1_use_adapter=${teacher1_use_adapter} \
     teacher1_bn_head_only=${teacher1_bn_head_only} \
@@ -82,6 +82,8 @@ run_loop() {
   METHOD_LIST="${method_list:-$method}"
   T1_LIST="${teacher1_list}"
   T2_LIST="${teacher2_list}"
+  IFS=' ' read -ra T1S <<< "$T1_LIST"
+  IFS=' ' read -ra T2S <<< "$T2_LIST"
   mkdir -p "${OUTPUT_DIR}"
   mkdir -p checkpoints
 
@@ -89,8 +91,8 @@ run_loop() {
     for STUD_EP in ${student_epochs_per_stage_list}; do
       teacher_adapt_epochs=${TEACH_EP}
       student_epochs_per_stage=${STUD_EP}
-      for T1 in $T1_LIST; do
-        for T2 in $T2_LIST; do
+      for T1 in "${T1S[@]}"; do
+        for T2 in "${T2S[@]}"; do
           for STUDENT in ${student_list}; do
             for METHOD in $METHOD_LIST; do
           echo ">>> [run_experiments.sh] running METHOD=${METHOD}"
