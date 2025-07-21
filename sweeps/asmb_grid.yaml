@@ -1,16 +1,21 @@
 name: "asmb_grid"
 method: grid
 parameters:
-  method:        {value: asmb}
+  # ───────── 고정 파라미터 ─────────
+  method:                   {value: asmb}
+  num_stages:               {value: 4}
+  student_epochs_per_stage: {value: 12}
+
+  # ───────── Sweep 축 ─────────
   ce_alpha:      {values: [0.30, 0.40]}
   hybrid_beta:   {values: [0.0, 0.1, 0.2]}
-  teacher_adapt_epochs: {values: [1, 3]}
-  num_stages:    {value: 4}
-  student_epochs_per_stage: {value: 12}
-  use_ib:        {values: [false, true]}      # ablation
+
+  use_ib:        {values: [false, true]}
   ib_beta:       {values: [0.0, 0.001, 0.01]}
+
+  teacher_adapt_epochs: {values: [1, 3]}
   synergy_ce_alpha: {value: 0.6}
-  seed:          {values: [42, 777]}
+  seed:          {values: [42, 777, 999]}
   teacher1_type: {value: resnet152}
   teacher2_type: {value: efficientnet_b2}
 
