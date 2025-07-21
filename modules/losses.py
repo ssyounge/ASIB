@@ -80,6 +80,23 @@ def ib_loss(mu, logvar, beta: float = 1e-3):
     return beta * kl_elem.mean()
 
 
+def certainty_weights(logvar: torch.Tensor) -> torch.Tensor:
+    """Return per-element certainty weights ``1 / exp(logvar)``.
+
+    Parameters
+    ----------
+    logvar : Tensor
+        Log variance tensor from the Information Bottleneck module.
+
+    Returns
+    -------
+    Tensor
+        ``1 / exp(logvar)`` with the same shape as ``logvar``.
+    """
+
+    return 1.0 / logvar.exp()
+
+
 def dkd_loss(student_logits, teacher_logits, labels, alpha=1.0, beta=1.0, temperature=4.0):
     """Decoupled Knowledge Distillation loss."""
     if student_logits.dim() > 2:
