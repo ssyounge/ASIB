@@ -362,10 +362,18 @@ def main():
         "student_epochs_per_stage",
         "use_ib",
         "use_partial_freeze",    # ← 추가
+        "student_freeze_level",
     ]:
         v = getattr(args, k)
         if v is not None:
             cfg[k] = v
+
+    # ------------------------------------------------------------------
+    # [Safety switch]  partial freeze가 꺼져 있으면 freeze level을 강제로 0
+    #  — sweep 중 조건부 파라미터 처리가 어려우므로 코드에서 보정
+    # ------------------------------------------------------------------
+    if not cfg.get("use_partial_freeze", False):
+        cfg["student_freeze_level"] = 0
     # ------------------------------------------- #
 
     # ── tqdm 전체 OFF ─────────────────────────────
