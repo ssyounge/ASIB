@@ -1,3 +1,5 @@
+# sweeps/asmb_grid.yaml
+
 # ———— Sweep 전략 ————
 method: bayes           # bayesian + grid 혼합
 metric:
