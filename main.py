@@ -377,6 +377,17 @@ def main():
         if v is not None:
             cfg[k] = v
 
+    # --- α, β, 합계 보정 -------------------------------------------------
+    ce = float(cfg.get("ce_alpha", 0.0))
+    kd = float(cfg.get("kd_alpha", 0.0))
+    if abs((ce + kd) - 1.0) > 1e-4:
+        s = ce + kd if ce + kd > 0 else 1.0
+        cfg["ce_alpha"] = ce / s
+        cfg["kd_alpha"] = kd / s
+        print(
+            f"[Auto-cfg] ce_alpha+kd_alpha \u22601 \u2192 \uc7ac\uc815\uaddc\ud654 (ce={cfg['ce_alpha']:.3f}, kd={cfg['kd_alpha']:.3f})"
+        )
+
     # ------------------------------------------------------------------
     # [Safety switch]  partial freeze가 꺼져 있으면 freeze level을 강제로 0
     #  — sweep 중 조건부 파라미터 처리가 어려우므로 코드에서 보정
@@ -854,10 +865,10 @@ def main():
                 for x, y in tl:
                     x, y = x.to(device), y.to(device)
                     r_bs = int(replay_ratio * x.size(0))
-                    xs, ys, _ = buffer.sample(r_bs, device=device)
-                    if not xs:
+                    if len(buffer.buffer) == 0:
                         x_batch, y_batch = x, y
                     else:
+                        xs, ys, _ = buffer.sample(r_bs, device=device)
                         x_batch = torch.cat([x, xs], dim=0)
                         y_batch = torch.cat([y, ys], dim=0)
 

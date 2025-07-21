@@ -82,8 +82,10 @@ run_loop() {
   METHOD_LIST="${method_list:-$method}"
   T1_LIST="${teacher1_list}"
   T2_LIST="${teacher2_list}"
+  STUD_LIST="${student_list}"
   IFS=' ' read -ra T1S <<< "$T1_LIST"
   IFS=' ' read -ra T2S <<< "$T2_LIST"
+  IFS=' ' read -ra STUDS <<< "$STUD_LIST"
   mkdir -p "${OUTPUT_DIR}"
   mkdir -p checkpoints
 
@@ -93,7 +95,7 @@ run_loop() {
       student_epochs_per_stage=${STUD_EP}
       for T1 in "${T1S[@]}"; do
         for T2 in "${T2S[@]}"; do
-          for STUDENT in ${student_list}; do
+          for STUDENT in "${STUDS[@]}"; do
             for METHOD in $METHOD_LIST; do
           echo ">>> [run_experiments.sh] running METHOD=${METHOD}"
           # 1) Teacher fine-tuning
