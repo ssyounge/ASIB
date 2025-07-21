@@ -8,12 +8,14 @@ Implements a multi-stage distillation flow using:
 Repeated for 'num_stages' times, as in ASMB multi-stage self-training.
 """
 
-import argparse, logging, os, json
-import copy
+import argparse
+import logging
+import os
+import json
 import torch
 import yaml
-from utils.cl_utils import ReplayBuffer, EWC          # NEW
 from typing import Optional
+
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR, StepLR
 
@@ -44,7 +46,7 @@ from modules.partial_freeze import (
 )
 
 # Teacher creation (factory):
-from models.teachers.teacher_resnet import create_resnet101, create_resnet152
+from models.teachers.teacher_resnet import create_resnet101
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from models.teachers.teacher_swin import create_swin_t
 
@@ -109,7 +111,7 @@ def create_student_by_name(
             f"[create_student_by_name] unknown student_name={student_name}"
         )
 
-from models.mbm import ManifoldBridgingModule, SynergyHead, build_from_teachers
+from models.mbm import build_from_teachers
 
 def parse_args():
     parser = argparse.ArgumentParser()

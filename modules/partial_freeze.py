@@ -1,6 +1,5 @@
 # modules/partial_freeze.py
 
-import torch
 import torch.nn as nn
 
 from utils.freeze import apply_bn_ln_policy, freeze_all, unfreeze_by_regex

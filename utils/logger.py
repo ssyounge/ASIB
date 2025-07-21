@@ -78,7 +78,9 @@ class ExperimentLogger:
 
         # ── (옵션) 모든 하이퍼파라미터 즉시 출력 ───────────────
         if self.config.get("log_all_hparams", False):
-            import pprint, logging
+            import logging
+            import pprint
+
             logging.getLogger().setLevel(self.config.get("log_level", "DEBUG"))
             pprint.pprint(self.config, width=120)
 

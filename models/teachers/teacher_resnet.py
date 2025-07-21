@@ -2,7 +2,6 @@
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from typing import Optional
 from .adapters import DistillationAdapter
 from torchvision.models import (

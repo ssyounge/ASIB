@@ -2,7 +2,8 @@
 
 # tqdm 표시 기본 ON (tty에서만) ➜ PROGRESS=0 으로 끄기
 from tqdm import tqdm
-import sys, os
+import sys
+import os
 
 __all__ = ["smart_tqdm"]
 
