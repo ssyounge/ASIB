@@ -1,3 +1,4 @@
+# modules/ib_mbm.py
 """Information Bottleneck variant of the Manifold Bridging Module."""
 
 import torch
