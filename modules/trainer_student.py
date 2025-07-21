@@ -78,7 +78,11 @@ def student_distillation_update(
     la_mode = isinstance(mbm, (LightweightAttnMBM, IB_MBM)) \
               or cfg.get("mbm_type", "").lower() in ("la", "ib_mbm")
     for ep in range(student_epochs):
-        cur_tau = get_tau(cfg, global_ep + ep)
+        if scheduler is not None and hasattr(scheduler, "T_max"):
+            total_epochs = scheduler.T_max
+            cur_tau = get_tau(cfg, min(global_ep + ep, total_epochs - 1))
+        else:
+            cur_tau = get_tau(cfg, global_ep + ep)
         distill_loss_sum = 0.0
         cnt = 0
         feat_kd_sum = 0.0
