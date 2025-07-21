@@ -3,7 +3,7 @@
 name: "asmb_mixed"
 method: bayes
 metric:
-  name: stage4_student_acc
+  name: best_student_acc
   goal: maximize
 parameters:
   # 고정값 ------------------------------------------------------
