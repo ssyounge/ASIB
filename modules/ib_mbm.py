@@ -34,13 +34,16 @@ class IB_MBM(nn.Module):
         syn, _ = self.attn(q, kv, kv)
         syn = syn.squeeze(1)
 
-        mu, logvar = self.mu(syn), self.logvar(syn)
+        mu = self.mu(syn)
+        logvar = self.logvar(syn)
+        logvar = torch.clamp(logvar, -10.0, 10.0)
         std = torch.exp(0.5 * logvar)
         z = mu + std * torch.randn_like(std)
         return z, mu, logvar
 
     def loss(self, z, mu, logvar, labels, decoder):
         ce = nn.CrossEntropyLoss()(decoder(z), labels)
+        logvar = torch.clamp(logvar, -10.0, 10.0)
         q = Normal(mu, torch.exp(0.5 * logvar))
         p = Normal(torch.zeros_like(mu), torch.ones_like(mu))
         kl = kl_divergence(q, p).mean()
