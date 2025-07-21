@@ -383,6 +383,8 @@ def main():
     # ------------------------------------------------------------------
     if not cfg.get("use_partial_freeze", False):
         cfg["student_freeze_level"] = 0
+        cfg["teacher1_freeze_level"] = 0
+        cfg["teacher2_freeze_level"] = 0
     # ------------------------------------------- #
 
     # ── tqdm 전체 OFF ─────────────────────────────
