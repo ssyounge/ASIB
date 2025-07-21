@@ -6,10 +6,7 @@ metric:
   name: best_student_acc
   goal: maximize
 
-# v0.16+ 규격
-controller:
-  type: local        # 또는 'thread'
-  max_parallel: 4    # (= 예전 concurrency)
+# (클라우드-컨트롤러 사용: 별도 설정 없이 기본값)
 
 parameters:             # ---- Hyper-search 공간 ----
   # 🔧 1) learning-rate (log10 균등)
