@@ -11,7 +11,7 @@ from modules.ib_mbm import IB_MBM
 from modules.losses import kd_loss_fn, ce_loss_fn, ib_loss
 from modules.disagreement import sample_weights_from_disagreement
 from utils.misc import mixup_data, cutmix_data, mixup_criterion, get_amp_components
-from utils.schedule import get_tau
+from utils.schedule import get_tau, get_beta
 
 try:
     import wandb
@@ -133,7 +133,7 @@ def student_distillation_update(
                         attn = None
                         # optional IB loss
                         if cfg.get("use_ib", False):
-                            ib_beta = cfg.get("ib_beta", 1e-3)
+                            ib_beta = get_beta(cfg, global_ep + ep)
                             mu, logvar = mu.float(), logvar.float()
                             ib_loss_val = ib_loss(mu, logvar, beta=ib_beta)
                         else:

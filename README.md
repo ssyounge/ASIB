@@ -18,6 +18,7 @@ python main.py --config configs/default.yaml --cl_mode 1 --num_tasks 5
 ## 주요 config 플래그
 * `mbm_type` : **mlp | la | ib_mbm**
 * `use_ib`   : true / false  (IB ablation)
+* `ib_beta_warmup_epochs` : ramp-up epochs for the IB KL weight
 * `cl_mode`  : true → CL 활성화
 * `num_tasks`, `replay_ratio`, `lambda_ewc`
 
@@ -46,6 +47,8 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
   the Adam weight decay for teacher updates
 - **Learnable MBM Query**: set `mbm_learnable_q: true` to use a global learnable
   token instead of the student feature as attention query
+- **IB β Warmup**: `ib_beta_warmup_epochs` linearly scales the KL weight from
+  0 to `ib_beta` over the specified epochs
 - **Feature-Level KD**: align student features with the synergy representation.
   A nonzero `feat_kd_alpha` enables feature alignment during teacher and student
   updates. Example `hparams.yaml` snippet:
