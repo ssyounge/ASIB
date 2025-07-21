@@ -26,6 +26,7 @@ class LightweightAttnMBM(nn.Module):
         n_head: int = 1,
         learnable_q: bool = True,
         query_dim: Optional[int] = None,
+        per_teacher_attn_threshold: int = 8,
     ) -> None:
         super().__init__()
         if query_dim is not None and query_dim <= 0:
@@ -34,6 +35,7 @@ class LightweightAttnMBM(nn.Module):
         self.learnable_q = learnable_q
         self.embed_dim = max(1, out_dim // r)
         self.n_tokens = len(feat_dims)
+        self.per_teacher_attn_threshold = per_teacher_attn_threshold
 
         # query projection or learnable query
         if learnable_q:
@@ -101,10 +103,20 @@ class LightweightAttnMBM(nn.Module):
 
         keys = [proj(f).unsqueeze(1) for f, proj in zip(feats, self.k_proj)]
         values = [proj(f).unsqueeze(1) for f, proj in zip(feats, self.v_proj)]
-        k = torch.cat(keys, dim=1)
-        v = torch.cat(values, dim=1)
 
-        attn_out, attn = self.attn(q, k, v)
+        if len(keys) > self.per_teacher_attn_threshold:
+            out_list = []
+            attn_list = []
+            for k_i, v_i in zip(keys, values):
+                o_i, a_i = self.attn(q, k_i, v_i)
+                out_list.append(o_i)
+                attn_list.append(a_i)
+            attn_out = torch.stack(out_list, dim=0).mean(0)
+            attn = torch.stack(attn_list, dim=0).mean(0)
+        else:
+            k = torch.cat(keys, dim=1)
+            v = torch.cat(values, dim=1)
+            attn_out, attn = self.attn(q, k, v)
         out = self.out_proj(attn_out.squeeze(1))
         if isinstance(query_or_feats, list):
             return out
