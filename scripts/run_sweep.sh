@@ -32,12 +32,21 @@ export WANDB_PROJECT="kd_monitor"
 SWEEP_FILE="sweeps/asmb_grid.yaml"
 if [[ "${AGENT_ID}" == "0" ]]; then
     echo "📡  Creating sweep from ${SWEEP_FILE} ..."
-    SWEEP_ID=$(wandb sweep --json "${SWEEP_FILE}" | jq -r '.sweep_id')
+    CREATE_LOG=$(wandb sweep "${SWEEP_FILE}" 2>&1)
+
+    # ↙ wandb 출력에서 ".../<SWEEP_ID>" 추출
+    SWEEP_ID=$(python - <<'PY'
+import re, sys
+m = re.search(r'wandb agent [\w\-/]+/([\w\d]+)', sys.stdin.read())
+if not m:
+    sys.exit(1)
+print(m.group(1))
+PY
+    <<< "${CREATE_LOG}")
 
     if [[ -z "${SWEEP_ID}" ]]; then
-        echo "❌  Sweep ID 파싱 실패, 로그 확인 필요"; exit 1
+        echo "❌  Sweep ID 파싱 실패"; exit 1
     fi
-
     echo "${SWEEP_ID}" | tee "sweep_id_${JOB_ID}.txt"
 fi
 
