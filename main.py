@@ -819,8 +819,64 @@ def main():
     # ------------------------------------------------------------
 
     if cfg.get("cl_mode", False):
-        print("[main] Continual-Learning mode ON (β=%.3f)" % cfg.get("ib_beta",0.01))
-        # → CL 루프 구현 부분(생략) — NotImplemented 삭제
+        print("[main] Continual-Learning mode ON (β=%.3f)" % cfg.get("ib_beta", 0.01))
+
+        from utils.data import get_split_cifar100_loaders
+        from utils.cl_utils import ReplayBuffer, EWC
+        from modules.trainer_student import eval_student
+
+        num_tasks = cfg.get("num_tasks", 5)
+        replay_ratio = cfg.get("replay_ratio", 0.5)
+        replay_cap = cfg.get("replay_capacity", 2000)
+
+        task_loaders = get_split_cifar100_loaders(
+            num_tasks=num_tasks,
+            batch_size=cfg.get("batch_size", 128),
+            augment=cfg.get("data_aug", True),
+            root=cfg.get("data_root", "./data"),
+        )
+
+        buffer = ReplayBuffer(replay_cap)
+        ewc = EWC(cfg.get("lambda_ewc", 0.4))
+        device = cfg["device"]
+
+        global_ep = 0
+        for task_id, (tl, vl) in enumerate(task_loaders):
+            print(f"\n=== Task {task_id + 1}/{num_tasks} ===")
+            student_model.train()
+            epochs = cfg.get("epochs", 1)
+            for ep in range(epochs):
+                for x, y in tl:
+                    x, y = x.to(device), y.to(device)
+                    r_bs = int(replay_ratio * x.size(0))
+                    xs, ys, _ = buffer.sample(r_bs, device=device)
+                    if not xs:
+                        x_batch, y_batch = x, y
+                    else:
+                        x_batch = torch.cat([x, xs], dim=0)
+                        y_batch = torch.cat([y, ys], dim=0)
+
+                    out = student_model(x_batch)
+                    if isinstance(out, tuple):
+                        out = out[1]
+                    loss = torch.nn.functional.cross_entropy(out, y_batch)
+                    loss += ewc.penalty(student_model)
+
+                    student_optimizer.zero_grad()
+                    loss.backward()
+                    student_optimizer.step()
+
+                global_ep += 1
+                if student_scheduler is not None:
+                    student_scheduler.step()
+
+            # add to replay buffer and update fisher
+            buffer.add(tl.dataset, task_id)
+            ewc.update_fisher(student_model, tl, device=device)
+
+            acc = eval_student(student_model, vl, device, cfg)
+            exp_logger.update_metric(f"task{task_id + 1}_acc", acc)
+            print(f"[Task {task_id + 1}] acc={acc:.2f}%")
     else:
         global_ep = 0
         for stage_id in range(1, num_stages + 1):
