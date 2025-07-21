@@ -27,22 +27,18 @@ export WANDB_PROJECT="kd_monitor"
 # export WANDB_API_KEY="<원하면_직접_기입>"
 
 # ---------------------------------------------------------------------------
-#  Sweep 생성 (array-id 0) →  stdout 파싱으로 SWEEP_ID 추출
+#  Sweep 생성 (array-id 0)  ⟶  jq / --json 없이 파싱
 # ---------------------------------------------------------------------------
 SWEEP_FILE="sweeps/asmb_grid.yaml"
 if [[ "${AGENT_ID}" == "0" ]]; then
     echo "📡  Creating sweep from ${SWEEP_FILE} ..."
-    CREATE_LOG=$(wandb sweep "${SWEEP_FILE}" 2>&1)
+    CREATE_LOG=$(wandb sweep "${SWEEP_FILE}" 2>&1)   # 표준·오류 모두 캡처
+    echo "${CREATE_LOG}"
 
-    # ↙ wandb 출력에서 ".../<SWEEP_ID>" 추출
-    SWEEP_ID=$(python - <<'PY'
-import re, sys
-m = re.search(r'wandb agent [\w\-/]+/([\w\d]+)', sys.stdin.read())
-if not m:
-    sys.exit(1)
-print(m.group(1))
-PY
-    <<< "${CREATE_LOG}")
+    # 출력 중  “…/entity/project/<SWEEP_ID>”  에서 마지막 토큰만 뽑음
+    SWEEP_ID=$(printf '%s\n' "${CREATE_LOG}" \
+               | sed -n 's/.*wandb agent [^/]*\/\([^[:space:]]*\).*/\1/p' \
+               | head -n1)
 
     if [[ -z "${SWEEP_ID}" ]]; then
         echo "❌  Sweep ID 파싱 실패"; exit 1
