@@ -185,6 +185,9 @@ def parse_args():
     parser.add_argument("--adam_beta2", type=float)
     parser.add_argument("--grad_scaler_init_scale", type=int)
     parser.add_argument("--student_freeze_level", type=int)
+    # ---- partial-freeze 토글을 sweep/CLI에서 덮어쓰기 위함 ----
+    parser.add_argument("--use_partial_freeze",
+                        type=lambda x: str(x).lower() == "true")
 
     # MBM options
     parser.add_argument("--mbm_type", type=str)
@@ -212,12 +215,17 @@ def load_config(cfg_path):
             return yaml.safe_load(f)
     return {}
 
-def load_cfg(cfg_path, hparams_path=None):
-    cfg = load_config(cfg_path)
-    if hparams_path and os.path.exists(hparams_path):
-        with open(hparams_path, 'r') as f:
-            hp = yaml.safe_load(f) or {}
-        cfg.update(hp)
+def load_cfg(main_yaml: str, *extra_yaml_paths: str):
+    """
+    여러 YAML을 순차적으로 merge.
+    main_yaml → extra_yaml_paths 순으로 update 되므로
+    뒤에 나오는 파일이 같은 key를 덮어쓴다.
+    """
+    cfg = load_config(main_yaml)
+    for p in extra_yaml_paths:
+        if p and os.path.exists(p):
+            with open(p, "r") as f:
+                cfg.update(yaml.safe_load(f) or {})
     return cfg
 
 def create_teacher_by_name(
@@ -337,17 +345,23 @@ def main():
     # 1) parse args
     args = parse_args()
 
-    # 2) load config from YAML
-    base_cfg = load_cfg(args.config, args.hparams)
+    # 2) load config from YAML  (+ partial_freeze.yaml 자동 병합)
+    base_cfg = load_cfg(
+        args.config,
+        args.hparams,
+        "configs/partial_freeze.yaml"   # ← 새로 추가
+    )
     cli_cfg = {k: v for k, v in vars(args).items() if v is not None}
     cfg = {**base_cfg, **cli_cfg}
     # ---- apply sweep overrides if not None ---- #
+    # sweep/CLI 값이 None 이 아니면 cfg 덮어쓰기
     for k in [
-        'ce_alpha',
-        'ib_beta',
-        'teacher_adapt_epochs',
-        'student_epochs_per_stage',
-        'use_ib',
+        "ce_alpha",
+        "ib_beta",
+        "teacher_adapt_epochs",
+        "student_epochs_per_stage",
+        "use_ib",
+        "use_partial_freeze",    # ← 추가
     ]:
         v = getattr(args, k)
         if v is not None:
@@ -647,6 +661,14 @@ def main():
             freeze_level=cfg.get("student_freeze_level", 1),
         )
 
+    # ───────────────────────── debug: trainable 파라미터 개수 로그 ──────────────
+    def _count_trainable(m):
+        return sum(p.requires_grad for p in m.parameters())
+
+    n_trainable = _count_trainable(student_model)
+    print(f"[Debug] Student trainable params → {n_trainable:,}")
+    exp_logger.update_metric("n_trainable_student", n_trainable)
+
     # Obtain student feature dimension for MBM defaults
     feat_dim = None
     if hasattr(student_model, "get_feat_dim"):
@@ -751,8 +773,9 @@ def main():
             gamma=cfg.get("teacher_gamma", 0.1),
         )
 
+    # ↓ requires_grad=True 파라미터만 Optimizer에 등록
     student_optimizer = optim.AdamW(
-        student_model.parameters(),
+        filter(lambda p: p.requires_grad, student_model.parameters()),
         lr=cfg["student_lr"],
         weight_decay=cfg["student_weight_decay"],
         betas=(
