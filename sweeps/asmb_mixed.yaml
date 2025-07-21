@@ -19,7 +19,7 @@ parameters:
   ce_alpha:       {values: [0.30, 0.25, 0.20]}   # kd_alpha 와 합이 1 되도록 주의
   tau_start:      {values: [7, 8, 9]}
   tau_end:        {value: 3}
-  tau_decay_epochs:{values: [5, 6, 7]}
+  tau_decay_epochs: {values: [5, 6, 7]}
   student_lr:
     distribution: log_uniform_values
     min: 0.0008
