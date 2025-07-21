@@ -32,10 +32,7 @@ export WANDB_PROJECT="kd_monitor"
 SWEEP_FILE="sweeps/asmb_grid.yaml"
 if [[ "${AGENT_ID}" == "0" ]]; then
     echo "📡  Creating sweep from ${SWEEP_FILE} ..."
-    CREATE_JSON=$(wandb sweep --json "${SWEEP_FILE}" 2>&1)
-    echo "${CREATE_JSON}"
-
-    SWEEP_ID=$(echo "${CREATE_JSON}" | python -c 'import sys,json;print(json.load(sys.stdin).get("sweep_id",""))')
+    SWEEP_ID=$(wandb sweep --json "${SWEEP_FILE}" | jq -r '.sweep_id')
 
     if [[ -z "${SWEEP_ID}" ]]; then
         echo "❌  Sweep ID 파싱 실패, 로그 확인 필요"; exit 1
