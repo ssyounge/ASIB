@@ -187,12 +187,16 @@ def main():
 
         # load single model ckpt
         if cfg["ckpt_path"]:
-            ckpt = torch.load(cfg["ckpt_path"], map_location=device, weights_only=True)
+            ckpt = torch.load(
+                cfg["ckpt_path"],
+                map_location=device,
+                weights_only=True,
+            )
             if "model_state" in ckpt:
                 model.load_state_dict(ckpt["model_state"], strict=False)
             else:
                 model.load_state_dict(ckpt, strict=False)
-        print(f"[Eval single] loaded from {cfg['ckpt_path']}")
+            print(f"[Eval single] loaded from {cfg['ckpt_path']}")
         else:
             print("[Eval single] no ckpt => random init")
 
