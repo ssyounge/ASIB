@@ -142,7 +142,11 @@ class ExperimentLogger:
         try:
             if os.path.islink(latest_path) or os.path.exists(latest_path):
                 os.remove(latest_path)
-            os.symlink(os.path.basename(json_path), latest_path)
+            if os.name != "nt":
+                os.symlink(os.path.basename(json_path), latest_path)
+            else:
+                import shutil
+                shutil.copy2(json_path, latest_path)
         except OSError:
             # 심링크가 안 되는 파일시스템이면 그만 복사
             import shutil
