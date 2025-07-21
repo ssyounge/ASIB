@@ -121,7 +121,11 @@ def teacher_adaptive_update(
         synergy_head.train()
         if student_model is not None:
             student_model.eval()
-        cur_tau = get_tau(cfg, global_ep + ep)
+        if scheduler is not None and hasattr(scheduler, "T_max"):
+            total_epochs = scheduler.T_max
+            cur_tau = get_tau(cfg, min(global_ep + ep, total_epochs - 1))
+        else:
+            cur_tau = get_tau(cfg, global_ep + ep)
         teacher_loss_sum = 0.0
         count = 0
         attn_sum = 0.0
