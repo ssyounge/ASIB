@@ -119,6 +119,7 @@ def parse_args():
     # ------------ sweep override flag -------------  #
     parser.add_argument('--ce_alpha', type=float)
     parser.add_argument('--ib_beta', type=float)
+    parser.add_argument('--kd_alpha', type=float)
     parser.add_argument('--teacher_adapt_epochs', type=int)
     parser.add_argument('--use_ib', type=lambda x: str(x).lower()=='true')
     # ---------------------------------------------- #
@@ -137,6 +138,9 @@ def parse_args():
     parser.add_argument("--num_stages",   type=int)
     parser.add_argument("--synergy_ce_alpha", type=float)    # α
     parser.add_argument("--hybrid_beta", type=float)
+    parser.add_argument("--tau_start", type=float)
+    parser.add_argument("--tau_end", type=float)
+    parser.add_argument("--tau_decay_epochs", type=int)
     parser.add_argument("--student_type", type=str)
     
     # 편의용 하이퍼파라미터
@@ -356,17 +360,13 @@ def main():
     # ---- apply sweep overrides if not None ---- #
     # sweep/CLI 값이 None 이 아니면 cfg 덮어쓰기
     for k in [
-        "ce_alpha",
-        "ib_beta",
-        "teacher_adapt_epochs",
-        "student_epochs_per_stage",
-        "use_ib",
-        "use_partial_freeze",    # ← 추가
-        "student_freeze_level",
+        "ce_alpha", "kd_alpha", "ib_beta", "hybrid_beta",
+        "tau_start", "tau_end", "tau_decay_epochs",
+        "student_lr", "student_epochs_per_stage",
+        "student_freeze_level", "use_partial_freeze"
     ]:
-        v = getattr(args, k)
-        if v is not None:
-            cfg[k] = v
+        if getattr(args, k, None) is not None:
+            cfg[k] = getattr(args, k)
 
     # ------------------------------------------------------------------
     # [Safety switch]  partial freeze가 꺼져 있으면 freeze level을 강제로 0
