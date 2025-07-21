@@ -3,7 +3,7 @@
 # ———— Sweep 전략 ————
 method: bayes           # bayesian + grid 혼합
 metric:
-  name: stage4_student_acc
+  name: best_student_acc
   goal: maximize
 
 # v0.16+ 규격
