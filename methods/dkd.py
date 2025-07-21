@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.optim as optim
 from typing import Optional
 from modules.losses import ce_loss_fn, dkd_loss
+from utils.misc import get_amp_components
 
 class DKDDistiller(nn.Module):
     """
@@ -100,6 +101,8 @@ class DKDDistiller(nn.Module):
         """
         self.to(device)
 
+        autocast_ctx, scaler = get_amp_components(cfg or self.cfg)
+
         if cfg is not None:
             lr = cfg.get("student_lr", lr)
             weight_decay = cfg.get("student_weight_decay", weight_decay)
@@ -139,11 +142,17 @@ class DKDDistiller(nn.Module):
                 x, y = x.to(device), y.to(device)
 
                 # pass epoch so forward can do warmup
-                loss, _ = self.forward(x, y, epoch=epoch)
+                with autocast_ctx:
+                    loss, _ = self.forward(x, y, epoch=epoch)
 
                 optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+                if scaler is not None:
+                    scaler.scale(loss).backward()
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    loss.backward()
+                    optimizer.step()
 
             
                 total_loss += loss.item() * x.size(0)

@@ -14,6 +14,7 @@ from modules.losses import (
 )
 from utils.schedule import get_tau
 from models import LightweightAttnMBM
+from utils.misc import get_amp_components
 
 class ASMBDistiller(nn.Module):
     """
@@ -260,6 +261,8 @@ class ASMBDistiller(nn.Module):
 
         # ``optimizer`` is constructed outside and shared across stages
 
+        autocast_ctx, scaler = get_amp_components(self.config)
+
         self.teacher1.train()
         self.teacher2.train()
         logger = logger or self.logger
@@ -284,53 +287,62 @@ class ASMBDistiller(nn.Module):
                     f1 = [t1[key], t2[key]]
                     f2 = [t1.get("feat_4d"), t2.get("feat_4d")]
 
-                # synergy
-                if self.la_mode:
-                    syn_feat, attn, _, _ = self.mbm(s_feat, f1)
-                    attn_flat = attn.squeeze(1)
-                    _, _ = attn_flat[:, 0], attn_flat[:, 1]
-                else:
-                    syn_feat = self.mbm(f1, f2)
-                    attn = None
-                zsyn = self.synergy_head(syn_feat)
+                with autocast_ctx:
+                    # synergy
+                    if self.la_mode:
+                        syn_feat, attn, _, _ = self.mbm(s_feat, f1)
+                        attn_flat = attn.squeeze(1)
+                        _ = attn_flat[:, 0]
+                        _ = attn_flat[:, 1]
+                    else:
+                        syn_feat = self.mbm(f1, f2)
+                        attn = None
+                    zsyn = self.synergy_head(syn_feat)
 
-                # (i)  KL(zsyn \u2016 s_logit) \u2190 최소화 방향 그대로 사용
-                kl_val = kd_loss_fn(zsyn, s_logit, T=cur_tau)
-                # (ii) synergy CE
-                ce_val = ce_loss_fn(
-                    zsyn,
-                    y,
-                    label_smoothing=self.config.get("label_smoothing", 0.0)
-                )
-                synergy_ce = self.synergy_ce_alpha * ce_val
-
-                feat_loss = torch.tensor(0.0, device=s_feat.device)
-                if self.feat_kd_alpha > 0:
-                    feat_loss = F.mse_loss(
-                        s_feat.view(s_feat.size(0), -1),
-                        syn_feat.detach().view(s_feat.size(0), -1),
+                    # (i)  KL(zsyn \u2016 s_logit) \u2190 최소화 방향 그대로 사용
+                    kl_val = kd_loss_fn(zsyn, s_logit, T=cur_tau)
+                    # (ii) synergy CE
+                    ce_val = ce_loss_fn(
+                        zsyn,
+                        y,
+                        label_smoothing=self.config.get("label_smoothing", 0.0)
                     )
-
-                # 정규화
-                # (단순 L2) => MBM + teacher head ...
-                reg_loss = 0.0
-                for p in params:
-                    reg_loss += (p**2).sum()
-
-                loss = (
-                    kl_val
-                    + synergy_ce
-                    + self.feat_kd_alpha * feat_loss
-                    + self.reg_lambda * reg_loss
-                )
+                    synergy_ce = self.synergy_ce_alpha * ce_val
+    
+                    feat_loss = torch.tensor(0.0, device=s_feat.device)
+                    if self.feat_kd_alpha > 0:
+                        feat_loss = F.mse_loss(
+                            s_feat.view(s_feat.size(0), -1),
+                            syn_feat.detach().view(s_feat.size(0), -1),
+                        )
+    
+                    # 정규화
+                    # (단순 L2) => MBM + teacher head ...
+                    reg_loss = 0.0
+                    for p in params:
+                        reg_loss += (p**2).sum()
+    
+                    loss = (
+                        kl_val
+                        + synergy_ce
+                        + self.feat_kd_alpha * feat_loss
+                        + self.reg_lambda * reg_loss
+                    )
 
                 if logger is not None and attn is not None:
                     logger.debug(f"attn_mean={attn.mean().item():.4f}")
 
                 optimizer.zero_grad()
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(params, max_norm=2.0)
-                optimizer.step()
+                if scaler is not None:
+                    scaler.scale(loss).backward()
+                    scaler.unscale_(optimizer)
+                    torch.nn.utils.clip_grad_norm_(params, max_norm=2.0)
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(params, max_norm=2.0)
+                    optimizer.step()
 
                 bs = x.size(0)
                 total_loss += loss.item()*bs
@@ -377,6 +389,7 @@ class ASMBDistiller(nn.Module):
         # learning rate schedule spans all stages
         best_acc = 0.0
         best_state = copy.deepcopy(self.student.state_dict())
+        autocast_ctx, scaler = get_amp_components(self.config)
 
         for ep in range(1, epochs+1):
             cur_tau = get_tau(self.config, ep-1)
@@ -396,74 +409,80 @@ class ASMBDistiller(nn.Module):
                 feat_dict, s_logit, _ = self.student(x)
                 s_feat = feat_dict[self.config.get("feat_kd_key", "feat_2d")]
 
-                if self.la_mode:
-                    syn_feat, attn, _, _ = self.mbm(s_feat, f1)
-                    attn_flat = attn.squeeze(1)
-                    w1, w2 = attn_flat[:, 0], attn_flat[:, 1]
-                else:
-                    syn_feat = self.mbm(f1, f2)
-                    attn = None
-                    w1, w2 = None, None
-                zsyn = self.synergy_head(syn_feat)
+                with autocast_ctx:
+                    if self.la_mode:
+                        syn_feat, attn, _, _ = self.mbm(s_feat, f1)
+                        attn_flat = attn.squeeze(1)
+                        w1, w2 = attn_flat[:, 0], attn_flat[:, 1]
+                    else:
+                        syn_feat = self.mbm(f1, f2)
+                        attn = None
+                        w1, w2 = None, None
+                    zsyn = self.synergy_head(syn_feat)
 
-                # CE
-                ce_val = ce_loss_fn(
-                    s_logit,
-                    y,
-                    label_smoothing=label_smoothing,
-                )
-                # KL
-                kd_val = kd_loss_fn(s_logit, zsyn, T=cur_tau)
+                    # CE
+                    ce_val = ce_loss_fn(
+                        s_logit,
+                        y,
+                        label_smoothing=label_smoothing,
+                    )
+                    # KL
+                    kd_val = kd_loss_fn(s_logit, zsyn, T=cur_tau)
 
                 # vanilla KD using teacher logits
                 avg_t_logit = 0.5 * (t1["logit"] + t2["logit"])
-                kd_vanilla = kd_loss_fn(s_logit, avg_t_logit, T=cur_tau)
+                    kd_vanilla = kd_loss_fn(s_logit, avg_t_logit, T=cur_tau)
 
-                feat_loss = torch.tensor(0.0, device=s_feat.device)
-                if self.feat_kd_alpha > 0:
-                    feat_loss = F.mse_loss(
-                        s_feat.view(s_feat.size(0), -1),
-                        syn_feat.detach().view(s_feat.size(0), -1),
-                    )
+                    feat_loss = torch.tensor(0.0, device=s_feat.device)
+                    if self.feat_kd_alpha > 0:
+                        feat_loss = F.mse_loss(
+                            s_feat.view(s_feat.size(0), -1),
+                            syn_feat.detach().view(s_feat.size(0), -1),
+                        )
 
-                rkd_val = torch.tensor(0.0, device=s_feat.device)
-                if self.config.get("rkd_loss_weight", 0.0) > 0:
-                    if s_feat.size(0) <= 2 and logger is not None:
-                        logger.warning("batch size <= 2: RKD losses will be zero")
-                    rkd_t1 = (
-                        rkd_distance_loss(s_feat, t1["feat_2d"].detach(), reduction="none")
-                        + rkd_angle_loss(s_feat, t1["feat_2d"].detach(), reduction="none")
-                    )
-                    rkd_t2 = (
-                        rkd_distance_loss(s_feat, t2["feat_2d"].detach(), reduction="none")
-                        + rkd_angle_loss(s_feat, t2["feat_2d"].detach(), reduction="none")
-                    )
-                    rkd_syn = (
-                        rkd_distance_loss(s_feat, syn_feat.detach(), reduction="none")
-                        + rkd_angle_loss(s_feat, syn_feat.detach(), reduction="none")
-                    )
-                    gamma = self.config.get("rkd_gamma", 0.5)
-                    if w1 is not None:
-                        rkd_mix = (w1 * rkd_t1 + w2 * rkd_t2) + gamma * rkd_syn
-                    else:
-                        rkd_mix = 0.5 * (rkd_t1 + rkd_t2) + gamma * rkd_syn
-                    rkd_val = rkd_mix.mean()
+                    rkd_val = torch.tensor(0.0, device=s_feat.device)
+                    if self.config.get("rkd_loss_weight", 0.0) > 0:
+                        if s_feat.size(0) <= 2 and logger is not None:
+                            logger.warning("batch size <= 2: RKD losses will be zero")
+                        rkd_t1 = (
+                            rkd_distance_loss(s_feat, t1["feat_2d"].detach(), reduction="none")
+                            + rkd_angle_loss(s_feat, t1["feat_2d"].detach(), reduction="none")
+                        )
+                        rkd_t2 = (
+                            rkd_distance_loss(s_feat, t2["feat_2d"].detach(), reduction="none")
+                            + rkd_angle_loss(s_feat, t2["feat_2d"].detach(), reduction="none")
+                        )
+                        rkd_syn = (
+                            rkd_distance_loss(s_feat, syn_feat.detach(), reduction="none")
+                            + rkd_angle_loss(s_feat, syn_feat.detach(), reduction="none")
+                        )
+                        gamma = self.config.get("rkd_gamma", 0.5)
+                        if w1 is not None:
+                            rkd_mix = (w1 * rkd_t1 + w2 * rkd_t2) + gamma * rkd_syn
+                        else:
+                            rkd_mix = 0.5 * (rkd_t1 + rkd_t2) + gamma * rkd_syn
+                        rkd_val = rkd_mix.mean()
 
-                loss_asmb = (
-                    self.alpha * ce_val
-                    + (1 - self.alpha) * kd_val
-                    + self.feat_kd_alpha * feat_loss
-                    + self.config.get("rkd_loss_weight", 0.0) * rkd_val
-                )
-                beta = self.config.get("hybrid_beta", 0.0)
-                loss = (1 - beta) * loss_asmb + beta * kd_vanilla
+                    loss_asmb = (
+                        self.alpha * ce_val
+                        + (1 - self.alpha) * kd_val
+                        + self.feat_kd_alpha * feat_loss
+                        + self.config.get("rkd_loss_weight", 0.0) * rkd_val
+                    )
+                    beta = self.config.get("hybrid_beta", 0.0)
+                    loss = (1 - beta) * loss_asmb + beta * kd_vanilla
 
                 if logger is not None and attn is not None:
                     logger.debug(f"attn_mean={attn.mean().item():.4f}")
 
                 optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+                if scaler is not None:
+                    scaler.scale(loss).backward()
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    loss.backward()
+                    optimizer.step()
 
                 bs = x.size(0)
                 total_loss += loss.item()*bs

@@ -77,7 +77,7 @@ def build_distiller(method, teacher, student, cfg):
         # FitNet에 필요한 채널 수를 지정합니다.
         # (Teacher: EfficientNet-B2, Student: ResNet-Adapter, layer2 기준)
         s_channels = 512
-        t_channels = 88  # EfficientNet-B2의 'feat_4d_layer2' 출력 채널 수
+        t_channels = teacher.get_feat_dim()
         return cls(
             teacher,
             student,

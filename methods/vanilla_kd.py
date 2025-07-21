@@ -7,6 +7,7 @@ from typing import Optional
 
 from modules.losses import kd_loss_fn, ce_loss_fn
 from utils.schedule import get_tau
+from utils.misc import get_amp_components
 
 class VanillaKDDistiller(nn.Module):
     """
@@ -72,6 +73,8 @@ class VanillaKDDistiller(nn.Module):
         """
         self.to(device)
 
+        autocast_ctx, scaler = get_amp_components(cfg or self.cfg)
+
         if cfg is not None:
             lr = cfg.get("student_lr", lr)
             weight_decay = cfg.get("student_weight_decay", weight_decay)
@@ -110,11 +113,17 @@ class VanillaKDDistiller(nn.Module):
             total_loss, total_num = 0.0, 0
             for x, y in train_loader:
                 x, y = x.to(device), y.to(device)
-                loss, _ = self.forward(x, y, tau=cur_tau)
+                with autocast_ctx:
+                    loss, _ = self.forward(x, y, tau=cur_tau)
 
                 optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+                if scaler is not None:
+                    scaler.scale(loss).backward()
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    loss.backward()
+                    optimizer.step()
 
 
                 total_loss += loss.item() * x.size(0)
