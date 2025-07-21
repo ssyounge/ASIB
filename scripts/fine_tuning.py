@@ -18,7 +18,12 @@ import torch
 import yaml
 from typing import Optional
 
-from utils.misc import set_random_seed, check_label_range, get_model_num_classes
+from utils.misc import (
+    set_random_seed,
+    check_label_range,
+    get_model_num_classes,
+    get_amp_components,
+)
 
 # data loaders
 from data.cifar100 import get_cifar100_loaders
@@ -70,6 +75,7 @@ def parse_args():
     parser.add_argument("--adam_beta1", type=float)
     parser.add_argument("--adam_beta2", type=float)
     parser.add_argument("--grad_scaler_init_scale", type=int)
+    parser.add_argument("--force_refinetune", type=int)
 
     return parser.parse_args()
 
@@ -189,7 +195,7 @@ def standard_ce_finetune(
     ckpt_path,
     label_smoothing: float = 0.0,
     cfg=None,
-):
+): 
     """Simple fine-tune loop using cross-entropy loss.
 
     Parameters
@@ -198,6 +204,7 @@ def standard_ce_finetune(
         Passed to ``CrossEntropyLoss``.
     """
     model = model.to(device)
+    autocast_ctx, scaler = get_amp_components(cfg or {})
     optim = torch.optim.AdamW(
         model.parameters(),
         lr=lr,
@@ -214,11 +221,17 @@ def standard_ce_finetune(
         for x, y in train_loader:
             x, y = x.to(device), y.to(device)
             optim.zero_grad()
-            out = model(x)
-            loss = crit(out["logit"], y)
-            loss.backward()
-            optim.step()
-        acc = eval_teacher(model, test_loader, device)
+            with autocast_ctx:
+                out = model(x)
+                loss = crit(out["logit"], y)
+            if scaler is not None:
+                scaler.scale(loss).backward()
+                scaler.step(optim)
+                scaler.update()
+            else:
+                loss.backward()
+                optim.step()
+        acc = eval_teacher(model, test_loader, device, cfg=cfg)
         if acc > best_acc:
             best_acc = acc
             ckpt_dir = os.path.dirname(ckpt_path)
@@ -279,15 +292,16 @@ def main():
             f"Teacher head expects {model_classes} classes but dataset provides {num_classes}"
         )
 
-    # optional load ckpt
-    if cfg.get("finetune_ckpt_path") and os.path.isfile(cfg["finetune_ckpt_path"]):
+    # optional load ckpt (unless force_refinetune=True)
+    ckpt_path_cfg = cfg.get("finetune_ckpt_path")
+    if ckpt_path_cfg and os.path.isfile(ckpt_path_cfg) and not cfg.get("force_refinetune", False):
         teacher_model.load_state_dict(
             torch.load(
-                cfg["finetune_ckpt_path"], map_location=device, weights_only=True
+                ckpt_path_cfg, map_location=device, weights_only=True
             ),
             strict=False,
         )
-        print(f"[FineTune] ckpt exists → fine-tune 스킵 ({cfg['finetune_ckpt_path']})")
+        print(f"[FineTune] ckpt exists → fine-tune 스킵 ({ckpt_path_cfg})")
         # 평가만 한 번 찍고 바로 반환
         best_acc = eval_teacher(teacher_model, test_loader, device)
         print(f"[FineTune] testAcc={best_acc:.2f}")
