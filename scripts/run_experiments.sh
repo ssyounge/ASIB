@@ -85,8 +85,8 @@ run_loop() {
   mkdir -p "${OUTPUT_DIR}"
   mkdir -p checkpoints
 
-  for TEACH_EP in ${teacher_adapt_epochs_list}; do
-    for STUD_EP in ${student_epochs_per_stage_list}; do
+  for TEACH_EP in ${teacher_adapt_epochs}; do
+    for STUD_EP in ${student_epochs_per_stage}; do
       teacher_adapt_epochs=${TEACH_EP}
       student_epochs_per_stage=${STUD_EP}
       for T1 in $T1_LIST; do
@@ -116,8 +116,8 @@ run_loop() {
         done
 
         # 2) ASMB multi-stage distillation
-        for SC_ALPHA in ${sc_alpha_list}; do
-          for H_BETA in ${hybrid_beta_list}; do
+        for SC_ALPHA in ${synergy_ce_alpha}; do
+          for H_BETA in ${hybrid_beta}; do
             synergy_ce_alpha=${SC_ALPHA}
             hybrid_beta=${H_BETA}
             # N_STAGE_LIST may contain space-separated values like "2 3 4 5"

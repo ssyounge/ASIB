@@ -85,13 +85,10 @@ head_dropout: 0.0     # dropout prob for synergy head
 # e.g. "2 3 4 5" to run multiple values in a batch script.
 num_stages: 4
 n_stage_list: 4
-sc_alpha_list: "0.6" # 0.3 0.6
+synergy_ce_alpha: 0.6  # formerly sc_alpha_list
 hybrid_beta: 0.2
-# Additional sweep lists
-hybrid_beta_list: "0.1"       # e.g. "0.1 0.5 0.9"
-# Epoch sweep lists
-teacher_adapt_epochs_list: "3"
-student_epochs_per_stage_list: "12"   # full fine-tune 는 수렴 빠르므로 12 ep 로 균형
+teacher_adapt_epochs: 3
+student_epochs_per_stage: 12   # full fine-tune 는 수렴 빠르므로 12 ep 로 균형
 # Teacher adaptation
 teacher_adapt_alpha_kd: 1.0
 mbm_lr_factor: 2.0
