@@ -661,6 +661,11 @@ def main():
             except ValueError:
                 pass  # ignore
 
+    s = cfg.get("ce_alpha", 0.0) + cfg.get("kd_alpha", 0.0)
+    if abs(s - 1.0) > 1e-6:
+        cfg["ce_alpha"] /= s
+        cfg["kd_alpha"] /= s
+
     if cfg.get("student_ckpt"):
         student_model.load_state_dict(
             torch.load(
