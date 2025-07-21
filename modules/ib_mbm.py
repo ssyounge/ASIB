@@ -37,8 +37,9 @@ class IB_MBM(nn.Module):
         mu = self.mu(syn)
         logvar = self.logvar(syn)
         logvar = torch.clamp(logvar, -10.0, 10.0)
-        std = torch.exp(0.5 * logvar)
-        z = mu + std * torch.randn_like(std)
+        std = torch.exp(0.5 * logvar).clamp_min(1e-3)
+        eps = torch.randn_like(std)  # uses global seed set via utils.misc.set_random_seed
+        z = mu + std * eps
         return z, mu, logvar
 
     def loss(self, z, mu, logvar, labels, decoder):
