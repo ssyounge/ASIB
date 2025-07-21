@@ -35,6 +35,7 @@ wandb_api_key: ""            # ""이면 env/W&B login 사용
 
 finetune_ckpt1: "./checkpoints/teacher1_finetuned.pth"
 finetune_ckpt2: "./checkpoints/teacher2_finetuned.pth"
+force_refinetune: false
 
 # === Information Bottleneck MBM ===
 mbm_type: ib_mbm
