@@ -15,6 +15,7 @@ parser.add_argument(
 parser.add_argument('--out', required=True, help='Output YAML file')
 parser.add_argument('--hparams', help='YAML file with numeric hyperparameters')
 parser.add_argument('--method', help='Distillation method name')
+parser.add_argument('--verbose', action='store_true', help='Print overridden keys')
 parser.add_argument('overrides', nargs='*', help='KEY=VAL pairs to override')
 args = parser.parse_args()
 
@@ -48,7 +49,16 @@ for ov in args.overrides:
     try:
         cfg[key] = yaml.safe_load(val)
     except yaml.YAMLError:
-        cfg[key] = val
+        lower = val.lower()
+        if lower in ['true', 'false']:
+            cfg[key] = lower == 'true'
+        else:
+            try:
+                cfg[key] = int(val)
+            except ValueError:
+                cfg[key] = val
+    if args.verbose:
+        print(f"{key} = {cfg[key]}")
 
 with open(args.out, 'w') as f:
     yaml.safe_dump(cfg, f)
