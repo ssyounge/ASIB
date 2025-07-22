@@ -58,8 +58,10 @@ teacher_lr: 1e-4
 student_lr: 0.001              # full fine-tune 에 맞춰 2× 상승
 teacher_weight_decay: 1e-4
 student_weight_decay: 3e-4
-ce_alpha: 0.25
-kd_alpha: 0.55                 # logit KD 비중 ↑ (freeze 해제 됐으므로 수용력↑)
+ce_alpha: 0.5
+kd_alpha: 0.5                 # logit KD 비중 ↑ (freeze 해제 됐으므로 수용력↑)
+teacher_adapt_kd_warmup: 2   # Stage 1~2: adaptive KL 끔
+synergy_ce_alpha: 1.0        # adaptive 단계는 GT 중심
 cutmix_alpha_distill: 0.0  # CutMix alpha used during distillation
 
 # Learning rate schedule
