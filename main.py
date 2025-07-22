@@ -479,6 +479,11 @@ def main():
     exp_logger.update_metric("mbm_r", cfg.get("mbm_r"))
     exp_logger.update_metric("mbm_n_head", cfg.get("mbm_n_head"))
     exp_logger.update_metric("mbm_learnable_q", cfg.get("mbm_learnable_q"))
+    # overlap_pct 기록 (없으면 -1)
+    cfg_overlap = cfg.get("overlap_pct", -1)
+    exp_logger.update_metric("overlap_pct", cfg_overlap)
+    if wandb and wandb.run:
+        wandb.run.summary["overlap_pct"] = cfg_overlap
 
     device = cfg.get("device", "cuda")
     if device == "cuda" and not torch.cuda.is_available():

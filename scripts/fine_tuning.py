@@ -76,6 +76,11 @@ def parse_args():
     parser.add_argument("--adam_beta2", type=float)
     parser.add_argument("--grad_scaler_init_scale", type=int)
     parser.add_argument("--force_refinetune", type=int)
+    parser.add_argument(
+        "--class_subset",
+        type=str,
+        help="comma-sep class ids(0-99) for subset training",
+    )
 
     return parser.parse_args()
 
@@ -259,12 +264,30 @@ def main():
     # 1) dataset
     dataset_name = cfg.get("dataset_name", "cifar100")
     batch_size   = cfg.get("batch_size", 128)
-    train_loader, test_loader = get_data_loaders(
-        dataset_name,
-        batch_size=batch_size,
-        num_workers=cfg.get("num_workers", 2),
-        augment=cfg.get("data_aug", True),
-    )
+    if args.class_subset:
+        from data.cifar100_overlap import _make_loader
+        subset = [int(x) for x in args.class_subset.split(",")]
+        train_loader = _make_loader(
+            subset,
+            True,
+            batch_size,
+            cfg.get("num_workers", 2),
+            cfg.get("data_aug", True),
+        )
+        test_loader = _make_loader(
+            subset,
+            False,
+            batch_size,
+            cfg.get("num_workers", 2),
+            False,
+        )
+    else:
+        train_loader, test_loader = get_data_loaders(
+            dataset_name,
+            batch_size=batch_size,
+            num_workers=cfg.get("num_workers", 2),
+            augment=cfg.get("data_aug", True),
+        )
 
     num_classes = len(train_loader.dataset.classes)
     check_label_range(train_loader.dataset, num_classes)
