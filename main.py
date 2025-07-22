@@ -689,7 +689,8 @@ def main():
 
     # ───────────────────────── debug: trainable 파라미터 개수 로그 ──────────────
     def _count_trainable(m):
-        return sum(p.requires_grad for p in m.parameters())
+        """Return the number of trainable elements in ``m``."""
+        return sum(p.numel() for p in m.parameters() if p.requires_grad)
 
     n_trainable = _count_trainable(student_model)
     print(f"[Debug] Student trainable params → {n_trainable:,}")
