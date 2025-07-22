@@ -1,6 +1,7 @@
 # modules/disagreement.py
 
 import torch
+import logging  # DEBUG 로그용
 from utils.misc import get_amp_components
 
 @torch.no_grad()
@@ -65,10 +66,18 @@ def compute_disagreement_rate(
         pred1 = logit1.argmax(dim=1)
         pred2 = logit2.argmax(dim=1)
 
-        if mode == "pred":
+        correct1 = pred1.eq(y)
+        correct2 = pred2.eq(y)
+
+        # ---- 마스크 결정 -------------------------------------------------
+        if mode == "none":  # (옵션) 항상 OFF
+            disagree_mask = torch.zeros_like(correct1, dtype=torch.bool)
+        elif mode == "pred":
             disagree_mask = pred1 != pred2
         elif mode == "both_wrong":
-            disagree_mask = (pred1 != y) & (pred2 != y)
+            disagree_mask = ~correct1 & ~correct2
+        elif mode == "any_wrong":
+            disagree_mask = ~(correct1 & correct2)
         else:
             raise ValueError(f"Unknown disagree_mode: {mode}")
 
@@ -76,6 +85,16 @@ def compute_disagreement_rate(
         total_samples += y.size(0)
 
     dis_rate = 100.0 * disagree_count / total_samples if total_samples > 0 else 0.0
+
+    # ---- DEBUG 로그 --------------------------------------------------
+    if cfg is not None and cfg.get("log_level", "INFO").upper() == "DEBUG":
+        logging.debug(
+            "[DisagreeDBG] mode=%s | selected=%d / %d (%.1f %%)",
+            mode,
+            disagree_count,
+            total_samples,
+            100.0 * disagree_count / total_samples if total_samples > 0 else 0.0,
+        )
 
     # restore original training modes
     teacher1.train(teacher1_train_state)
