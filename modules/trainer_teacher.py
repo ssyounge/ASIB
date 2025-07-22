@@ -226,18 +226,16 @@ def teacher_adaptive_update(
             )
 
             # --- 1) L2 regularization on teacher parameters ---
-            reg_loss = torch.tensor(0.0, device=cfg["device"])
-            for p in teacher_params:                 # collected above
-                if p.requires_grad:
-                    reg_loss = reg_loss + p.pow(2).sum()
+            reg_loss = torch.stack([
+                (p ** 2).mean() for p in teacher_params if p.requires_grad
+            ]).mean()
             total_loss = total_loss + float(cfg.get("reg_lambda", 0.0)) * reg_loss
             # -----------------------------------------------------------
 
             # --- 2) L2 regularization on MBM and Synergy-Head ---
-            mbm_reg_loss = torch.tensor(0.0, device=cfg["device"])
-            for p in mbm_params + syn_params:
-                if p.requires_grad:
-                    mbm_reg_loss = mbm_reg_loss + p.pow(2).sum()
+            mbm_reg_loss = torch.stack([
+                (p ** 2).mean() for p in mbm_params + syn_params if p.requires_grad
+            ]).mean()
             total_loss = total_loss + float(cfg.get("mbm_reg_lambda", 0.0)) * mbm_reg_loss
             # -----------------------------------------------------------      
             
