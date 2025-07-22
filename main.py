@@ -499,7 +499,7 @@ def main():
     dataset = cfg.get("dataset_name", "cifar100")
     batch_size = cfg.get("batch_size", 128)
     data_root = cfg.get("data_root", "./data")
-    if cfg.get("overlap_pct") is not None:
+    if cfg.get("overlap_pct", -1) >= 0:
         from data.cifar100_overlap import get_overlap_loaders
         (A_tr, A_te), (B_tr, B_te), _ = get_overlap_loaders(
             pct_overlap=cfg["overlap_pct"],
@@ -536,7 +536,10 @@ def main():
     else:
         raise ValueError(f"Unknown dataset_name={dataset}")
 
-    num_classes = len(train_loader.dataset.classes)
+    if isinstance(train_loader.dataset, torch.utils.data.ConcatDataset):
+        num_classes = 100   # CIFAR-100 fixed
+    else:
+        num_classes = len(train_loader.dataset.classes)
     cfg["num_classes"] = num_classes
     exp_logger.update_metric("num_classes", num_classes)
     check_label_range(train_loader.dataset, num_classes)
