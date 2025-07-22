@@ -15,7 +15,7 @@ from main import (
     create_teacher_by_name,
     create_student_by_name,
     partial_freeze_teacher_auto,
-    partial_freeze_student_auto,
+    apply_partial_freeze,
 )
 
 from methods.vanilla_kd import VanillaKDDistiller
@@ -198,15 +198,11 @@ def main():
             torch.load(cfg["student_ckpt"], map_location=device, weights_only=True),
             strict=False,
         )
-    if cfg.get("use_partial_freeze", True):
-        partial_freeze_student_auto(
-            student,
-            student_name=cfg.get("student_type", "resnet_adapter"),
-            freeze_bn=cfg.get("student_freeze_bn", True),
-            freeze_ln=cfg.get("student_freeze_ln", True),
-            use_adapter=cfg.get("student_use_adapter", False),
-            freeze_level=cfg.get("student_freeze_level", 1),
-        )
+    apply_partial_freeze(
+        student,
+        cfg.get("student_freeze_level", -1 if not cfg.get("use_partial_freeze") else 0),
+        cfg.get("student_freeze_bn", False),
+    )
 
     distiller = build_distiller(method, teacher, student, cfg)
     acc = distiller.train_distillation(

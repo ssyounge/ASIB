@@ -14,7 +14,7 @@ import torch.optim as optim
 from utils.misc import set_random_seed, check_label_range
 from data.cifar100 import get_cifar100_loaders
 from data.imagenet100 import get_imagenet100_loaders
-from main import create_student_by_name, partial_freeze_student_auto
+from main import create_student_by_name, apply_partial_freeze
 from modules.cutmix_finetune_teacher import eval_teacher
 from utils.progress import smart_tqdm
 from utils.misc import get_amp_components
@@ -168,13 +168,10 @@ def main():
             strict=False,
         )
 
-    partial_freeze_student_auto(
+    apply_partial_freeze(
         student,
-        student_name=cfg.get("student_type", "resnet_adapter"),
-        freeze_bn=cfg.get("student_freeze_bn", True),
-        freeze_ln=cfg.get("student_freeze_ln", True),
-        use_adapter=cfg.get("student_use_adapter", False),
-        freeze_level=cfg.get("student_freeze_level", 1),
+        cfg.get("student_freeze_level", -1 if not cfg.get("use_partial_freeze") else 0),
+        cfg.get("student_freeze_bn", False),
     )
 
     os.makedirs(cfg.get("results_dir", "results"), exist_ok=True)
