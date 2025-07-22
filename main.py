@@ -954,9 +954,14 @@ def main():
     torch.save(student_model.state_dict(), student_ckpt_path)
     print(f"[main] Distillation done => {student_ckpt_path}")
     exp_logger.update_metric("final_student_ckpt", student_ckpt_path)
-    exp_logger.update_metric("final_student_acc", final_acc)
+
+    # synchronize final student acc key with last stage
+    final_key = f"stage{cfg['num_stages']}_student_acc"
+    exp_logger.update_metric(final_key, final_acc)
+
     if wandb and wandb.run:
-        wandb.run.summary["final_student_acc"] = final_acc
+        wandb.run.summary[final_key] = final_acc
+        wandb.run.summary["best_student_acc"] = final_acc
     exp_logger.finalize()
 
 if __name__ == "__main__":
