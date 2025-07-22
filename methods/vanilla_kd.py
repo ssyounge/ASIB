@@ -27,9 +27,10 @@ class VanillaKDDistiller(nn.Module):
         super().__init__()
         self.teacher = teacher_model
         self.student = student_model
-        self.alpha = alpha
-        self.temperature = temperature
-        self.cfg = config if config is not None else {}
+        cfg = config or {}
+        self.alpha = cfg.get("ce_alpha", alpha)
+        self.temperature = cfg.get("tau_start", temperature)
+        self.cfg = cfg
 
     def forward(self, x, y, tau=None):
         """
