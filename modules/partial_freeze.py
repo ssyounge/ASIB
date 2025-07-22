@@ -5,6 +5,60 @@ import torch.nn as nn
 from utils.freeze import apply_bn_ln_policy, freeze_all, unfreeze_by_regex
 
 
+def apply_partial_freeze(model, level: int, freeze_bn: bool = False):
+    """Apply a simple partial freeze scheme to a model.
+
+    Parameters
+    ----------
+    model : nn.Module
+        Target network whose ``requires_grad`` flags will be updated.
+    level : int
+        Numeric freeze level. ``level < 0`` disables freezing,
+        ``0`` keeps only the classifier/head trainable, ``1`` unfreezes the
+        last block as well and ``2`` unfreezes the last two blocks.
+    freeze_bn : bool, optional
+        When ``True`` the BatchNorm parameters remain frozen.
+    """
+    if level < 0:
+        # no-op: everything trainable
+        for p in model.parameters():
+            p.requires_grad = True
+        return
+
+    freeze_all(model)
+
+    patterns = []
+    if level == 0:
+        patterns = [r"\.fc\.", r"\.classifier\.", r"\.head\."]
+    elif level == 1:
+        patterns = [
+            r"\.layer4\.",
+            r"features\.7\.",
+            r"features\.8\.",
+            r"\.layers\.3\.",
+            r"\.fc\.",
+            r"\.classifier\.",
+            r"\.head\.",
+        ]
+    else:  # level >= 2
+        patterns = [
+            r"\.layer3\.",
+            r"\.layer4\.",
+            r"features\.6\.",
+            r"features\.7\.",
+            r"features\.8\.",
+            r"\.layers\.2\.",
+            r"\.layers\.3\.",
+            r"\.fc\.",
+            r"\.classifier\.",
+            r"\.head\.",
+        ]
+
+    unfreeze_by_regex(model, patterns)
+
+    apply_bn_ln_policy(model, train_bn=not freeze_bn)
+
+
 def freeze_bn_params(module: nn.Module):
     """Freeze the affine parameters of any BatchNorm modules.
 
