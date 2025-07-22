@@ -364,37 +364,37 @@ def main():
     cfg = base_cfg.copy()
 
     # -------- merge CLI overrides ----------
-    # 1) 먼저 CLI dict 추출
+    # 1) CLI dict 추출
     cli_cfg = {k: v for k, v in vars(args).items() if v is not None}
-    # 2) 중복 충돌 시 CLI 가 우선, *단* 동일 prefix 다른 의미값은 보호
-    #    feat_kd_alpha 와 kd_alpha 같은 케이스 방지
+    # 2) 중복 충돌 시 CLI 우선, 단 protected 키는 유지
     protected = {"feat_kd_alpha"}
     for k, v in cli_cfg.items():
-        if k in protected and k in cfg and cfg[k] != v:
-            print(f"[Warn] keeping YAML value for {k}: {cfg[k]} (CLI={v})")
+        if k in protected and k in cfg:
             continue
         cfg[k] = v
 
-    # --- α, β, 합계 보정 -------------------------------------------------
-    if all(k in cfg for k in ("ce_alpha", "kd_alpha")):
-        ce, kd = float(cfg["ce_alpha"]), float(cfg["kd_alpha"])
-        if abs(ce + kd - 1) > 1e-5:
-            total = ce + kd
-            cfg["ce_alpha"] = ce / total
-            cfg["kd_alpha"] = kd / total
-            print(
-                f"[Auto-cfg] ce_alpha+kd_alpha \u22601 \u2192 \uc7ac\uc815\uaddc\ud654 "
-                f"(ce={cfg['ce_alpha']:.3f}, kd={cfg['kd_alpha']:.3f})"
-            )
+    # --------------- α/β 재정규화 (한 번만) -------------
+    def _renorm_ce_kd(d):
+        if "ce_alpha" in d and "kd_alpha" in d:
+            ce, kd = float(d["ce_alpha"]), float(d["kd_alpha"])
+            if abs(ce + kd - 1) > 1e-5:
+                tot = ce + kd
+                d["ce_alpha"], d["kd_alpha"] = ce / tot, kd / tot
+                print(
+                    f"[Auto-cfg] ce_alpha+kd_alpha \u22601 \u2192 \uc7ac\uc815\uaddc\ud654 "
+                    f"(ce={d['ce_alpha']:.3f}, kd={d['kd_alpha']:.3f})"
+                )
+
+    _renorm_ce_kd(cfg)
 
     # ------------------------------------------------------------------
-    # [Safety switch]  partial freeze가 꺼져 있으면 freeze level을 강제로 0
+    # [Safety switch]  partial freeze OFF → freeze_level = -1 (no‑freeze)
     #  — sweep 중 조건부 파라미터 처리가 어려우므로 코드에서 보정
     # ------------------------------------------------------------------
     if not cfg.get("use_partial_freeze", False):
-        cfg["student_freeze_level"] = 0
-        cfg["teacher1_freeze_level"] = 0
-        cfg["teacher2_freeze_level"] = 0
+        cfg["student_freeze_level"]  = -1
+        cfg["teacher1_freeze_level"] = -1
+        cfg["teacher2_freeze_level"] = -1
     # ------------------------------------------- #
 
     # ── tqdm 전체 OFF ─────────────────────────────
@@ -671,16 +671,6 @@ def main():
             except ValueError:
                 pass  # ignore
 
-    if all(k in cfg for k in ("ce_alpha", "kd_alpha")):
-        ce, kd = cfg["ce_alpha"], cfg["kd_alpha"]
-        if abs(ce + kd - 1) > 1e-5:
-            total = ce + kd
-            cfg["ce_alpha"] = ce / total
-            cfg["kd_alpha"] = kd / total
-            print(
-                f"[Auto-cfg] ce_alpha+kd_alpha \u22601 \u2192 \uc7ac\uc815\uaddc\ud654 "
-                f"(ce={cfg['ce_alpha']:.3f}, kd={cfg['kd_alpha']:.3f})"
-            )
 
     if cfg.get("student_ckpt"):
         student_model.load_state_dict(
@@ -693,10 +683,7 @@ def main():
 
     apply_partial_freeze(
         student_model,
-        cfg.get(
-            "student_freeze_level",
-            -1 if not cfg.get("use_partial_freeze", False) else 0,
-        ),
+        cfg.get("student_freeze_level", -1),
         cfg.get("student_freeze_bn", False),
     )
 

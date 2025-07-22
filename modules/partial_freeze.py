@@ -13,9 +13,8 @@ def apply_partial_freeze(model, level: int, freeze_bn: bool = False):
     model : nn.Module
         Target network whose ``requires_grad`` flags will be updated.
     level : int
-        Numeric freeze level. ``level < 0`` disables freezing,
-        ``0`` keeps only the classifier/head trainable, ``1`` unfreezes the
-        last block as well and ``2`` unfreezes the last two blocks.
+        level<0 → no‑freeze, level=0 → head만 학습,
+        ``1`` unfreezes the last block and ``2`` the last two blocks.
     freeze_bn : bool, optional
         When ``True`` the BatchNorm parameters remain frozen.
     """

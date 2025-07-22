@@ -460,6 +460,11 @@ teacher2_bn_head_only: 0
 sweeps or batch runs without editing every config file.
 
 ### Freeze Levels
+* **-1 \u2192 no freeze** (new)  
+* 0 \u2192 head only  
+* 1 \u2192 last block train  
+* 2 \u2192 last two blocks train  
+  (architecture\u2011specific mapping\ub294 `modules/partial_freeze.py` \ucc38\uace0)
 
 The amount of each model that remains trainable is controlled by three keys in `configs/partial_freeze.yaml`:
 
