@@ -323,6 +323,10 @@ def partial_freeze_student_auto(
     use_adapter=False,
     freeze_level=1,
 ):
+    if freeze_level < 0:
+        for p in model.parameters():
+            p.requires_grad = True
+        return
     if student_name == "resnet_adapter":
         partial_freeze_student_resnet(
             model,
