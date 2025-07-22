@@ -178,6 +178,10 @@ def parse_args():
         type=int,
         help="1 to use CIFAR-friendly stems (teachers + Swin student)",
     )
+    parser.add_argument(
+        "--student_pretrained",
+        type=lambda x: str(x).lower() == "true",
+    )
     parser.add_argument("--feat_kd_alpha", type=float)
     parser.add_argument("--feat_kd_key", type=str)
     parser.add_argument("--feat_kd_norm", type=str)
@@ -376,6 +380,25 @@ def main():
         if k in protected and k in cfg:
             continue
         cfg[k] = v
+
+    # ------------------------------------------------------------------
+    # (NEW)  student_pretrained 기본값 자동 결정
+    #   · freeze_level ≥0  →  pretrained 켜기
+    #   · freeze_level  <0 →  scratch (꺼두기)
+    # ------------------------------------------------------------------
+    if "student_pretrained" not in cfg:
+        fl = cfg.get("student_freeze_level", -1)
+        cfg["student_pretrained"] = bool(fl >= 0)
+        print(
+            f"[Auto-cfg] student_pretrained\u2190{cfg['student_pretrained']} "
+            f"(freeze_level={fl})"
+        )
+
+    if cfg.get("student_freeze_level", -1) >= 0 and not cfg.get("student_pretrained", False):
+        print(
+            "[Warn] freeze_level ≥0 인데 student_pretrained=False ‑‑ "
+            "동결된 층이 랜덤 초기화 상태가 됩니다."
+        )
 
     # --------------- α/β 재정규화 (한 번만) -------------
     def _renorm_ce_kd(d):
