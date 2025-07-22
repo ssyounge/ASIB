@@ -14,7 +14,7 @@ from modules.losses import (
 )
 from utils.schedule import get_tau
 from utils.misc import get_amp_components
-from models import LightweightAttnMBM
+# LightweightAttnMBM is deprecated and ignored
 
 class ASMBDistiller(nn.Module):
     """
@@ -49,7 +49,8 @@ class ASMBDistiller(nn.Module):
         self.student  = student
         self.mbm = mbm
         self.synergy_head = synergy_head
-        self.la_mode = isinstance(mbm, LightweightAttnMBM)
+        # LightweightAttnMBM 은 더 이상 쓰지 않는다 → 항상 False
+        self.la_mode = False
 
         # 하이퍼파라미터
         cfg = config or {}
