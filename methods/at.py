@@ -59,12 +59,13 @@ class ATDistiller(nn.Module):
         super().__init__()
         self.teacher = teacher_model
         self.student = student_model
-        self.alpha = alpha
-        self.p = p
-        self.layer_key = layer_key
-        self.label_smoothing = label_smoothing
+        cfg = config or {}
+        self.alpha = cfg.get("at_alpha", alpha)
+        self.p = cfg.get("at_p", p)
+        self.layer_key = cfg.get("layer_key", layer_key)
+        self.label_smoothing = cfg.get("label_smoothing", label_smoothing)
         # optional runtime configuration for training loops
-        self.cfg = config if config is not None else {}
+        self.cfg = cfg
 
     def forward(self, x, y):
         # 1) teacher
