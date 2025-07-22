@@ -37,6 +37,7 @@ from data.imagenet100 import get_imagenet100_loaders
 
 # partial freeze
 from modules.partial_freeze import (
+    apply_partial_freeze,
     partial_freeze_teacher_resnet,
     partial_freeze_teacher_efficientnet,
     partial_freeze_teacher_swin,
@@ -360,33 +361,31 @@ def main():
         args.hparams,
         "configs/partial_freeze.yaml"   # ← 새로 추가
     )
+    cfg = base_cfg.copy()
+
+    # -------- merge CLI overrides ----------
+    # 1) 먼저 CLI dict 추출
     cli_cfg = {k: v for k, v in vars(args).items() if v is not None}
-    cfg = {**base_cfg, **cli_cfg}
-    # ---- apply sweep overrides if not None ---- #
-    # sweep/CLI 값이 None 이 아니면 cfg 덮어쓰기
-    for k in [
-        "ce_alpha", "kd_alpha", "ib_beta", "hybrid_beta",
-        "tau_start", "tau_end", "tau_decay_epochs",
-        "student_lr", "student_epochs_per_stage",
-        "teacher_adapt_epochs",
-        "use_ib",
-        "use_partial_freeze",    # ← 추가
-        "student_freeze_level",
-    ]:
-        v = getattr(args, k)
-        if v is not None:
-            cfg[k] = v
+    # 2) 중복 충돌 시 CLI 가 우선, *단* 동일 prefix 다른 의미값은 보호
+    #    feat_kd_alpha 와 kd_alpha 같은 케이스 방지
+    protected = {"feat_kd_alpha"}
+    for k, v in cli_cfg.items():
+        if k in protected and k in cfg and cfg[k] != v:
+            print(f"[Warn] keeping YAML value for {k}: {cfg[k]} (CLI={v})")
+            continue
+        cfg[k] = v
 
     # --- α, β, 합계 보정 -------------------------------------------------
-    ce = float(cfg.get("ce_alpha", 0.0))
-    kd = float(cfg.get("kd_alpha", 0.0))
-    if abs((ce + kd) - 1.0) > 1e-4:
-        s = ce + kd if ce + kd > 0 else 1.0
-        cfg["ce_alpha"] = ce / s
-        cfg["kd_alpha"] = kd / s
-        print(
-            f"[Auto-cfg] ce_alpha+kd_alpha \u22601 \u2192 \uc7ac\uc815\uaddc\ud654 (ce={cfg['ce_alpha']:.3f}, kd={cfg['kd_alpha']:.3f})"
-        )
+    if all(k in cfg for k in ("ce_alpha", "kd_alpha")):
+        ce, kd = float(cfg["ce_alpha"]), float(cfg["kd_alpha"])
+        if abs(ce + kd - 1) > 1e-5:
+            total = ce + kd
+            cfg["ce_alpha"] = ce / total
+            cfg["kd_alpha"] = kd / total
+            print(
+                f"[Auto-cfg] ce_alpha+kd_alpha \u22601 \u2192 \uc7ac\uc815\uaddc\ud654 "
+                f"(ce={cfg['ce_alpha']:.3f}, kd={cfg['kd_alpha']:.3f})"
+            )
 
     # ------------------------------------------------------------------
     # [Safety switch]  partial freeze가 꺼져 있으면 freeze level을 강제로 0
@@ -672,10 +671,16 @@ def main():
             except ValueError:
                 pass  # ignore
 
-    s = cfg.get("ce_alpha", 0.0) + cfg.get("kd_alpha", 0.0)
-    if abs(s - 1.0) > 1e-6:
-        cfg["ce_alpha"] /= s
-        cfg["kd_alpha"] /= s
+    if all(k in cfg for k in ("ce_alpha", "kd_alpha")):
+        ce, kd = cfg["ce_alpha"], cfg["kd_alpha"]
+        if abs(ce + kd - 1) > 1e-5:
+            total = ce + kd
+            cfg["ce_alpha"] = ce / total
+            cfg["kd_alpha"] = kd / total
+            print(
+                f"[Auto-cfg] ce_alpha+kd_alpha \u22601 \u2192 \uc7ac\uc815\uaddc\ud654 "
+                f"(ce={cfg['ce_alpha']:.3f}, kd={cfg['kd_alpha']:.3f})"
+            )
 
     if cfg.get("student_ckpt"):
         student_model.load_state_dict(
@@ -686,15 +691,14 @@ def main():
         )
         print(f"[Main] Loaded student from {cfg['student_ckpt']}")
 
-    if cfg.get("use_partial_freeze", True):
-        partial_freeze_student_auto(
-            student_model,
-            student_name=student_name,
-            freeze_bn=cfg.get("student_freeze_bn", True),
-            freeze_ln=cfg.get("student_freeze_ln", True),
-            use_adapter=cfg.get("student_use_adapter", False),
-            freeze_level=cfg.get("student_freeze_level", 1),
-        )
+    apply_partial_freeze(
+        student_model,
+        cfg.get(
+            "student_freeze_level",
+            -1 if not cfg.get("use_partial_freeze", False) else 0,
+        ),
+        cfg.get("student_freeze_bn", False),
+    )
 
     # ───────────────────────── debug: trainable 파라미터 개수 로그 ──────────────
     def _count_trainable(m):
