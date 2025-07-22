@@ -9,11 +9,12 @@ metric:
 # (클라우드-컨트롤러 사용: 별도 설정 없이 기본값)
 
 parameters:             # ---- Hyper-search 공간 ----
+  student_type: {values: ["resnet152_adapter"]}
   # 🔧 1) learning-rate (log10 균등)
   student_lr:
-    distribution: log_uniform_values   # 6e-4  ~  1.4e-3
-    min: 0.0005
-    max: 0.0018
+    distribution: log_uniform_values
+    min: 0.0004
+    max: 0.0012
 
   # 👀 sweep 영역 확장
   ib_beta:                             # β (IB loss) → 좀 더 넓게
