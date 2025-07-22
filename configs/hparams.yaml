@@ -9,7 +9,7 @@ seed: 42
 deterministic: true
 dataset_name: "cifar100"
 data_root: "./data"
-batch_size: 128
+batch_size: 96
 num_workers: 2
 data_aug: 1
 small_input: true
@@ -22,7 +22,8 @@ small_input: true
 # Lists used by run_experiments.sh when looping
 teacher1_list: ["resnet152"]
 teacher2_list: ["efficientnet_b2", "swin_tiny"]
-student_list: ["resnet_adapter"]      # 첫 실험은 하나로 충분
+student_list: ["resnet152_adapter"]      # 첫 실험은 하나로 충분
+student_type: "resnet152_adapter"
 method_list: ["asmb", "vanilla_kd", "dkd", "crd", "at", "fitnet"] # "asmb", "vanilla_kd", "dkd", "crd", "at", "fitnet"
 
 # Partial-freeze / adapter options
@@ -106,7 +107,7 @@ mbm_type: ib_mbm
 mbm_r: 4
 mbm_n_head: 1
 mbm_learnable_q: true
-mbm_query_dim: 0
+mbm_query_dim: 2048
 
 # Misc
 grad_clip_norm: 2.0
