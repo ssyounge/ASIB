@@ -55,18 +55,22 @@ force_refinetune: false
 # 4. Distillation Hyperparameters
 # ===============================================================
 teacher_lr: 1e-4
-student_lr: 0.001              # full fine-tune 에 맞춰 2× 상승
+# --- Student optimiser ---------------------------------------
+student_lr: 0.002              # ↑ 2× 상승
 teacher_weight_decay: 1e-4
-student_weight_decay: 3e-4
-ce_alpha: 0.5
-kd_alpha: 0.5                 # logit KD 비중 ↑ (freeze 해제 됐으므로 수용력↑)
-teacher_adapt_kd_warmup: 2   # Stage 1~2: adaptive KL 끔
-synergy_ce_alpha: 1.0        # adaptive 단계는 GT 중심
-cutmix_alpha_distill: 0.0  # CutMix alpha used during distillation
+student_weight_decay: 8e-4
+# -------------------------------------------------------------
+# --- ASMB loss weighting -------------------------------------
+ce_alpha: 0.35
+kd_alpha: 0.65                 # ce+kd=1 유지
+teacher_adapt_kd_warmup: 1     # adaptive KD warm-up
+synergy_ce_alpha: 1.0          # adaptive 단계는 GT 중심
+cutmix_alpha_distill: 0.5      # CutMix alpha used during distillation
 
 # Learning rate schedule
 lr_schedule: "cosine"       # "step" or "cosine"
-lr_warmup_epochs: 5
+lr_warmup_epochs: 8
+min_lr: 1e-5
 teacher_step_size: 10
 teacher_gamma: 0.1
 student_step_size: 10
@@ -79,7 +83,7 @@ tau_end: 2.0
 tau_decay_epochs: 4          # stage 수와 동일하게
 mbm_out_dim: 2048            # student feat_dim 과 일치
 mbm_reg: 2e-5         # default sweep value
-ib_beta: 0.001
+ib_beta: 0.002
 reg_lambda: 2e-5             # L2 강도 살짝 완화
 mbm_dropout: 0.1      # dropout prob inside MBM
 head_dropout: 0.0     # dropout prob for synergy head
@@ -87,10 +91,12 @@ head_dropout: 0.0     # dropout prob for synergy head
 # Sweep/loop variables
 # N_STAGE_LIST accepts a space-separated list of stage counts,
 # e.g. "2 3 4 5" to run multiple values in a batch script.
-num_stages: 4
+num_stages: 5
+teacher_adapt_epochs: 2
+student_epochs_per_stage: 15
 n_stage_list: 4
 sc_alpha_list: "0.6" # 0.3 0.6
-hybrid_beta: 0.2
+hybrid_beta: 0.05
 # Additional sweep lists
 hybrid_beta_list: "0.1"       # e.g. "0.1 0.5 0.9"
 # Epoch sweep lists
@@ -112,17 +118,17 @@ mbm_learnable_q: true
 mbm_query_dim: 2048
 
 # Misc
-grad_clip_norm: 2.0
+grad_clip_norm: 1.5
 
 # ===============================================================
 # 5. Other Advanced Options
 # ===============================================================
 # --- Regularization & Augmentation ---
 label_smoothing: 0.0
-mixup_alpha: 0.2
+mixup_alpha: 0.4
 
 # --- Feature KD ---
-feat_kd_alpha: 0.15            # logit KD 증가에 따라 비중 소폭 ↓
+feat_kd_alpha: 0.20
 feat_kd_key: "feat_2d"
 feat_kd_norm: "none"
 rkd_loss_weight: 1.0
