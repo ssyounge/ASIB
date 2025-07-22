@@ -499,7 +499,27 @@ def main():
     dataset = cfg.get("dataset_name", "cifar100")
     batch_size = cfg.get("batch_size", 128)
     data_root = cfg.get("data_root", "./data")
-    if dataset == "cifar100":
+    if cfg.get("overlap_pct") is not None:
+        from data.cifar100_overlap import get_overlap_loaders
+        (A_tr, A_te), (B_tr, B_te), _ = get_overlap_loaders(
+            pct_overlap=cfg["overlap_pct"],
+            batch_size=batch_size,
+            num_workers=cfg.get("num_workers", 2),
+            augment=cfg.get("data_aug", True),
+            seed=seed,
+        )
+        # 학생은 **두 교사 클래스의 합집합**을 모두 보게 해야 함
+        train_loader = torch.utils.data.ConcatDataset([A_tr.dataset, B_tr.dataset])
+        test_loader  = torch.utils.data.ConcatDataset([A_te.dataset, B_te.dataset])
+        train_loader = torch.utils.data.DataLoader(
+            train_loader, batch_size=batch_size, shuffle=True,
+            num_workers=cfg.get("num_workers", 2), pin_memory=True
+        )
+        test_loader  = torch.utils.data.DataLoader(
+            test_loader,  batch_size=batch_size, shuffle=False,
+            num_workers=cfg.get("num_workers", 2), pin_memory=True
+        )
+    elif dataset == "cifar100":
         train_loader, test_loader = get_cifar100_loaders(
             root=data_root,
             batch_size=batch_size,
