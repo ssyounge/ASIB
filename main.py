@@ -697,7 +697,12 @@ def main():
         return sum(p.numel() for p in m.parameters() if p.requires_grad)
 
     n_trainable = _count_trainable(student_model)
-    print(f"[Debug] Student trainable params → {n_trainable:,}")
+    print(f"[Debug] Student trainable **elements** → {n_trainable:,}")
+    if cfg.get("debug_verbose", True):
+        # freeze‑level 검증
+        frz_lvl = cfg.get("student_freeze_level", -1)
+        n_requires_grad = sum(1 for p in student_model.parameters() if p.requires_grad)
+        print(f"[DBG] freeze_level={frz_lvl}, tensors_grad={n_requires_grad}")
     exp_logger.update_metric("n_trainable_student", n_trainable)
 
     # Obtain student feature dimension for MBM defaults

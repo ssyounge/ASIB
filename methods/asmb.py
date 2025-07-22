@@ -65,6 +65,8 @@ class ASMBDistiller(nn.Module):
         self.config = config if config is not None else {}
         self.log_int = int(self.config.get("log_step_interval", 100))
         self.logger = self.config.get("logger")
+        # ─────── DEBUG 토글 ───────
+        self.debug = bool(self.config.get("debug_verbose", True))
 
         # 기본 Loss
         self.ce_loss_fn = nn.CrossEntropyLoss()
@@ -282,9 +284,11 @@ class ASMBDistiller(nn.Module):
         autocast_ctx, scaler = get_amp_components(self.config)
 
         for ep in range(1, epochs+1):
+            if self.debug:
+                print(f"\n[DBG][Teacher] ====== Stage-Teacher ep {ep}/{epochs} ======")
             cur_tau = get_tau(self.config, ep-1)
             total_loss, total_num = 0.0, 0
-            for x, y in train_loader:
+            for it, (x, y) in enumerate(train_loader):
                 x, y = x.to(self.device), y.to(self.device)
 
                 with autocast_ctx:
@@ -338,6 +342,13 @@ class ASMBDistiller(nn.Module):
 
                 if logger is not None and attn is not None:
                     logger.debug(f"attn_mean={attn.mean().item():.4f}")
+
+                if self.debug and it == 0:
+                    print(f"[DBG][Teacher] batch0: kl={kl_val.item():.3f}, "
+                          f"sy_ce={synergy_ce.item():.3f}, "
+                          f"feat={feat_loss.item():.3f}, "
+                          f"reg={reg_loss.item():.3f}, "
+                          f"loss={loss.item():.3f}, τ={cur_tau:.2f}")
 
                 optimizer.zero_grad()
                 if scaler is not None:
@@ -410,10 +421,12 @@ class ASMBDistiller(nn.Module):
         best_state = copy.deepcopy(self.student.state_dict())
 
         for ep in range(1, epochs+1):
+            if self.debug:
+                print(f"\n[DBG][Student] ====== Distill ep {ep}/{epochs} ======")
             cur_tau = get_tau(self.config, ep-1)
             self.student.train()
             total_loss, total_num = 0.0, 0
-            for x, y in train_loader:
+            for it, (x, y) in enumerate(train_loader):
                 x, y = x.to(self.device), y.to(self.device)
 
                 with autocast_ctx:
@@ -505,13 +518,36 @@ class ASMBDistiller(nn.Module):
                 if logger is not None and attn is not None:
                     logger.debug(f"attn_mean={attn.mean().item():.4f}")
 
+                # —— DEBUG: 첫 번치 통계 ———————
+                if self.debug and it == 0:
+                    with torch.no_grad():
+                        pred = s_logit.argmax(1)
+                        hist = torch.bincount(pred, minlength=100)[:10].tolist()
+                        print(f"[DBG][Student] batch0: "
+                              f"ce={ce_val.item():.3f}, kd={kd_val.item():.3f}, "
+                              f"kd_van={kd_vanilla.item():.3f}, feat={feat_loss.item():.3f}, "
+                              f"loss={loss.item():.3f}, τ={cur_tau:.2f}")
+                        print(f"[DBG][Student] pred hist (first 10 classes): {hist}")
+
                 optimizer.zero_grad()
                 if scaler is not None:
                     scaler.scale(loss).backward()
+                    if self.debug and it == 0:
+                        total_norm = torch.nn.utils.clip_grad_norm_(
+                            filter(lambda p: p.requires_grad, self.student.parameters()),
+                            max_norm=1e9,
+                        )
+                        print(f"[DBG][Student] grad-norm={total_norm:.3e}")
                     scaler.step(optimizer)
                     scaler.update()
                 else:
                     loss.backward()
+                    if self.debug and it == 0:
+                        total_norm = torch.nn.utils.clip_grad_norm_(
+                            filter(lambda p: p.requires_grad, self.student.parameters()),
+                            max_norm=1e9,
+                        )
+                        print(f"[DBG][Student] grad-norm={total_norm:.3e}")
                     optimizer.step()
 
                 bs = x.size(0)
@@ -526,6 +562,8 @@ class ASMBDistiller(nn.Module):
 
             if self.logger:
                 self.logger.info(f"[StudentDistill] ep={ep} => loss={avg_loss:.4f}, acc={acc:.2f}")
+            elif self.debug:
+                print(f"[DBG][Student] ep={ep} avg_loss={avg_loss:.3f}, acc={acc:.2f}")
 
             if acc > best_acc:
                 best_acc = acc
