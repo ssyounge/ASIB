@@ -954,6 +954,9 @@ def main():
     torch.save(student_model.state_dict(), student_ckpt_path)
     print(f"[main] Distillation done => {student_ckpt_path}")
     exp_logger.update_metric("final_student_ckpt", student_ckpt_path)
+    exp_logger.update_metric("final_student_acc", final_acc)
+    if wandb and wandb.run:
+        wandb.run.summary["final_student_acc"] = final_acc
     exp_logger.finalize()
 
 if __name__ == "__main__":
