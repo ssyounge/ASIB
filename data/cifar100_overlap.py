@@ -16,9 +16,10 @@ def _split_classes(pct_overlap, seed=42):
     shared = classes[:n_overlap]
     rem = classes[n_overlap:]
 
-    half = (100 - n_overlap) // 2
-    classes_A = shared + rem[:half]
-    classes_B = shared + rem[half: half * 2]
+    half, extra = divmod(100 - n_overlap, 2)
+    # extra(0 or 1)를 A 쪽에 먼저 배분해 100개 보존
+    classes_A = shared + rem[: half + extra]
+    classes_B = shared + rem[half + extra :]
     return classes_A, classes_B
 
 
