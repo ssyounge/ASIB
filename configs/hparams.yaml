@@ -21,7 +21,7 @@ small_input: true
 # Available teacher architectures: resnet101, resnet152, efficientnet_b2, swin_tiny
 # Lists used by run_experiments.sh when looping
 teacher1_list: ["resnet152"]
-teacher2_list: ["efficientnet_b2", "swin_tiny"]
+teacher2_list: ["resnet152"]          # 두 교사 모두 ResNet‑152
 student_list: ["resnet152_adapter"]      # 첫 실험은 하나로 충분
 student_type: "resnet152_adapter"
 method_list: ["asmb", "vanilla_kd", "dkd", "crd", "at", "fitnet"] # "asmb", "vanilla_kd", "dkd", "crd", "at", "fitnet"
@@ -56,20 +56,20 @@ force_refinetune: false
 # ===============================================================
 teacher_lr: 1e-4
 # --- Student optimiser ---------------------------------------
-student_lr: 0.002              # ↑ 2× 상승
+student_lr: 0.0008
 teacher_weight_decay: 1e-4
 student_weight_decay: 8e-4
 # -------------------------------------------------------------
 # --- ASMB loss weighting -------------------------------------
-ce_alpha: 0.35
-kd_alpha: 0.65                 # ce+kd=1 유지
+ce_alpha: 0.3
+kd_alpha: 0.7                 # ce+kd=1 유지
 teacher_adapt_kd_warmup: 1     # adaptive KD warm-up
-synergy_ce_alpha: 1.0          # adaptive 단계는 GT 중심
-cutmix_alpha_distill: 0.5      # CutMix alpha used during distillation
+synergy_ce_alpha: 0.4          # adaptive 단계는 GT 중심
+cutmix_alpha_distill: 0.3      # CutMix alpha used during distillation
 
 # Learning rate schedule
 lr_schedule: "cosine"       # "step" or "cosine"
-lr_warmup_epochs: 8
+lr_warmup_epochs: 5
 min_lr: 1e-5
 teacher_step_size: 10
 teacher_gamma: 0.1
@@ -78,20 +78,20 @@ student_gamma: 0.1
 
 # Temperature scheduling
 temperature_schedule: "linear_decay"
-tau_start: 6.0
-tau_end: 2.0
+tau_start: 4.0
+tau_end: 1.5
 tau_decay_epochs: 4          # stage 수와 동일하게
 mbm_out_dim: 2048            # student feat_dim 과 일치
 mbm_reg: 2e-5         # default sweep value
-ib_beta: 0.002
+ib_beta: 0.0005
 reg_lambda: 2e-5             # L2 강도 살짝 완화
-mbm_dropout: 0.1      # dropout prob inside MBM
+mbm_dropout: 0.05
 head_dropout: 0.0     # dropout prob for synergy head
 
 # Sweep/loop variables
 # N_STAGE_LIST accepts a space-separated list of stage counts,
 # e.g. "2 3 4 5" to run multiple values in a batch script.
-num_stages: 5
+num_stages: 3
 teacher_adapt_epochs: 2
 student_epochs_per_stage: 15
 n_stage_list: 4
@@ -100,7 +100,7 @@ hybrid_beta: 0.05
 # Additional sweep lists
 hybrid_beta_list: "0.1"       # e.g. "0.1 0.5 0.9"
 # Epoch sweep lists
-teacher_adapt_epochs_list: "3"
+teacher_adapt_epochs_list: "2"
 student_epochs_per_stage_list: "12"   # full fine-tune 는 수렴 빠르므로 12 ep 로 균형
 # Teacher adaptation
 teacher_adapt_alpha_kd: 1.0
@@ -118,24 +118,24 @@ mbm_learnable_q: true
 mbm_query_dim: 2048
 
 # Misc
-grad_clip_norm: 1.5
+grad_clip_norm: 1.0
 
 # ===============================================================
 # 5. Other Advanced Options
 # ===============================================================
 # --- Regularization & Augmentation ---
 label_smoothing: 0.0
-mixup_alpha: 0.4
+mixup_alpha: 0.2
 
 # --- Feature KD ---
-feat_kd_alpha: 0.20
+feat_kd_alpha: 0.05
 feat_kd_key: "feat_2d"
 feat_kd_norm: "none"
 rkd_loss_weight: 1.0
 rkd_gamma: 0.6
 
 # --- Disagreement weighting ---
-use_disagree_weight: true
+use_disagree_weight: false
 disagree_mode: "both_wrong"
 disagree_lambda_high: 1.2
 disagree_lambda_low: 0.8
