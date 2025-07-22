@@ -289,7 +289,13 @@ def main():
             augment=cfg.get("data_aug", True),
         )
 
-    num_classes = len(train_loader.dataset.classes)
+    # Subset ⇒ 원본 Dataset 객체의 .classes 사용
+    origin_ds = (
+        train_loader.dataset.dataset
+        if isinstance(train_loader.dataset, torch.utils.data.Subset)
+        else train_loader.dataset
+    )
+    num_classes = len(origin_ds.classes)
     check_label_range(train_loader.dataset, num_classes)
     check_label_range(test_loader.dataset, num_classes)
 
