@@ -37,14 +37,15 @@ class DKDDistiller(nn.Module):
         super().__init__()
         self.teacher = teacher_model
         self.student = student_model
-        self.ce_weight = ce_weight
-        self.alpha = alpha
-        self.beta = beta
-        self.temperature = temperature
-        self.warmup = warmup
-        self.label_smoothing = label_smoothing
+        cfg = config or {}
+        self.ce_weight = cfg.get("dkd_ce_weight", ce_weight)
+        self.alpha = cfg.get("dkd_alpha", alpha)
+        self.beta = cfg.get("dkd_beta", beta)
+        self.temperature = cfg.get("tau_start", temperature)
+        self.warmup = cfg.get("dkd_warmup", warmup)
+        self.label_smoothing = cfg.get("label_smoothing", label_smoothing)
         # optional runtime configuration for training loops
-        self.cfg = config if config is not None else {}
+        self.cfg = cfg
 
     def forward(self, x, y, epoch=1):
         """

@@ -52,13 +52,14 @@ class ASMBDistiller(nn.Module):
         self.la_mode = isinstance(mbm, LightweightAttnMBM)
 
         # 하이퍼파라미터
-        self.alpha = alpha
-        self.synergy_ce_alpha = synergy_ce_alpha
-        self.T = temperature
-        self.reg_lambda = reg_lambda
-        self.mbm_reg_lambda = mbm_reg_lambda
-        self.feat_kd_alpha = feat_kd_alpha
-        self.num_stages = num_stages
+        cfg = config or {}
+        self.alpha = cfg.get("ce_alpha", alpha)
+        self.synergy_ce_alpha = cfg.get("synergy_ce_alpha", synergy_ce_alpha)
+        self.T = cfg.get("tau_start", temperature)
+        self.reg_lambda = cfg.get("reg_lambda", reg_lambda)
+        self.mbm_reg_lambda = cfg.get("mbm_reg_lambda", mbm_reg_lambda)
+        self.feat_kd_alpha = cfg.get("feat_kd_alpha", feat_kd_alpha)
+        self.num_stages = cfg.get("num_stages", num_stages)
         self.device = device
         self.config = config if config is not None else {}
         self.log_int = int(self.config.get("log_step_interval", 100))

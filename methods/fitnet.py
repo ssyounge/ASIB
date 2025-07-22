@@ -33,15 +33,17 @@ class FitNetDistiller(nn.Module):
         self.teacher = teacher_model
         self.student = student_model
 
-        # 어느 레이어(키)를 hint/guided로 쓸지
-        self.hint_key = hint_key
-        self.guided_key = guided_key
+        cfg = config or {}
 
-        self.alpha_hint = alpha_hint
-        self.alpha_ce = alpha_ce
-        self.label_smoothing = label_smoothing
+        # 어느 레이어(키)를 hint/guided로 쓸지
+        self.hint_key = cfg.get("hint_key", hint_key)
+        self.guided_key = cfg.get("guided_key", guided_key)
+
+        self.alpha_hint = cfg.get("fit_alpha_hint", alpha_hint)
+        self.alpha_ce = cfg.get("fit_alpha_ce", alpha_ce)
+        self.label_smoothing = cfg.get("label_smoothing", label_smoothing)
         # optional runtime configuration for training loops
-        self.cfg = config if config is not None else {}
+        self.cfg = cfg
 
         # 학생 특징맵을 스승 특징맵 채널로 변환하는 1x1 convolution
         self.regressor = nn.Conv2d(s_channels, t_channels, kernel_size=1)
