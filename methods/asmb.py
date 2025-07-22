@@ -56,6 +56,8 @@ class ASMBDistiller(nn.Module):
         cfg = config or {}
         self.alpha = cfg.get("ce_alpha", alpha)
         self.synergy_ce_alpha = cfg.get("synergy_ce_alpha", synergy_ce_alpha)
+        # adaptive 단계에서 KL(syn‖student)을 언제부터 켤지 결정한다
+        self.kd_warmup_stage = cfg.get("teacher_adapt_kd_warmup", 2)
         self.T = cfg.get("tau_start", temperature)
         self.reg_lambda = cfg.get("reg_lambda", reg_lambda)
         self.mbm_reg_lambda = cfg.get("mbm_reg_lambda", mbm_reg_lambda)
@@ -200,6 +202,7 @@ class ASMBDistiller(nn.Module):
                 optimizer=teacher_optimizer,
                 epochs=epochs_per_stage,
                 logger=self.logger,
+                stage=stage,
             )
             teacher_scheduler.step()
             # (optional) synergy eval
@@ -213,6 +216,7 @@ class ASMBDistiller(nn.Module):
                 epochs=epochs_per_stage,
                 logger=self.logger,
                 label_smoothing=self.config.get("label_smoothing", 0.0),
+                stage=stage,
             )
             if acc > best_acc:
                 best_acc = acc
@@ -234,6 +238,8 @@ class ASMBDistiller(nn.Module):
         optimizer,
         epochs,
         logger=None,
+        *,
+        stage: int = 1,
     ):
         """
         Teacher adaptive update (BN/Head + MBM).
@@ -314,7 +320,10 @@ class ASMBDistiller(nn.Module):
                     zsyn = self.synergy_head(syn_feat)
 
                     # (i)  KL(zsyn \u2016 s_logit)
-                    kl_val = kd_loss_fn(zsyn, s_logit, T=cur_tau)
+                    if stage <= self.kd_warmup_stage:
+                        kl_val = torch.tensor(0.0, device=x.device)
+                    else:
+                        kl_val = kd_loss_fn(zsyn, s_logit, T=cur_tau)
                     # (ii) synergy CE
                     ce_val = ce_loss_fn(
                         zsyn,
@@ -343,12 +352,12 @@ class ASMBDistiller(nn.Module):
                 if logger is not None and attn is not None:
                     logger.debug(f"attn_mean={attn.mean().item():.4f}")
 
-                if self.debug and it == 0:
-                    print(f"[DBG][Teacher] batch0: kl={kl_val.item():.3f}, "
-                          f"sy_ce={synergy_ce.item():.3f}, "
-                          f"feat={feat_loss.item():.3f}, "
-                          f"reg={reg_loss.item():.3f}, "
-                          f"loss={loss.item():.3f}, τ={cur_tau:.2f}")
+                if self.debug and it == 0 and ep == 1:
+                    print(
+                        f"[DBG|TA] stage={stage} ep={ep} "
+                        f"ce={ce_val.item():.3f} kl={kl_val.item():.3f} "
+                        f"zsyn \u03bc={zsyn.mean():.2f} \u03c3={zsyn.std():.2f}"
+                    )
 
                 optimizer.zero_grad()
                 if scaler is not None:
@@ -389,6 +398,8 @@ class ASMBDistiller(nn.Module):
         epochs,
         logger=None,
         label_smoothing: float = 0.0,
+        *,
+        stage: int = 1,
     ):
         """
         Student Distillation:
@@ -457,8 +468,11 @@ class ASMBDistiller(nn.Module):
                     y,
                     label_smoothing=label_smoothing,
                 )
-                # KL
-                kd_val = kd_loss_fn(s_logit, zsyn, T=cur_tau)
+                # KL(s‖zsyn) – 초기 stage(<=warm-up)는 OFF
+                if stage <= self.kd_warmup_stage:
+                    kd_val = torch.tensor(0.0, device=x.device)
+                else:
+                    kd_val = kd_loss_fn(s_logit, zsyn, T=cur_tau)
 
                 # vanilla KD using teacher logits
                 avg_t_logit = 0.5 * (t1["logit"] + t2["logit"])
@@ -518,16 +532,13 @@ class ASMBDistiller(nn.Module):
                 if logger is not None and attn is not None:
                     logger.debug(f"attn_mean={attn.mean().item():.4f}")
 
-                # —— DEBUG: 첫 번치 통계 ———————
-                if self.debug and it == 0:
-                    with torch.no_grad():
-                        pred = s_logit.argmax(1)
-                        hist = torch.bincount(pred, minlength=100)[:10].tolist()
-                        print(f"[DBG][Student] batch0: "
-                              f"ce={ce_val.item():.3f}, kd={kd_val.item():.3f}, "
-                              f"kd_van={kd_vanilla.item():.3f}, feat={feat_loss.item():.3f}, "
-                              f"loss={loss.item():.3f}, τ={cur_tau:.2f}")
-                        print(f"[DBG][Student] pred hist (first 10 classes): {hist}")
+                # —— DEBUG: first batch summary ——
+                if self.debug and it == 0 and ep == 1:
+                    print(
+                        f"[DBG|SD] stage={stage} ep={ep} "
+                        f"ce={ce_val.item():.3f} kd={kd_val.item():.3f} "
+                        f"s_logit μ={s_logit.mean():.2f} σ={s_logit.std():.2f}"
+                    )
 
                 optimizer.zero_grad()
                 if scaler is not None:
