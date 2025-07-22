@@ -899,6 +899,16 @@ def main():
         for stage_id in range(1, num_stages + 1):
             print(f"\n=== Stage {stage_id}/{num_stages} ===")
 
+            # ---------- DEBUG: disagreement weight 파라미터 확인 ----------
+            dbg_mode = cfg.get("disagree_mode", "both_wrong")
+            dbg_lh   = cfg.get("disagree_lambda_high", 1.2)
+            dbg_ll   = cfg.get("disagree_lambda_low", 0.8)
+            print(
+                f"[DBG] disagree_mode={dbg_mode}, "
+                f"λ_high={dbg_lh}, λ_low={dbg_ll}"
+            )
+            # --------------------------------------------------------------
+
             teacher_epochs = cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5))
             student_epochs = cfg.get("student_iters", cfg.get("student_epochs_per_stage", 15))
 
