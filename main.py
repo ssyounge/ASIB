@@ -954,9 +954,16 @@ def main():
     torch.save(student_model.state_dict(), student_ckpt_path)
     print(f"[main] Distillation done => {student_ckpt_path}")
     exp_logger.update_metric("final_student_ckpt", student_ckpt_path)
-    exp_logger.update_metric("final_student_acc", final_acc)
+
+    # ---- Key 동기화 ----
+    final_key = f"stage{cfg['num_stages']}_student_acc"
+    exp_logger.update_metric(final_key, final_acc)   # CSV / JSON 기록
+
     if wandb and wandb.run:
-        wandb.run.summary["final_student_acc"] = final_acc
+        # sweep metric 이 'stage4_student_acc' 같은 형식일 때 그대로 복사
+        wandb.run.summary[final_key] = final_acc
+        # 선택: 별도 generic 키도 남기고 싶다면
+        wandb.run.summary["best_student_acc"] = final_acc
     exp_logger.finalize()
 
 if __name__ == "__main__":
