@@ -170,7 +170,8 @@ class ASMBDistiller(nn.Module):
             teacher_params, lr=teacher_lr, weight_decay=weight_decay
         )
         teacher_scheduler = optim.lr_scheduler.CosineAnnealingLR(
-            teacher_optimizer, T_max=self.num_stages
+            teacher_optimizer,
+            T_max=epochs_per_stage * self.num_stages,
         )
 
         student_params = [p for p in self.student.parameters() if p.requires_grad]
@@ -196,6 +197,7 @@ class ASMBDistiller(nn.Module):
                 epochs=epochs_per_stage,
                 logger=self.logger,
             )
+            teacher_scheduler.step()
             # (optional) synergy eval
 
             # (B) Student Distillation
@@ -212,8 +214,9 @@ class ASMBDistiller(nn.Module):
                 best_acc = acc
                 best_student_state = copy.deepcopy(self.student.state_dict())
 
-            teacher_scheduler.step()
-            self._unfreeze_teacher()
+            for m in (self.teacher1, self.teacher2, self.mbm, self.synergy_head):
+                for p in m.parameters():
+                    p.requires_grad = True
 
         # 마지막에 best 복원
         self.student.load_state_dict(best_student_state)
@@ -321,12 +324,8 @@ class ASMBDistiller(nn.Module):
                             syn_feat.detach().view(s_feat.size(0), -1),
                         )
 
-                    reg_loss = 0.0
-                    for p in params:
-                        reg_loss += (p**2).sum()
-
-                    bs = x.size(0)
-                    reg_loss = reg_loss / bs
+                    # 파라미터 개수로 나눠 스케일 다운
+                    reg_loss = torch.stack([(p ** 2).mean() for p in params]).mean()
 
                     loss = (
                         kl_val
