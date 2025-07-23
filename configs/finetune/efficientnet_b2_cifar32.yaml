@@ -1,13 +1,13 @@
-# configs/finetune/resnet152_cifar32.yaml
+# configs/finetune/efficientnet_b2_cifar32.yaml
 
-# 32×32 CIFAR-100용 ResNet-152 fine-tune
+# 32×32 CIFAR-100용 EfficientNet-B2 fine-tune
 defaults:
   - ../dataset/cifar100      # 작은 입력용 dataloader (small_input: true)
   - _self_
 
 # ── 모델(교사-1) ───────────────────────────────
-teacher_type: resnet152
-small_input: true            # 3×3 conv, stride1 (+maxpool 제거)
+teacher_type: efficientnet_b2
+small_input: true            # conv_stem stride 1
 teacher_pretrained: true     # ImageNet-1k 가중치 로드
 teacher_ckpt_init: null      # 이어-학습할 ckpt가 있으면 경로 지정
 
@@ -25,7 +25,7 @@ device: cuda
 log_level: INFO
 deterministic: true
 
-finetune_ckpt_path: checkpoints/resnet152_cifar32.pth
+finetune_ckpt_path: checkpoints/efficientnet_b2_cifar32.pth
 
 # ─── NEW ─────────────────────────────────────────────
 dataset_name: cifar100        # ← loader 에서 요구
