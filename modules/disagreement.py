@@ -87,7 +87,8 @@ def compute_disagreement_rate(
     dis_rate = 100.0 * disagree_count / total_samples if total_samples > 0 else 0.0
 
     # ---- DEBUG 로그 --------------------------------------------------
-    if cfg is not None and cfg.get("log_level", "INFO").upper() == "DEBUG":
+    lvl = (cfg.get("log_level") if cfg is not None else None) or "INFO"
+    if cfg is not None and lvl.upper() == "DEBUG":
         logging.debug(
             "[DisagreeDBG] mode=%s | selected=%d / %d (%.1f %%)",
             mode,

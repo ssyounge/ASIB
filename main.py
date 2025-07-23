@@ -297,10 +297,11 @@ def main(cfg: DictConfig):
 
     # ────────────────── LOGGING & W&B ──────────────────
     exp_dir = cfg.get("results_dir", ".")
+    lvl = cfg.get("log_level") or "INFO"
     logger = get_logger(
         exp_dir,
-        level=cfg.get("log_level", "INFO"),
-        stream_level="INFO" if cfg.get("log_level", "INFO").upper() == "DEBUG" else cfg.get("log_level", "INFO")
+        level=lvl,
+        stream_level="INFO" if lvl.upper() == "DEBUG" else lvl,
     )
 
     global _HP_LOGGED
