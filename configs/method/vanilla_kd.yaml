@@ -1,3 +1,5 @@
+# configs/method/vanilla_kd.yaml
+
 method:
   name: vanilla_kd
   ce_alpha: 0.5
