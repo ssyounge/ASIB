@@ -35,7 +35,7 @@ METHOD_MAP = {
 
 def parse_args():
     p = argparse.ArgumentParser(description="Single teacher KD")
-    p.add_argument("--config", type=str, default="configs/default.yaml")
+    p.add_argument("--config", type=str, default="configs/base.yaml")
     p.add_argument("--method", type=str, default="vanilla_kd")
     p.add_argument("--teacher_type", type=str)
     p.add_argument("--teacher_ckpt", type=str)

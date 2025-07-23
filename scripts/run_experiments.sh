@@ -6,7 +6,7 @@ export PYTHONPATH="$(pwd):${PYTHONPATH}"
 LOG_ID=${SLURM_JOB_ID:-$(date +%Y%m%d_%H%M%S)}
 OUTPUT_DIR="" # This will be populated by the --output_dir argument
 
-BASE_CONFIG=${BASE_CONFIG:-configs/default.yaml}
+BASE_CONFIG=${BASE_CONFIG:-configs/base.yaml}
 USE_CONDA=${USE_CONDA:-1}
 CONDA_ENV=${CONDA_ENV:-tlqkf}
 
@@ -77,7 +77,6 @@ generate_config() {
 
 run_loop() {
   source <(python scripts/load_hparams.py configs/hparams.yaml)
-  source <(python scripts/load_hparams.py configs/partial_freeze.yaml)
   
   METHOD_LIST="${method_list:-$method}"
   T1_LIST="${teacher1_list}"
@@ -200,8 +199,6 @@ done                            # closes 'for TEACH_EP' loop
 
 run_sweep() {
   source <(python scripts/load_hparams.py configs/hparams.yaml)
-  source <(python scripts/load_hparams.py configs/partial_freeze.yaml)
-  echo ">>> [run_experiments.sh] running METHOD=${METHOD}"
 
   # Use the first entry from the teacher lists for sweeps
   local T1="${teacher1_list%% *}"

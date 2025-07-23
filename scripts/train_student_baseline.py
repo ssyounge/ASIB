@@ -22,7 +22,7 @@ from utils.misc import get_amp_components
 
 def parse_args():
     p = argparse.ArgumentParser(description="Student baseline training")
-    p.add_argument("--config", type=str, default="configs/default.yaml")
+    p.add_argument("--config", type=str, default="configs/base.yaml")
     p.add_argument("--student_type", type=str)
     p.add_argument("--student_ckpt", type=str)
     p.add_argument("--batch_size", type=int)

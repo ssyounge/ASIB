@@ -140,7 +140,7 @@ def parse_args():
 
     # (1) YAML 파일
     parser.add_argument("--config", type=str,
-                        default="configs/default.yaml",
+                        default="configs/base.yaml",
                         help="Path to yaml config for distillation")
     parser.add_argument("--hparams", type=str, default=None)
 

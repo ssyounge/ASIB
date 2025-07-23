@@ -46,7 +46,7 @@ def create_teacher_by_name(teacher_name, num_classes=100, pretrained=False, smal
 def parse_args():
     parser = argparse.ArgumentParser(description="Evaluation script (Train/Test Acc) with ExperimentLogger")
 
-    parser.add_argument("--config", type=str, default="configs/default.yaml",
+    parser.add_argument("--config", type=str, default="configs/base.yaml",
                         help="Path to config YAML")
     parser.add_argument("--eval_mode", type=str, default="single", choices=["single","synergy"],
                         help="Evaluate single model or synergy model")
