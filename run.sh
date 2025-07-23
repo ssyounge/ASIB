@@ -12,6 +12,7 @@
 cd "${SLURM_SUBMIT_DIR:-$(dirname "$0")}"
 source ~/.bashrc
 conda activate tlqkf
+export PYTHONPATH="$(pwd):$PYTHONPATH"
 
 : "${SLURM_JOB_ID:=manual}"
 mkdir -p "outputs/asmb_${SLURM_JOB_ID}"
