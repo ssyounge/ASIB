@@ -21,6 +21,7 @@ python main.py cl=split_cifar
 * `ib_beta_warmup_epochs` : ramp-up epochs for the IB KL weight
 * `cl_mode`  : true → CL 활성화
 * `num_tasks`, `replay_ratio`, `lambda_ewc`
+* `teacher1_type`, `teacher2_type` : teacher architecture names (default `resnet152`)
 
 # ASMB Knowledge Distillation Framework
 

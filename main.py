@@ -518,8 +518,8 @@ def main(cfg: DictConfig):
         small_input = dataset == "cifar100"
 
     # 4) Create teacher1, teacher2
-    teacher1_type = cfg["teacher1_type"]
-    teacher2_type = cfg["teacher2_type"]
+    teacher1_type = cfg.get("teacher1_type", "resnet152")
+    teacher2_type = cfg.get("teacher2_type", "resnet152")
 
     teacher1_ckpt_path = cfg.get("teacher1_ckpt", f"./checkpoints/{teacher1_type}_ft.pth")
     teacher1 = create_teacher_by_name(
