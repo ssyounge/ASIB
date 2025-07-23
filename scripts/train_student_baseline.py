@@ -5,11 +5,12 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-import argparse
 import copy
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import hydra
+from omegaconf import DictConfig, OmegaConf
 
 from utils.misc import set_random_seed, check_label_range
 from data.cifar100 import get_cifar100_loaders
@@ -20,39 +21,7 @@ from utils.progress import smart_tqdm
 from utils.misc import get_amp_components
 
 
-def parse_args():
-    p = argparse.ArgumentParser(description="Student baseline training")
-    p.add_argument(
-        "--config-name",
-        type=str,
-        default="base",
-        help="Hydra config name (from configs/)",
-    )
-    p.add_argument("--student_type", type=str)
-    p.add_argument("--student_ckpt", type=str)
-    p.add_argument("--batch_size", type=int)
-    p.add_argument("--student_lr", type=float)
-    p.add_argument("--weight_decay", type=float)
-    p.add_argument("--epochs", type=int)
-    p.add_argument("--results_dir", type=str, default="results")
-    p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--device", type=str)
-    p.add_argument("--dataset", "--dataset_name", dest="dataset_name", type=str)
-    p.add_argument("--data_aug", type=int)
-    p.add_argument("--label_smoothing", type=float)
-    p.add_argument("--small_input", type=int)
-    p.add_argument("--student_freeze_level", type=int)
-    p.add_argument("--adam_beta1", type=float)
-    p.add_argument("--adam_beta2", type=float)
-    return p.parse_args()
 
-
-def load_config(path):
-    if path and os.path.exists(path):
-        with open(path, "r") as f:
-            import yaml
-            return yaml.safe_load(f) or {}
-    return {}
 
 
 def train_student_ce(
@@ -123,16 +92,9 @@ def train_student_ce(
     return best_acc
 
 
-def main():
-    args = parse_args()
-    cfg_path = f"configs/{args.config_name}.yaml" if args.config_name else None
-    base_cfg = load_config(cfg_path)
-    cli_cfg = {
-        k: v
-        for k, v in vars(args).items()
-        if v is not None and k != "config_name"
-    }
-    cfg = {**base_cfg, **cli_cfg}
+@hydra.main(config_path="configs", config_name="base", version_base="1.3")
+def main(cfg: DictConfig):
+    cfg = OmegaConf.to_container(cfg, resolve=True)
 
     device = cfg.get("device", "cuda")
     if device == "cuda" and not torch.cuda.is_available():

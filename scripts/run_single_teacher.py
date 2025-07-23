@@ -5,9 +5,9 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-import argparse
-import yaml
 import torch
+import hydra
+from omegaconf import DictConfig, OmegaConf
 from utils.misc import set_random_seed, check_label_range, get_model_num_classes
 from data.cifar100 import get_cifar100_loaders
 from data.imagenet100 import get_imagenet100_loaders
@@ -33,43 +33,6 @@ METHOD_MAP = {
     "crd": CRDDistiller,
 }
 
-def parse_args():
-    p = argparse.ArgumentParser(description="Single teacher KD")
-    p.add_argument(
-        "--config-name",
-        type=str,
-        default="base",
-        help="Hydra config name (from configs/)",
-    )
-    p.add_argument("--method", type=str, default="vanilla_kd")
-    p.add_argument("--teacher_type", type=str)
-    p.add_argument("--teacher_ckpt", type=str)
-    p.add_argument("--student_type", type=str)
-    p.add_argument("--student_ckpt", type=str)
-    p.add_argument("--batch_size", type=int)
-    p.add_argument("--student_lr", type=float)
-    p.add_argument("--weight_decay", type=float)
-    p.add_argument("--epochs", type=int)
-    p.add_argument("--results_dir", type=str, default="results")
-    p.add_argument("--ckpt_dir", type=str, default=None)
-    p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--device", type=str)
-    p.add_argument("--dataset", "--dataset_name", dest="dataset_name", type=str,
-                   help="Dataset to use (cifar100 or imagenet100). Defaults to the config value")
-    p.add_argument("--data_aug", type=int)
-    p.add_argument("--mixup_alpha", type=float)
-    p.add_argument("--cutmix_alpha_distill", type=float)
-    p.add_argument("--label_smoothing", type=float)
-    p.add_argument("--small_input", type=int)
-    p.add_argument("--student_freeze_level", type=int)
-    return p.parse_args()
-
-
-def load_config(path):
-    if path and os.path.exists(path):
-        with open(path, "r") as f:
-            return yaml.safe_load(f) or {}
-    return {}
 
 
 def build_distiller(method, teacher, student, cfg):
@@ -97,16 +60,9 @@ def build_distiller(method, teacher, student, cfg):
     raise ValueError(method)
 
 
-def main():
-    args = parse_args()
-    cfg_path = f"configs/{args.config_name}.yaml" if args.config_name else None
-    base_cfg = load_config(cfg_path)
-    cli_cfg = {
-        k: v
-        for k, v in vars(args).items()
-        if v is not None and k != "config_name"
-    }
-    cfg = {**base_cfg, **cli_cfg}
+@hydra.main(config_path="configs", config_name="base", version_base="1.3")
+def main(cfg: DictConfig):
+    cfg = OmegaConf.to_container(cfg, resolve=True)
 
     # ──────────────────────────────────────────────────────────────
     # YAML/CLI override 로 인해 숫자가 문자열로 들어올 수 있다.
@@ -125,11 +81,11 @@ def main():
                 pass
     # ──────────────────────────────────────────────────────────────
 
-    method = cfg.get("method", args.method)
+    method = cfg.get("method", "vanilla_kd")
     if method != "asmb":
         cfg["use_partial_freeze"] = False
     teacher_type = cfg.get("teacher_type", cfg.get("default_teacher_type"))
-    student_type = cfg.get("student_type", args.student_type)
+    student_type = cfg.get("student_type", "resnet_adapter")
     print(
         f">>> [run_single_teacher.py] method={method} teacher={teacher_type} student={student_type}"
     )
