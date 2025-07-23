@@ -174,8 +174,8 @@ Baseline runs (e.g., `vanilla_kd`) produce their own logs such as `VanillaKD => 
 
 1) Multi-Stage Distillation (main.py)
 
-python main.py --config-name base --device cuda \
-  --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 1
+python main.py --config-name base \
+  device=cuda mbm.type=LA mbm.r=4 mbm.n_head=1 mbm.learnable_q=1
   # Freeze levels are defined in the model YAMLs under configs/model/
   # mbm_query_dim and mbm_out_dim are automatically set to the student feature dimension
         •       Adjust model settings in `configs/model/*` or pass Hydra overrides.
@@ -187,14 +187,14 @@ python main.py --config-name base --device cuda \
 
 ```bash
 python scripts/run_single_teacher.py --config-name base \
-  --method vanilla_kd --teacher_type resnet152 --teacher_ckpt teacher.pth \
-  --student_type resnet_adapter --epochs 40 \
-  --dataset imagenet100
+  +method=vanilla_kd +teacher_type=resnet152 +teacher_ckpt=teacher.pth \
+  +student_type=resnet_adapter +epochs=40 \
+  dataset=imagenet100
 ```
 
-The `--method` flag selects one of `vanilla_kd`, `fitnet`, `dkd`, `at` or `crd`.
-Pass `--dataset` to override the dataset specified in the YAML config (either
-`cifar100` or `imagenet100`).
+The `method` option selects one of `vanilla_kd`, `fitnet`, `dkd`, `at` or `crd`.
+Override the dataset by passing `dataset=imagenet100` or `dataset=cifar100` on
+the command line.
 Partial freezing is automatically turned off for these methods—`run_single_teacher.py`
 sets `use_partial_freeze: false` when the selected `method` is not `asmb`.
 
@@ -206,7 +206,7 @@ Run the student alone using the same partial-freeze settings to gauge its standa
 
 ```bash
 python scripts/train_student_baseline.py --config-name base \
-  --student_type resnet_adapter --epochs 40 --dataset cifar100
+  +student_type=resnet_adapter +epochs=40 dataset=cifar100
 # Freeze levels come from the student YAML under configs/model/
 ```
 
@@ -337,8 +337,8 @@ Run the fine-tuning script directly to update a single teacher:
 
 ```bash
 python scripts/fine_tuning.py --config-name base \
-  --teacher_type resnet152 --finetune_epochs 100 --finetune_lr 0.0005 \
-  --dropout_p 0.5
+  +teacher_type=resnet152 +finetune_epochs=100 +finetune_lr=0.0005 \
+  +dropout_p=0.5
 ```
 
 The script uses **CIFAR-100** by default. Change `dataset.name` via a Hydra override
