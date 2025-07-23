@@ -14,7 +14,7 @@ from omegaconf import DictConfig, OmegaConf
 
 from utils.misc import set_random_seed, check_label_range
 from data.cifar100 import get_cifar100_loaders
-from data.imagenet100 import get_imagenet100_loaders
+from data.imagenet32 import get_imagenet32_loaders
 from main import create_student_by_name, apply_partial_freeze
 from modules.cutmix_finetune_teacher import eval_teacher
 from utils.progress import smart_tqdm
@@ -113,13 +113,14 @@ def main(cfg: DictConfig):
             num_workers=cfg.get("num_workers", 2),
             augment=cfg.get("data_aug", True),
         )
-    else:
-        train_loader, test_loader = get_imagenet100_loaders(
+    elif dataset == "imagenet32":
+        train_loader, test_loader = get_imagenet32_loaders(
             root=data_root,
             batch_size=batch_size,
             num_workers=cfg.get("num_workers", 2),
-            augment=cfg.get("data_aug", True),
         )
+    else:
+        raise ValueError(f"Unknown dataset_name={dataset}")
 
     num_classes = len(train_loader.dataset.classes)
     check_label_range(train_loader.dataset, num_classes)
@@ -127,7 +128,7 @@ def main(cfg: DictConfig):
 
     small_input = cfg.get("small_input")
     if small_input is None:
-        small_input = dataset == "cifar100"
+        small_input = dataset in ("cifar100", "imagenet32")
 
     student = create_student_by_name(
         cfg.get("student_type", "resnet_adapter"),
