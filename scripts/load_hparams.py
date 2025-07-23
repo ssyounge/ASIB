@@ -4,9 +4,14 @@
 import sys
 import yaml
 import shlex
+import warnings
 
 
 def main(path: str):
+    warnings.warn(
+        "load_hparams.py is deprecated; pass config fragments directly to Hydra",
+        DeprecationWarning,
+    )
     with open(path, 'r') as f:
         data = yaml.safe_load(f) or {}
     for key, value in data.items():

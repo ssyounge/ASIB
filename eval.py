@@ -5,8 +5,8 @@ and logs the results (train_acc, test_acc, etc.) using ExperimentLogger.
 Supports evaluation on the CIFAR-100 and ImageNet-100 datasets.
 """
 
-import argparse
-import yaml
+import hydra
+from omegaconf import DictConfig, OmegaConf
 import torch
 import torch.nn as nn
 import os
@@ -42,49 +42,7 @@ def create_teacher_by_name(teacher_name, num_classes=100, pretrained=False, smal
     else:
         raise ValueError(f"[eval.py] Unknown teacher_name={teacher_name}")
 
-# Argparse, YAML
-def parse_args():
-    parser = argparse.ArgumentParser(description="Evaluation script (Train/Test Acc) with ExperimentLogger")
 
-    parser.add_argument("--config", type=str, default="configs/default.yaml",
-                        help="Path to config YAML")
-    parser.add_argument("--eval_mode", type=str, default="single", choices=["single","synergy"],
-                        help="Evaluate single model or synergy model")
-
-    # single model
-    parser.add_argument("--ckpt_path", type=str, default=None,
-                        help="Single model checkpoint path")
-
-    # synergy
-    parser.add_argument("--teacher1_ckpt", type=str, default=None)
-    parser.add_argument("--teacher2_ckpt", type=str, default=None)
-    parser.add_argument("--mbm_ckpt", type=str, default=None)
-    parser.add_argument("--head_ckpt", type=str, default=None)
-    parser.add_argument("--student_type", type=str, default="resnet_adapter")
-    parser.add_argument("--student_ckpt", type=str, default=None)
-
-    parser.add_argument("--batch_size", type=int, default=128)
-    parser.add_argument("--device", type=str, default="cuda")
-    parser.add_argument("--results_dir", type=str, default="./results",
-                        help="Directory to store logs (JSON+CSV via logger)")
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--small_input", type=int,
-                        help="1 for CIFAR-style conv stem in teachers")
-    parser.add_argument("--use_amp", type=int)
-    parser.add_argument("--amp_dtype", type=str)
-
-    # MBM options (overrides YAML)
-    parser.add_argument("--mbm_type", type=str)
-    parser.add_argument("--mbm_r", type=int)
-    parser.add_argument("--mbm_n_head", type=int)
-    parser.add_argument("--mbm_learnable_q", type=int)
-    return parser.parse_args()
-
-def load_config(path):
-    if os.path.exists(path):
-        with open(path, 'r') as f:
-            return yaml.safe_load(f)
-    return {}
 
 @torch.no_grad()
 def evaluate_acc(model, loader, device="cuda", cfg=None):
@@ -141,11 +99,9 @@ class SynergyEnsemble(nn.Module):
         zsyn = self.synergy_head(fsyn)
         return zsyn
 
-def main():
-    # 1) parse + load config
-    args = parse_args()
-    base_cfg = load_config(args.config)
-    cfg = {**base_cfg, **vars(args)}
+@hydra.main(config_path="configs", config_name="base", version_base="1.3")
+def main(cfg: DictConfig):
+    cfg = OmegaConf.to_container(cfg, resolve=True)
 
     # 2) set seed
     deterministic = cfg.get("deterministic", True)
