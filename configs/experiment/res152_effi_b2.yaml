@@ -12,10 +12,14 @@ defaults:
 
 # Experiment-specific overrides
 teacher1_type: resnet152
-teacher1_ckpt: checkpoints/resnet152_ft.pth
+teacher1_ckpt: checkpoints/resnet152_cifar32.pth
 
 teacher2_type: efficientnet_b2
-teacher2_ckpt: checkpoints/efficientnet_b2_ft.pth
+teacher2_ckpt: checkpoints/efficientnet_b2_cifar32.pth
+
+# 32×32 전용 stem을 다시 만들지 않도록 ckpt와 동일하게 지정
+teacher1_small_input: true
+teacher2_small_input: true
 teacher2_use_adapter: true
 
 student_type: resnet152_adapter
