@@ -37,7 +37,7 @@ ckpt_dir: "./checkpoints"
 
 # ---------- W&B ----------
 wandb:
-  use: true
+  use: false
   entity: "kakamy0820-yonsei-university"
   project: "kd_monitor"
   run_name: ""              # 비우면 exp_id 사용

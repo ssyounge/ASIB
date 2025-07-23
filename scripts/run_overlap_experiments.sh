@@ -29,8 +29,8 @@ PY
         +teacher_type=resnet152 \
         +finetune_epochs=10 \
         +finetune_lr=3e-4 \
-        +class_subset="${!CLS_VAR}" \
-        +finetune_ckpt_path="$CKPT"
+        +class_subset=${!CLS_VAR} \
+        +finetune_ckpt_path=${CKPT}
     fi
   done
 
