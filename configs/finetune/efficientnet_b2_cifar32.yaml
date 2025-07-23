@@ -28,3 +28,7 @@ log_level: INFO
 deterministic: true
 
 finetune_ckpt_path: checkpoints/efficientnet_b2_cifar32.pth
+
+# ─── NEW ─────────────────────────────────────────────
+dataset_name: cifar100        # ← loader 에서 요구
+data_root: ./data             # (경로 바꿀 거면 같이 수정)
