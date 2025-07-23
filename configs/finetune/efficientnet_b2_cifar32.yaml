@@ -1,3 +1,5 @@
+# configs/finetune/efficientnet_b2_cifar32.yaml
+
 # 32×32 CIFAR-100용 EfficientNet-B2 fine-tune
 defaults:
   - ../dataset/cifar100
