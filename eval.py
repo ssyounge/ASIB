@@ -12,7 +12,7 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 
 from data.cifar100 import get_cifar100_loaders
-from data.imagenet100 import get_imagenet100_loaders
+from data.imagenet32 import get_imagenet32_loaders
 from models.mbm import build_from_teachers
 from models.la_mbm import LightweightAttnMBM
 from utils.logger import ExperimentLogger
@@ -118,10 +118,10 @@ def main(cfg: DictConfig):
     logger.update_metric("mbm_n_head", cfg.get("mbm_n_head"))
     logger.update_metric("mbm_learnable_q", cfg.get("mbm_learnable_q"))
 
-    # 4) Data (CIFAR-100 or ImageNet-100)
+    # 4) Data (CIFAR-100 or ImageNet-32)
     dataset_name = cfg.get("dataset_name", "cifar100")
-    if dataset_name == "imagenet100":
-        train_loader, test_loader = get_imagenet100_loaders(
+    if dataset_name == "imagenet32":
+        train_loader, test_loader = get_imagenet32_loaders(
             batch_size=cfg["batch_size"],
             num_workers=cfg.get("num_workers", 2),
         )
