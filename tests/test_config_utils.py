@@ -35,3 +35,10 @@ def test_nested_teacher_model():
     cfg = {"model": {"teacher": {"model": {"teacher": {"lr": 0.001}}}}}
     out = cu.flatten_hydra_config(dict(cfg))
     assert out["teacher_lr"] == 0.001
+
+
+def test_method_params_propagated():
+    cfg = {"method": {"method": {"ce_alpha": 0.3, "kd_alpha": 0.7}}}
+    out = cu.flatten_hydra_config(dict(cfg))
+    assert out["ce_alpha"] == 0.3
+    assert out["kd_alpha"] == 0.7
