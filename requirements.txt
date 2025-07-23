@@ -5,3 +5,4 @@ PyYAML
 tqdm
 pandas
 einops>=0.6
+hydra-core>=1.3

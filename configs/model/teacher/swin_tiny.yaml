@@ -1,0 +1,9 @@
+model:
+  teacher:
+    name: swin_tiny
+    pretrained: true
+    lr: 1e-4
+    weight_decay: 1e-4
+    freeze_level: 0
+    freeze_bn: true
+    use_adapter: false
