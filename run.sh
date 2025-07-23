@@ -9,7 +9,9 @@ set -euo pipefail
 #SBATCH --error=outputs/asmb_%j/run.log
 
 # Ensure script runs from repository root
-cd "$(dirname "$0")"
+# Use SLURM_SUBMIT_DIR when running under sbatch. This ensures paths
+# resolve relative to the directory the job was submitted from.
+cd "${SLURM_SUBMIT_DIR:-$(dirname "$0")}"
 
 source ~/.bashrc
 conda activate tlqkf
