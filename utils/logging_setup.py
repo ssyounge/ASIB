@@ -31,7 +31,8 @@ def setup_logging(cfg: dict):
     for h in logging.root.handlers[:]:
         logging.root.removeHandler(h)
 
-    level = getattr(logging, cfg.get("log_level", "INFO").upper(), logging.INFO)
+    level_str = (cfg.get("log_level") or "INFO").upper()
+    level = getattr(logging, level_str, logging.INFO)
     log_file = os.path.join(cfg.get("results_dir", "."), cfg.get("log_filename", "train.log"))
     _ensure_dir(log_file)
 
@@ -112,13 +113,15 @@ def get_logger(
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     f_hdl.setFormatter(f_fmt)
-    f_hdl.setLevel(getattr(logging, level.upper()))
+    f_level = getattr(logging, (level or "INFO").upper())
+    f_hdl.setLevel(f_level)
     logger.addHandler(f_hdl)
 
     s_hdl = logging.StreamHandler(sys.stdout)
     s_fmt = logging.Formatter("%(levelname)s | %(message)s")
     s_hdl.setFormatter(s_fmt)
-    s_hdl.setLevel(getattr(logging, stream_level.upper()))
+    s_level = getattr(logging, (stream_level or "WARNING").upper())
+    s_hdl.setLevel(s_level)
     logger.addHandler(s_hdl)
 
     class _WBHandler(logging.Handler):
@@ -128,7 +131,7 @@ def get_logger(
     if wandb.run is not None:
         wb_hdl = _WBHandler()
         wb_hdl.setFormatter(f_fmt)
-        wb_hdl.setLevel(getattr(logging, level.upper()))
+        wb_hdl.setLevel(f_level)
         logger.addHandler(wb_hdl)
 
     _LOGGERS[gkey] = logger
