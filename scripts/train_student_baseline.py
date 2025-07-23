@@ -95,6 +95,8 @@ def train_student_ce(
 @hydra.main(config_path="../configs", config_name="base", version_base="1.3")
 def main(cfg: DictConfig):
     cfg = OmegaConf.to_container(cfg, resolve=True)
+    from utils.config_utils import flatten_hydra_config
+    cfg = flatten_hydra_config(cfg)
 
     device = cfg.get("device", "cuda")
     if device == "cuda" and not torch.cuda.is_available():
