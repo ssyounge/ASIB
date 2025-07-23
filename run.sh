@@ -10,4 +10,8 @@
 source ~/.bashrc
 conda activate tlqkf
 
+# Ensure log directory exists
+: "${SLURM_JOB_ID:=manual}"
+mkdir -p "outputs/asmb_${SLURM_JOB_ID}"
+
 python main.py --config-path configs/experiment --config-name res152_effi_b2
