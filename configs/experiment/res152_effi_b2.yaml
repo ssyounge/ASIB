@@ -3,11 +3,11 @@
 # inherit common defaults from ../base
 defaults:
   - ../base
-  - override dataset: cifar100
-  - override model/teacher: resnet152
-  - override model/student: resnet152_pretrain
-  - override method: asmb
-  - override schedule: cosine
+  - override /dataset: cifar100
+  - override /model/teacher: resnet152
+  - override /model/student: resnet152_pretrain
+  - override /method: asmb
+  - override /schedule: cosine
   - _self_
 
 # Experiment-specific overrides
