@@ -28,4 +28,6 @@ fi
 
 echo "▶ Fine-tuning config: $CFG_NAME"
 mkdir -p logs
-python scripts/fine_tuning.py --config-name "$CFG_NAME"
+python scripts/fine_tuning.py \
+  --config-path configs/finetune \
+  --config-name "$CFG_NAME"
