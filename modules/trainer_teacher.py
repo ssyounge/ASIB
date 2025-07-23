@@ -218,8 +218,12 @@ def teacher_adaptive_update(
                             feat_kd_warned = True
 
             # Standard KD + CE
+            kd_weight = cfg.get(
+                "teacher_adapt_alpha_kd",
+                cfg.get("kd_alpha", 1.0),
+            )
             total_loss = (
-                cfg["teacher_adapt_alpha_kd"] * loss_kd
+                kd_weight * loss_kd
                 + synergy_ce_loss
                 + cfg.get("feat_kd_alpha", 0) * feat_kd_loss
                 + ib_loss_val
