@@ -26,6 +26,11 @@ student_list: ["resnet152_adapter"]      # 첫 실험은 하나로 충분
 student_type: "resnet152_adapter"
 method_list: ["asmb", "vanilla_kd", "dkd", "crd", "at", "fitnet"] # "asmb", "vanilla_kd", "dkd", "crd", "at", "fitnet"
 
+# --- pretrained toggles (실험용 override) ----------------------
+teacher1_pretrained: true        # 두 교사 모두 ImageNet 가중치
+teacher2_pretrained: true
+student_pretrained:  false       # ★ scratch 학습
+
 # Partial-freeze / adapter options
 use_partial_freeze: false      # 첫 실험은 full fine-tune 로 성능 ceiling 파악
 student_freeze_level: 0        # head 만 고정 (실제로는 전체 학습)
