@@ -4,7 +4,7 @@
 defaults:
   - dataset: cifar100                # 데이터셋·로더 관리
   - model/teacher: resnet152         # 교사 모델
-  - model/student: resnet152_pretrain# 학생 모델
+  - model/student: resnet152_pretrain # 학생 모델
   - method: asmb                     # KD 방법
   - schedule: cosine                 # LR 스케줄
   - _self_                           # (항상 마지막)
