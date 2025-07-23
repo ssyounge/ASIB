@@ -9,7 +9,10 @@
 #SBATCH --output=logs/ft_%j.log
 #SBATCH --error=logs/ft_%j.err
 
-cd "$(dirname "$0")"
+# When dispatched via sbatch, SLURM_SUBMIT_DIR points to the directory
+# the job was submitted from. Fall back to the script location when run
+# manually so relative paths (e.g., scripts/fine_tuning.py) still work.
+cd "${SLURM_SUBMIT_DIR:-$(dirname "$0")}"
 source ~/.bashrc
 conda activate tlqkf
 export PYTHONPATH="$(pwd):$PYTHONPATH"
