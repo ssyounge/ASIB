@@ -1,0 +1,8 @@
+method:
+  name: crd
+  ce_alpha: 0.3
+  kd_alpha: 0.7
+  crd_feat_dim: 512
+  crd_nce_k: 16384
+  crd_nce_t: 0.07
+  crd_momentum: 0.5

@@ -1,0 +1,4 @@
+schedule:
+  type: cosine
+  lr_warmup_epochs: 5
+  min_lr: 1e-5

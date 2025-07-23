@@ -1,0 +1,9 @@
+method:
+  name: asmb
+  ce_alpha: 0.3
+  kd_alpha: 0.7
+  synergy_ce_alpha: 0.4        # Adaptive stage 전용
+  teacher_adapt_kd_warmup: 1
+  hybrid_beta: 0.05
+  cutmix_alpha_distill: 0.3
+  # IB (공통) ⇒ base.mbm 에서 설정
