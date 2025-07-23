@@ -1,5 +1,6 @@
 #!/bin/bash
 # run.sh
+set -euo pipefail
 #SBATCH --job-name=run_asmb_experiment
 #SBATCH --partition=base_suma_rtx3090
 #SBATCH --gres=gpu:1
