@@ -25,10 +25,12 @@ PY
     CKPT="checkpoints/resnet152_overlap${P}_${ID}.pth"
     if [ ! -f "$CKPT" ]; then
       python scripts/fine_tuning.py \
-        --teacher_type resnet152 \
-        --finetune_epochs 10 --finetune_lr 3e-4 \
-        --class_subset "${!CLS_VAR}" \
-        --finetune_ckpt_path "$CKPT"
+        --config-name base \
+        +teacher_type=resnet152 \
+        +finetune_epochs=10 \
+        +finetune_lr=3e-4 \
+        +class_subset="${!CLS_VAR}" \
+        +finetune_ckpt_path="$CKPT"
     fi
   done
 
@@ -36,15 +38,15 @@ PY
   for KD in $KD_LIST; do
     python main.py \
       --config-name base \
-      --overlap_pct $P \
-      --method $KD \
-      --teacher1_type resnet152 \
-      --teacher1_ckpt checkpoints/resnet152_overlap${P}_A.pth \
-      --teacher2_type resnet152 \
-      --teacher2_ckpt checkpoints/resnet152_overlap${P}_B.pth \
-      --student_type $STUDENT \
-      --results_dir outputs/overlap_${P}/${KD} \
-      --num_stages 4 --student_epochs_per_stage 15
+      +overlap_pct=$P \
+      +method=$KD \
+      +teacher1_type=resnet152 \
+      +teacher1_ckpt=checkpoints/resnet152_overlap${P}_A.pth \
+      +teacher2_type=resnet152 \
+      +teacher2_ckpt=checkpoints/resnet152_overlap${P}_B.pth \
+      +student_type=$STUDENT \
+      +results_dir=outputs/overlap_${P}/${KD} \
+      +num_stages=4 +student_epochs_per_stage=15
   done
 
 done
