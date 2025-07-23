@@ -45,18 +45,22 @@ from modules.partial_freeze import (
 # cutmix finetune
 from modules.cutmix_finetune_teacher import finetune_teacher_cutmix, eval_teacher
 
-def get_data_loaders(dataset_name, batch_size=128, num_workers=2, augment=True):
+def get_data_loaders(
+    dataset_name, batch_size=128, num_workers=2, augment=True, root=None
+):
     """
     Returns train_loader, test_loader based on dataset_name.
     """
     if dataset_name == "cifar100":
         return get_cifar100_loaders(
+            root=root or "./data",
             batch_size=batch_size,
             num_workers=num_workers,
             augment=augment,
         )
     elif dataset_name == "imagenet32":
         return get_imagenet32_loaders(
+            root or "./data/imagenet32",
             batch_size=batch_size,
             num_workers=num_workers,
         )
@@ -239,6 +243,7 @@ def main(cfg: DictConfig):
             batch_size=batch_size,
             num_workers=cfg.get("num_workers", 2),
             augment=cfg.get("data_aug", True),
+            root=cfg.get("data_root"),
         )
 
     if isinstance(train_loader.dataset, torch.utils.data.ConcatDataset):
