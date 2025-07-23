@@ -34,7 +34,7 @@ PY
   ## 2) Distillation – 모든 KD 방법 루프
   for KD in $KD_LIST; do
     python main.py \
-      --config configs/default.yaml \
+      --config-name base \
       --overlap_pct $P \
       --method $KD \
       --teacher1_type resnet152 \

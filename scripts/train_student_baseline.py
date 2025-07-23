@@ -22,7 +22,12 @@ from utils.misc import get_amp_components
 
 def parse_args():
     p = argparse.ArgumentParser(description="Student baseline training")
-    p.add_argument("--config", type=str, default="configs/default.yaml")
+    p.add_argument(
+        "--config-name",
+        type=str,
+        default="base",
+        help="Hydra config name (from configs/)",
+    )
     p.add_argument("--student_type", type=str)
     p.add_argument("--student_ckpt", type=str)
     p.add_argument("--batch_size", type=int)
@@ -43,7 +48,7 @@ def parse_args():
 
 
 def load_config(path):
-    if os.path.exists(path):
+    if path and os.path.exists(path):
         with open(path, "r") as f:
             import yaml
             return yaml.safe_load(f) or {}
@@ -120,8 +125,13 @@ def train_student_ce(
 
 def main():
     args = parse_args()
-    base_cfg = load_config(args.config)
-    cli_cfg = {k: v for k, v in vars(args).items() if v is not None}
+    cfg_path = f"configs/{args.config_name}.yaml" if args.config_name else None
+    base_cfg = load_config(cfg_path)
+    cli_cfg = {
+        k: v
+        for k, v in vars(args).items()
+        if v is not None and k != "config_name"
+    }
     cfg = {**base_cfg, **cli_cfg}
 
     device = cfg.get("device", "cuda")

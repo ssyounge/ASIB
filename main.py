@@ -138,10 +138,13 @@ def parse_args():
     parser.add_argument('--use_ib', type=lambda x: str(x).lower()=='true')
     # ---------------------------------------------- #
 
-    # (1) YAML 파일
-    parser.add_argument("--config", type=str,
-                        default="configs/default.yaml",
-                        help="Path to yaml config for distillation")
+    # (1) Hydra config name (default: base)
+    parser.add_argument(
+        "--config-name",
+        type=str,
+        default="base",
+        help="Hydra config name to load (from configs/)",
+    )
     parser.add_argument("--hparams", type=str, default=None)
 
     # (2) sweep 할 때 바꿀 필드들 ▶ YAML 값을 CLI-인자가 **덮어쓰도록** 할 목적

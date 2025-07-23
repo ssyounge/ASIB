@@ -247,7 +247,7 @@ Baseline runs (e.g., `vanilla_kd`) produce their own logs such as `VanillaKD => 
 
 1) Multi-Stage Distillation (main.py)
 
-python main.py --config configs/partial_freeze.yaml --device cuda \
+python main.py --config-name base --device cuda \
   --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 1
   # Freeze levels (`teacher1_freeze_level`, `teacher2_freeze_level`,
   # `student_freeze_level`) are loaded from `configs/partial_freeze.yaml`
@@ -261,7 +261,7 @@ python main.py --config configs/partial_freeze.yaml --device cuda \
 2) Single-Teacher Distillation (run_single_teacher.py)
 
 ```bash
-python scripts/run_single_teacher.py --config configs/default.yaml \
+python scripts/run_single_teacher.py --config-name base \
   --method vanilla_kd --teacher_type resnet152 --teacher_ckpt teacher.pth \
   --student_type resnet_adapter --epochs 40 \
   --dataset imagenet100
@@ -280,7 +280,7 @@ sets `use_partial_freeze: false` when the selected `method` is not `asmb`.
 Run the student alone using the same partial-freeze settings to gauge its standalone performance:
 
 ```bash
-python scripts/train_student_baseline.py --config configs/partial_freeze.yaml \
+python scripts/train_student_baseline.py --config-name base \
   --student_type resnet_adapter --epochs 40 --dataset cifar100
 # Freeze levels come from `configs/partial_freeze.yaml`
 ```
@@ -313,7 +313,7 @@ python eval.py --eval_mode synergy \
 Use the `--data_aug` flag to control dataset transforms. When set to `1` (default), the loaders apply `RandomCrop`, `RandomHorizontalFlip` and `RandAugment` for stronger augmentation. Passing `--data_aug 0` disables these operations and only performs normalization/resizing.
 
 ```bash
-python main.py --config configs/default.yaml --data_aug 0
+python main.py --config-name base --data_aug 0
 ```
 
 Set `num_workers` in your YAML file to control how many processes each
