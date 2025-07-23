@@ -1,3 +1,5 @@
+# configs/model/student/resnet152_pretrain.yaml
+
 model:
   student:
     name: resnet152_adapter
