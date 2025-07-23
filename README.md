@@ -101,12 +101,22 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 ```
 2. *(Optional)* **Create and activate a Conda environment**:
 ```bash
-conda create -n tlqkf python=3.12.11
+conda env create -f environment.yml
 conda activate tlqkf
 ```
-3. **Install dependencies**:
+3. *(Optional)* **Install dependencies manually**:
 ```bash
 pip install -r requirements.txt  # includes pandas for analysis
+```
+4. **Download pretrained checkpoints**:
+```bash
+mkdir checkpoints
+wget -O checkpoints/resnet152_ft.pth <링크>
+wget -O checkpoints/efficientnet_b2_ft.pth <링크>
+```
+5. **Run a single experiment**:
+```bash
+python main.py --config-path configs/experiment --config-name res152_effi_b2
 ```
 
 The unified script `run_experiments.sh` automatically tries to activate a
