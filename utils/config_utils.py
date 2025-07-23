@@ -18,7 +18,9 @@ def flatten_hydra_config(cfg: dict) -> dict:
     """
 
     dataset = cfg.get("dataset", {})
-    cfg.setdefault("dataset_name", dataset.get("name"))
+    dataset_name = dataset.get("name")
+    if dataset_name:
+        cfg.setdefault("dataset_name", dataset_name)
     cfg.setdefault("data_root", dataset.get("root"))
     cfg.setdefault("small_input", dataset.get("small_input"))
     cfg.setdefault("data_aug", dataset.get("data_aug"))
