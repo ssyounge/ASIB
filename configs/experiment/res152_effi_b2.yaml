@@ -1,13 +1,13 @@
 # configs/experiment/res152_effi_b2.yaml
 
-# inherit common defaults from ../base
+# inherit common defaults from base
 defaults:
-  - ../base
-  - override dataset: cifar100
-  - override model/teacher: resnet152
-  - override model/student: resnet152_pretrain
-  - override method: asmb
-  - override schedule: cosine
+  - /base
+  - override /dataset: cifar100
+  - override /model/teacher: resnet152
+  - override /model/student: resnet152_pretrain
+  - override /method: asmb
+  - override /schedule: cosine
   - _self_
 
 # Experiment-specific overrides
