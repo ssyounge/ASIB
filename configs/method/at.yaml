@@ -1,0 +1,5 @@
+method:
+  name: at          # Attention Transfer
+  ce_alpha: 0.5
+  kd_alpha: 0.5
+  at_beta: 1e-1

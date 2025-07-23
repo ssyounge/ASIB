@@ -508,12 +508,13 @@ class ASMBDistiller(nn.Module):
                         rkd_mix = 0.5 * (rkd_t1 + rkd_t2) + gamma * rkd_syn
                     rkd_val = rkd_mix.mean()
 
-                loss_asmb = (
-                    self.alpha * ce_val
-                    + (1 - self.alpha) * kd_val
-                    + self.feat_kd_alpha * feat_loss
-                    + self.config.get("rkd_loss_weight", 0.0) * rkd_val
-                )
+                # old formula for reference:
+                # loss_asmb = (
+                #     self.alpha * ce_val
+                #     + (1 - self.alpha) * kd_val
+                #     + self.feat_kd_alpha * feat_loss
+                #     + self.config.get("rkd_loss_weight", 0.0) * rkd_val
+                # )
                 beta = min(self.config.get("hybrid_beta", 0.0), 1.0)
                 alpha_eff = self.alpha
                 kd_coeff = 1 - self.alpha

@@ -1,0 +1,55 @@
+# ---------------------------------------------------------------
+#  Global defaults – 공통 설정 / 가장 먼저 로드
+# ---------------------------------------------------------------
+defaults:
+  - dataset: cifar100                # 데이터셋·로더 관리
+  - model/teacher: resnet152         # 교사 모델
+  - model/student: resnet152_pretrain# 학생 모델
+  - method: asmb                     # KD 방법
+  - schedule: cosine                 # LR 스케줄
+  - _self_                           # (항상 마지막)
+
+# ---------- 실험 공통 ----------
+device: cuda
+seed: 42
+deterministic: true
+use_amp: true
+amp_dtype: float16
+grad_scaler_init_scale: 1024
+
+# ---------- Data ----------
+batch_size: 128            # dataset 그룹 값으로 덮어써도 됨
+num_workers: 4
+
+# ---------- Logging ----------
+log:
+  filename: "train.log"
+  level: DEBUG
+  step_interval: 100
+disable_tqdm: false
+log_all_hparams: true
+
+# ---------- Checkpoint ----------
+save_checkpoint: true
+ckpt_dir: "./checkpoints"
+
+# ---------- W&B ----------
+wandb:
+  use: true
+  entity: "kakamy0820-yonsei-university"
+  project: "kd_monitor"
+  run_name: ""              # 비우면 exp_id 사용
+  api_key: ""               # "" → wandb login 로드
+
+# ---------- MBM / Information Bottleneck ----------
+mbm:
+  type: ib_mbm
+  use_ib: true
+  beta: 0.01
+  query_dim: 2048
+
+# ---------- Distillation stage 기본 ----------
+num_stages: 3
+student_epochs_per_stage: 15
+teacher_adapt_epochs: 2
+grad_clip_norm: 1.0
