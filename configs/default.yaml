@@ -37,6 +37,14 @@ finetune_ckpt1: "./checkpoints/teacher1_finetuned.pth"
 finetune_ckpt2: "./checkpoints/teacher2_finetuned.pth"
 force_refinetune: false
 
+# --- pretrained toggles ---------------------------------------
+# True  → ImageNet weights 로드
+# False → 완전 scratch
+teacher1_pretrained: true
+teacher2_pretrained: true
+student_pretrained:  true   # <‑‑ 기본값은 켜 두고,
+                             #     hparams.yaml 에서만 꺼서 실험
+
 # === Information Bottleneck MBM ===
 mbm_type: ib_mbm
 use_ib: true
