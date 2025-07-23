@@ -1,0 +1,6 @@
+method:
+  name: fitnet
+  ce_alpha: 0.4
+  kd_alpha: 0.6
+  hint_layer: "feat_4d_layer2"  # student, teacher 동일 키
+  hint_beta: 100.0

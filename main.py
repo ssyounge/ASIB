@@ -13,8 +13,10 @@ import logging
 import os
 import json
 import torch
-import yaml
 from typing import Optional
+
+import hydra
+from omegaconf import DictConfig, OmegaConf
 
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR, StepLR
@@ -222,25 +224,6 @@ def parse_args():
     parser.add_argument("--lambda_ewc", type=float)
     return parser.parse_args()
 
-def load_config(cfg_path):
-    """Load YAML config if file exists"""
-    if os.path.exists(cfg_path):
-        with open(cfg_path, 'r') as f:
-            return yaml.safe_load(f)
-    return {}
-
-def load_cfg(main_yaml: str, *extra_yaml_paths: str):
-    """
-    여러 YAML을 순차적으로 merge.
-    main_yaml → extra_yaml_paths 순으로 update 되므로
-    뒤에 나오는 파일이 같은 key를 덮어쓴다.
-    """
-    cfg = load_config(main_yaml)
-    for p in extra_yaml_paths:
-        if p and os.path.exists(p):
-            with open(p, "r") as f:
-                cfg.update(yaml.safe_load(f) or {})
-    return cfg
 
 def create_teacher_by_name(
     teacher_name,
@@ -359,27 +342,9 @@ def partial_freeze_student_auto(
             freeze_level=freeze_level,
         )
 
-def main():
-    # 1) parse args
-    args = parse_args()
-
-    # 2) load config from YAML  (+ partial_freeze.yaml 자동 병합)
-    base_cfg = load_cfg(
-        args.config,
-        args.hparams,
-        "configs/partial_freeze.yaml"   # ← 새로 추가
-    )
-    cfg = base_cfg.copy()
-
-    # -------- merge CLI overrides ----------
-    # 1) CLI dict 추출
-    cli_cfg = {k: v for k, v in vars(args).items() if v is not None}
-    # 2) 중복 충돌 시 CLI 우선, 단 protected 키는 유지
-    protected = {"feat_kd_alpha"}
-    for k, v in cli_cfg.items():
-        if k in protected and k in cfg:
-            continue
-        cfg[k] = v
+@hydra.main(config_path="configs", config_name="base", version_base="1.3")
+def main(cfg: DictConfig):
+    cfg = OmegaConf.to_container(cfg, resolve=True)
 
     # ------------------------------------------------------------------
     # (NEW)  student_pretrained 기본값 자동 결정

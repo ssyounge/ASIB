@@ -1,0 +1,9 @@
+model:
+  student:
+    name: resnet152_adapter
+    pretrained: true
+    lr: 8e-4
+    weight_decay: 8e-4
+    freeze_level: 0          # full fine-tune
+    freeze_bn: false
+    use_adapter: true
