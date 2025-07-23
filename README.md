@@ -116,7 +116,7 @@ wget -O checkpoints/efficientnet_b2_ft.pth <링크>
 ```
 5. **Run a single experiment**:
 ```bash
-python main.py --config-path configs/experiment --config-name res152_effi_b2
+python main.py --config-name experiment/res152_effi_b2
 ```
 
 The unified script `run_experiments.sh` automatically tries to activate a
