@@ -1,0 +1,30 @@
+# configs/experiment/res152_effi_b2.yaml
+
+# inherit common defaults from ../base
+defaults:
+  - ../base
+  - override dataset: cifar100
+  - override model/teacher: resnet152
+  - override model/student: resnet152_pretrain
+  - override method: asmb
+  - override schedule: cosine
+  - _self_
+
+# Experiment-specific overrides
+teacher1_type: resnet152
+teacher1_ckpt: checkpoints/resnet152_ft.pth
+
+teacher2_type: efficientnet_b2
+teacher2_ckpt: checkpoints/efficientnet_b2_ft.pth
+teacher2_use_adapter: true
+efficientnet_adapter_dim: 1024
+
+student_type: resnet152_adapter
+student_pretrained: true
+student_freeze_level: 1
+
+num_stages: 3
+batch_size: 128
+
+results_dir: outputs/res152_effi_b2
+exp_id: res152_effi_b2
