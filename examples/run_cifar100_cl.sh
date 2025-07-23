@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# examples/run_cifar100_cl.sh
 # Simple Split-CIFAR run (5 tasks, quick debug)
 
 python main.py \
