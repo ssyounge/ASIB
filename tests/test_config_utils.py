@@ -17,3 +17,15 @@ def test_existing_top_level_not_overridden():
     assert out["log_level"] == "INFO"
     assert out["log_filename"] == "nested.log"
 
+
+def test_experiment_nested_dataset():
+    cfg = {
+        "experiment": {
+            "dataset": {
+                "dataset": {"name": "cifar100", "root": "./data"},
+            }
+        }
+    }
+    out = cu.flatten_hydra_config(dict(cfg))
+    assert out["dataset_name"] == "cifar100"
+    assert out["data_root"] == "./data"

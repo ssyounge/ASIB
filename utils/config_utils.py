@@ -17,7 +17,14 @@ def flatten_hydra_config(cfg: dict) -> dict:
         The same dict with additional top-level keys populated.
     """
 
+    if "experiment" in cfg and isinstance(cfg["experiment"], dict):
+        nested = flatten_hydra_config(dict(cfg["experiment"]))
+        for k, v in nested.items():
+            cfg.setdefault(k, v)
+
     dataset = cfg.get("dataset", {})
+    if "dataset" in dataset and isinstance(dataset["dataset"], dict):
+        dataset = dataset["dataset"]
     dataset_name = dataset.get("name")
     if dataset_name:
         cfg.setdefault("dataset_name", dataset_name)
