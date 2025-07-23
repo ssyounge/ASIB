@@ -1,3 +1,4 @@
+# scripts/run_overlap_experiments.sh
 #!/usr/bin/env bash
 set -e
 export PYTHONPATH="$(pwd):$PYTHONPATH"
