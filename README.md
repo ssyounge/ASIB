@@ -204,11 +204,11 @@ python main.py --config-name base \
 python scripts/run_single_teacher.py --config-name base \
   +method=vanilla_kd +teacher_type=resnet152 +teacher_ckpt=teacher.pth \
   +student_type=resnet_adapter +epochs=40 \
-  dataset=imagenet100
+  dataset=imagenet32
 ```
 
 The `method` option selects one of `vanilla_kd`, `fitnet`, `dkd`, `at` or `crd`.
-Override the dataset by passing `dataset=imagenet100` or `dataset=cifar100` on
+Override the dataset by passing `dataset=imagenet32` or `dataset=cifar100` on
 the command line.
 Partial freezing is automatically turned off for these methods—`run_single_teacher.py`
 sets `use_partial_freeze: false` when the selected `method` is not `asmb`.
@@ -357,7 +357,7 @@ python scripts/fine_tuning.py --config-name base \
 ```
 
 The script uses **CIFAR-100** by default. Change `dataset.name` via a Hydra override
-or edit the dataset YAML (e.g., `dataset=imagenet100`) to switch datasets.
+or edit the dataset YAML (e.g., `dataset=imagenet32`) to switch datasets.
 
 For partial freezing with EfficientNet, a new freeze scope
 `features_classifier` unfreezes the feature extractor and classifier modules
@@ -440,7 +440,7 @@ Folder Structure
 
 ├── data
 │   ├── cifar100.py
-│   ├── imagenet100.py
+│   ├── imagenet32.py
 │   └── __init__.py
 
 ├── methods              # Various KD algorithms

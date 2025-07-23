@@ -27,7 +27,7 @@ from utils.misc import (
 
 # data loaders
 from data.cifar100 import get_cifar100_loaders
-from data.imagenet100 import get_imagenet100_loaders
+from data.imagenet32 import get_imagenet32_loaders
 
 # teacher factories
 from models.teachers.teacher_resnet import create_resnet101, create_resnet152
@@ -54,11 +54,10 @@ def get_data_loaders(dataset_name, batch_size=128, num_workers=2, augment=True):
             num_workers=num_workers,
             augment=augment,
         )
-    elif dataset_name == "imagenet100":
-        return get_imagenet100_loaders(
+    elif dataset_name == "imagenet32":
+        return get_imagenet32_loaders(
             batch_size=batch_size,
             num_workers=num_workers,
-            augment=augment,
         )
     else:
         raise ValueError(f"Unknown dataset_name={dataset_name}")
@@ -254,7 +253,7 @@ def main(cfg: DictConfig):
 
     small_input = cfg.get("small_input")
     if small_input is None:
-        small_input = dataset_name == "cifar100"
+        small_input = dataset_name in ("cifar100", "imagenet32")
 
     # 2) teacher
     teacher_type = cfg.get("teacher_type", cfg.get("default_teacher_type"))  # e.g. "resnet152", "efficientnet_b2", "swin_tiny"
