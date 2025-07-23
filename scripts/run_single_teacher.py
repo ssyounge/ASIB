@@ -63,6 +63,8 @@ def build_distiller(method, teacher, student, cfg):
 @hydra.main(config_path="../configs", config_name="base", version_base="1.3")
 def main(cfg: DictConfig):
     cfg = OmegaConf.to_container(cfg, resolve=True)
+    from utils.config_utils import flatten_hydra_config
+    cfg = flatten_hydra_config(cfg)
 
     # ──────────────────────────────────────────────────────────────
     # YAML/CLI override 로 인해 숫자가 문자열로 들어올 수 있다.
