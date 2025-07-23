@@ -79,8 +79,21 @@ def flatten_hydra_config(cfg: dict) -> dict:
     cfg.setdefault("wandb_run_name", wandb_cfg.get("run_name"))
     cfg.setdefault("wandb_api_key", wandb_cfg.get("api_key"))
 
+
     log_cfg = cfg.get("log", {})
     cfg.setdefault("log_level", log_cfg.get("level"))
     cfg.setdefault("log_filename", log_cfg.get("filename"))
+
+    # ------------------------------------------------------------------
+    # distillation method parameters (ce_alpha, kd_alpha, etc.)
+    # are nested under ``cfg['method']['method']`` in Hydra configs.
+    # copy them to the top level if not already present.
+    # ------------------------------------------------------------------
+    method_cfg = cfg.get("method", {})
+    if isinstance(method_cfg, dict) and "method" in method_cfg:
+        method_cfg = method_cfg["method"]
+    if isinstance(method_cfg, dict):
+        for k, v in method_cfg.items():
+            cfg.setdefault(k, v)
 
     return cfg
