@@ -1,22 +1,18 @@
 #!/bin/bash
-# run.sh
-set -euo pipefail
-#SBATCH --job-name=run_asmb_experiment
-#SBATCH --partition=base_suma_rtx3090
+#SBATCH --job-name=asmb_exp_clean
+#SBATCH --partition=dell_rtx3090
+#SBATCH --qos=base_qos
 #SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=16G
 #SBATCH --time=2-00:00:00
 #SBATCH --output=outputs/asmb_%j/run.log
 #SBATCH --error=outputs/asmb_%j/run.log
 
-# Ensure script runs from repository root
-# Use SLURM_SUBMIT_DIR when running under sbatch. This ensures paths
-# resolve relative to the directory the job was submitted from.
 cd "${SLURM_SUBMIT_DIR:-$(dirname "$0")}"
-
 source ~/.bashrc
 conda activate tlqkf
 
-# Ensure log directory exists
 : "${SLURM_JOB_ID:=manual}"
 mkdir -p "outputs/asmb_${SLURM_JOB_ID}"
 
