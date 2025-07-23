@@ -8,6 +8,9 @@ set -euo pipefail
 #SBATCH --output=outputs/asmb_%j/run.log
 #SBATCH --error=outputs/asmb_%j/run.log
 
+# Ensure script runs from repository root
+cd "$(dirname "$0")"
+
 source ~/.bashrc
 conda activate tlqkf
 
