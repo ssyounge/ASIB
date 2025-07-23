@@ -240,20 +240,24 @@ def main(cfg: DictConfig):
     from utils.config_utils import flatten_hydra_config
     cfg = flatten_hydra_config(cfg)
 
+    fl = cfg.get("student_freeze_level", -1)
+    if fl is None:
+        fl = -1
+    cfg["student_freeze_level"] = fl
+
     # ------------------------------------------------------------------
     # (NEW)  student_pretrained 기본값 자동 결정
     #   · freeze_level ≥0  →  pretrained 켜기
     #   · freeze_level  <0 →  scratch (꺼두기)
     # ------------------------------------------------------------------
     if "student_pretrained" not in cfg:
-        fl = cfg.get("student_freeze_level", -1)
         cfg["student_pretrained"] = bool(fl >= 0)
         print(
             f"[Auto-cfg] student_pretrained\u2190{cfg['student_pretrained']} "
             f"(freeze_level={fl})"
         )
 
-    if cfg.get("student_freeze_level", -1) >= 0 and not cfg.get("student_pretrained", False):
+    if fl >= 0 and not cfg.get("student_pretrained", False):
         print(
             "[Warn] freeze_level ≥0 인데 student_pretrained=False ‑‑ "
             "동결된 층이 랜덤 초기화 상태가 됩니다."
