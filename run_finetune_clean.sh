@@ -15,6 +15,7 @@
 cd "${SLURM_SUBMIT_DIR:-$(dirname "$0")}"
 source ~/.bashrc
 conda activate tlqkf
+mkdir -p logs
 export PYTHONPATH="$(pwd):$PYTHONPATH"
 
 CONFIGS=(resnet152_cifar32 efficientnet_b2_cifar32)
@@ -27,5 +28,4 @@ if [ -z "$CFG_NAME" ]; then
 fi
 
 echo "▶ Fine-tuning config: $CFG_NAME"
-mkdir -p logs
 python scripts/fine_tuning.py --config-name "$CFG_NAME"
