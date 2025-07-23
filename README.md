@@ -6,8 +6,11 @@
 
 ## Quick-start
 ```bash
-# IID 학습
+# IID 학습 (기존 방식)
 python main.py --config configs/default.yaml
+
+# Hydra 기반 실행
+python hydra_main.py dataset=cifar100 method=asmb
 
 # Continual-Learning (Split-CIFAR 5 tasks 예시)
 python main.py --config configs/default.yaml --cl_mode 1 --num_tasks 5

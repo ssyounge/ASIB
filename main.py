@@ -359,27 +359,38 @@ def partial_freeze_student_auto(
             freeze_level=freeze_level,
         )
 
-def main():
-    # 1) parse args
-    args = parse_args()
+def main(cfg: Optional[dict] = None):
+    """Entry point for distillation training.
 
-    # 2) load config from YAML  (+ partial_freeze.yaml 자동 병합)
-    base_cfg = load_cfg(
-        args.config,
-        args.hparams,
-        "configs/partial_freeze.yaml"   # ← 새로 추가
-    )
-    cfg = base_cfg.copy()
+    When ``cfg`` is ``None`` the function behaves as the original CLI version
+    using :func:`parse_args`. When a dictionary is provided, it is assumed to be
+    a fully merged configuration (e.g. from Hydra) and CLI parsing is skipped.
+    """
 
-    # -------- merge CLI overrides ----------
-    # 1) CLI dict 추출
-    cli_cfg = {k: v for k, v in vars(args).items() if v is not None}
-    # 2) 중복 충돌 시 CLI 우선, 단 protected 키는 유지
-    protected = {"feat_kd_alpha"}
-    for k, v in cli_cfg.items():
-        if k in protected and k in cfg:
-            continue
-        cfg[k] = v
+    if cfg is None:
+        # 1) parse args
+        args = parse_args()
+
+        # 2) load config from YAML  (+ partial_freeze.yaml 자동 병합)
+        base_cfg = load_cfg(
+            args.config,
+            args.hparams,
+            "configs/partial_freeze.yaml"   # ← 새로 추가
+        )
+        cfg = base_cfg.copy()
+
+        # -------- merge CLI overrides ----------
+        # 1) CLI dict 추출
+        cli_cfg = {k: v for k, v in vars(args).items() if v is not None}
+        # 2) 중복 충돌 시 CLI 우선, 단 protected 키는 유지
+        protected = {"feat_kd_alpha"}
+        for k, v in cli_cfg.items():
+            if k in protected and k in cfg:
+                continue
+            cfg[k] = v
+    else:
+        # Copy to avoid mutating caller's dictionary
+        cfg = dict(cfg)
 
     # ------------------------------------------------------------------
     # (NEW)  student_pretrained 기본값 자동 결정

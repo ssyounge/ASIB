@@ -1,0 +1,9 @@
+model:
+  student:
+    name: resnet152_adapter
+    pretrained: false
+    lr: 5e-4
+    weight_decay: 8e-4
+    freeze_level: 1          # head + layer4만 학습
+    freeze_bn: false
+    use_adapter: true
