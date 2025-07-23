@@ -60,7 +60,7 @@ def build_distiller(method, teacher, student, cfg):
     raise ValueError(method)
 
 
-@hydra.main(config_path="configs", config_name="base", version_base="1.3")
+@hydra.main(config_path="../configs", config_name="base", version_base="1.3")
 def main(cfg: DictConfig):
     cfg = OmegaConf.to_container(cfg, resolve=True)
 
