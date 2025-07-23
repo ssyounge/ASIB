@@ -6,7 +6,6 @@ export PYTHONPATH="$(pwd):${PYTHONPATH}"
 LOG_ID=${SLURM_JOB_ID:-$(date +%Y%m%d_%H%M%S)}
 OUTPUT_DIR="" # This will be populated by the --output_dir argument
 
-BASE_CONFIG=${BASE_CONFIG:-configs/default.yaml}
 USE_CONDA=${USE_CONDA:-1}
 CONDA_ENV=${CONDA_ENV:-tlqkf}
 
@@ -25,59 +24,8 @@ activate_conda() {
   fi
 }
 
-# Generate config, echo path to a temporary file, and ensure cleanup on exit
-generate_config() {
-  local cfg_tmp
-  cfg_tmp=$(mktemp)
-  # Ensure temporary config is cleaned up even if the script exits early
-  trap 'rm -f "$cfg_tmp"' EXIT
-  python scripts/generate_config.py \
-    --base "$BASE_CONFIG" \
-    --hparams configs/hparams.yaml \
-    --method "$METHOD" \
-    --out "$cfg_tmp" \
-    teacher_lr=${teacher_lr} \
-    student_lr=${student_lr} \
-    teacher_weight_decay=${teacher_weight_decay} \
-    student_weight_decay=${student_weight_decay} \
-    ce_alpha=${ce_alpha} \
-    kd_alpha=${kd_alpha} \
-    lr_schedule=${lr_schedule} \
-    teacher_step_size=${teacher_step_size} \
-    teacher_gamma=${teacher_gamma} \
-    student_step_size=${student_step_size} \
-    student_gamma=${student_gamma} \
-    temperature_schedule=${temperature_schedule} \
-    tau_start=${tau_start} \
-    tau_end=${tau_end} \
-    tau_decay_epochs=${tau_decay_epochs} \
-    student_epochs_per_stage=${student_epochs_per_stage} \
-    teacher_adapt_epochs=${teacher_adapt_epochs} \
-    mbm_out_dim=${mbm_out_dim} \
-    mbm_reg_lambda=${mbm_reg} \
-    reg_lambda=${reg_lambda} \
-    mbm_dropout=${mbm_dropout} \
-    synergy_head_dropout=${head_dropout} \
-    synergy_ce_alpha=${synergy_ce_alpha} \
-    hybrid_beta=${hybrid_beta} \
-    ib_beta=${ib_beta} \
-    distill_hidden_dim=${distill_hidden_dim} \
-    distill_out_dim=${distill_out_dim} \
-    use_partial_freeze=${use_partial_freeze} \
-    teacher1_use_adapter=${teacher1_use_adapter} \
-    teacher1_bn_head_only=${teacher1_bn_head_only} \
-    teacher2_use_adapter=${teacher2_use_adapter} \
-    teacher2_bn_head_only=${teacher2_bn_head_only} \
-    batch_size=${batch_size} \
-    mixup_alpha=${mixup_alpha} \
-    cutmix_alpha_distill=${cutmix_alpha_distill} \
-    label_smoothing=${label_smoothing}
-  echo "$cfg_tmp"
-}
-
+# Main experiment loop
 run_loop() {
-  source <(python scripts/load_hparams.py configs/hparams.yaml)
-  source <(python scripts/load_hparams.py configs/partial_freeze.yaml)
   
   METHOD_LIST="${method_list:-$method}"
   T1_LIST="${teacher1_list}"
@@ -134,14 +82,9 @@ run_loop() {
           CKPT_DIR="${OUTDIR}/checkpoints"
           mkdir -p "${CKPT_DIR}"
 
-          CFG_TMP=$(generate_config)
-          # Save the one true config file for this job
-          cp "$CFG_TMP" "${OUTDIR}/config.yaml"
-
           if [ "$METHOD" = "asmb" ]; then
-          # 모든 stdout·stderr 을 같은 log 로 tee
           python main.py \
-            --config "${CFG_TMP}" \
+            --config-name base \
             --teacher1_type "${T1}" \
             --teacher2_type "${T2}" \
             --finetune_epochs 0 \
@@ -170,7 +113,7 @@ run_loop() {
             "${EXTRA_ARGS[@]}"
           else
           python scripts/run_single_teacher.py \
-            --config "${CFG_TMP}" \
+            --config-name base \
             --teacher_type "${T2}" \
             --student_type "${STUDENT}" \
             --student_lr ${student_lr} \
@@ -199,8 +142,6 @@ done                            # closes 'for TEACH_EP' loop
 }
 
 run_sweep() {
-  source <(python scripts/load_hparams.py configs/hparams.yaml)
-  source <(python scripts/load_hparams.py configs/partial_freeze.yaml)
   echo ">>> [run_experiments.sh] running METHOD=${METHOD}"
 
   # Use the first entry from the teacher lists for sweeps
@@ -216,10 +157,8 @@ run_sweep() {
 
       synergy_ce_alpha=${sc_alpha}
       hybrid_beta=${h_beta}
-      CFG_TMP=$(generate_config)
-
       python main.py \
-        --config "${CFG_TMP}" \
+        --config-name base \
         --teacher1_type "${T1}" \
         --teacher2_type "${T2}" \
         --synergy_ce_alpha ${sc_alpha} \
