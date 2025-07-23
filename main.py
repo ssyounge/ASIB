@@ -333,7 +333,7 @@ def main(cfg: DictConfig):
         "student_lr",
         "finetune_lr",
     ):
-        if key in cfg:
+        if key in cfg and cfg[key] is not None:
             cfg[key] = float(cfg[key])
 
     exp_logger = ExperimentLogger(cfg, exp_name="asmb_experiment")
