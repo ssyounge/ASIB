@@ -60,4 +60,8 @@ def flatten_hydra_config(cfg: dict) -> dict:
     cfg.setdefault("wandb_run_name", wandb_cfg.get("run_name"))
     cfg.setdefault("wandb_api_key", wandb_cfg.get("api_key"))
 
+    log_cfg = cfg.get("log", {})
+    cfg.setdefault("log_level", log_cfg.get("level"))
+    cfg.setdefault("log_filename", log_cfg.get("filename"))
+
     return cfg

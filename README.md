@@ -143,6 +143,10 @@ python main.py model.teacher.freeze_level=1 model.student.lr=0.0008
 
 Batch scripts like `run_experiments.sh` simply forward arguments to `main.py`.
 
+Logging options live under the `log:` section in each YAML.  The helper
+function `flatten_hydra_config` copies `log.level` and `log.filename` to the
+top‑level keys `log_level` and `log_filename` so older scripts continue to work.
+
 
 ## Testing
 
