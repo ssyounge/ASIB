@@ -46,8 +46,12 @@ def create_teacher_by_name(teacher_name, num_classes=100, pretrained=False, smal
 def parse_args():
     parser = argparse.ArgumentParser(description="Evaluation script (Train/Test Acc) with ExperimentLogger")
 
-    parser.add_argument("--config", type=str, default="configs/default.yaml",
-                        help="Path to config YAML")
+    parser.add_argument(
+        "--config-name",
+        type=str,
+        default="base",
+        help="Hydra config name (from configs/)",
+    )
     parser.add_argument("--eval_mode", type=str, default="single", choices=["single","synergy"],
                         help="Evaluate single model or synergy model")
 
@@ -81,7 +85,7 @@ def parse_args():
     return parser.parse_args()
 
 def load_config(path):
-    if os.path.exists(path):
+    if path and os.path.exists(path):
         with open(path, 'r') as f:
             return yaml.safe_load(f)
     return {}
@@ -144,8 +148,9 @@ class SynergyEnsemble(nn.Module):
 def main():
     # 1) parse + load config
     args = parse_args()
-    base_cfg = load_config(args.config)
-    cfg = {**base_cfg, **vars(args)}
+    cfg_path = f"configs/{args.config_name}.yaml" if args.config_name else None
+    base_cfg = load_config(cfg_path)
+    cfg = {**base_cfg, **{k: v for k, v in vars(args).items() if k != "config_name"}}
 
     # 2) set seed
     deterministic = cfg.get("deterministic", True)
