@@ -1,3 +1,5 @@
+# configs/method/fitnet.yaml
+
 method:
   name: fitnet
   ce_alpha: 0.4
