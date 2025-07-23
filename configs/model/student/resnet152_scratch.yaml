@@ -1,3 +1,5 @@
+# configs/model/student/resnet152_scratch.yaml
+
 model:
   student:
     name: resnet152_adapter
