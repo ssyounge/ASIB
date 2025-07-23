@@ -1,3 +1,5 @@
+# configs/cl/split_cifar.yaml
+
 cl:
   mode: split_cifar
   num_tasks: 10
