@@ -34,7 +34,7 @@ from modules.disagreement import compute_disagreement_rate
 from modules.trainer_teacher import teacher_adaptive_update
 from modules.trainer_student import student_distillation_update
 from data.cifar100 import get_cifar100_loaders
-from data.imagenet100 import get_imagenet100_loaders
+from data.imagenet32 import get_imagenet32_loaders
 
 # partial freeze
 from modules.partial_freeze import (
@@ -385,12 +385,11 @@ def main(cfg: DictConfig):
             num_workers=cfg.get("num_workers", 2),
             augment=cfg.get("data_aug", True),
         )
-    elif dataset == "imagenet100":
-        train_loader, test_loader = get_imagenet100_loaders(
+    elif dataset == "imagenet32":
+        train_loader, test_loader = get_imagenet32_loaders(
             root=data_root,
             batch_size=batch_size,
             num_workers=cfg.get("num_workers", 2),
-            augment=cfg.get("data_aug", True),
         )
     else:
         raise ValueError(f"Unknown dataset_name={dataset}")
