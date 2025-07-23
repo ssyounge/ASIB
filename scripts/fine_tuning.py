@@ -4,9 +4,10 @@ Example: Fine-tuning Teacher (ResNet/EfficientNet/Swin) on either CIFAR-100 or I
 using optional CutMix or standard CE training.
 
 Usage:
-  python fine_tuning.py --config configs/hparams.yaml
+  python scripts/fine_tuning.py --config-name base \
+      +teacher_type=resnet152 +finetune_epochs=100 +finetune_lr=0.0005
 
-All fine-tuning options live in `configs/hparams.yaml`.
+Change datasets with a ``dataset.name`` override or a dataset YAML file.
 """
 
 import sys
