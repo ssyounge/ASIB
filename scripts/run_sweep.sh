@@ -20,6 +20,7 @@ mkdir -p "${OUTPUT_DIR}"
 
 source ~/.bashrc
 conda activate tlqkf
+export PYTHONPATH="$(pwd):$PYTHONPATH"
 
 # ---------- W&B 설정 ----------
 export WANDB_ENTITY="kakamy0820-yonsei-university"
