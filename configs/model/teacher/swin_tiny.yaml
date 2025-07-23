@@ -1,3 +1,5 @@
+# configs/model/teacher/swin_tiny.yaml
+
 model:
   teacher:
     name: swin_tiny
