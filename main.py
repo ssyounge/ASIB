@@ -8,7 +8,6 @@ Implements a multi-stage distillation flow using:
 Repeated for 'num_stages' times, as in ASMB multi-stage self-training.
 """
 
-import argparse
 import logging
 import os
 import json
@@ -116,116 +115,6 @@ def create_student_by_name(
 
 from models.mbm import build_from_teachers
 
-def parse_args():
-    parser = argparse.ArgumentParser()
-
-    # ------------ sweep override flag -------------  #
-    parser.add_argument('--ce_alpha', type=float)
-    parser.add_argument('--ib_beta', type=float)
-    parser.add_argument('--kd_alpha', type=float)
-    parser.add_argument('--hybrid_beta', type=float)
-
-    # temperature schedule
-    parser.add_argument('--tau_start', type=float)
-    parser.add_argument('--tau_end', type=float)
-    parser.add_argument('--tau_decay_epochs', type=int)
-
-    # optimisation / schedule
-    parser.add_argument('--student_lr', type=float)
-    parser.add_argument('--student_epochs_per_stage', type=int)
-
-    parser.add_argument('--teacher_adapt_epochs', type=int)
-    parser.add_argument('--use_ib', type=lambda x: str(x).lower()=='true')
-    # ---------------------------------------------- #
-
-    # (1) Hydra config name (default: base)
-    parser.add_argument(
-        "--config-name",
-        type=str,
-        default="base",
-        help="Hydra config name to load (from configs/)",
-    )
-    parser.add_argument("--hparams", type=str, default=None)
-
-    # (2) sweep 할 때 바꿀 필드들 ▶ YAML 값을 CLI-인자가 **덮어쓰도록** 할 목적
-    parser.add_argument("--teacher1_type", type=str)
-    parser.add_argument("--teacher2_type", type=str)
-    parser.add_argument("--teacher1_ckpt", type=str)
-    parser.add_argument("--teacher2_ckpt", type=str)
-    parser.add_argument("--num_stages",   type=int)
-    parser.add_argument("--synergy_ce_alpha", type=float)    # α
-    parser.add_argument("--student_type", type=str)
-    
-    # 편의용 하이퍼파라미터
-    parser.add_argument("--batch_size", type=int)
-    parser.add_argument("--teacher_lr", type=float)
-    parser.add_argument("--teacher_weight_decay", type=float)
-    parser.add_argument("--epochs",     type=int)            # 예: teacher_iters
-    parser.add_argument("--results_dir", type=str)
-    parser.add_argument("--ckpt_dir", type=str, default=None)
-    parser.add_argument("--exp_id", type=str, default=None, help="Unique experiment ID")
-    parser.add_argument("--seed", type=int, default=42)
-
-    # optional fine-tune params
-    parser.add_argument("--finetune_epochs", type=int)
-    parser.add_argument("--finetune_lr", type=float)
-    parser.add_argument("--finetune_weight_decay", type=float)
-    parser.add_argument("--finetune_use_cutmix", type=int)
-    parser.add_argument("--finetune_alpha", type=float)
-    parser.add_argument("--finetune_ckpt1", type=str)
-    parser.add_argument("--finetune_ckpt2", type=str)
-    parser.add_argument("--data_aug", type=int, help="1: use augmentation, 0: disable")
-    parser.add_argument("--mixup_alpha", type=float)
-    parser.add_argument("--cutmix_alpha_distill", type=float)
-    parser.add_argument("--label_smoothing", type=float)
-    parser.add_argument(
-        "--small_input",
-        type=int,
-        help="1 to use CIFAR-friendly stems (teachers + Swin student)",
-    )
-    parser.add_argument(
-        "--student_pretrained",
-        type=lambda x: str(x).lower() == "true",
-    )
-    parser.add_argument("--feat_kd_alpha", type=float)
-    parser.add_argument("--feat_kd_key", type=str)
-    parser.add_argument("--feat_kd_norm", type=str)
-    parser.add_argument("--use_disagree_weight", type=int)
-    parser.add_argument("--disagree_mode", type=str)
-    parser.add_argument("--disagree_lambda_high", type=float)
-    parser.add_argument("--disagree_lambda_low", type=float)
-    parser.add_argument("--teacher1_use_adapter", type=int)
-    parser.add_argument("--teacher1_bn_head_only", type=int)
-    parser.add_argument("--teacher2_use_adapter", type=int)
-    parser.add_argument("--teacher2_bn_head_only", type=int)
-    parser.add_argument("--use_amp", type=int)
-    parser.add_argument("--amp_dtype", type=str)
-    parser.add_argument("--adam_beta1", type=float)
-    parser.add_argument("--adam_beta2", type=float)
-    parser.add_argument("--grad_scaler_init_scale", type=int)
-    parser.add_argument("--student_freeze_level", type=int)
-    # ---- partial-freeze 토글을 sweep/CLI에서 덮어쓰기 위함 ----
-    parser.add_argument("--use_partial_freeze",
-                        type=lambda x: str(x).lower() == "true")
-
-    # MBM options
-    parser.add_argument("--mbm_type", type=str)
-    parser.add_argument("--mbm_r", type=int)
-    parser.add_argument("--mbm_n_head", type=int)
-    parser.add_argument("--mbm_learnable_q", type=int)
-    parser.add_argument("--lr_schedule", type=str)
-    parser.add_argument(
-        "--method",
-        type=str,
-        default="asmb",
-        help="Distillation method name (for run_experiments.sh compatibility)",
-    )
-    # Continual-Learning
-    parser.add_argument("--cl_mode", type=int)
-    parser.add_argument("--num_tasks", type=int)
-    parser.add_argument("--replay_ratio", type=float)
-    parser.add_argument("--lambda_ewc", type=float)
-    return parser.parse_args()
 
 
 def create_teacher_by_name(
