@@ -199,7 +199,7 @@ def standard_ce_finetune(
             torch.save(model.state_dict(), ckpt_path)
     return model, best_acc
 
-@hydra.main(config_path="configs", config_name="base", version_base="1.3")
+@hydra.main(config_path="../configs", config_name="base", version_base="1.3")
 def main(cfg: DictConfig):
     cfg = OmegaConf.to_container(cfg, resolve=True)
     device = cfg.get("device", "cuda")

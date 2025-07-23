@@ -92,7 +92,7 @@ def train_student_ce(
     return best_acc
 
 
-@hydra.main(config_path="configs", config_name="base", version_base="1.3")
+@hydra.main(config_path="../configs", config_name="base", version_base="1.3")
 def main(cfg: DictConfig):
     cfg = OmegaConf.to_container(cfg, resolve=True)
 
