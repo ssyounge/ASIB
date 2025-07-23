@@ -13,10 +13,10 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-import argparse
 import torch
-import yaml
 from typing import Optional
+import hydra
+from omegaconf import DictConfig, OmegaConf
 
 from utils.misc import (
     set_random_seed,
@@ -43,52 +43,6 @@ from modules.partial_freeze import (
 
 # cutmix finetune
 from modules.cutmix_finetune_teacher import finetune_teacher_cutmix, eval_teacher
-
-def parse_args():
-    parser = argparse.ArgumentParser(description="Teacher Fine-tuning Script")
-
-    # ① YAML 기본값
-    parser.add_argument(
-        "--config",
-        type=str,
-        default="configs/hparams.yaml",
-        help="Path to YAML config for fine-tuning",
-    )
-
-    # ② run_experiments.sh 가 전달하는 옵션들(없으면 None)
-    parser.add_argument("--teacher_type", type=str)
-    parser.add_argument("--device", type=str)
-    parser.add_argument("--finetune_ckpt_path", type=str)
-
-    # (필요 시 추가) lr·epoch 등 sweep 파라미터
-    parser.add_argument("--finetune_lr", type=float)
-    parser.add_argument("--finetune_epochs", type=int)
-    parser.add_argument("--batch_size", type=int)
-    parser.add_argument("--finetune_weight_decay", type=float)
-    # ↓ run_experiments.sh 에서 CutMix 알파도 변경할 수 있도록
-    parser.add_argument("--finetune_cutmix_alpha", type=float)
-    parser.add_argument("--data_aug", type=int)
-    parser.add_argument("--small_input", type=int)
-    parser.add_argument("--dropout_p", type=float)
-    parser.add_argument("--use_amp", type=int)
-    parser.add_argument("--amp_dtype", type=str)
-    parser.add_argument("--adam_beta1", type=float)
-    parser.add_argument("--adam_beta2", type=float)
-    parser.add_argument("--grad_scaler_init_scale", type=int)
-    parser.add_argument("--force_refinetune", type=int)
-    parser.add_argument(
-        "--class_subset",
-        type=str,
-        help="comma-sep class ids(0-99) for subset training",
-    )
-
-    return parser.parse_args()
-
-def load_config(cfg_path):
-    if os.path.exists(cfg_path):
-        with open(cfg_path, 'r') as f:
-            return yaml.safe_load(f)
-    return {}
 
 def get_data_loaders(dataset_name, batch_size=128, num_workers=2, augment=True):
     """
@@ -245,13 +199,9 @@ def standard_ce_finetune(
             torch.save(model.state_dict(), ckpt_path)
     return model, best_acc
 
-def main():
-    args = parse_args()
-    base_cfg = load_config(args.config)
-
-    # argparse 값이 None 이면 YAML 값을 유지, 아니면 덮어쓰기
-    cli_cfg  = {k: v for k, v in vars(args).items() if v is not None}
-    cfg      = {**base_cfg, **cli_cfg}
+@hydra.main(config_path="configs", config_name="base", version_base="1.3")
+def main(cfg: DictConfig):
+    cfg = OmegaConf.to_container(cfg, resolve=True)
     device = cfg.get("device", "cuda")
     if device == "cuda" and not torch.cuda.is_available():
         print("[Warning] No CUDA => Using CPU")
@@ -264,9 +214,9 @@ def main():
     # 1) dataset
     dataset_name = cfg.get("dataset_name", "cifar100")
     batch_size   = cfg.get("batch_size", 128)
-    if args.class_subset:
+    if cfg.get("class_subset"):
         from data.cifar100_overlap import _make_loader
-        subset = [int(x) for x in args.class_subset.split(",")]
+        subset = [int(x) for x in str(cfg.get("class_subset")).split(",")]
         train_loader = _make_loader(
             subset,
             True,
