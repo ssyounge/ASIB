@@ -56,14 +56,14 @@ run_loop() {
         echo ">>> [run_experiments.sh] fine-tuning teacher=${T}  (epochs=${finetune_epochs}, lr=${finetune_lr})"
           python scripts/fine_tuning.py \
           --config-name base \
-          +teacher_type="${T}" \
-          +device=cuda \
-          +batch_size=${batch_size} \
+          +teacher_type=${T} \
+          device=cuda \
+          batch_size=${batch_size} \
           +finetune_epochs=${finetune_epochs} \
           +finetune_lr=${finetune_lr} \
           +finetune_weight_decay=${finetune_weight_decay} \
           +finetune_cutmix_alpha=${finetune_cutmix_alpha} \
-          +finetune_ckpt_path="${CKPT}" \
+          +finetune_ckpt_path=${CKPT} \
           +data_aug=${data_aug}
         fi
         done
@@ -86,49 +86,49 @@ run_loop() {
           if [ "$METHOD" = "asmb" ]; then
           python main.py \
             --config-name base \
-            +teacher1_type="${T1}" \
-            +teacher2_type="${T2}" \
+            +teacher1_type=${T1} \
+            +teacher2_type=${T2} \
             +finetune_epochs=0 \
-            +student_type="${STUDENT}" \
+            +student_type=${STUDENT} \
             +num_stages=${STAGE} \
             +synergy_ce_alpha=${SC_ALPHA} \
             +hybrid_beta=${H_BETA} \
             +ib_beta=${ib_beta} \
             +teacher_lr=${teacher_lr} \
             +student_lr=${student_lr} \
-            +batch_size=${batch_size} \
+            batch_size=${batch_size} \
             +teacher1_use_adapter=${teacher1_use_adapter} \
             +teacher1_bn_head_only=${teacher1_bn_head_only} \
             +teacher2_use_adapter=${teacher2_use_adapter} \
             +teacher2_bn_head_only=${teacher2_bn_head_only} \
             +student_freeze_level=${student_freeze_level} \
-            +results_dir="${OUTDIR}" \
-            +ckpt_dir="${CKPT_DIR}" \
-            +exp_id="${EXP_ID}" \
-            +seed=42 \
+            +results_dir=${OUTDIR} \
+            +ckpt_dir=${CKPT_DIR} \
+            +exp_id=${EXP_ID} \
+            seed=42 \
             +data_aug=${data_aug} \
             +mixup_alpha=${mixup_alpha} \
             +cutmix_alpha_distill=${cutmix_alpha_distill} \
             +label_smoothing=${label_smoothing} \
-            +method=${METHOD} \
+            method=${METHOD} \
             "${EXTRA_ARGS[@]}"
           else
           python scripts/run_single_teacher.py \
             --config-name base \
-            +teacher_type="${T2}" \
-            +student_type="${STUDENT}" \
+            +teacher_type=${T2} \
+            +student_type=${STUDENT} \
             +student_lr=${student_lr} \
-            +batch_size=${batch_size} \
+            batch_size=${batch_size} \
             +epochs=${student_epochs_per_stage} \
             +student_freeze_level=${student_freeze_level} \
-            +results_dir="${OUTDIR}" \
-            +ckpt_dir="${CKPT_DIR}" \
-            +seed=42 \
+            +results_dir=${OUTDIR} \
+            +ckpt_dir=${CKPT_DIR} \
+            seed=42 \
             +data_aug=${data_aug} \
             +mixup_alpha=${mixup_alpha} \
             +cutmix_alpha_distill=${cutmix_alpha_distill} \
             +label_smoothing=${label_smoothing} \
-            +method=${METHOD} \
+            method=${METHOD} \
             "${EXTRA_ARGS[@]}"
           fi 2>&1 | tee -a "${OUTDIR}/train.log"
                 done            # closes STAGE loop
@@ -160,12 +160,12 @@ run_sweep() {
       hybrid_beta=${h_beta}
       python main.py \
         --config-name base \
-        +teacher1_type="${T1}" \
-        +teacher2_type="${T2}" \
+        +teacher1_type=${T1} \
+        +teacher2_type=${T2} \
         +synergy_ce_alpha=${sc_alpha} \
         +hybrid_beta=${h_beta} \
         +ib_beta=${ib_beta} \
-        +device=${device} \
+        device=${device} \
         +finetune_epochs=0 \
         +data_aug=${data_aug} \
         +mixup_alpha=${mixup_alpha} \
@@ -176,7 +176,7 @@ run_sweep() {
         +teacher2_bn_head_only=${teacher2_bn_head_only} \
         +student_freeze_level=${student_freeze_level} \
         +label_smoothing=${label_smoothing} \
-        +method=${METHOD} 2>&1 | tee -a "${OUTPUT_DIR}/train.log"
+        method=${METHOD} 2>&1 | tee -a "${OUTPUT_DIR}/train.log"
       done
     done
   done
