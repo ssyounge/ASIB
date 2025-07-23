@@ -153,6 +153,12 @@ python main.py model.teacher.freeze_level=1 model.student.lr=0.0008
 
 Batch scripts like `run_experiments.sh` simply forward arguments to `main.py`.
 
+When these scripts are submitted via `sbatch`, SLURM sets the environment
+variable `SLURM_SUBMIT_DIR` to the directory from which the job was launched.
+`run.sh` and `run_finetune_clean.sh` now use this variable to `cd` back to the
+repository root so relative paths (such as `scripts/fine_tuning.py`) resolve
+correctly.
+
 Logging options live under the `log:` section in each YAML.  The helper
 function `flatten_hydra_config` copies `log.level` and `log.filename` to the
 top‑level keys `log_level` and `log_filename` so older scripts continue to work.
