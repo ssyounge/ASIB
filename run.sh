@@ -1,5 +1,6 @@
 #!/bin/bash
 # run.sh
+cd "$(dirname "$0")"
 #SBATCH --job-name=run_asmb_experiment
 #SBATCH --partition=base_suma_rtx3090
 #SBATCH --gres=gpu:1

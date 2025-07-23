@@ -1,4 +1,5 @@
 #!/bin/bash
+cd "$(dirname "$0")"
 # run_finetune.sh ── 교사 2종을 ‘한 번에’ 돌리고 싶으면 SLURM 배열 유지,
 #                ‘하나씩’ 돌리고 싶으면 아래처럼 파라미터화.
 
