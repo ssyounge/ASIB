@@ -19,6 +19,10 @@ use_amp: true
 amp_dtype: float16
 grad_scaler_init_scale: 1024
 
+# Teacher identifiers (used by synergy/eval scripts)
+teacher1_type: resnet152
+teacher2_type: resnet152
+
 # ---------- Data ----------
 batch_size: 128            # dataset 그룹 값으로 덮어써도 됨
 num_workers: 4
