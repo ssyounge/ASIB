@@ -30,6 +30,10 @@ source ~/.bashrc
 conda activate tlqkf
 export PYTHONPATH="$(pwd):$PYTHONPATH"
 
+# Ensure log directory exists
+: "${SLURM_JOB_ID:=manual}"
+mkdir -p logs
+
 # ④ 실행
 echo "▶ Fine-tuning $CFG_NAME …"
 python scripts/fine_tuning.py \
