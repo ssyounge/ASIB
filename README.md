@@ -218,17 +218,17 @@ The script uses the same optimizer and scheduler configuration as the distillati
 Evaluate a single model or a synergy model (Teacher1 + Teacher2 + MBM + synergy head):
 
 # Single model
-python eval.py --eval_mode single \
-  --ckpt_path ./results/single_model.pth
+python eval.py +eval_mode=single \
+  +ckpt_path=./results/single_model.pth
 
 # Synergy model
-python eval.py --eval_mode synergy \
+python eval.py +eval_mode=synergy \
   # uses checkpoints/{teacher_type}_ft.pth if available \
-  --mbm_ckpt mbm.pth \
-  --head_ckpt synergy_head.pth \
-  --student_type resnet_adapter \
-  --student_ckpt student.pth \
-  --mbm_type LA --mbm_r 4 --mbm_n_head 1 --mbm_learnable_q 1
+  +mbm_ckpt=mbm.pth \
+  +head_ckpt=synergy_head.pth \
+  +student_type=resnet_adapter \
+  +student_ckpt=student.pth \
+  +mbm_type=LA +mbm_r=4 +mbm_n_head=1 +mbm_learnable_q=1
   # mbm_query_dim and mbm_out_dim are automatically set to the student feature dimension
 
 	•	Prints Train/Test accuracy, optionally logs to CSV if configured.
