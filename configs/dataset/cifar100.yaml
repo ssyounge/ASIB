@@ -1,3 +1,5 @@
+# configs/dataset/cifar100.yaml
+
 dataset:
   name: cifar100
   root: "./data"
