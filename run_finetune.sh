@@ -12,6 +12,9 @@ set -euo pipefail
 #SBATCH --output=logs/ft_%j.log          # 배열 안 쓰면 %a 필요 X
 #SBATCH --error=logs/ft_%j.err
 
+# Ensure script runs from repository root
+cd "$(dirname "$0")"
+
 # ──────────────────────────────────────────────────────────
 # ① CONFIG 매핑 (배열 or 인수)
 CONFIGS=(resnet152_cifar32 efficientnet_b2_cifar32)
