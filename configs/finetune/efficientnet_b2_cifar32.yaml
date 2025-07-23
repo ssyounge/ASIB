@@ -1,0 +1,28 @@
+# 32×32 CIFAR-100용 EfficientNet-B2 fine-tune
+defaults:
+  - ../dataset/cifar100
+  - _self_
+
+teacher_type: efficientnet_b2
+small_input: true            # conv_stem stride → 1
+teacher_pretrained: true
+teacher_ckpt_init: null
+
+# EfficientNet-B2 → feat_dim = 1408  
+# distillation adapter 출력 크기도 ¼ 비율(≈ 352)로 맞춤
+teacher_use_adapter: true
+efficientnet_adapter_dim: 704   # (hidden)  → out_dim은 자동 ¼ = 352
+
+finetune_epochs: 10
+finetune_lr: 3e-4
+finetune_weight_decay: 1e-4
+finetune_use_cutmix: true
+finetune_cutmix_alpha: 1.0
+label_smoothing: 0.0
+
+seed: 42
+device: cuda
+log_level: INFO
+deterministic: true
+
+finetune_ckpt_path: checkpoints/efficientnet_b2_cifar32.pth
