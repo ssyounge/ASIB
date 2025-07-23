@@ -41,6 +41,8 @@ def flatten_hydra_config(cfg: dict) -> dict:
 
     model = cfg.get("model", {})
     teacher = model.get("teacher", {})
+    if isinstance(teacher, dict) and "model" in teacher:
+        teacher = teacher["model"]
     cfg.setdefault("teacher_type", teacher.get("name"))
     cfg.setdefault("teacher_pretrained", teacher.get("pretrained"))
     cfg.setdefault("teacher_lr", teacher.get("lr"))
@@ -53,6 +55,8 @@ def flatten_hydra_config(cfg: dict) -> dict:
     cfg.setdefault("teacher_bn_head_only", teacher.get("bn_head_only"))
 
     student = model.get("student", {})
+    if isinstance(student, dict) and "model" in student:
+        student = student["model"]
     cfg.setdefault("student_type", student.get("name"))
     cfg.setdefault("student_pretrained", student.get("pretrained"))
     cfg.setdefault("student_lr", student.get("lr"))

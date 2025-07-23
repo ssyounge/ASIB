@@ -29,3 +29,17 @@ def test_experiment_nested_dataset():
     out = cu.flatten_hydra_config(dict(cfg))
     assert out["dataset_name"] == "cifar100"
     assert out["data_root"] == "./data"
+
+
+def test_experiment_nested_model_teacher_lr():
+    cfg = {
+        "experiment": {
+            "model": {
+                "teacher": {
+                    "model": {"lr": 0.001}
+                }
+            }
+        }
+    }
+    out = cu.flatten_hydra_config(dict(cfg))
+    assert out["teacher_lr"] == 0.001
