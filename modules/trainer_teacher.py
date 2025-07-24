@@ -30,8 +30,8 @@ def eval_synergy(
 ):
     """Evaluate synergy accuracy.
 
-    When ``mbm`` is a :class:`LightweightAttnMBM`, ``student_model`` must be
-    provided so that the student features can be used as the attention query.
+    When the MBM operates in query mode, ``student_model`` must be provided so
+    that the student features can be used as the attention query.
     """
 
     autocast_ctx, _ = get_amp_components(cfg or {})
