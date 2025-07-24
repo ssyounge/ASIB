@@ -6,7 +6,7 @@ from utils.progress import smart_tqdm
 from models.mbm import IB_MBM
 
 from modules.losses import (
-    kd_loss_fn, ce_loss_fn, ib_loss, certainty_weights, feat_mse_loss
+    kd_loss_fn, ce_loss_fn, ib_loss, certainty_weights
 )
 from utils.schedule import get_tau, get_beta
 from utils.misc import get_amp_components
