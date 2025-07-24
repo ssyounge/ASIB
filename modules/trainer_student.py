@@ -114,6 +114,12 @@ def student_distillation_update(
             with autocast_ctx:
                 # (A) Student forward (query)
                 feat_dict, s_logit, _ = student_model(x_mixed)
+                if ep == 0 and cnt == 0:   # first batch shapes
+                    from utils.debug import dprint
+                    dprint(
+                        f"[Student] feat2d={tuple(feat_dict['feat_2d'].shape)} "
+                        f"logit={tuple(s_logit.shape)}"
+                    )
 
                 with torch.no_grad():
                     t1_dict = teacher_wrappers[0](x_mixed)
@@ -239,6 +245,7 @@ def student_distillation_update(
                 scaler.update()
             else:
                 loss.backward()
+                print(f"[StudentDistill] batch loss={loss.item():.4f}")
                 if cfg.get("grad_clip_norm", 0) > 0:
                     torch.nn.utils.clip_grad_norm_(
                         student_model.parameters(), cfg["grad_clip_norm"]

@@ -38,4 +38,12 @@ class DistillationAdapter(nn.Module):
         self.out_dim = out_dim
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.proj(x)
+        # DEBUG
+        print(f"[DistillAdapter] in  shape={tuple(x.shape)}")
+        if x.dim() > 2:
+            x = x.flatten(1)
+            print(f"[DistillAdapter] GAP/flatten -> {tuple(x.shape)}")
+        out = self.proj(x)
+        print(f"[DistillAdapter] out shape={tuple(out.shape)}")
+        #
+        return out
