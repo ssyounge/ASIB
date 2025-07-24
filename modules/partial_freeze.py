@@ -100,6 +100,8 @@ def partial_freeze_teacher_resnet(
     freeze_all(model)
 
     if train_distill_adapter_only:
+        # distillation_adapter 만 학습
+        print("[Freeze] unfreeze distillation_adapter (teacher-side)")
         unfreeze_by_regex(model, r"\.distillation_adapter\.")
         apply_bn_ln_policy(model, train_bn=not freeze_bn)
         return
@@ -125,8 +127,6 @@ def partial_freeze_teacher_resnet(
 
     if use_adapter:
         patterns.append(r"\.distillation_adapter\.")
-        print(f"[partial_freeze_teacher_*] unfreeze distillation_adapter")
-        print(f"[partial_freeze_teacher_*] unfreeze distillation_adapter")
         print(f"[partial_freeze_teacher_*] unfreeze distillation_adapter")
 
     unfreeze_by_regex(model, patterns)
@@ -154,6 +154,8 @@ def partial_freeze_teacher_efficientnet(
     freeze_all(model)
 
     if train_distill_adapter_only:
+        # distillation_adapter 만 학습
+        print("[Freeze] unfreeze distillation_adapter (teacher-side)")
         unfreeze_by_regex(model, r"\.distillation_adapter\.")
         apply_bn_ln_policy(model, train_bn=not freeze_bn)
         return
@@ -202,6 +204,8 @@ def partial_freeze_teacher_swin(
     freeze_all(model)
 
     if train_distill_adapter_only:
+        # distillation_adapter 만 학습
+        print("[Freeze] unfreeze distillation_adapter (teacher-side)")
         unfreeze_by_regex(model, r"\.distillation_adapter\.")
         apply_bn_ln_policy(model, train_ln=not freeze_ln)
         return

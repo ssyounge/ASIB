@@ -99,7 +99,9 @@ def student_distillation_update(
         )
 
         attn_sum = 0.0
-        for x, y in smart_tqdm(trainloader, desc=f"[StudentDistill ep={ep+1}]"):
+        for step, (x, y) in enumerate(
+            smart_tqdm(trainloader, desc=f"[StudentDistill ep={ep+1}]")
+        ):
             x, y = x.to(cfg["device"]), y.to(cfg["device"])
 
             if mix_mode == "cutmix":
@@ -114,12 +116,6 @@ def student_distillation_update(
             with autocast_ctx:
                 # (A) Student forward (query)
                 feat_dict, s_logit, _ = student_model(x_mixed)
-                if ep == 0 and cnt == 0:   # first batch shapes
-                    from utils.debug import dprint
-                    dprint(
-                        f"[Student] feat2d={tuple(feat_dict['feat_2d'].shape)} "
-                        f"logit={tuple(s_logit.shape)}"
-                    )
 
                 with torch.no_grad():
                     t1_dict = teacher_wrappers[0](x_mixed)
@@ -179,6 +175,17 @@ def student_distillation_update(
                 kd_vec = kd_loss_fn(
                     s_logit, zsyn, T=cur_tau, reduction="none"
                 ).sum(dim=1)
+
+                # ---- DEBUG: 첫 batch 모양 확인 ----
+                if ep == 0 and step == 0:
+                    print(
+                        "[DBG/student] x",
+                        tuple(x.shape),
+                        "s_logit",
+                        tuple(s_logit.shape),
+                        "zsyn",
+                        tuple(zsyn.shape),
+                    )
 
             # ── (B1) sample-weights (always same dtype as losses) ───────────
             if cfg.get("use_disagree_weight", False):

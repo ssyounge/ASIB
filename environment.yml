@@ -3,7 +3,7 @@ channels:
   - defaults
   - conda-forge
 dependencies:
-  - python=3.12
+  - python=3.10   # PyTorch 1.12~2.2 공식 wheel 호환
   - pip
   - pip:
       - -r requirements.txt

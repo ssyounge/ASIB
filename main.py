@@ -30,6 +30,7 @@ try:
 except ModuleNotFoundError:
     wandb = None
 from utils.misc import set_random_seed, check_label_range, get_model_num_classes
+from utils.params import count_trainable
 from modules.disagreement import compute_disagreement_rate
 from modules.trainer_teacher import teacher_adaptive_update
 from modules.trainer_student import student_distillation_update
@@ -606,11 +607,7 @@ def main(cfg: DictConfig):
     )
 
     # ───────────────────────── debug: trainable 파라미터 개수 로그 ──────────────
-    def _count_trainable(m):
-        """Return the number of trainable elements in ``m``."""
-        return sum(p.numel() for p in m.parameters() if p.requires_grad)
-
-    n_trainable = _count_trainable(student_model)
+    n_trainable = count_trainable(student_model)
     print(f"[Debug] Student trainable **elements** → {n_trainable:,}")
     if cfg.get("debug_verbose", True):
         # freeze‑level 검증
