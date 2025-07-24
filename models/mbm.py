@@ -2,15 +2,46 @@
 
 import torch
 import torch.nn as nn
+from torch.distributions import Normal, kl_divergence
 from typing import List, Optional, Tuple
 
-# 기존 MBM
-from .la_mbm import LightweightAttnMBM
-# 신규 IB-MBM (선택적 import)
-try:
-    from modules.ib_mbm import IB_MBM
-except ImportError:
-    IB_MBM = None
+# ────────────────────────────── IB‑MBM ──────────────────────────────
+class IB_MBM(nn.Module):
+    """Information‑Bottleneck Manifold‑Bridging Module."""
+
+    def __init__(self, q_dim: int, kv_dim: int, d_emb: int, beta: float = 1e-2):
+        super().__init__()
+        self.q_proj = nn.Linear(q_dim, d_emb)
+        self.kv_proj = nn.Linear(kv_dim, d_emb)
+        self.attn = nn.MultiheadAttention(d_emb, 1, batch_first=True)
+        self.mu = nn.Linear(d_emb, d_emb)
+        self.logvar = nn.Linear(d_emb, d_emb)
+        self.beta = beta
+
+    def forward(self, q_feat: torch.Tensor, kv_feats: torch.Tensor):
+        q = self.q_proj(q_feat).unsqueeze(1)
+        kv = self.kv_proj(kv_feats)
+        syn, _ = self.attn(q, kv, kv)
+        syn = syn.squeeze(1)
+        mu, logvar = self.mu(syn), torch.clamp(self.logvar(syn), -10.0, 10.0)
+        std = torch.exp(0.5 * logvar).clamp_min(1e-3)
+        z = mu + std * torch.randn_like(std)
+        return z, mu, logvar
+
+    def loss(
+        self,
+        z: torch.Tensor,
+        mu: torch.Tensor,
+        logvar: torch.Tensor,
+        labels: torch.Tensor,
+        decoder: nn.Module,
+    ) -> torch.Tensor:
+        ce = nn.CrossEntropyLoss()(decoder(z), labels)
+        logvar = torch.clamp(logvar, -10.0, 10.0)
+        q = Normal(mu, torch.exp(0.5 * logvar))
+        p = Normal(torch.zeros_like(mu), torch.ones_like(mu))
+        kl = kl_divergence(q, p).mean()
+        return ce + self.beta * kl
 
 class ManifoldBridgingModule(nn.Module):
     """Fuses teacher features using optional MLP, convolutional and attention paths."""
@@ -117,8 +148,8 @@ def build_from_teachers(
     else:
         in_ch_4d = out_ch_4d = None
 
-    mbm_type = cfg.get("mbm_type", "MLP").lower()
-    if mbm_type == "ib_mbm" and IB_MBM is not None:
+    mbm_type = cfg.get("mbm_type", "mlp").lower()
+    if mbm_type == "ib_mbm":
         qdim = cfg.get("mbm_query_dim")
         if qdim is None or qdim <= 0:
             raise ValueError(
@@ -132,20 +163,7 @@ def build_from_teachers(
             beta=cfg.get("ib_beta", 0.01),
         )
     elif mbm_type == "la":
-        qdim = cfg.get("mbm_query_dim")
-        if qdim is None or qdim <= 0:
-            qdim = query_dim
-        if qdim is not None and qdim <= 0:
-            qdim = None
-        mbm = LightweightAttnMBM(
-            feat_dims=feat_dims,
-            out_dim=cfg.get("mbm_out_dim", 512),
-            r=cfg.get("mbm_r", 4),
-            n_head=cfg.get("mbm_n_head", 1),
-            learnable_q=cfg.get("mbm_learnable_q", False),
-            query_dim=qdim,
-            per_teacher_attn_threshold=cfg.get("mbm_loop_threshold", 8),
-        )
+        raise RuntimeError("LA‑MBM has been removed ‑‑ set mbm_type: ib_mbm")
     else:
         mbm = ManifoldBridgingModule(
             feat_dims=feat_dims,

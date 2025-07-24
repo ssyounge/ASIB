@@ -1,10 +1,13 @@
 import pytest
 
+pytest.skip("LightweightAttnMBM removed", allow_module_level=True)
+
 torch = pytest.importorskip("torch")
 
-from modules.trainer_teacher import eval_synergy
-from models.la_mbm import LightweightAttnMBM
-from models.mbm import SynergyHead
+
+
+"""Deprecated LA-MBM tests removed."""
+"""
 
 class DummyTeacher(torch.nn.Module):
     def __init__(self, dim):
@@ -39,3 +42,4 @@ def test_eval_synergy_la_mode_runs():
     cfg = {"feat_kd_key": "feat_2d", "mbm_type": "LA"}
     acc = eval_synergy([t1, t2], mbm, head, loader, device="cpu", cfg=cfg, student_model=student)
     assert isinstance(acc, float)
+"""
