@@ -85,6 +85,9 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 - **CIFAR-friendly ResNet/EfficientNet stem**: use `--small_input 1` when
   fine-tuning or evaluating models that modify the conv stem for 32x32 inputs
   (and remove max-pool for ResNet)
+- **Distillation Adapter**: set `use_distillation_adapter: true` to enable
+  lightweight adapters on each teacher. `distill_out_dim` controls the common
+  feature dimension used for synergy (default `512`).
 - **Disagreement Metrics**: `compute_disagreement_rate` now accepts
   `mode="pred"` to measure prediction mismatch or `mode="both_wrong"` for
   cross-error
@@ -395,6 +398,11 @@ teacher1_bn_head_only: 1
 teacher2_use_adapter: 1
 teacher2_bn_head_only: 0
 ```
+
+When `use_distillation_adapter` is enabled, each teacher routes its features
+through a small MLP adapter before computing synergy. The output dimension of
+these adapters is controlled by `distill_out_dim` (default `512`). All
+teachers must share the same value so their features can be stacked.
 
 `run_experiments.sh` exports these values so you can toggle them for
 sweeps or batch runs without editing every config file.
