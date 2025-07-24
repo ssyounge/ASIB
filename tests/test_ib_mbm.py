@@ -1,7 +1,7 @@
 import pytest
 
 torch = pytest.importorskip("torch")
-from modules.ib_mbm import IB_MBM
+from models.mbm import IB_MBM
 
 def test_forward_shape():
     mbm = IB_MBM(q_dim=256, kv_dim=256, d_emb=128)
