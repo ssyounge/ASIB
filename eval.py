@@ -13,7 +13,6 @@ from omegaconf import DictConfig, OmegaConf
 from data.cifar100 import get_cifar100_loaders
 from data.imagenet32 import get_imagenet32_loaders
 from models.mbm import build_from_teachers
-from models.la_mbm import LightweightAttnMBM
 from utils.logger import ExperimentLogger
 from utils.misc import set_random_seed, get_amp_components
 from main import create_student_by_name
@@ -95,7 +94,8 @@ class SynergyEnsemble(nn.Module):
         self.synergy_head = synergy_head
         self.student = student
         self.cfg = cfg or {}
-        self.la_mode = isinstance(mbm, LightweightAttnMBM) or self.cfg.get("mbm_type") == "LA"
+        # LightweightAttnMBM removed; always query-based MBM is IB_MBM
+        self.la_mode = False
 
     def forward(self, x):
         with torch.no_grad():

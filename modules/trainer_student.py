@@ -146,7 +146,8 @@ def student_distillation_update(
                         )
                         ib_loss_val = torch.tensor(0.0, device=cfg["device"])
                     fsyn = syn_feat
-                    attn_sum += (attn.mean().item() if attn is not None else 0.0) * x.size(0)
+                    if "attn" in locals() and attn is not None:
+                        attn_sum += attn.mean().item() * x.size(0)
                 else:
                     fsyn = mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
                     ib_loss_val = torch.tensor(0.0, device=cfg["device"])
