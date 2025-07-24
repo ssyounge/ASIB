@@ -5,7 +5,13 @@ import torch.nn as nn
 from typing import Optional
 
 class DistillationAdapter(nn.Module):
-    """Simple MLP used to refine teacher features for distillation."""
+    """
+    [Teacher-side] 채널 / 공간 해상도 보정을 위한 작은 어댑터.
+
+    학생의 feature dimension에 맞추기 위한 용도로만 사용하며,
+    학습 루프에서는 ``train_distill_adapter_only`` 옵션이 활성화될 때에만
+    파라미터를 업데이트한다.
+    """
 
     def __init__(
         self,
@@ -24,7 +30,7 @@ class DistillationAdapter(nn.Module):
             hidden_dim = max(1, in_dim // 2)
         if out_dim is None or out_dim <= 0:
             out_dim = max(1, in_dim // 4)
-        self.mlp = nn.Sequential(
+        self.proj = nn.Sequential(
             nn.Linear(in_dim, hidden_dim),
             nn.ReLU(inplace=True),
             nn.Linear(hidden_dim, out_dim),
@@ -32,4 +38,4 @@ class DistillationAdapter(nn.Module):
         self.out_dim = out_dim
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.mlp(x)
+        return self.proj(x)
