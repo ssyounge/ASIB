@@ -35,7 +35,7 @@ def eval_synergy(
     """
 
     autocast_ctx, _ = get_amp_components(cfg or {})
-    query_mode = isinstance(mbm, IB_MBM) \
+    use_ib_mbm = isinstance(mbm, IB_MBM) \
                  or (cfg or {}).get("mbm_type", "").lower() == "ib_mbm"
     correct, total = 0, 0
     for x, y in loader:
@@ -50,8 +50,8 @@ def eval_synergy(
             f1_4d = t1_dict.get("feat_4d")
             f2_4d = t2_dict.get("feat_4d")
 
-            if query_mode:
-                assert student_model is not None, "student_model required for LA MBM"
+            if use_ib_mbm:
+                assert student_model is not None, "student_model required for query-based MBM"
                 s_feat = student_model(x)[0][cfg.get("feat_kd_key", "feat_2d")]
                 if isinstance(mbm, IB_MBM):
                     fsyn, _, _ = mbm(s_feat, torch.stack([f1_2d, f2_2d], dim=1))
@@ -114,7 +114,7 @@ def teacher_adaptive_update(
     logger.info(f"[TeacherAdaptive] Using teacher_epochs={teacher_epochs}")
 
     autocast_ctx, scaler = get_amp_components(cfg)
-    query_mode = isinstance(mbm, IB_MBM) \
+    use_ib_mbm = isinstance(mbm, IB_MBM) \
                  or cfg.get("mbm_type", "").lower() == "ib_mbm"
     for ep in range(teacher_epochs):
         for tw in teacher_wrappers:
@@ -130,7 +130,6 @@ def teacher_adaptive_update(
             cur_tau = get_tau(cfg, global_ep + ep)
         teacher_loss_sum = 0.0
         count = 0
-        attn_sum = 0.0
 
         for step, batch in enumerate(
             smart_tqdm(trainloader, desc=f"[TeacherAdaptive ep={ep+1}]")
@@ -142,7 +141,7 @@ def teacher_adaptive_update(
                 # (A) Student features and logits (kept fixed)
                 with torch.no_grad():
                     feat_dict, s_logit, _ = student_model(x)
-                    if query_mode:
+                    if use_ib_mbm:
                         key = cfg.get("feat_kd_key", "feat_2d")
                         s_feat = feat_dict[key]
 
@@ -159,12 +158,11 @@ def teacher_adaptive_update(
                     feats_4d.append(t_dict.get("feat_4d"))
 
                 # (C) MBM + synergy_head
-                if query_mode:
+                if use_ib_mbm:
                     if isinstance(mbm, IB_MBM):
                         syn_feat, mu, logvar = mbm(
                             s_feat, torch.stack(feats_2d, dim=1)
                         )
-                        attn = None
                         ib_loss_val = 0.0
                         if cfg.get("use_ib", False):
                             mu, logvar = mu.float(), logvar.float()
@@ -173,7 +171,6 @@ def teacher_adaptive_update(
                     fsyn = syn_feat
                 else:
                     fsyn = mbm(feats_2d, feats_4d)
-                    attn = None
                     ib_loss_val = 0.0
                 zsyn = synergy_head(fsyn)
 
@@ -214,15 +211,6 @@ def teacher_adaptive_update(
                 synergy_weight = cfg.get("synergy_ce_alpha", 0.6)
                 synergy_ce_loss = synergy_weight * loss_ce
 
-                if query_mode and attn is not None:
-                    attn_sum += attn.mean().item() * x.size(0)
-
-                feat_kd_loss = torch.tensor(0.0, device=cfg["device"])
-                if query_mode and cfg.get("feat_kd_alpha", 0) > 0:
-                    feat_kd_loss = feat_mse_loss(
-                        s_feat, fsyn,
-                        norm=cfg.get("feat_kd_norm", "none")
-                    )
 
             # Standard KD + CE
             kd_weight = cfg.get(
@@ -232,7 +220,6 @@ def teacher_adaptive_update(
             total_loss = (
                 kd_weight * loss_kd
                 + synergy_ce_loss
-                + cfg.get("feat_kd_alpha", 0) * feat_kd_loss
                 + ib_loss_val
             )
 
@@ -278,7 +265,6 @@ def teacher_adaptive_update(
     count += x.size(0)
 
     ep_loss = teacher_loss_sum / count
-    attn_avg = attn_sum / count if query_mode and count > 0 else 0.0
 
     # synergy_eval
     if testloader is not None:
@@ -289,7 +275,7 @@ def teacher_adaptive_update(
             loader=testloader,
             device=cfg["device"],
             cfg=cfg,
-            student_model=student_model if query_mode else None,
+            student_model=student_model if use_ib_mbm else None,
         )
     else:
         synergy_test_acc = -1
@@ -300,8 +286,6 @@ def teacher_adaptive_update(
     logger.update_metric(f"teacher_ep{ep+1}_loss", ep_loss)
     logger.update_metric(f"teacher_ep{ep+1}_synAcc", synergy_test_acc)
     logger.update_metric(f"epoch{global_ep+ep+1}_tau", cur_tau)
-    if query_mode:
-        logger.update_metric(f"teacher_ep{ep+1}_attn", attn_avg)
 
     if scheduler is not None:
         scheduler.step()

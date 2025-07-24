@@ -30,6 +30,19 @@ def test_ib_loss_nonneg():
     assert loss.item() >= 0
 
 
+def test_loss_backward():
+    mbm = IB_MBM(q_dim=16, kv_dim=16, d_emb=8)
+    decoder = torch.nn.Linear(8, 4)
+    q = torch.randn(2, 16, requires_grad=True)
+    kv = torch.randn(2, 1, 16)
+    y = torch.randint(0, 4, (2,))
+    z, mu, logvar = mbm(q, kv)
+    loss = mbm.loss(z, mu, logvar, y, decoder)
+    loss.backward()
+    assert q.grad is not None
+    assert q.grad.abs().sum() > 0
+
+
 @pytest.mark.parametrize("d_emb", [8, 32])
 def test_output_dim_matches_d_emb(d_emb):
     mbm = IB_MBM(q_dim=16, kv_dim=16, d_emb=d_emb)
