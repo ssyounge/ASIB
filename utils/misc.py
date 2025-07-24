@@ -173,10 +173,22 @@ def get_amp_components(cfg):
         return nullcontext(), None
     amp_dtype = cfg.get("amp_dtype", "float16")
     dtype = torch.float16 if amp_dtype == "float16" else torch.bfloat16
-    autocast_ctx = torch.autocast("cuda", dtype=dtype)
-    scaler = torch.amp.GradScaler(
-        "cuda", init_scale=int(cfg.get("grad_scaler_init_scale", 1024))
-    )
+
+    # Older versions exposed autocast/GradScaler under ``torch.cuda.amp``
+    # so we fall back to that namespace when necessary for compatibility.
+    if hasattr(torch, "autocast"):
+        autocast = torch.autocast
+    else:
+        autocast = torch.cuda.amp.autocast
+
+    autocast_ctx = autocast("cuda", dtype=dtype)
+
+    if hasattr(torch, "amp") and hasattr(torch.amp, "GradScaler"):
+        GradScaler = torch.amp.GradScaler
+    else:
+        GradScaler = torch.cuda.amp.GradScaler
+
+    scaler = GradScaler("cuda", init_scale=int(cfg.get("grad_scaler_init_scale", 1024)))
     return autocast_ctx, scaler
 
 
