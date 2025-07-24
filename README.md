@@ -107,6 +107,8 @@ conda activate tlqkf
 ```bash
 pip install -r requirements.txt  # includes pandas for analysis
 ```
+> **주의** : PyTorch 1.12 – 2.2 는 NumPy 2.x 와 ABI 불일치가 있어
+> `numpy<2.0`(예: 1.26.4) 로 고정해야 합니다.
 4. **Download pretrained checkpoints**:
 ```bash
 mkdir checkpoints

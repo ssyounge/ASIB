@@ -132,7 +132,6 @@ def teacher_adaptive_update(
         teacher_loss_sum = 0.0
         count = 0
         attn_sum = 0.0
-        feat_kd_warned = False
 
         for step, batch in enumerate(
             smart_tqdm(trainloader, desc=f"[TeacherAdaptive ep={ep+1}]")
