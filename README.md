@@ -196,7 +196,7 @@ Baseline runs (e.g., `vanilla_kd`) produce their own logs such as `VanillaKD => 
 1) Multi-Stage Distillation (main.py)
 
 python main.py --config-name base \
-  device=cuda mbm.type=LA mbm.r=4 mbm.n_head=1 mbm.learnable_q=1
+  device=cuda mbm_type=LA mbm_r=4 mbm_n_head=1 mbm_learnable_q=1
   # Freeze levels are defined in the model YAMLs under configs/model/
   # mbm_query_dim and mbm_out_dim are automatically set to the student feature dimension
         •       Adjust model settings in `configs/model/*` or pass Hydra overrides.

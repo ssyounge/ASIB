@@ -47,12 +47,22 @@ wandb:
   run_name: ""              # 비우면 exp_id 사용
   api_key: ""               # "" → wandb login 로드
 
-# ---------- MBM / Information Bottleneck ----------
-mbm:
-  type: ib_mbm
-  use_ib: true
-  beta: 0.01
-  query_dim: 2048
+# ---------- MBM / Information‑Bottleneck ---------------------------------
+#  ※ 코드( main.py, trainer_*.py ) 는 중첩 dict 대신 **flat key** 를 조회합니다.
+#    그래서 기존 `mbm:` 블록을 없애고 flat alias 로 교체합니다.
+
+# 모듈 종류  ('la', 'ib_mbm', 'mlp')
+mbm_type: ib_mbm
+
+# IB 옵션
+use_ib: true
+ib_beta: 0.01                     # 최종 β
+beta_schedule: [0.0, 0.01, 5]     # 0→0.01 로 5 epoch linear warm‑up
+
+# 차원 설정
+mbm_query_dim: 2048               # student feat dim (ResNet‑152)
+mbm_d_emb: 512                    # ★ 내부 embedding 크기 변경 (256→512)
+mbm_out_dim: 512                  # synergy‑head 입력 dim (= d_emb)
 
 # ---------- Distillation stage 기본 ----------
 num_stages: 3
