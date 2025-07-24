@@ -285,38 +285,38 @@ def teacher_adaptive_update(
     ep_loss = teacher_loss_sum / count
     attn_avg = attn_sum / count if la_mode and count > 0 else 0.0
 
-        # synergy_eval
-        if testloader is not None:
-            synergy_test_acc = eval_synergy(
-                teacher_wrappers,
-                mbm,
-                synergy_head,
-                loader=testloader,
-                device=cfg["device"],
-                cfg=cfg,
-                student_model=student_model if la_mode else None,
-            )
-        else:
-            synergy_test_acc = -1
+    # synergy_eval
+    if testloader is not None:
+        synergy_test_acc = eval_synergy(
+            teacher_wrappers,
+            mbm,
+            synergy_head,
+            loader=testloader,
+            device=cfg["device"],
+            cfg=cfg,
+            student_model=student_model if la_mode else None,
+        )
+    else:
+        synergy_test_acc = -1
 
-        logger.info(f"[TeacherAdaptive ep={ep+1}] loss={ep_loss:.4f}, synergy={synergy_test_acc:.2f}")
+    logger.info(f"[TeacherAdaptive ep={ep+1}] loss={ep_loss:.4f}, synergy={synergy_test_acc:.2f}")
 
-        # ── NEW: per-epoch logging ───────────────────────────────
-        logger.update_metric(f"teacher_ep{ep+1}_loss", ep_loss)
-        logger.update_metric(f"teacher_ep{ep+1}_synAcc", synergy_test_acc)
-        logger.update_metric(f"epoch{global_ep+ep+1}_tau", cur_tau)
-        if la_mode:
-            logger.update_metric(f"teacher_ep{ep+1}_attn", attn_avg)
+    # ── NEW: per-epoch logging ───────────────────────────────
+    logger.update_metric(f"teacher_ep{ep+1}_loss", ep_loss)
+    logger.update_metric(f"teacher_ep{ep+1}_synAcc", synergy_test_acc)
+    logger.update_metric(f"epoch{global_ep+ep+1}_tau", cur_tau)
+    if la_mode:
+        logger.update_metric(f"teacher_ep{ep+1}_attn", attn_avg)
 
-        if scheduler is not None:
-            scheduler.step()
+    if scheduler is not None:
+        scheduler.step()
 
-        # best snapshot
-        if synergy_test_acc > best_synergy:
-            best_synergy = synergy_test_acc
-            best_state["teacher_wraps"] = [copy.deepcopy(tw.state_dict()) for tw in teacher_wrappers]
-            best_state["mbm"] = copy.deepcopy(mbm.state_dict())
-            best_state["syn_head"] = copy.deepcopy(synergy_head.state_dict())
+    # best snapshot
+    if synergy_test_acc > best_synergy:
+        best_synergy = synergy_test_acc
+        best_state["teacher_wraps"] = [copy.deepcopy(tw.state_dict()) for tw in teacher_wrappers]
+        best_state["mbm"] = copy.deepcopy(mbm.state_dict())
+        best_state["syn_head"] = copy.deepcopy(synergy_head.state_dict())
 
     # restore best
     for i, tw in enumerate(teacher_wrappers):
