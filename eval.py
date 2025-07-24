@@ -24,20 +24,41 @@ from models.teachers.teacher_resnet import create_resnet101, create_resnet152
 from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from models.teachers.teacher_swin import create_swin_t
 
-def create_teacher_by_name(teacher_name, num_classes=100, pretrained=False, small_input=False):
+def create_teacher_by_name(
+    teacher_name,
+    num_classes=100,
+    pretrained=False,
+    small_input=False,
+    cfg: dict | None = None,
+):
     """Creates a teacher model based on teacher_name."""
     if teacher_name == "resnet101":
-        return create_resnet101(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
+        return create_resnet101(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            small_input=small_input,
+            cfg=cfg,
+        )
     elif teacher_name == "resnet152":
-        return create_resnet152(num_classes=num_classes, pretrained=pretrained, small_input=small_input)
+        return create_resnet152(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            small_input=small_input,
+            cfg=cfg,
+        )
     elif teacher_name == "efficientnet_b2":
         return create_efficientnet_b2(
             num_classes=num_classes,
             pretrained=pretrained,
             small_input=small_input,
+            cfg=cfg,
         )
     elif teacher_name == "swin_tiny":
-        return create_swin_t(num_classes=num_classes, pretrained=pretrained)
+        return create_swin_t(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            cfg=cfg,
+        )
     else:
         raise ValueError(f"[eval.py] Unknown teacher_name={teacher_name}")
 
@@ -177,12 +198,14 @@ def main(cfg: DictConfig):
             num_classes=n_classes,
             pretrained=False,
             small_input=small_input,
+            cfg=cfg,
         ).to(device)
         teacher2 = create_teacher_by_name(
             teacher2_type,
             num_classes=n_classes,
             pretrained=False,
             small_input=small_input,
+            cfg=cfg,
         ).to(device)
 
         # 3) load teacher ckpts

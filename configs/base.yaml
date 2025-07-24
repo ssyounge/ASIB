@@ -64,6 +64,12 @@ mbm_query_dim: 2048               # student feat dim (ResNet‑152)
 mbm_d_emb: 512                    # ★ 내부 embedding 크기 변경 (256→512)
 mbm_out_dim: 512                  # synergy‑head 입력 dim (= d_emb)
 
+# ---------- Distillation Adapter 기본 ----------
+use_distillation_adapter: false
+# teacher adapter MLP 크기 (선택)
+distill_hidden_dim: 512
+distill_out_dim: 512
+
 # ---------- Distillation stage 기본 ----------
 num_stages: 3
 student_epochs_per_stage: 15
