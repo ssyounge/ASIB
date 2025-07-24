@@ -34,9 +34,9 @@ def student_distillation_update(
 
     The teachers and MBM are frozen to generate synergy logits while the
     student is optimized using a combination of cross-entropy and KD losses.
-    When a :class:`LightweightAttnMBM` is used, the optional feature-level KD
-    term aligns the student query with the teacher attention output in the
-    MBM latent space ("latent space alignment").
+    If the MBM operates in query mode, the optional feature-level KD term
+    aligns the student query with the teacher attention output in the MBM
+    latent space.
     """
     # 1) freeze teacher + mbm
     teacher_reqgrad_states = []
