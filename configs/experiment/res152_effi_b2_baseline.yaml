@@ -8,3 +8,4 @@ defaults:
 student_type: resnet152_pretrain
 use_partial_freeze: false
 exp_id: res152_effi_b2_baseline
+results_dir: outputs/res152_effi_b2_baseline
