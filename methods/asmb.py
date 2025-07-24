@@ -4,7 +4,6 @@ import copy
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
 
 from modules.losses import (
     kd_loss_fn,
@@ -38,7 +37,6 @@ class ASMBDistiller(nn.Module):
         temperature=4.0,
         reg_lambda=1e-4,
         mbm_reg_lambda=1e-4,
-        feat_kd_alpha=0.0,       # weight for feature-level KD
         num_stages=2,
         device="cuda",
         config=None
@@ -61,7 +59,6 @@ class ASMBDistiller(nn.Module):
         self.T = cfg.get("tau_start", temperature)
         self.reg_lambda = cfg.get("reg_lambda", reg_lambda)
         self.mbm_reg_lambda = cfg.get("mbm_reg_lambda", mbm_reg_lambda)
-        self.feat_kd_alpha = cfg.get("feat_kd_alpha", feat_kd_alpha)
         self.num_stages = cfg.get("num_stages", num_stages)
         self.device = device
         self.config = config if config is not None else {}
@@ -107,17 +104,9 @@ class ASMBDistiller(nn.Module):
         # KL
         kd_val = kd_loss_fn(s_logit, zsyn, T=self.T, reduction="batchmean")
 
-        feat_loss = torch.tensor(0.0, device=s_feat.device)
-        if self.feat_kd_alpha > 0:
-            feat_loss = F.mse_loss(
-                s_feat.view(s_feat.size(0), -1),
-                syn_feat.detach().view(s_feat.size(0), -1),
-            )
-
         total_loss = (
             self.alpha * ce_val
             + (1 - self.alpha) * kd_val
-            + self.feat_kd_alpha * feat_loss
         )
 
         return total_loss, s_logit
@@ -332,20 +321,12 @@ class ASMBDistiller(nn.Module):
                     )
                     synergy_ce = self.synergy_ce_alpha * ce_val
 
-                    feat_loss = torch.tensor(0.0, device=s_feat.device)
-                    if self.feat_kd_alpha > 0:
-                        feat_loss = F.mse_loss(
-                            s_feat.view(s_feat.size(0), -1),
-                            syn_feat.detach().view(s_feat.size(0), -1),
-                        )
-
                     # 파라미터 개수로 나눠 스케일 다운
                     reg_loss = torch.stack([(p ** 2).mean() for p in params]).mean()
 
                     loss = (
                         kl_val
                         + synergy_ce
-                        + self.feat_kd_alpha * feat_loss
                         + self.reg_lambda * reg_loss
                     )
 
@@ -478,13 +459,6 @@ class ASMBDistiller(nn.Module):
                 avg_t_logit = 0.5 * (t1["logit"] + t2["logit"])
                 kd_vanilla = kd_loss_fn(s_logit, avg_t_logit, T=cur_tau)
 
-                feat_loss = torch.tensor(0.0, device=s_feat.device)
-                if self.feat_kd_alpha > 0:
-                    feat_loss = F.mse_loss(
-                        s_feat.view(s_feat.size(0), -1),
-                        syn_feat.detach().view(s_feat.size(0), -1),
-                    )
-
                 rkd_val = torch.tensor(0.0, device=s_feat.device)
                 if self.config.get("rkd_loss_weight", 0.0) > 0:
                     if s_feat.size(0) <= 2 and logger is not None:
@@ -508,13 +482,6 @@ class ASMBDistiller(nn.Module):
                         rkd_mix = 0.5 * (rkd_t1 + rkd_t2) + gamma * rkd_syn
                     rkd_val = rkd_mix.mean()
 
-                # old formula for reference:
-                # loss_asmb = (
-                #     self.alpha * ce_val
-                #     + (1 - self.alpha) * kd_val
-                #     + self.feat_kd_alpha * feat_loss
-                #     + self.config.get("rkd_loss_weight", 0.0) * rkd_val
-                # )
                 beta = min(self.config.get("hybrid_beta", 0.0), 1.0)
                 alpha_eff = self.alpha
                 kd_coeff = 1 - self.alpha
@@ -525,7 +492,6 @@ class ASMBDistiller(nn.Module):
                 loss = (
                     alpha_eff * ce_val
                     + kd_coeff * kd_val
-                    + self.feat_kd_alpha * feat_loss
                     + self.config.get("rkd_loss_weight", 0.0) * rkd_val
                     + beta * kd_vanilla
                 )
