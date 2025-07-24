@@ -170,9 +170,6 @@ def teacher_adaptive_update(
                             mu, logvar = mu.float(), logvar.float()
                             ib_beta = get_beta(cfg, global_ep + ep)
                             ib_loss_val = ib_loss(mu, logvar, beta=ib_beta)
-                    else:
-                        syn_feat, attn, _, _ = mbm(s_feat, feats_2d)
-                        ib_loss_val = 0.0
                     fsyn = syn_feat
                 else:
                     fsyn = mbm(feats_2d, feats_4d)
@@ -221,7 +218,7 @@ def teacher_adaptive_update(
                     attn_sum += attn.mean().item() * x.size(0)
 
                 feat_kd_loss = torch.tensor(0.0, device=cfg["device"])
-                if query_mode and cfg.get("feat_kd_alpha", 0) > 0 and not isinstance(mbm, IB_MBM):
+                if query_mode and cfg.get("feat_kd_alpha", 0) > 0:
                     feat_kd_loss = feat_mse_loss(
                         s_feat, fsyn,
                         norm=cfg.get("feat_kd_norm", "none")
