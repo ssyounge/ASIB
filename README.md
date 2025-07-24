@@ -393,9 +393,8 @@ adapters or only update their batch-norm layers and classifier heads.
 Set the following flags in the teacher YAML or via CLI overrides:
 
 ```yaml
-teacher1_use_adapter: 1
+use_distillation_adapter: true
 teacher1_bn_head_only: 1
-teacher2_use_adapter: 1
 teacher2_bn_head_only: 0
 ```
 
