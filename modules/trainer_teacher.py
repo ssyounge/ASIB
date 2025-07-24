@@ -3,8 +3,7 @@
 import torch
 import copy
 from utils.progress import smart_tqdm
-from models.la_mbm import LightweightAttnMBM
-from modules.ib_mbm import IB_MBM
+from models.mbm import IB_MBM
 
 from modules.losses import (
     kd_loss_fn, ce_loss_fn, ib_loss, certainty_weights, feat_mse_loss
@@ -36,8 +35,8 @@ def eval_synergy(
     """
 
     autocast_ctx, _ = get_amp_components(cfg or {})
-    la_mode = isinstance(mbm, (LightweightAttnMBM, IB_MBM)) \
-              or (cfg or {}).get("mbm_type", "").lower() in ("la", "ib_mbm")
+    query_mode = isinstance(mbm, IB_MBM) \
+                 or (cfg or {}).get("mbm_type", "").lower() == "ib_mbm"
     correct, total = 0, 0
     for x, y in loader:
         x, y = x.to(device), y.to(device)
@@ -51,7 +50,7 @@ def eval_synergy(
             f1_4d = t1_dict.get("feat_4d")
             f2_4d = t2_dict.get("feat_4d")
 
-            if la_mode:
+            if query_mode:
                 assert student_model is not None, "student_model required for LA MBM"
                 s_feat = student_model(x)[0][cfg.get("feat_kd_key", "feat_2d")]
                 if isinstance(mbm, IB_MBM):
@@ -115,8 +114,8 @@ def teacher_adaptive_update(
     logger.info(f"[TeacherAdaptive] Using teacher_epochs={teacher_epochs}")
 
     autocast_ctx, scaler = get_amp_components(cfg)
-    la_mode = isinstance(mbm, (LightweightAttnMBM, IB_MBM)) \
-              or cfg.get("mbm_type", "").lower() in ("la", "ib_mbm")
+    query_mode = isinstance(mbm, IB_MBM) \
+                 or cfg.get("mbm_type", "").lower() == "ib_mbm"
     for ep in range(teacher_epochs):
         for tw in teacher_wrappers:
             tw.train()
@@ -143,7 +142,7 @@ def teacher_adaptive_update(
                 # (A) Student features and logits (kept fixed)
                 with torch.no_grad():
                     feat_dict, s_logit, _ = student_model(x)
-                    if la_mode:
+                    if query_mode:
                         key = cfg.get("feat_kd_key", "feat_2d")
                         s_feat = feat_dict[key]
 
@@ -160,7 +159,7 @@ def teacher_adaptive_update(
                     feats_4d.append(t_dict.get("feat_4d"))
 
                 # (C) MBM + synergy_head
-                if la_mode:
+                if query_mode:
                     if isinstance(mbm, IB_MBM):
                         syn_feat, mu, logvar = mbm(
                             s_feat, torch.stack(feats_2d, dim=1)
@@ -218,11 +217,11 @@ def teacher_adaptive_update(
                 synergy_weight = cfg.get("synergy_ce_alpha", 0.6)
                 synergy_ce_loss = synergy_weight * loss_ce
 
-                if la_mode and attn is not None:
+                if query_mode and attn is not None:
                     attn_sum += attn.mean().item() * x.size(0)
 
                 feat_kd_loss = torch.tensor(0.0, device=cfg["device"])
-                if la_mode and cfg.get("feat_kd_alpha", 0) > 0 and not isinstance(mbm, IB_MBM):
+                if query_mode and cfg.get("feat_kd_alpha", 0) > 0 and not isinstance(mbm, IB_MBM):
                     feat_kd_loss = feat_mse_loss(
                         s_feat, fsyn,
                         norm=cfg.get("feat_kd_norm", "none")
@@ -282,7 +281,7 @@ def teacher_adaptive_update(
     count += x.size(0)
 
     ep_loss = teacher_loss_sum / count
-    attn_avg = attn_sum / count if la_mode and count > 0 else 0.0
+    attn_avg = attn_sum / count if query_mode and count > 0 else 0.0
 
     # synergy_eval
     if testloader is not None:
@@ -293,7 +292,7 @@ def teacher_adaptive_update(
             loader=testloader,
             device=cfg["device"],
             cfg=cfg,
-            student_model=student_model if la_mode else None,
+            student_model=student_model if query_mode else None,
         )
     else:
         synergy_test_acc = -1
@@ -304,7 +303,7 @@ def teacher_adaptive_update(
     logger.update_metric(f"teacher_ep{ep+1}_loss", ep_loss)
     logger.update_metric(f"teacher_ep{ep+1}_synAcc", synergy_test_acc)
     logger.update_metric(f"epoch{global_ep+ep+1}_tau", cur_tau)
-    if la_mode:
+    if query_mode:
         logger.update_metric(f"teacher_ep{ep+1}_attn", attn_avg)
 
     if scheduler is not None:
