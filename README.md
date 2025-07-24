@@ -16,7 +16,7 @@ python main.py cl=split_cifar
 `--cl_mode 1` 활성화 후 `--num_tasks` 값을 지정하면 별도의 CL 전용 YAML 없이 연속 학습을 수행할 수 있습니다.
 
 ## 주요 config 플래그
-* `mbm_type` : **mlp | la | ib_mbm**
+* `mbm_type` : **mlp | ib_mbm**
 * `use_ib`   : true / false  (IB ablation)
 * `ib_beta_warmup_epochs` : ramp-up epochs for the IB KL weight
 * `cl_mode`  : true → CL 활성화
@@ -64,15 +64,14 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
   `--feat_kd_alpha 1.0 --feat_kd_key feat_2d --feat_kd_norm none`.
 - **Hybrid Guidance**: set `hybrid_beta` (>0) to blend vanilla KD from the
   average teacher logits with the default ASMB loss.
-- **Custom MBM Query Dim**: `mbm_query_dim` controls the dimension of the
-  student features used as the attention query in `LightweightAttnMBM`.
-  When omitted or set to `0`, the script automatically falls back to the
-  feature dimension reported by the student model (if available).
+- **Custom MBM Query Dim**: `mbm_query_dim` sets the dimension of the
+  student features used as the attention query in `ib_mbm`.
+  When omitted or set to `0`, the script falls back to the feature
+  dimension reported by the student model (if available).
   The MBM output dimension (`mbm_out_dim`) now defaults to this student
   feature size as well.
-- **Requires Student Features**: `LightweightAttnMBM` needs the student
-  features as the attention query, so the student model must be provided
-  when using this module.
+- **Requires Student Features**: `ib_mbm` relies on student features as the
+  attention query, so the student model must be provided.
   Common student feature dimensions are:
 
   | Student model                | Feature dim |
@@ -196,7 +195,7 @@ Baseline runs (e.g., `vanilla_kd`) produce their own logs such as `VanillaKD => 
 1) Multi-Stage Distillation (main.py)
 
 python main.py --config-name base \
-  device=cuda mbm_type=LA mbm_r=4 mbm_n_head=1 mbm_learnable_q=1
+  device=cuda mbm_type=ib_mbm mbm_r=4 mbm_n_head=1 mbm_learnable_q=1
   # Freeze levels are defined in the model YAMLs under configs/model/
   # mbm_query_dim and mbm_out_dim are automatically set to the student feature dimension
         •       Adjust model settings in `configs/model/*` or pass Hydra overrides.
@@ -249,7 +248,7 @@ python eval.py +eval_mode=synergy \
   +head_ckpt=synergy_head.pth \
   +student_type=resnet_adapter \
   +student_ckpt=student.pth \
-  +mbm_type=LA +mbm_r=4 +mbm_n_head=1 +mbm_learnable_q=1
+  +mbm_type=ib_mbm +mbm_r=4 +mbm_n_head=1 +mbm_learnable_q=1
   # mbm_query_dim and mbm_out_dim are automatically set to the student feature dimension
 
 	•	Prints Train/Test accuracy, optionally logs to CSV if configured.
