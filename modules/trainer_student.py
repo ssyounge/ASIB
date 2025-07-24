@@ -140,11 +140,6 @@ def student_distillation_update(
                             ib_loss_val = ib_loss(mu, logvar, beta=ib_beta)
                         else:
                             ib_loss_val = torch.tensor(0.0, device=cfg["device"])
-                    else:  # LA MBM
-                        syn_feat, attn, student_q_proj, teacher_attn_out = mbm(
-                            s_feat, [f1_2d, f2_2d]
-                        )
-                        ib_loss_val = torch.tensor(0.0, device=cfg["device"])
                     fsyn = syn_feat
                     if "attn" in locals() and attn is not None:
                         attn_sum += attn.mean().item() * x.size(0)
@@ -210,26 +205,18 @@ def student_distillation_update(
 
             feat_kd_val = torch.tensor(0.0, device=cfg["device"])
             if cfg.get("feat_kd_alpha", 0) > 0:
-                if query_mode and not isinstance(mbm, IB_MBM):
-                    tgt = teacher_attn_out.detach().to(student_q_proj.dtype)
-                    feat_kd_val = feat_mse_loss(
-                        student_q_proj,
-                        tgt,
-                        norm=cfg.get("feat_kd_norm", "none"),
-                    )
-                else:
-                    key = cfg.get("feat_kd_key", "feat_2d")
-                    s_feat = feat_dict[key]
-                    fsyn_use = fsyn
-                    if fsyn_use.dim() == 4 and s_feat.dim() == 2:
-                        fsyn_use = torch.nn.functional.adaptive_avg_pool2d(
-                            fsyn_use, (1, 1)
-                        ).flatten(1)
+                key = cfg.get("feat_kd_key", "feat_2d")
+                s_feat = feat_dict[key]
+                fsyn_use = fsyn
+                if fsyn_use.dim() == 4 and s_feat.dim() == 2:
+                    fsyn_use = torch.nn.functional.adaptive_avg_pool2d(
+                        fsyn_use, (1, 1)
+                    ).flatten(1)
 
-                    feat_kd_val = feat_mse_loss(
-                        s_feat, fsyn_use,
-                        norm=cfg.get("feat_kd_norm", "none")
-                    )
+                feat_kd_val = feat_mse_loss(
+                    s_feat, fsyn_use,
+                    norm=cfg.get("feat_kd_norm", "none")
+                )
 
             loss = (
                 cfg["ce_alpha"] * ce_loss_val
