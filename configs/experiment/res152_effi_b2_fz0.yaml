@@ -1,3 +1,5 @@
+# configs/experiment/res152_effi_b2_fz0.yaml
+
 defaults:
   - res152_effi_b2
   - _self_
