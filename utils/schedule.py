@@ -20,16 +20,22 @@ def get_tau(cfg: dict, epoch: int) -> float:
     return float(tau)
 
 
-def get_beta(cfg: dict, epoch: int) -> float:
+def get_beta(cfg: dict, epoch: int = 0) -> float:
     """Return β for the Information Bottleneck KL term at ``epoch``.
 
-    The value ramps linearly from ``0`` to ``cfg["ib_beta"]`` over
-    ``cfg.get("ib_beta_warmup_epochs", 0)`` epochs.
+    Supports either a fixed value (``cfg.ib_beta``), a linear warmup via
+    ``cfg.ib_beta_warmup_epochs`` or an explicit schedule specified by
+    ``cfg.beta_schedule`` as ``[start, end, total_epoch]``.
     """
 
-    beta = float(cfg.get("ib_beta", 1e-3))
-    warmup = int(cfg.get("ib_beta_warmup_epochs", 0))
-    if warmup > 0:
-        scale = min(float(epoch) / warmup, 1.0)
-        beta *= scale
+    if "beta_schedule" in cfg:
+        start, end, total = cfg["beta_schedule"]
+        t = min(epoch / max(1, total), 1.0)
+        beta = start + t * (end - start)
+    else:
+        beta = float(cfg.get("ib_beta", 1e-3))
+        warmup = int(cfg.get("ib_beta_warmup_epochs", 0))
+        if warmup > 0:
+            scale = min(float(epoch) / warmup, 1.0)
+            beta *= scale
     return beta
