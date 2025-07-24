@@ -200,9 +200,12 @@ def student_distillation_update(
             feat_kd_val = torch.tensor(0.0, device=cfg["device"])
             if cfg.get("feat_kd_alpha", 0) > 0:
                 if la_mode and not isinstance(mbm, IB_MBM):
-                    # AMP 환경에서 dtype 불일치를 피한다
                     tgt = teacher_attn_out.detach().to(student_q_proj.dtype)
-                    feat_kd_val = F.mse_loss(student_q_proj, tgt)
+                    feat_kd_val = feat_mse_loss(
+                        student_q_proj,
+                        tgt,
+                        norm=cfg.get("feat_kd_norm", "none"),
+                    )
                 else:
                     key = cfg.get("feat_kd_key", "feat_2d")
                     s_feat = feat_dict[key]
