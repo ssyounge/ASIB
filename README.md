@@ -424,32 +424,42 @@ file, run `python main.py --config-name base` to apply the new freeze levels.
 Folder Structure
 
 (Repo Root)
-├── main.py               # Main training script (ASMB, partial freeze)
-├── eval.py               # Evaluation script (single vs synergy)
-├── requirements.txt      # Dependencies
-├── README.md             # Project info
-├── LICENSE               # MIT License
+├── main.py                 # Main training script
+├── eval.py                 # Evaluation script
+├── requirements.txt        # Python dependencies
+├── run.sh                  # Example run script
+├── run_finetune_clean.sh   # Finetuning helper
+├── pyproject.toml          # Build metadata
+├── setup.py                # Package setup
+├── README.md
+├── LICENSE
+├── environment.yml         # Conda environment
 
-├── analysis
+├── analysis/
 │   ├── compare_ablation.py
 │   └── plot_results.ipynb
 
-├── configs
+├── configs/
 │   ├── base.yaml
 │   ├── dataset/
+│   ├── experiment/
+│   ├── finetune/
+│   ├── method/
 │   ├── model/
 │   │   ├── teacher/
 │   │   └── student/
-│   ├── method/
-│   ├── schedule/
-│   └── cl/
+│   └── schedule/
 
-├── data
+├── data/
 │   ├── cifar100.py
+│   ├── cifar100_overlap.py
 │   ├── imagenet32.py
 │   └── __init__.py
 
-├── methods              # Various KD algorithms
+├── examples/
+│   └── run_cifar100_cl.sh
+
+├── methods/                # KD algorithms
 │   ├── asmb.py
 │   ├── fitnet.py
 │   ├── crd.py
@@ -458,42 +468,65 @@ Folder Structure
 │   ├── vanilla_kd.py
 │   └── __init__.py
 
-├── models
+├── models/
 │   ├── __init__.py
 │   ├── mbm.py
-│   ├── students
-│   │   ├── __init__.py
+│   ├── la_mbm.py
+│   ├── common/
+│   │   └── adapter.py
+│   ├── students/
 │   │   ├── student_efficientnet_adapter.py
 │   │   ├── student_resnet_adapter.py
+│   │   ├── student_resnet152_adapter.py
 │   │   └── student_swin_adapter.py
-│   └── teachers
-│       ├── __init__.py
+│   └── teachers/
 │       ├── teacher_efficientnet.py
 │       ├── teacher_resnet.py
 │       └── teacher_swin.py
 
-├── modules
+├── modules/
 │   ├── trainer_student.py
 │   ├── trainer_teacher.py
+│   ├── ib_mbm.py
 │   ├── cutmix_finetune_teacher.py
 │   ├── disagreement.py
 │   ├── partial_freeze.py
 │   ├── losses.py
 │   └── __init__.py
 
-├── scripts
+├── scripts/
+│   ├── run_single_teacher.py
+│   ├── run_experiments.sh
+│   ├── run_overlap_experiments.sh
+│   ├── run_sweep.sh
 │   ├── fine_tuning.py
-│   └── run_experiments.sh
+│   ├── setup_tests.sh
+│   └── train_student_baseline.py
 
-└── utils
+├── sweeps/
+│   ├── asmb_grid.yaml
+│   ├── asmb_mixed.yaml
+│   └── overlap_grid.yaml
+
+├── tests/
+│   └── ...
+
+└── utils/
     ├── logger.py
-    └── misc.py
+    ├── misc.py
+    └── config_utils.py
 
-        • analysis/: Scripts or notebooks for comparing experiments (compare_ablation.py, plot_results.ipynb)
-        • configs/: Hydra config groups (dataset/, model/, method/, schedule/ ...)
-        • methods/: KD implementations (ASMB, FitNet, CRD, DKD, etc.)
-        • modules/: Partial freeze utility, trainers, custom losses
-        • scripts/: Helper scripts for experiments
+        • analysis/: Scripts or notebooks for experiment comparisons
+        • configs/: Hydra configuration groups
+        • data/: Dataset wrappers
+        • examples/: Example shell scripts
+        • methods/: KD implementations (ASMB, FitNet, etc.)
+        • models/: Student and teacher models
+        • modules/: Training utilities and losses
+        • scripts/: Helper entrypoints
+        • sweeps/: YAML sweep definitions
+        • tests/: Unit tests
+        • utils/: Misc utilities (logging, scheduling)
 
 ```
 ---
