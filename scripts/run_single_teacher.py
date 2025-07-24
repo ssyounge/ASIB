@@ -150,7 +150,7 @@ def main(cfg: DictConfig):
             cfg.get("teacher_type", cfg.get("default_teacher_type")),
             freeze_bn=cfg.get("teacher_freeze_bn", True),
             freeze_ln=cfg.get("teacher_freeze_ln", True),
-            use_adapter=cfg.get("teacher_use_adapter", False),
+            use_adapter=cfg.get("use_distillation_adapter", False),
             bn_head_only=cfg.get("teacher_bn_head_only", False),
             freeze_level=cfg.get("teacher_freeze_level", 1),
         )
