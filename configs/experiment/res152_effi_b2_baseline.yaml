@@ -1,0 +1,8 @@
+defaults:
+  - res152_effi_b2
+  - _self_
+
+# 차이점: 학생을 pretrain 버전, 어댑터/partial-freeze 해제
+student_type: resnet152_pretrain
+use_partial_freeze: false
+exp_id: res152_effi_b2_baseline

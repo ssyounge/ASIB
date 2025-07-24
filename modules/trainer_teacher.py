@@ -134,7 +134,9 @@ def teacher_adaptive_update(
         attn_sum = 0.0
         feat_kd_warned = False
 
-        for batch in smart_tqdm(trainloader, desc=f"[TeacherAdaptive ep={ep+1}]"):
+        for step, batch in enumerate(
+            smart_tqdm(trainloader, desc=f"[TeacherAdaptive ep={ep+1}]")
+        ):
             x, y = batch
             x, y = x.to(cfg["device"]), y.to(cfg["device"])
 
@@ -150,8 +152,11 @@ def teacher_adaptive_update(
                 feats_2d = []
                 feats_4d = []
                 feat_key = "distill_feat" if cfg.get("use_distillation_adapter", False) else "feat_2d"
-                for tw in teacher_wrappers:
+                t1_dict = None
+                for i, tw in enumerate(teacher_wrappers):
                     t_dict = tw(x)
+                    if i == 0:
+                        t1_dict = t_dict
                     feats_2d.append(t_dict[feat_key])
                     feats_4d.append(t_dict.get("feat_4d"))
 
@@ -188,6 +193,17 @@ def teacher_adaptive_update(
                     kd_vec = kd_loss_fn(
                         zsyn, s_logit, T=cur_tau, reduction="none"
                     ).sum(dim=1)
+
+                    # ---- DEBUG: 첫 batch 모양 확인 ----
+                    if ep == 0 and step == 0:
+                        print(
+                            "[DBG/teacher] t1_logit",
+                            tuple(t1_dict["logit"].shape),
+                            "s_logit",
+                            tuple(s_logit.shape),
+                            "zsyn",
+                            tuple(zsyn.shape),
+                        )
                     cw = certainty_weights(logvar).mean(dim=1).to(zsyn.dtype)
                     loss_ce = (cw * ce_vec).mean()
                     loss_kd = (cw * kd_vec).mean()
