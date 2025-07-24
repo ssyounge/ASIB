@@ -600,11 +600,13 @@ def main(cfg: DictConfig):
         )
         print(f"[Main] Loaded student from {cfg['student_ckpt']}")
 
-    apply_partial_freeze(
-        student_model,
-        cfg.get("student_freeze_level", -1),
-        cfg.get("student_freeze_bn", False),
-    )
+    # freeze 옵션 켜져 있을 때만 수행
+    if cfg.get("use_partial_freeze", False):
+        apply_partial_freeze(
+            student_model,
+            cfg.get("student_freeze_level", -1),
+            cfg.get("student_freeze_bn", False),
+        )
 
     # ───────────────────────── debug: trainable 파라미터 개수 로그 ──────────────
     n_trainable = count_trainable(student_model)
