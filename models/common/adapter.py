@@ -1,3 +1,5 @@
+# models/common/adapter.py
+
 import torch.nn as nn
 
 class BottleneckAdapter(nn.Module):
