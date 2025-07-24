@@ -29,8 +29,6 @@ student_freeze_level: 1
 num_stages: 3
 batch_size: 128
 
-# ---- MBM override (명시) ----
-mbm_d_emb: 512
 
 results_dir: outputs/res152_effi_b2
 exp_id: res152_effi_b2
