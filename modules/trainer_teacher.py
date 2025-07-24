@@ -225,10 +225,12 @@ def teacher_adaptive_update(
                 + ib_loss_val
             )
 
-            # --- 1) L2 regularization on teacher parameters ---
-            reg_loss = torch.stack([
-                (p ** 2).mean() for p in teacher_params if p.requires_grad
-            ]).mean()
+    # --- 1) L2 regularization on teacher parameters ---
+    if teacher_params:
+        reg_loss = torch.stack([(p ** 2).mean() for p in teacher_params]).mean()
+    else:                       # protect empty list
+        reg_loss = torch.tensor(0.0, device=zsyn.device)
+        print("[TeacherAdaptive] teacher_params empty -> reg_loss=0")
             total_loss = total_loss + float(cfg.get("reg_lambda", 0.0)) * reg_loss
             # -----------------------------------------------------------
 
@@ -252,6 +254,7 @@ def teacher_adaptive_update(
                 scaler.update()
             else:
                 total_loss.backward()
+                print(f"[TeacherAdaptive] batch loss={total_loss.item():.4f}")
                 if cfg.get("grad_clip_norm", 0) > 0:
                     torch.nn.utils.clip_grad_norm_(
                         teacher_params + mbm_params + syn_params,

@@ -125,6 +125,9 @@ def partial_freeze_teacher_resnet(
 
     if use_adapter:
         patterns.append(r"\.distillation_adapter\.")
+        print(f"[partial_freeze_teacher_*] unfreeze distillation_adapter")
+        print(f"[partial_freeze_teacher_*] unfreeze distillation_adapter")
+        print(f"[partial_freeze_teacher_*] unfreeze distillation_adapter")
 
     unfreeze_by_regex(model, patterns)
 
