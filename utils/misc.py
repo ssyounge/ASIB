@@ -185,12 +185,20 @@ def get_amp_components(cfg):
     autocast_ctx = autocast("cuda", dtype=dtype)
 
     amp_mod = getattr(torch, "amp", None)
-    if amp_mod is not None and hasattr(amp_mod, "GradScaler"):
-        GradScaler = amp_mod.GradScaler
-    else:
+    GradScaler = None
+    if amp_mod is not None:
+        if hasattr(amp_mod, "GradScaler"):
+            GradScaler = amp_mod.GradScaler
+        elif hasattr(amp_mod, "grad_scaler") and hasattr(amp_mod.grad_scaler, "GradScaler"):
+            GradScaler = amp_mod.grad_scaler.GradScaler
+    if GradScaler is None:
         GradScaler = torch.cuda.amp.GradScaler
 
-    scaler = GradScaler("cuda", init_scale=int(cfg.get("grad_scaler_init_scale", 1024)))
+    try:
+        scaler = GradScaler(device="cuda",
+                           init_scale=int(cfg.get("grad_scaler_init_scale", 1024)))
+    except TypeError:
+        scaler = GradScaler(init_scale=int(cfg.get("grad_scaler_init_scale", 1024)))
     return autocast_ctx, scaler
 
 
