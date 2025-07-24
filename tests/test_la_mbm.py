@@ -1,9 +1,13 @@
 import pytest
 
+pytest.skip("LightweightAttnMBM removed", allow_module_level=True)
+
 torch = pytest.importorskip("torch")
 
-from models.la_mbm import LightweightAttnMBM
-
+"""
+Deprecated LA-MBM tests removed.
+"""
+"""
 
 def test_custom_query_dim_forward():
     mbm = LightweightAttnMBM([16, 16], out_dim=32, r=2,
@@ -33,3 +37,4 @@ def test_query_dim_mismatch_raises():
     with pytest.raises(ValueError, match="mbm_query_dim mismatch: expected 8, got 10"):
         mbm(q, feats)
 
+"""
