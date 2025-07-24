@@ -87,7 +87,7 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
   (and remove max-pool for ResNet)
 - **Distillation Adapter**: set `use_distillation_adapter: true` to enable
   lightweight adapters on each teacher. `distill_out_dim` controls the common
-  feature dimension used for synergy (default `512`).
+  feature dimension used for synergy (default `512`). Set `debug_verbose: true` to print the teacher and student feature shapes every batch when troubleshooting (the example configs such as `configs/experiment/res152_effi_b2.yaml` leave this `false` by default).
 - **Disagreement Metrics**: `compute_disagreement_rate` now accepts
   `mode="pred"` to measure prediction mismatch or `mode="both_wrong"` for
   cross-error
