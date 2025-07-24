@@ -7,7 +7,7 @@ from utils.progress import smart_tqdm
 from models.mbm import IB_MBM
 
 from modules.losses import (
-    kd_loss_fn, ce_loss_fn, ib_loss, certainty_weights, feat_mse_loss
+    kd_loss_fn, ce_loss_fn, ib_loss, certainty_weights
 )
 from modules.disagreement import sample_weights_from_disagreement
 from utils.misc import mixup_data, cutmix_data, mixup_criterion, get_amp_components
