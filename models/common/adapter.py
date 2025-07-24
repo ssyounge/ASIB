@@ -20,4 +20,12 @@ class BottleneckAdapter(nn.Module):
         )
 
     def forward(self, x):
-        return x + self.adapter(x)
+        # DEBUG
+        print(f"[BottleneckAdapter] in  shape={tuple(x.shape)}")
+        if x.dim() > 2:                # (N,C,H,W) -> (N,C)
+            x = x.flatten(1)
+            print(f"[BottleneckAdapter] GAP/flatten -> {tuple(x.shape)}")
+        out = self.adapter(x)
+        print(f"[BottleneckAdapter] out shape={tuple(out.shape)}")
+        #
+        return x + out                 # residual
