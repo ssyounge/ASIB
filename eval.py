@@ -108,7 +108,7 @@ class SynergyEnsemble(nn.Module):
         f2_4d = f2_dict.get("feat_4d")
 
         if self.la_mode:
-            assert self.student is not None, "student required for LA MBM"
+            assert self.student is not None, "student required for query-based MBM"
             feat_dict, _, _ = self.student(x)
             key = self.cfg.get("feat_kd_key", "feat_2d")
             s_feat = feat_dict[key]
@@ -240,7 +240,7 @@ def main(cfg: DictConfig):
             )
             synergy_head.load_state_dict(head_ck, strict=False)
 
-        # 5) student for LA MBM or optional synergy
+        # 5) student for query-based MBM or optional synergy
         student_name = cfg.get("student_type", "resnet_adapter")
         student = create_student_by_name(
             student_name,
