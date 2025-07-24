@@ -70,9 +70,9 @@ def hybrid_kd_loss_fn(student_logits, teacher_logits, labels, alpha=0.5, T=4.0):
 def feat_mse_loss(s_feat, t_feat, norm: str = "none", reduction="mean"):
     """Return the MSE between two features after optional normalization."""
     if s_feat.dim() > 2:
-        s_feat = s_feat.view(s_feat.size(0), -1)
+        s_feat = s_feat.flatten(1)
     if t_feat.dim() > 2:
-        t_feat = t_feat.view(t_feat.size(0), -1)
+        t_feat = t_feat.flatten(1)
 
     if norm == "l2":
         s_feat = F.normalize(s_feat, dim=1)
