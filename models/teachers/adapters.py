@@ -19,11 +19,14 @@ class DistillationAdapter(nn.Module):
         hidden_dim: Optional[int] = None,
         out_dim: Optional[int] = None,
         cfg: Optional[dict] = None,
+        verbose: bool = False,
     ) -> None:
         super().__init__()
         if cfg is not None:
             hidden_dim = cfg.get("distill_hidden_dim", hidden_dim)
             out_dim = cfg.get("distill_out_dim", out_dim)
+            verbose = cfg.get("debug_verbose", verbose)
+        self.verbose = verbose
 
         # allow 0, negative, or None to trigger automatic dimension selection
         if hidden_dim is None or hidden_dim <= 0:
@@ -38,12 +41,13 @@ class DistillationAdapter(nn.Module):
         self.out_dim = out_dim
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # DEBUG
-        print(f"[DistillAdapter] in  shape={tuple(x.shape)}")
+        if self.verbose:
+            print(f"[DistillAdapter] in  shape={tuple(x.shape)}")
         if x.dim() > 2:
             x = x.flatten(1)
-            print(f"[DistillAdapter] GAP/flatten -> {tuple(x.shape)}")
+            if self.verbose:
+                print(f"[DistillAdapter] GAP/flatten -> {tuple(x.shape)}")
         out = self.proj(x)
-        print(f"[DistillAdapter] out shape={tuple(out.shape)}")
-        #
+        if self.verbose:
+            print(f"[DistillAdapter] out shape={tuple(out.shape)}")
         return out

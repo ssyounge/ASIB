@@ -88,6 +88,8 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 - **Disagreement Metrics**: `compute_disagreement_rate` now accepts
   `mode="pred"` to measure prediction mismatch or `mode="both_wrong"` for
   cross-error
+- **Adapter Debug Print**: set `debug_verbose: true` under a teacher's config to
+  print adapter input/output shapes during training
 
 ---
 
