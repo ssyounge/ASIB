@@ -8,7 +8,9 @@ from utils.progress import smart_tqdm
 from models.la_mbm import LightweightAttnMBM
 from modules.ib_mbm import IB_MBM
 
-from modules.losses import kd_loss_fn, ce_loss_fn, ib_loss, certainty_weights
+from modules.losses import (
+    kd_loss_fn, ce_loss_fn, ib_loss, certainty_weights, feat_mse_loss
+)
 from modules.disagreement import sample_weights_from_disagreement
 from utils.misc import mixup_data, cutmix_data, mixup_criterion, get_amp_components
 from utils.schedule import get_tau, get_beta
@@ -117,11 +119,8 @@ def student_distillation_update(
                     t1_dict = teacher_wrappers[0](x_mixed)
                     t2_dict = teacher_wrappers[1](x_mixed)
 
-                    feat_key = (
-                        "distill_feat"
-                        if cfg.get("use_distillation_adapter", False)
-                        else "feat_2d"
-                    )
+                    feat_key = "distill_feat" if cfg.get("use_distillation_adapter", False) \
+                               else "feat_2d"
                     f1_2d = t1_dict[feat_key]
                     f2_2d = t2_dict[feat_key]
                     f1_4d = t1_dict.get("feat_4d")
@@ -206,37 +205,17 @@ def student_distillation_update(
                     feat_kd_val = F.mse_loss(student_q_proj, tgt)
                 else:
                     key = cfg.get("feat_kd_key", "feat_2d")
-
                     s_feat = feat_dict[key]
                     fsyn_use = fsyn
-
                     if fsyn_use.dim() == 4 and s_feat.dim() == 2:
                         fsyn_use = torch.nn.functional.adaptive_avg_pool2d(
                             fsyn_use, (1, 1)
                         ).flatten(1)
 
-                    if cfg.get("feat_kd_norm", "none") == "l2":
-                        s_feat = torch.nn.functional.normalize(
-                            s_feat.view(s_feat.size(0), -1), dim=1
-                        )
-                        fsyn_use = torch.nn.functional.normalize(
-                            fsyn_use.view(fsyn_use.size(0), -1), dim=1
-                        )
-
-                    s_flat = s_feat.view(s_feat.size(0), -1)
-                    # ensure same dtype to avoid Float↔Half mismatch
-                    f_flat = fsyn_use.detach().view(fsyn_use.size(0), -1).to(
-                        s_flat.dtype
+                    feat_kd_val = feat_mse_loss(
+                        s_feat, fsyn_use,
+                        norm=cfg.get("feat_kd_norm", "none")
                     )
-                    if s_flat.size(1) == f_flat.size(1):
-                        feat_kd_val = torch.nn.functional.mse_loss(s_flat, f_flat)
-                    else:
-                        if not feat_kd_warned:
-                            logger.info(
-                                f"[StudentDistill] skip feat KD: s_feat={s_flat.size(1)}"
-                                f" vs fsyn={f_flat.size(1)}"
-                            )
-                            feat_kd_warned = True
 
             loss = (
                 cfg["ce_alpha"] * ce_loss_val

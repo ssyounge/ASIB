@@ -6,7 +6,9 @@ from utils.progress import smart_tqdm
 from models.la_mbm import LightweightAttnMBM
 from modules.ib_mbm import IB_MBM
 
-from modules.losses import kd_loss_fn, ce_loss_fn, ib_loss, certainty_weights
+from modules.losses import (
+    kd_loss_fn, ce_loss_fn, ib_loss, certainty_weights, feat_mse_loss
+)
 from utils.schedule import get_tau, get_beta
 from utils.misc import get_amp_components
 
@@ -85,12 +87,13 @@ def teacher_adaptive_update(
     - ``student_model``: kept fixed for knowledge distillation.
     - ``testloader``: optional loader used to evaluate synergy accuracy.
     """
+    # cfg.train_distill_adapter_only == True → teacher 본체는 그대로 freeze
     teacher_params = []
-    use_da = cfg.get("use_distillation_adapter", False)
+    only_da = cfg.get("train_distill_adapter_only", False)
     for tw in teacher_wrappers:
         param_src = (
             tw.distillation_adapter.parameters()
-            if use_da and hasattr(tw, "distillation_adapter")
+            if only_da and hasattr(tw, "distillation_adapter")
             else tw.parameters()
         )
         for p in param_src:
@@ -205,17 +208,10 @@ def teacher_adaptive_update(
 
                 feat_kd_loss = torch.tensor(0.0, device=cfg["device"])
                 if la_mode and cfg.get("feat_kd_alpha", 0) > 0 and not isinstance(mbm, IB_MBM):
-                    s_flat = s_feat.view(s_feat.size(0), -1)
-                    f_flat = fsyn.detach().view(fsyn.size(0), -1).to(s_flat.dtype)
-                    if s_flat.size(1) == f_flat.size(1):
-                        feat_kd_loss = torch.nn.functional.mse_loss(s_flat, f_flat)
-                    else:
-                        if not feat_kd_warned:
-                            logger.info(
-                                f"[TeacherAdaptive] skip feat KD: s_feat={s_flat.size(1)}"
-                                f" vs fsyn={f_flat.size(1)}"
-                            )
-                            feat_kd_warned = True
+                    feat_kd_loss = feat_mse_loss(
+                        s_feat, fsyn,
+                        norm=cfg.get("feat_kd_norm", "none")
+                    )
 
             # Standard KD + CE
             kd_weight = cfg.get(

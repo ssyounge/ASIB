@@ -124,7 +124,7 @@ def partial_freeze_teacher_resnet(
         patterns.extend([r"^backbone\.fc\.", r"^mbm\."])
 
     if use_adapter:
-        patterns.append(r"\.adapter_")
+        patterns.append(r"\.distillation_adapter\.")
 
     unfreeze_by_regex(model, patterns)
 
@@ -175,7 +175,7 @@ def partial_freeze_teacher_efficientnet(
         patterns.extend([r"^backbone\.classifier\.", r"^mbm\."])
 
     if use_adapter:
-        patterns.append(r"\.adapter_")
+        patterns.append(r"\.distillation_adapter\.")
 
     unfreeze_by_regex(model, patterns)
 
@@ -210,7 +210,7 @@ def partial_freeze_teacher_swin(
         patterns.extend([r"^backbone\.head\.", r"^mbm\."])
 
     if use_adapter:
-        patterns.append(r"\.adapter_")
+        patterns.append(r"\.distillation_adapter\.")
 
     unfreeze_by_regex(model, patterns)
 
