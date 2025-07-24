@@ -85,7 +85,6 @@ def student_distillation_update(
             cur_tau = get_tau(cfg, global_ep + ep)
         distill_loss_sum = 0.0
         cnt = 0
-        feat_kd_sum = 0.0
         student_model.train()
 
         mix_mode = (
@@ -127,27 +126,17 @@ def student_distillation_update(
 
                 if query_mode:
                     s_feat = feat_dict[cfg.get("feat_kd_key", "feat_2d")]
-                    if isinstance(mbm, IB_MBM):
-                        # IB-MBM returns z, mu, logvar
-                        syn_feat, mu, logvar = mbm(
-                            s_feat, torch.stack([f1_2d, f2_2d], dim=1)
-                        )
-                        attn = None
-                        # optional IB loss
-                        if cfg.get("use_ib", False):
-                            ib_beta = get_beta(cfg, global_ep + ep)
-                            mu, logvar = mu.float(), logvar.float()
-                            ib_loss_val = ib_loss(mu, logvar, beta=ib_beta)
-                        else:
-                            ib_loss_val = torch.tensor(0.0, device=cfg["device"])
-                    else:  # LA MBM
-                        syn_feat, attn, student_q_proj, teacher_attn_out = mbm(
-                            s_feat, [f1_2d, f2_2d]
-                        )
+                    syn_feat, mu, logvar = mbm(
+                        s_feat, torch.stack([f1_2d, f2_2d], dim=1)
+                    )
+                    # optional IB loss
+                    if cfg.get("use_ib", False):
+                        ib_beta = get_beta(cfg, global_ep + ep)
+                        mu, logvar = mu.float(), logvar.float()
+                        ib_loss_val = ib_loss(mu, logvar, beta=ib_beta)
+                    else:
                         ib_loss_val = torch.tensor(0.0, device=cfg["device"])
                     fsyn = syn_feat
-                    if "attn" in locals() and attn is not None:
-                        attn_sum += attn.mean().item() * x.size(0)
                 else:
                     fsyn = mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
                     ib_loss_val = torch.tensor(0.0, device=cfg["device"])
@@ -208,33 +197,9 @@ def student_distillation_update(
             ce_loss_val = (weights * ce_vec).mean()
             kd_loss_val = (weights * kd_vec).mean()
 
-            feat_kd_val = torch.tensor(0.0, device=cfg["device"])
-            if cfg.get("feat_kd_alpha", 0) > 0:
-                if query_mode and not isinstance(mbm, IB_MBM):
-                    tgt = teacher_attn_out.detach().to(student_q_proj.dtype)
-                    feat_kd_val = feat_mse_loss(
-                        student_q_proj,
-                        tgt,
-                        norm=cfg.get("feat_kd_norm", "none"),
-                    )
-                else:
-                    key = cfg.get("feat_kd_key", "feat_2d")
-                    s_feat = feat_dict[key]
-                    fsyn_use = fsyn
-                    if fsyn_use.dim() == 4 and s_feat.dim() == 2:
-                        fsyn_use = torch.nn.functional.adaptive_avg_pool2d(
-                            fsyn_use, (1, 1)
-                        ).flatten(1)
-
-                    feat_kd_val = feat_mse_loss(
-                        s_feat, fsyn_use,
-                        norm=cfg.get("feat_kd_norm", "none")
-                    )
-
             loss = (
                 cfg["ce_alpha"] * ce_loss_val
                 + cfg["kd_alpha"] * kd_loss_val
-                + cfg.get("feat_kd_alpha", 0.0) * feat_kd_val
                 + ib_loss_val
             )
 
@@ -259,11 +224,9 @@ def student_distillation_update(
 
             bs = x.size(0)
             distill_loss_sum += loss.item()*bs
-            feat_kd_sum += feat_kd_val.item() * bs
             cnt += bs
 
         ep_loss = distill_loss_sum / cnt
-        avg_feat_kd = feat_kd_sum / cnt if cnt > 0 else 0.0
         attn_avg = attn_sum / cnt if query_mode and cnt > 0 else 0.0
 
         # (C) validate
@@ -288,7 +251,6 @@ def student_distillation_update(
         logger.update_metric(f"student_ep{ep+1}_loss", ep_loss)
         if query_mode:
             logger.update_metric(f"student_ep{ep+1}_attn", attn_avg)
-        logger.update_metric(f"ep{ep+1}_feat_kd", avg_feat_kd)
         logger.update_metric(f"ep{ep+1}_mix_mode", mix_mode)
         logger.update_metric(f"epoch{global_ep+ep+1}_tau", cur_tau)
 

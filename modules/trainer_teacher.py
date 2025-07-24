@@ -51,12 +51,9 @@ def eval_synergy(
             f2_4d = t2_dict.get("feat_4d")
 
             if query_mode:
-                assert student_model is not None, "student_model required for LA MBM"
+                assert student_model is not None, "student_model required for query-based MBM"
                 s_feat = student_model(x)[0][cfg.get("feat_kd_key", "feat_2d")]
-                if isinstance(mbm, IB_MBM):
-                    fsyn, _, _ = mbm(s_feat, torch.stack([f1_2d, f2_2d], dim=1))
-                else:
-                    fsyn, _, _, _ = mbm(s_feat, [f1_2d, f2_2d])
+                fsyn, _, _ = mbm(s_feat, torch.stack([f1_2d, f2_2d], dim=1))
             else:
                 fsyn = mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
             zsyn = synergy_head(fsyn)
@@ -160,19 +157,15 @@ def teacher_adaptive_update(
 
                 # (C) MBM + synergy_head
                 if query_mode:
-                    if isinstance(mbm, IB_MBM):
-                        syn_feat, mu, logvar = mbm(
-                            s_feat, torch.stack(feats_2d, dim=1)
-                        )
-                        attn = None
-                        ib_loss_val = 0.0
-                        if cfg.get("use_ib", False):
-                            mu, logvar = mu.float(), logvar.float()
-                            ib_beta = get_beta(cfg, global_ep + ep)
-                            ib_loss_val = ib_loss(mu, logvar, beta=ib_beta)
-                    else:
-                        syn_feat, attn, _, _ = mbm(s_feat, feats_2d)
-                        ib_loss_val = 0.0
+                    syn_feat, mu, logvar = mbm(
+                        s_feat, torch.stack(feats_2d, dim=1)
+                    )
+                    attn = None
+                    ib_loss_val = 0.0
+                    if cfg.get("use_ib", False):
+                        mu, logvar = mu.float(), logvar.float()
+                        ib_beta = get_beta(cfg, global_ep + ep)
+                        ib_loss_val = ib_loss(mu, logvar, beta=ib_beta)
                     fsyn = syn_feat
                 else:
                     fsyn = mbm(feats_2d, feats_4d)
@@ -220,12 +213,6 @@ def teacher_adaptive_update(
                 if query_mode and attn is not None:
                     attn_sum += attn.mean().item() * x.size(0)
 
-                feat_kd_loss = torch.tensor(0.0, device=cfg["device"])
-                if query_mode and cfg.get("feat_kd_alpha", 0) > 0 and not isinstance(mbm, IB_MBM):
-                    feat_kd_loss = feat_mse_loss(
-                        s_feat, fsyn,
-                        norm=cfg.get("feat_kd_norm", "none")
-                    )
 
             # Standard KD + CE
             kd_weight = cfg.get(
@@ -235,7 +222,6 @@ def teacher_adaptive_update(
             total_loss = (
                 kd_weight * loss_kd
                 + synergy_ce_loss
-                + cfg.get("feat_kd_alpha", 0) * feat_kd_loss
                 + ib_loss_val
             )
 

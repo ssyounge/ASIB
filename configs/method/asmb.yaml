@@ -8,4 +8,5 @@ method:
   teacher_adapt_kd_warmup: 1
   hybrid_beta: 0.05
   cutmix_alpha_distill: 0.3
+  feat_kd_alpha: 0.0
   # IB (공통) ⇒ base.mbm 에서 설정

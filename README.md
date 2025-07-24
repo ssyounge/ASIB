@@ -50,18 +50,6 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
   token instead of the student feature as attention query
 - **IB β Warmup**: `ib_beta_warmup_epochs` linearly scales the KL weight from
   0 to `ib_beta` over the specified epochs
-- **Feature-Level KD**: align student features with the synergy representation.
-  A nonzero `feat_kd_alpha` enables feature alignment during teacher and student
-  updates. Example model config snippet:
-
-  ```yaml
-  feat_kd_alpha: 1.0
-  feat_kd_key: "feat_2d"
-  feat_kd_norm: "none"
-  ```
-
-  The same values can be overridden via CLI using
-  `--feat_kd_alpha 1.0 --feat_kd_key feat_2d --feat_kd_norm none`.
 - **Hybrid Guidance**: set `hybrid_beta` (>0) to blend vanilla KD from the
   average teacher logits with the default ASMB loss.
 - **Custom MBM Query Dim**: `mbm_query_dim` sets the dimension of the
