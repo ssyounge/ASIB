@@ -20,7 +20,6 @@ teacher2_ckpt: checkpoints/efficientnet_b2_cifar32.pth
 # 32×32 전용 stem을 다시 만들지 않도록 ckpt와 동일하게 지정
 teacher1_small_input: true
 teacher2_small_input: true
-teacher2_use_adapter: true
 
 student_type: resnet152_adapter
 student_pretrained: true
