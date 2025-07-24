@@ -1,4 +1,7 @@
-import os, pickle, numpy as np, torch
+import os
+import pickle
+import numpy as np
+import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 

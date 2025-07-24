@@ -7,7 +7,6 @@ Supports evaluation on the CIFAR-100 and ImageNet-100 datasets.
 
 import torch
 import torch.nn as nn
-import os
 import hydra
 from omegaconf import DictConfig, OmegaConf
 

@@ -1,7 +1,6 @@
 # modules/trainer_student.py
 
 import torch
-import torch.nn.functional as F
 import copy
 import logging
 from utils.progress import smart_tqdm
@@ -89,7 +88,6 @@ def student_distillation_update(
         cnt = 0
         feat_kd_sum = 0.0
         student_model.train()
-        feat_kd_warned = False
 
         mix_mode = (
             "cutmix"
