@@ -1,3 +1,5 @@
+# models/teachers/teacher_resnet.py
+
 import torch
 import torch.nn as nn
 from models.common.base_wrapper import BaseKDModel, register
