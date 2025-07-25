@@ -53,9 +53,11 @@ class ChannelAdapter2D(nn.Module):
     def forward(self, x):
         return x + self.net(x)
 
-    # ---------------------------------------------------------------------------
-    # Bottleneck MLP Adapter (2D tokens)
-    # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Bottleneck MLP Adapter (2D tokens)
+# ---------------------------------------------------------------------------
+class BottleneckMLP(nn.Module):
     """Linear-ReLU-Linear bottleneck with residual."""
 
     def __init__(self, dim: int, r: int = 4):
