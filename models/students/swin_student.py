@@ -4,6 +4,10 @@ import torch.nn as nn
 import timm
 from typing import Optional
 
+from models.common.base_wrapper import register
+
+
+@register("swin_student")
 class SwinStudent(nn.Module):
     """
     Example Student model:
@@ -12,8 +16,15 @@ class SwinStudent(nn.Module):
       3) final fc => logit
       => returns (feature_dict, logit, ce_loss)
     """
-    def __init__(self, pretrained=True, adapter_dim=64, num_classes=100,
-                 small_input: bool = False, cfg: Optional[dict] = None):
+
+    def __init__(
+        self,
+        pretrained=True,
+        adapter_dim=64,
+        num_classes=100,
+        small_input: bool = False,
+        cfg: Optional[dict] = None,
+    ):
         if cfg is not None:
             adapter_dim = cfg.get("swin_adapter_dim", adapter_dim)
         super().__init__()
@@ -26,7 +37,7 @@ class SwinStudent(nn.Module):
             pretrained=pretrained,
             img_size=img_sz,
         )
-        
+
         # 2) remove default classifier => (N, in_features)
         in_features = self.swin.head.in_features
         self.swin.head = nn.Identity()
@@ -57,7 +68,7 @@ class SwinStudent(nn.Module):
         # 1) base Swin => 2D embedding
         feat_2d = self.swin(x)  # shape: [N, in_features]
 
-        # (만약 swin forward_features(...) => 4D를 보고 싶다면, 
+        # (만약 swin forward_features(...) => 4D를 보고 싶다면,
         #  teacher_swin 처럼 f4d = self.swin.forward_features(x)을 활용)
 
         # 2) adapter residual
@@ -83,14 +94,22 @@ class SwinStudent(nn.Module):
 
 def create_swin_adapter_student(*a, **kw):
     import warnings
+
     warnings.warn(
         "renamed → models.students.swin_student.SwinStudent",
-        DeprecationWarning, stacklevel=2,
+        DeprecationWarning,
+        stacklevel=2,
     )
     return SwinStudent(*a, **kw)
 
-def create_swin_student(pretrained=True, adapter_dim=64, num_classes=100,
-                        small_input: bool = False, cfg: Optional[dict] = None):
+
+def create_swin_student(
+    pretrained=True,
+    adapter_dim=64,
+    num_classes=100,
+    small_input: bool = False,
+    cfg: Optional[dict] = None,
+):
     if cfg is not None:
         adapter_dim = cfg.get("swin_adapter_dim", adapter_dim)
     """Creates the Student Swin model w/ adapter."""

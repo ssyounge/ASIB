@@ -3,16 +3,22 @@
 import torch
 import torch.nn as nn
 from models.common.base_wrapper import BaseKDModel, register
-from models.common.adapter import ChannelAdapter2D
 
 import torchvision.models as tv
+
 
 @register("resnet101_teacher")
 class ResNet101Teacher(BaseKDModel):
     """ResNet-101 Teacher with optional distillation adapter."""
 
-    def __init__(self, *, pretrained: bool = True, num_classes: int = 100,
-                 small_input: bool = False, cfg: dict | None = None):
+    def __init__(
+        self,
+        *,
+        pretrained: bool = True,
+        num_classes: int = 100,
+        small_input: bool = False,
+        cfg: dict | None = None,
+    ):
         backbone = tv.resnet101(
             weights=tv.ResNet101_Weights.IMAGENET1K_V2 if pretrained else None
         )
@@ -37,8 +43,14 @@ class ResNet101Teacher(BaseKDModel):
 class ResNet152Teacher(BaseKDModel):
     """ResNet-152 Teacher with optional distillation adapter."""
 
-    def __init__(self, *, pretrained: bool = True, num_classes: int = 100,
-                 small_input: bool = False, cfg: dict | None = None):
+    def __init__(
+        self,
+        *,
+        pretrained: bool = True,
+        num_classes: int = 100,
+        small_input: bool = False,
+        cfg: dict | None = None,
+    ):
         backbone = tv.resnet152(
             weights=tv.ResNet152_Weights.IMAGENET1K_V2 if pretrained else None
         )
@@ -59,12 +71,23 @@ class ResNet152Teacher(BaseKDModel):
         return f4d, f2d
 
 
-def create_resnet101(num_classes: int = 100, pretrained: bool = True,
-                     small_input: bool = False, cfg: dict | None = None):
-    return ResNet101Teacher(pretrained=pretrained, num_classes=num_classes,
-                            small_input=small_input, cfg=cfg)
+def create_resnet101(
+    num_classes: int = 100,
+    pretrained: bool = True,
+    small_input: bool = False,
+    cfg: dict | None = None,
+):
+    return ResNet101Teacher(
+        pretrained=pretrained, num_classes=num_classes, small_input=small_input, cfg=cfg
+    )
 
-def create_resnet152(num_classes: int = 100, pretrained: bool = True,
-                     small_input: bool = False, cfg: dict | None = None):
-    return ResNet152Teacher(pretrained=pretrained, num_classes=num_classes,
-                            small_input=small_input, cfg=cfg)
+
+def create_resnet152(
+    num_classes: int = 100,
+    pretrained: bool = True,
+    small_input: bool = False,
+    cfg: dict | None = None,
+):
+    return ResNet152Teacher(
+        pretrained=pretrained, num_classes=num_classes, small_input=small_input, cfg=cfg
+    )
