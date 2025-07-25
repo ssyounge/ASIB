@@ -77,7 +77,6 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 
   | Student model                | Feature dim |
   |------------------------------|-------------|
-  | `student_efficientnet_adapter` | 1408        |
   | `student_resnet_adapter`       | 2048        |
   | `student_swin_adapter`         | 768         |
 - **Swin Adapter Dim**: `swin_adapter_dim` sets the hidden size of the MLP
@@ -88,7 +87,7 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
   (and remove max-pool for ResNet)
 - **Distillation Adapter**: set `use_distillation_adapter: true` to enable
   lightweight adapters on each teacher. `distill_out_dim` controls the common
-  feature dimension used for synergy (default `512`). Set `debug_verbose: true` to print the teacher and student feature shapes every batch when troubleshooting (the example configs such as `configs/experiment/res152_effi_b2.yaml` leave this `false` by default).
+ feature dimension used for synergy (default `512`). Set `debug_verbose: true` to print the teacher and student feature shapes every batch when troubleshooting (the example config `configs/experiment/res152_effi_l2.yaml` leaves this `false` by default).
 - **Disagreement Metrics**: `compute_disagreement_rate` now accepts
   `mode="pred"` to measure prediction mismatch or `mode="both_wrong"` for
   cross-error
@@ -117,13 +116,11 @@ pip install -r requirements.txt  # includes pandas for analysis
 ```bash
 mkdir checkpoints
 wget -O checkpoints/resnet152_ft.pth <링크>
-wget -O checkpoints/efficientnet_b2_ft.pth <링크>
 wget -O checkpoints/efficientnet_l2_ft.pth <링크>  # optional EfficientNet-L2
 ```
 5. **Run a single experiment**:
 ```bash
-python main.py --config-name experiment/res152_effi_b2
-python main.py --config-name experiment/res152_effi_l2  # L2 teacher example
+python main.py --config-name experiment/res152_effi_l2  # EfficientNet-L2 teacher
 ```
 
 The unified script `run_experiments.sh` automatically tries to activate a
@@ -485,12 +482,10 @@ Folder Structure
 │   ├── common/
 │   │   └── adapter.py
 │   ├── students/
-│   │   ├── student_efficientnet_adapter.py
 │   │   ├── student_resnet_adapter.py
 │   │   ├── student_resnet152_adapter.py
 │   │   └── student_swin_adapter.py
 │   └── teachers/
-│       ├── teacher_efficientnet.py
 │       ├── teacher_resnet.py
 │       └── teacher_swin.py
 
