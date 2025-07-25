@@ -480,7 +480,6 @@ Folder Structure
 ├── models/
 │   ├── __init__.py
 │   ├── mbm.py
-│   ├── la_mbm.py
 │   ├── common/
 │   │   └── adapter.py
 │   ├── students/
@@ -496,7 +495,6 @@ Folder Structure
 ├── modules/
 │   ├── trainer_student.py
 │   ├── trainer_teacher.py
-│   ├── ib_mbm.py
 │   ├── cutmix_finetune_teacher.py
 │   ├── disagreement.py
 │   ├── partial_freeze.py
