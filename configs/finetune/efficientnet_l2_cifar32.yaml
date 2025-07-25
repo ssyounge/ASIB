@@ -1,0 +1,27 @@
+# configs/finetune/efficientnet_l2_cifar32.yaml
+
+defaults:
+  - ../dataset/cifar100
+  - _self_
+
+teacher_type: efficientnet_l2
+small_input: true
+teacher_pretrained: true
+teacher_ckpt_init: null
+
+finetune_epochs: 10
+finetune_lr: 3e-4
+finetune_weight_decay: 1e-4
+finetune_use_cutmix: true
+finetune_cutmix_alpha: 1.0
+label_smoothing: 0.0
+
+seed: 42
+device: cuda
+log_level: INFO
+deterministic: true
+
+finetune_ckpt_path: checkpoints/efficientnet_l2_cifar32.pth
+
+dataset_name: cifar100
+data_root: ./data

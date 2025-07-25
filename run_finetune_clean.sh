@@ -17,7 +17,7 @@ source ~/.bashrc
 conda activate tlqkf
 export PYTHONPATH="$(pwd):$PYTHONPATH"
 
-CONFIGS=(resnet152_cifar32 efficientnet_b2_cifar32)
+CONFIGS=(resnet152_cifar32 efficientnet_b2_cifar32 efficientnet_l2_cifar32)
 IDX=${1:-0}
 CFG_NAME=${CONFIGS[$IDX]}
 
