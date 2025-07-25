@@ -1,3 +1,4 @@
+# utils/debug.py
 # Simple global switch for verbose prints
 VERBOSE = True
 
