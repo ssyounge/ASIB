@@ -199,9 +199,26 @@ def student_distillation_update(
             ce_loss_val = (weights * ce_vec).mean()
             kd_loss_val = (weights * kd_vec).mean()
 
+            # ——— Feature-KD (MSE) ———
+            feat_kd_val = torch.tensor(0.0, device=cfg["device"])
+            if cfg.get("feat_kd_alpha", 0) > 0:
+                key = cfg.get("feat_kd_key", "feat_2d")
+                s_feat = feat_dict[key]
+                fsyn_use = fsyn
+                if fsyn_use.dim() == 4 and s_feat.dim() == 2:
+                    fsyn_use = torch.nn.functional.adaptive_avg_pool2d(
+                        fsyn_use, (1, 1)
+                    ).flatten(1)
+                feat_kd_val = feat_mse_loss(
+                    s_feat,
+                    fsyn_use,
+                    norm=cfg.get("feat_kd_norm", "none"),
+                )
+
             loss = (
                 cfg["ce_alpha"] * ce_loss_val
                 + cfg["kd_alpha"] * kd_loss_val
+                + cfg.get("feat_kd_alpha", 0.0) * feat_kd_val
                 + ib_loss_val
             )
 
