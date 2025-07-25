@@ -1,0 +1,34 @@
+# configs/experiment/res152_effi_l2.yaml
+
+defaults:
+  - /base
+  - override /dataset: cifar100
+  - override /model/teacher: resnet152
+  - override /model/student: resnet152_pretrain
+  - override /method: asmb
+  - override /schedule: cosine
+  - _self_
+
+teacher1_type: resnet152
+teacher1_ckpt: checkpoints/resnet152_cifar32.pth
+
+teacher2_type: efficientnet_l2
+teacher2_ckpt: checkpoints/efficientnet_l2_cifar32.pth
+
+teacher1_small_input: true
+teacher2_small_input: true
+
+student_type: resnet152_adapter
+student_pretrained: true
+student_freeze_level: 1
+
+num_stages: 3
+batch_size: 128
+
+use_distillation_adapter: true
+distill_out_dim: 512
+
+mbm_query_dim: 5504
+
+results_dir: outputs/res152_effi_l2
+exp_id: res152_effi_l2

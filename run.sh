@@ -17,4 +17,4 @@ export PYTHONPATH="$(pwd):$PYTHONPATH"
 : "${SLURM_JOB_ID:=manual}"
 mkdir -p "outputs/asmb_${SLURM_JOB_ID}"
 
-python main.py --config-name experiment/res152_effi_b2
+python main.py --config-name experiment/res152_effi_b2  # or experiment/res152_effi_l2
