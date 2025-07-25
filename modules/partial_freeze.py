@@ -142,7 +142,7 @@ def partial_freeze_teacher_efficientnet(
     freeze_level: int = 1,
     train_distill_adapter_only: bool = False,
 ):
-    """Partially freeze an EfficientNet-B2 teacher using a numeric level.
+"""Partially freeze an EfficientNet teacher using a numeric level.
 
     ``freeze_all`` is called first and layers are unfrozen based on
     ``freeze_level``:
@@ -263,48 +263,6 @@ def partial_freeze_student_resnet(
             if isinstance(m, (nn.BatchNorm2d, nn.BatchNorm1d)):
                 for p in m.parameters():
                     p.requires_grad = True
-
-
-def partial_freeze_student_efficientnet(
-    model: nn.Module,
-    freeze_bn: bool = True,
-    use_adapter: bool = False,
-    freeze_level: int = 0,
-):
-    """Partially freeze an EfficientNet-B2 student.
-
-    All parameters are frozen first. Layers are then unfrozen depending on
-    ``freeze_level``:
-
-    - ``0`` → only the ``classifier`` (default)
-    - ``1`` → blocks ``features[6]``–``features[8]`` and the ``classifier``
-
-    Passing ``use_adapter`` unfreezes modules named ``adapter_*``. If
-    ``freeze_bn`` is ``False`` the BatchNorm parameters will also be
-    trainable.
-    """
-    freeze_all(model)
-
-    unfreeze_patterns = []
-    if freeze_level == 1:  # last few blocks + classifier
-        unfreeze_patterns.extend(
-            [r"features\.6\.", r"features\.7\.", r"features\.8\.", r"classifier\."]
-        )
-    else:  # default & level 0 => classifier only
-        unfreeze_patterns.append(r"classifier\.")
-
-    if use_adapter:
-        unfreeze_patterns.append(r"adapter_")
-
-    unfreeze_by_regex(model, unfreeze_patterns)
-
-    if not freeze_bn:
-        for m in model.modules():
-            if isinstance(m, (nn.BatchNorm2d, nn.BatchNorm1d)):
-                for p in m.parameters():
-                    p.requires_grad = True
-
-
 def partial_freeze_student_swin(
     model: nn.Module,
     freeze_ln: bool = True,
@@ -363,7 +321,7 @@ def freeze_teacher_params(
             freeze_level=freeze_level,
             train_distill_adapter_only=train_distill_adapter_only,
         )
-    elif teacher_name == "efficientnet_b2" or teacher_name in ("efficientnet_l2", "effnet_l2"):
+    elif teacher_name in ("efficientnet_l2", "effnet_l2"):
         partial_freeze_teacher_efficientnet(
             model,
             freeze_bn=freeze_bn,
@@ -394,13 +352,6 @@ def freeze_student_with_adapter(
     """Wrapper that freezes a student and optionally unfreezes its adapters."""
     if student_name == "resnet_adapter":
         partial_freeze_student_resnet(
-            model,
-            freeze_bn=freeze_bn,
-            use_adapter=True,
-            freeze_level=freeze_level,
-        )
-    elif student_name == "efficientnet_adapter":
-        partial_freeze_student_efficientnet(
             model,
             freeze_bn=freeze_bn,
             use_adapter=True,

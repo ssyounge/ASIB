@@ -1,9 +1,0 @@
-# configs/experiment/res152_effi_b2_fz0.yaml
-
-defaults:
-  - res152_effi_b2
-  - _self_
-
-student_freeze_level: 0   # all blocks trainable
-exp_id: res152_effi_b2_fz0
-results_dir: outputs/res152_effi_b2_fz0
