@@ -18,7 +18,7 @@ teacher2_ckpt: checkpoints/efficientnet_l2_cifar32.pth
 teacher1_small_input: true
 teacher2_small_input: true
 
-student_type: resnet152_adapter
+student_type: resnet152
 student_pretrained: true
 student_freeze_level: 1
 

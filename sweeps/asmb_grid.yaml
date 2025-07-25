@@ -9,7 +9,7 @@ metric:
 # (클라우드-컨트롤러 사용: 별도 설정 없이 기본값)
 
 parameters:             # ---- Hyper-search 공간 ----
-  student_type: {values: ["resnet152_adapter"]}
+  student_type: {values: ["resnet152"]}
   # 🔧 1) learning-rate (log10 균등)
   student_lr:
     distribution: log_uniform_values

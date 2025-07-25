@@ -89,3 +89,32 @@ class TokenAdapter1D(nn.Module):
 
     def forward(self, x):
         return x + self.proj(x)
+
+# ────────────────────────────────────────────────────────────────
+#  Teacher-side   DistillationAdapter  (기존 teachers/adapters.py)
+# ────────────────────────────────────────────────────────────────
+class DistillationAdapter(nn.Module):
+    """[Teacher]  학생 feature dim에 맞추는 작은 MLP.
+    `cfg['train_distill_adapter_only']` 때만 업데이트 됩니다."""
+
+    def __init__(self, in_dim: int,
+                 hidden_dim: int | None = None,
+                 out_dim: int | None = None,
+                 cfg: dict | None = None):
+        super().__init__()
+        cfg = cfg or {}
+        hidden_dim = cfg.get("distill_hidden_dim", hidden_dim or in_dim // 2)
+        out_dim    = cfg.get("distill_out_dim",    out_dim  or in_dim // 4)
+
+        self.proj = nn.Sequential(
+            nn.Linear(in_dim, hidden_dim),
+            nn.ReLU(inplace=True),
+            nn.Linear(hidden_dim, out_dim),
+        )
+        self.out_dim = out_dim
+
+    def forward(self, x):
+        if x.dim() > 2:                       # (N,C,H,W) → (N,C)
+            x = x.flatten(1)
+        return self.proj(x)
+

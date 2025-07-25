@@ -5,7 +5,7 @@ export PYTHONPATH="$(pwd):$PYTHONPATH"
 
 OVERLAPS="0 10 20 30 40 50 60 70 80 90 100"
 KD_LIST="asmb vanilla_kd dkd at crd fitnet"
-STUDENT="resnet152_adapter"
+STUDENT="resnet152"
 
 for P in $OVERLAPS; do
   ## 1) 두 교사 학습 (ResNet-152 ×2)

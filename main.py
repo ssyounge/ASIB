@@ -49,7 +49,7 @@ from modules.partial_freeze import (
 
 # Teacher creation (factory):
 from models.common.base_wrapper import MODEL_REGISTRY
-from models.teachers.teacher_swin import create_swin_t
+from models.teachers.swin_teacher import create_swin_t
 
 # ---------------------------------------------------------------------------
 # Helper – safe factory via registry
@@ -72,17 +72,17 @@ def create_student_by_name(
     Returns a student model that follows the common interface
     (feature_dict, logits, ce_loss).
     """
-    if student_name == "resnet_adapter":
+    if student_name == "resnet":
         return build_model(
-            "resnet101_adapter_student",
+            "resnet101_student",
             pretrained=pretrained,
             num_classes=num_classes,
             small_input=small_input,
             cfg=cfg,
         )
 
-    elif student_name == "resnet152_adapter":
-        from models.students.student_resnet152_adapter import (
+    elif student_name == "resnet152":
+        from models.students.resnet152_student import (
             create_resnet152_with_extended_adapter,
         )
         return create_resnet152_with_extended_adapter(
@@ -92,14 +92,14 @@ def create_student_by_name(
         )
 
 
-    elif student_name == "swin_adapter":
-        from models.students.student_swin_adapter import (
-            create_swin_adapter_student,
+    elif student_name == "swin":
+        from models.students.swin_student import (
+            create_swin_student,
         )
         adapter_dim = 64
         if cfg is not None:
             adapter_dim = cfg.get("swin_adapter_dim", adapter_dim)
-        return create_swin_adapter_student(
+        return create_swin_student(
             pretrained=pretrained,
             small_input=small_input,
             num_classes=num_classes,
@@ -140,7 +140,7 @@ def create_teacher_by_name(
             cfg=cfg,
         )
     elif teacher_name in ("efficientnet_l2", "effnet_l2"):
-        from models.teachers.teacher_efficientnet_l2 import create_efficientnet_l2
+        from models.teachers.efficientnet_l2_teacher import create_efficientnet_l2
         return create_efficientnet_l2(
             num_classes=num_classes,
             pretrained=pretrained,
@@ -197,7 +197,7 @@ def partial_freeze_teacher_auto(
 
 def partial_freeze_student_auto(
     model,
-    student_name="resnet_adapter",
+    student_name="resnet",
     freeze_bn=True,
     freeze_ln=True,
     use_adapter=False,
@@ -207,14 +207,14 @@ def partial_freeze_student_auto(
         for p in model.parameters():
             p.requires_grad = True
         return
-    if student_name == "resnet_adapter":
+    if student_name == "resnet":
         partial_freeze_student_resnet(
             model,
             freeze_bn=freeze_bn,
             use_adapter=use_adapter,
             freeze_level=freeze_level,
         )
-    elif student_name == "swin_adapter":
+    elif student_name == "swin":
         partial_freeze_student_swin(
             model,
             freeze_ln=freeze_ln,
@@ -546,7 +546,7 @@ def main(cfg: DictConfig):
     exp_logger.update_metric("teacher2_test_acc", te2_acc)
 
     # 5) Student
-    student_name  = cfg.get("student_type", "resnet_adapter")   # e.g. resnet_adapter / swin_adapter
+    student_name  = cfg.get("student_type", "resnet")   # e.g. resnet / swin
     student_model = create_student_by_name(
         student_name,
         pretrained=cfg.get("student_pretrained", True),
