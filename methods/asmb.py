@@ -289,7 +289,12 @@ class ASMBDistiller(nn.Module):
         for ep in range(1, epochs+1):
             if self.debug:
                 print(f"\n[DBG][Teacher] ====== Stage-Teacher ep {ep}/{epochs} ======")
-            cur_tau = get_tau(self.config, ep-1)
+            # 전 스테이지 누적 epoch = (stage-1)·epochs + (ep-1)
+            cur_tau = get_tau(
+                self.config,
+                epoch=(stage - 1) * epochs + (ep - 1),
+                total_epochs=self.num_stages * epochs,
+            )
             total_loss, total_num = 0.0, 0
             # L2 정규화는 매 batch 재계산해 그래프 중복 backward 오류를 방지
             for it, (x, y) in enumerate(train_loader):
@@ -446,7 +451,11 @@ class ASMBDistiller(nn.Module):
         for ep in range(1, epochs+1):
             if self.debug:
                 print(f"\n[DBG][Student] ====== Distill ep {ep}/{epochs} ======")
-            cur_tau = get_tau(self.config, ep-1)
+            cur_tau = get_tau(
+                self.config,
+                epoch=(stage - 1) * epochs + (ep - 1),
+                total_epochs=self.num_stages * epochs,
+            )
             self.student.train()
             total_loss, total_num = 0.0, 0
             for it, (x, y) in enumerate(train_loader):
