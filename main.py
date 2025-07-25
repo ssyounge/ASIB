@@ -52,9 +52,14 @@ from models.common.base_wrapper import MODEL_REGISTRY
 from models.teachers.teacher_swin import create_swin_t
 
 # ---------------------------------------------------------------------------
-# Helper to instantiate models registered via MODEL_REGISTRY
+# Helper – safe factory via registry
 def build_model(name: str, **kwargs):
-    return MODEL_REGISTRY[name](**kwargs)
+    try:
+        return MODEL_REGISTRY[name](**kwargs)
+    except KeyError as exc:
+        known = ", ".join(sorted(MODEL_REGISTRY.keys()))
+        raise ValueError(f"[build_model] Unknown model key '{name}'. "
+                         f"Available: {known}") from exc
 
 def create_student_by_name(
     student_name: str,

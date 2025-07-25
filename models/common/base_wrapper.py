@@ -23,21 +23,34 @@ class BaseKDModel(nn.Module):
         self.cfg = cfg or {}
         self.ce = nn.CrossEntropyLoss()
 
-        feat_dim = getattr(backbone, "num_features", None) or getattr(backbone, "feat_dim", None)
+        # ------------------------------------------------------------
+        # Robust feature-dim inference (tv-ResNet, timm, custom …)
+        # ------------------------------------------------------------
+        feat_dim = (
+            getattr(backbone, "num_features", None)
+            or getattr(backbone, "feat_dim", None)
+            or (backbone.fc.in_features if hasattr(backbone, "fc") else None)
+        )
         if feat_dim is None:
-            raise ValueError("Backbone must expose 'num_features' or 'feat_dim'")
+            raise ValueError(
+                "Unable to infer feature dimension – "
+                "backbone must expose 'num_features', 'feat_dim' or '.fc.in_features'."
+            )
         self.feat_dim = feat_dim
 
         if self.cfg.get("use_distillation_adapter", False):
             hid = self.cfg.get("distill_hidden_dim", feat_dim // 2)
             out = self.cfg.get("distill_out_dim", feat_dim // 4)
-            self.distill_adapter = nn.Sequential(
+            self.distillation_adapter = nn.Sequential(
                 nn.Linear(feat_dim, hid),
                 nn.ReLU(inplace=True),
                 nn.Linear(hid, out),
             )
+            # legacy alias (외부 코드 호환)
+            self.distill_adapter = self.distillation_adapter
             self.distill_dim = out
         else:
+            self.distillation_adapter = None
             self.distill_adapter = None
             self.distill_dim = feat_dim
 
@@ -49,7 +62,7 @@ class BaseKDModel(nn.Module):
 
     def forward(self, x, y: torch.Tensor | None = None) -> Tuple[Dict, torch.Tensor, Dict[str, Any]]:
         f4d, f2d = self.extract_feats(x)
-        distill = self.distill_adapter(f2d) if self.distill_adapter else None
+        distill = self.distillation_adapter(f2d) if self.distillation_adapter else None
         logit = self.classifier(f2d)
 
         aux: Dict[str, Any] = {}
