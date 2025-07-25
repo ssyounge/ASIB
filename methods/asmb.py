@@ -286,8 +286,7 @@ class ASMBDistiller(nn.Module):
                 print(f"\n[DBG][Teacher] ====== Stage-Teacher ep {ep}/{epochs} ======")
             cur_tau = get_tau(self.config, ep-1)
             total_loss, total_num = 0.0, 0
-            # -- L2 reg 항은 epoch 단위로 한 번만 계산하여 속도 향상
-            reg_loss_epoch = torch.stack([(p ** 2).mean() for p in params]).mean()
+            # L2 정규화는 매 batch 재계산해 그래프 중복 backward 오류를 방지
             for it, (x, y) in enumerate(train_loader):
                 x, y = x.to(self.device), y.to(self.device)
 
@@ -326,12 +325,13 @@ class ASMBDistiller(nn.Module):
                     )
                     synergy_ce = self.synergy_ce_alpha * ce_val
 
-                    # 파라미터 개수로 나눠 스케일 다운
+                    # L2 regularization (per-batch)
+                    reg_loss = torch.stack([(p ** 2).mean() for p in params]).mean()
 
                     loss = (
                         kl_val
                         + synergy_ce
-                        + self.reg_lambda * reg_loss_epoch
+                        + self.reg_lambda * reg_loss
                     )
 
                 if logger is not None and attn is not None:
