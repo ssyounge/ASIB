@@ -1,23 +1,22 @@
 # utils/schedule.py
 
-import math
-
-
 def get_tau(cfg: dict, epoch: int) -> float:
-    """Return τ at a given *epoch* according to cfg."""
-    sched = cfg.get("temperature_schedule", "fixed").lower()
-    T0 = cfg.get("tau_start", 4.0)
-    Tend = cfg.get("tau_end", 1.0)
-    decay = max(int(cfg.get("tau_decay_epochs", 1)), 1)
-    t = min(epoch, decay) / decay
+    """
+    Polynomial temperature decay.
 
-    if sched in ("linear", "linear_decay"):
-        tau = T0 + (Tend - T0) * t
-    elif sched == "cosine":
-        tau = Tend + 0.5 * (T0 - Tend) * (1 + math.cos(math.pi * t))
-    else:  # fixed
-        tau = T0
-    return float(tau)
+    The schedule follows:
+      τ(e) = τ_end + (τ_start - τ_end) · (1 - e/E)^p
+
+    where ``E`` is the total number of epochs (``T_max`` or ``total_epochs``)
+    and ``p`` controls the curvature.
+    """
+
+    tau_start = float(cfg.get("tau_start", 4.0))
+    tau_end = float(cfg.get("tau_end", tau_start))  # decay off if missing
+    power = float(cfg.get("tau_decay_power", 1.0))
+    total_ep = max(1, cfg.get("T_max", cfg.get("total_epochs", 1)))
+    prog = min(epoch / total_ep, 1.0)
+    return tau_end + (tau_start - tau_end) * (1.0 - prog) ** power
 
 
 def get_beta(cfg: dict, epoch: int = 0) -> float:
