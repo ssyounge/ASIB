@@ -363,7 +363,7 @@ def freeze_teacher_params(
             freeze_level=freeze_level,
             train_distill_adapter_only=train_distill_adapter_only,
         )
-    elif teacher_name == "efficientnet_b2":
+    elif teacher_name == "efficientnet_b2" or teacher_name in ("efficientnet_l2", "effnet_l2"):
         partial_freeze_teacher_efficientnet(
             model,
             freeze_bn=freeze_bn,

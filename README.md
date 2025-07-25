@@ -118,10 +118,12 @@ pip install -r requirements.txt  # includes pandas for analysis
 mkdir checkpoints
 wget -O checkpoints/resnet152_ft.pth <링크>
 wget -O checkpoints/efficientnet_b2_ft.pth <링크>
+wget -O checkpoints/efficientnet_l2_ft.pth <링크>  # optional EfficientNet-L2
 ```
 5. **Run a single experiment**:
 ```bash
 python main.py --config-name experiment/res152_effi_b2
+python main.py --config-name experiment/res152_effi_l2  # L2 teacher example
 ```
 
 The unified script `run_experiments.sh` automatically tries to activate a

@@ -147,6 +147,14 @@ def create_teacher_by_name(
             small_input=small_input,
             cfg=cfg,
         )
+    elif teacher_name in ("efficientnet_l2", "effnet_l2"):
+        from models.teachers.teacher_efficientnet_l2 import create_efficientnet_l2
+        return create_efficientnet_l2(
+            num_classes=num_classes,
+            pretrained=pretrained,
+            small_input=small_input,
+            cfg=cfg,
+        )
     elif teacher_name == "swin_tiny":
         return create_swin_t(
             num_classes=num_classes,
@@ -175,7 +183,7 @@ def partial_freeze_teacher_auto(
             freeze_level=freeze_level,
             train_distill_adapter_only=train_distill_adapter_only,
         )
-    elif teacher_name == "efficientnet_b2":
+    elif teacher_name == "efficientnet_b2" or teacher_name in ("efficientnet_l2", "effnet_l2"):
         partial_freeze_teacher_efficientnet(
             model,
             freeze_bn=freeze_bn,
