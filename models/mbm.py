@@ -24,24 +24,12 @@ class IB_MBM(nn.Module):
         syn, _ = self.attn(q, kv, kv)
         syn = syn.squeeze(1)
         mu, logvar = self.mu(syn), torch.clamp(self.logvar(syn), -10.0, 10.0)
-        std = torch.exp(0.5 * logvar).clamp_min(1e-3)
+        # AMP 환경 under‑flow 방지 (1e‑4)
+        std = torch.exp(0.5 * logvar).clamp_min(1e-4)
         z = mu + std * torch.randn_like(std)
         return z, mu, logvar
 
-    def loss(
-        self,
-        z: torch.Tensor,
-        mu: torch.Tensor,
-        logvar: torch.Tensor,
-        labels: torch.Tensor,
-        decoder: nn.Module,
-    ) -> torch.Tensor:
-        ce = nn.CrossEntropyLoss()(decoder(z), labels)
-        logvar = torch.clamp(logvar, -10.0, 10.0)
-        q = Normal(mu, torch.exp(0.5 * logvar))
-        p = Normal(torch.zeros_like(mu), torch.ones_like(mu))
-        kl = kl_divergence(q, p).mean()
-        return ce + self.beta * kl
+    # legacy `loss()` 는 사용처가 사라져 제거했습니다.
 
 class ManifoldBridgingModule(nn.Module):
     """Fuses teacher features using optional MLP, convolutional and attention paths."""
