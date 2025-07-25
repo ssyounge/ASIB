@@ -218,58 +218,48 @@ def teacher_adaptive_update(
                         norm=cfg.get("feat_kd_norm", "none")
                     )
 
-                # ----- 들여쓰기 BUG FIX: 이하 연산은 loop 내부여야 합니다 -----
-                kd_weight = cfg.get(
-                    "teacher_adapt_alpha_kd",
-                    cfg.get("kd_alpha", 1.0),
-                )
-                total_loss = (
+                # ---- (1) 전체 손실 구성 ----
+                kd_weight = cfg.get("teacher_adapt_alpha_kd",
+                                    cfg.get("kd_alpha", 1.0))
+
+                # 정규화 항은 batch-별로 포함
+                reg_loss     = torch.stack([(p ** 2).mean()
+                                    for p in teacher_params]).mean()
+                mbm_reg_loss = torch.stack([(p ** 2).mean()
+                                    for p in mbm_params + syn_params]).mean()
+
+                total_loss_step = (
                     kd_weight * loss_kd
                     + synergy_ce_loss
                     + cfg.get("feat_kd_alpha", 0) * feat_kd_loss
                     + ib_loss_val
+                    + float(cfg.get("reg_lambda", 0.0))  * reg_loss
+                    + float(cfg.get("mbm_reg_lambda", 0.0)) * mbm_reg_loss
                 )
 
-    # --- 1) L2 regularization on teacher parameters ---
-    if teacher_params:
-        reg_loss = torch.stack([(p ** 2).mean() for p in teacher_params]).mean()
-    else:  # protect empty list
-        reg_loss = torch.tensor(0.0, device=zsyn.device)
-        print("[TeacherAdaptive] teacher_params empty -> reg_loss=0")
+            # ---- (2) per-batch Optim ----
+            optimizer.zero_grad()
+            if scaler is not None:
+                scaler.scale(total_loss_step).backward()
+                if cfg.get("grad_clip_norm", 0) > 0:
+                    scaler.unscale_(optimizer)
+                    torch.nn.utils.clip_grad_norm_(
+                        teacher_params + mbm_params + syn_params,
+                        cfg["grad_clip_norm"],
+                    )
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                total_loss_step.backward()
+                if cfg.get("grad_clip_norm", 0) > 0:
+                    torch.nn.utils.clip_grad_norm_(
+                        teacher_params + mbm_params + syn_params,
+                        cfg["grad_clip_norm"],
+                    )
+                optimizer.step()
 
-    total_loss = total_loss + float(cfg.get("reg_lambda", 0.0)) * reg_loss
-    # -----------------------------------------------------------
-
-    # --- 2) L2 regularization on MBM and Synergy-Head ---
-    mbm_reg_loss = torch.stack([
-        (p ** 2).mean() for p in mbm_params + syn_params if p.requires_grad
-    ]).mean()
-    total_loss = total_loss + float(cfg.get("mbm_reg_lambda", 0.0)) * mbm_reg_loss
-    # -----------------------------------------------------------
-
-    optimizer.zero_grad()
-    if scaler is not None:
-        scaler.scale(total_loss).backward()
-        if cfg.get("grad_clip_norm", 0) > 0:
-            scaler.unscale_(optimizer)
-            torch.nn.utils.clip_grad_norm_(
-                teacher_params + mbm_params + syn_params,
-                cfg["grad_clip_norm"],
-            )
-        scaler.step(optimizer)
-        scaler.update()
-    else:
-        total_loss.backward()
-        print(f"[TeacherAdaptive] batch loss={total_loss.item():.4f}")
-        if cfg.get("grad_clip_norm", 0) > 0:
-            torch.nn.utils.clip_grad_norm_(
-                teacher_params + mbm_params + syn_params,
-                cfg["grad_clip_norm"],
-            )
-        optimizer.step()
-
-    teacher_loss_sum += total_loss.item() * x.size(0)
-    count += x.size(0)
+            teacher_loss_sum += total_loss_step.item() * x.size(0)
+            count            += x.size(0)
 
     ep_loss = teacher_loss_sum / count
 

@@ -188,6 +188,9 @@ def student_distillation_update(
             else:
                 weights = torch.ones_like(y, dtype=s_logit.dtype, device=y.device)
 
+            # AMP / float16 환경에서도 안전
+            weights = weights.to(s_logit.dtype)
+
             if cfg.get("use_ib", False) and isinstance(mbm, IB_MBM):
                 cw = certainty_weights(logvar).mean(dim=1).to(s_logit.dtype)
                 weights = weights * cw
