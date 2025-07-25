@@ -6,7 +6,7 @@ from utils.progress import smart_tqdm
 from models.mbm import IB_MBM
 
 from modules.losses import (
-    kd_loss_fn, ce_loss_fn, ib_loss, certainty_weights
+    kd_loss_fn, ce_loss_fn, ib_loss, certainty_weights, feat_mse_loss
 )
 from utils.schedule import get_tau, get_beta
 from utils.misc import get_amp_components
@@ -211,17 +211,24 @@ def teacher_adaptive_update(
                 synergy_weight = cfg.get("synergy_ce_alpha", 0.6)
                 synergy_ce_loss = synergy_weight * loss_ce
 
+                feat_kd_loss = torch.tensor(0.0, device=cfg["device"])
+                if use_ib_mbm and cfg.get("feat_kd_alpha", 0) > 0:
+                    feat_kd_loss = feat_mse_loss(
+                        s_feat, fsyn,
+                        norm=cfg.get("feat_kd_norm", "none")
+                    )
 
-            # Standard KD + CE
-            kd_weight = cfg.get(
-                "teacher_adapt_alpha_kd",
-                cfg.get("kd_alpha", 1.0),
-            )
-            total_loss = (
-                kd_weight * loss_kd
-                + synergy_ce_loss
-                + ib_loss_val
-            )
+                # ----- 들여쓰기 BUG FIX: 이하 연산은 loop 내부여야 합니다 -----
+                kd_weight = cfg.get(
+                    "teacher_adapt_alpha_kd",
+                    cfg.get("kd_alpha", 1.0),
+                )
+                total_loss = (
+                    kd_weight * loss_kd
+                    + synergy_ce_loss
+                    + cfg.get("feat_kd_alpha", 0) * feat_kd_loss
+                    + ib_loss_val
+                )
 
     # --- 1) L2 regularization on teacher parameters ---
     if teacher_params:
