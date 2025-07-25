@@ -40,12 +40,13 @@ class ChannelAdapter2D(nn.Module):
     def __init__(self, in_ch: int, out_ch: int | None = None, groups: int = 32):
         super().__init__()
         out_ch = in_ch if out_ch is None else out_ch
+        gn = min(groups, out_ch)   # groups ≤ channels
         self.net = nn.Sequential(
             nn.Conv2d(in_ch, out_ch, 1, bias=False),
-            nn.GroupNorm(groups, out_ch),
+            nn.GroupNorm(gn, out_ch),
             nn.ReLU(inplace=True),
             nn.Conv2d(out_ch, out_ch, 1, bias=False),
-            nn.GroupNorm(groups, out_ch),
+            nn.GroupNorm(gn, out_ch),
         )
 
     def forward(self, x):
