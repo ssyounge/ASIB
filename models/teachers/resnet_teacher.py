@@ -39,7 +39,7 @@ class ResNet101Teacher(BaseKDModel):
         return f4d, f2d
 
 
-@register("resnet152_teacher")
+@register("resnet_teacher")
 class ResNet152Teacher(BaseKDModel):
     """ResNet-152 Teacher with optional distillation adapter."""
 
@@ -91,3 +91,7 @@ def create_resnet152(
     return ResNet152Teacher(
         pretrained=pretrained, num_classes=num_classes, small_input=small_input, cfg=cfg
     )
+
+# previous key kept for backward compatibility
+from models.common.base_wrapper import MODEL_REGISTRY
+MODEL_REGISTRY["resnet152_teacher"] = ResNet152Teacher

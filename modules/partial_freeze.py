@@ -338,6 +338,9 @@ def freeze_teacher_params(
             freeze_level=freeze_level,
             train_distill_adapter_only=train_distill_adapter_only,
         )
+    elif teacher_name in ("convnext_l", "convnext_large"):
+        # no dedicated freezing scheme yet
+        return
     else:
         freeze_all(model)
 
