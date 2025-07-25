@@ -75,3 +75,14 @@ num_stages: 3
 student_epochs_per_stage: 15
 teacher_adapt_epochs: 2
 grad_clip_norm: 1.0
+
+# ───────── KD hyper-parameters ─────────
+ce_alpha: 0.5         # CE(student, GT) weight
+kd_alpha: 0.5         # KL(student‖teacher) weight
+
+# ─────── Temperature Decay (polynomial) ───────
+#   τ(e) = tau_end + (tau_start - tau_end)·(1 - e/E)^tau_decay_power
+#   논문 실험: 4.0 → 1.0, power = 2
+tau_start:       4.0      # initial temperature
+tau_end:         1.0      # final temperature
+tau_decay_power: 2.0      # curvature (≥1 : convex decay)
