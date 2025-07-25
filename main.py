@@ -44,13 +44,11 @@ from modules.partial_freeze import (
     partial_freeze_teacher_efficientnet,
     partial_freeze_teacher_swin,
     partial_freeze_student_resnet,
-    partial_freeze_student_efficientnet,
     partial_freeze_student_swin
 )
 
 # Teacher creation (factory):
 from models.teachers.teacher_resnet import create_resnet101
-from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from models.teachers.teacher_swin import create_swin_t
 
 def create_student_by_name(
@@ -84,15 +82,6 @@ def create_student_by_name(
             small_input=small_input,
         )
 
-    elif student_name == "efficientnet_adapter":
-        from models.students.student_efficientnet_adapter import (
-            create_efficientnet_b2_with_adapter,
-        )
-        return create_efficientnet_b2_with_adapter(
-            pretrained=pretrained,
-            num_classes=num_classes,
-            small_input=small_input,
-        )
 
     elif student_name == "swin_adapter":
         from models.students.student_swin_adapter import (
@@ -140,13 +129,6 @@ def create_teacher_by_name(
             small_input=small_input,
             cfg=cfg,
         )
-    elif teacher_name == "efficientnet_b2":
-        return create_efficientnet_b2(
-            num_classes=num_classes,
-            pretrained=pretrained,
-            small_input=small_input,
-            cfg=cfg,
-        )
     elif teacher_name in ("efficientnet_l2", "effnet_l2"):
         from models.teachers.teacher_efficientnet_l2 import create_efficientnet_l2
         return create_efficientnet_l2(
@@ -183,7 +165,7 @@ def partial_freeze_teacher_auto(
             freeze_level=freeze_level,
             train_distill_adapter_only=train_distill_adapter_only,
         )
-    elif teacher_name == "efficientnet_b2" or teacher_name in ("efficientnet_l2", "effnet_l2"):
+    elif teacher_name in ("efficientnet_l2", "effnet_l2"):
         partial_freeze_teacher_efficientnet(
             model,
             freeze_bn=freeze_bn,
@@ -217,13 +199,6 @@ def partial_freeze_student_auto(
         return
     if student_name == "resnet_adapter":
         partial_freeze_student_resnet(
-            model,
-            freeze_bn=freeze_bn,
-            use_adapter=use_adapter,
-            freeze_level=freeze_level,
-        )
-    elif student_name == "efficientnet_adapter":
-        partial_freeze_student_efficientnet(
             model,
             freeze_bn=freeze_bn,
             use_adapter=use_adapter,
@@ -561,7 +536,7 @@ def main(cfg: DictConfig):
     exp_logger.update_metric("teacher2_test_acc", te2_acc)
 
     # 5) Student
-    student_name  = cfg.get("student_type", "resnet_adapter")   # e.g. resnet_adapter / efficientnet_adapter / swin_adapter
+    student_name  = cfg.get("student_type", "resnet_adapter")   # e.g. resnet_adapter / swin_adapter
     student_model = create_student_by_name(
         student_name,
         pretrained=cfg.get("student_pretrained", True),

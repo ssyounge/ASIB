@@ -32,7 +32,6 @@ from data.imagenet32 import get_imagenet32_loaders
 
 # teacher factories
 from models.teachers.teacher_resnet import create_resnet101, create_resnet152
-from models.teachers.teacher_efficientnet import create_efficientnet_b2
 from models.teachers.teacher_swin import create_swin_t
 
 # partial freeze
@@ -76,7 +75,7 @@ def create_teacher_by_name(
     cfg: Optional[dict] = None,
 ):
     """
-    Extends to handle resnet152, resnet101, efficientnet_b2, efficientnet_l2,
+    Extends to handle resnet152, resnet101, efficientnet_l2,
     swin_tiny, etc.
     """
     if teacher_type == "resnet101":
@@ -91,14 +90,6 @@ def create_teacher_by_name(
             num_classes=num_classes,
             pretrained=pretrained,
             small_input=small_input,
-            cfg=cfg,
-        )
-    elif teacher_type == "efficientnet_b2":
-        return create_efficientnet_b2(
-            num_classes=num_classes,
-            pretrained=pretrained,
-            small_input=small_input,
-            dropout_p=dropout_p,
             cfg=cfg,
         )
     elif teacher_type in ("efficientnet_l2", "effnet_l2"):
@@ -139,7 +130,7 @@ def partial_freeze_teacher_auto(
             bn_head_only=bn_head_only,
             freeze_level=freeze_level,
         )
-    elif teacher_type == "efficientnet_b2" or teacher_type in ("efficientnet_l2", "effnet_l2"):
+    elif teacher_type in ("efficientnet_l2", "effnet_l2"):
         partial_freeze_teacher_efficientnet(
             model,
             freeze_bn=freeze_bn,
@@ -272,7 +263,7 @@ def main(cfg: DictConfig):
         small_input = dataset_name in ("cifar100", "imagenet32")
 
     # 2) teacher
-    teacher_type = cfg.get("teacher_type", cfg.get("default_teacher_type"))  # e.g. "resnet152", "efficientnet_b2", "efficientnet_l2", "swin_tiny"
+    teacher_type = cfg.get("teacher_type", cfg.get("default_teacher_type"))  # e.g. "resnet152", "efficientnet_l2", "swin_tiny"
     print(f"[FineTune] ===== Now fine-tuning teacher: {teacher_type} =====")
     teacher_model = create_teacher_by_name(
         teacher_type,
