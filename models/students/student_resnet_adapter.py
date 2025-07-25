@@ -1,6 +1,7 @@
 """
 리팩터링 후: ResNet student는 BaseKDModel 서브클래스로 간결하게 정의
 """
+# models/students/student_resnet_adapter.py
 
 import torch
 import torch.nn as nn
