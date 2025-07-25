@@ -10,6 +10,7 @@ from modules.losses import (
     ce_loss_fn,
     rkd_distance_loss,
     rkd_angle_loss,
+    feat_mse_loss,
 )
 from utils.schedule import get_tau
 from utils.misc import get_amp_components
@@ -486,6 +487,20 @@ class ASMBDistiller(nn.Module):
                         rkd_mix = 0.5 * (rkd_t1 + rkd_t2) + gamma * rkd_syn
                     rkd_val = rkd_mix.mean()
 
+                # ───────────── Feature-KD (MSE) ─────────────
+                feat_kd_val = torch.tensor(0.0, device=s_feat.device)
+                if self.config.get("feat_kd_alpha", 0) > 0:
+                    fsyn_use = syn_feat
+                    if fsyn_use.dim() == 4 and s_feat.dim() == 2:
+                        fsyn_use = torch.nn.functional.adaptive_avg_pool2d(
+                            fsyn_use, (1, 1)
+                        ).flatten(1)
+                    feat_kd_val = feat_mse_loss(
+                        s_feat,
+                        fsyn_use,
+                        norm=self.config.get("feat_kd_norm", "none"),
+                    )
+
                 beta = min(self.config.get("hybrid_beta", 0.0), 1.0)
                 alpha_eff = self.alpha
                 kd_coeff = 1 - self.alpha
@@ -497,6 +512,7 @@ class ASMBDistiller(nn.Module):
                     alpha_eff * ce_val
                     + kd_coeff * kd_val
                     + self.config.get("rkd_loss_weight", 0.0) * rkd_val
+                    + self.config.get("feat_kd_alpha", 0.0) * feat_kd_val
                     + beta * kd_vanilla
                 )
 
