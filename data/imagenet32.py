@@ -1,3 +1,5 @@
+# data/imagenet32.py
+
 import os
 import pickle
 import numpy as np
