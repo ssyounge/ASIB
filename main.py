@@ -22,6 +22,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR, StepLR
 
 from utils.logger import ExperimentLogger
 from utils.logging_setup import get_logger
+
 # --- 중복 방지 플래그
 _HP_LOGGED = False
 # — W&B --------------------------------------------------------
@@ -44,12 +45,13 @@ from modules.partial_freeze import (
     partial_freeze_teacher_efficientnet,
     partial_freeze_teacher_swin,
     partial_freeze_student_resnet,
-    partial_freeze_student_swin
+    partial_freeze_student_swin,
 )
 
 # Teacher creation (factory):
 from models.common.base_wrapper import MODEL_REGISTRY
 from models.teachers.swin_teacher import create_swin_t
+
 
 # ---------------------------------------------------------------------------
 # Helper – safe factory via registry
@@ -58,8 +60,10 @@ def build_model(name: str, **kwargs):
         return MODEL_REGISTRY[name](**kwargs)
     except KeyError as exc:
         known = ", ".join(sorted(MODEL_REGISTRY.keys()))
-        raise ValueError(f"[build_model] Unknown model key '{name}'. "
-                         f"Available: {known}") from exc
+        raise ValueError(
+            f"[build_model] Unknown model key '{name}'. Available: {known}"
+        ) from exc
+
 
 def create_student_by_name(
     student_name: str,
@@ -82,24 +86,20 @@ def create_student_by_name(
         )
 
     elif student_name == "resnet152":
-        from models.students.resnet152_student import (
-            create_resnet152_with_extended_adapter,
-        )
-        return create_resnet152_with_extended_adapter(
+        return build_model(
+            "resnet152_student",
             pretrained=pretrained,
             num_classes=num_classes,
             small_input=small_input,
+            cfg=cfg,
         )
-
 
     elif student_name == "swin":
-        from models.students.swin_student import (
-            create_swin_student,
-        )
         adapter_dim = 64
         if cfg is not None:
             adapter_dim = cfg.get("swin_adapter_dim", adapter_dim)
-        return create_swin_student(
+        return build_model(
+            "swin_student",
             pretrained=pretrained,
             small_input=small_input,
             num_classes=num_classes,
@@ -112,8 +112,8 @@ def create_student_by_name(
             f"[create_student_by_name] unknown student_name={student_name}"
         )
 
-from models.mbm import build_from_teachers
 
+from models.mbm import build_from_teachers
 
 
 def create_teacher_by_name(
@@ -141,6 +141,7 @@ def create_teacher_by_name(
         )
     elif teacher_name in ("efficientnet_l2", "effnet_l2"):
         from models.teachers.efficientnet_l2_teacher import create_efficientnet_l2
+
         return create_efficientnet_l2(
             num_classes=num_classes,
             pretrained=pretrained,
@@ -154,7 +155,10 @@ def create_teacher_by_name(
             cfg=cfg,
         )
     else:
-        raise ValueError(f"[create_teacher_by_name] Unknown teacher_name={teacher_name}")
+        raise ValueError(
+            f"[create_teacher_by_name] Unknown teacher_name={teacher_name}"
+        )
+
 
 def partial_freeze_teacher_auto(
     model,
@@ -193,7 +197,10 @@ def partial_freeze_teacher_auto(
             train_distill_adapter_only=train_distill_adapter_only,
         )
     else:
-        raise ValueError(f"[partial_freeze_teacher_auto] Unknown teacher_name={teacher_name}")
+        raise ValueError(
+            f"[partial_freeze_teacher_auto] Unknown teacher_name={teacher_name}"
+        )
+
 
 def partial_freeze_student_auto(
     model,
@@ -228,10 +235,12 @@ def partial_freeze_student_auto(
             freeze_level=freeze_level,
         )
 
+
 @hydra.main(config_path="configs", config_name="base", version_base="1.3")
 def main(cfg: DictConfig):
     cfg = OmegaConf.to_container(cfg, resolve=True)
     from utils.config_utils import flatten_hydra_config
+
     cfg = flatten_hydra_config(cfg)
 
     fl = cfg.get("student_freeze_level", -1)
@@ -276,14 +285,14 @@ def main(cfg: DictConfig):
     #  — sweep 중 조건부 파라미터 처리가 어려우므로 코드에서 보정
     # ------------------------------------------------------------------
     if not cfg.get("use_partial_freeze", False):
-        cfg["student_freeze_level"]  = -1
+        cfg["student_freeze_level"] = -1
         cfg["teacher1_freeze_level"] = -1
         cfg["teacher2_freeze_level"] = -1
     # ------------------------------------------- #
 
     # ── tqdm 전체 OFF ─────────────────────────────
     if cfg.get("disable_tqdm", False):
-        os.environ["PROGRESS"] = "0"    # utils.progress 에서 사용
+        os.environ["PROGRESS"] = "0"  # utils.progress 에서 사용
 
     # ── W&B API-key (config 우선) ────────────────
     if cfg.get("use_wandb", False) and cfg.get("wandb_api_key", ""):
@@ -359,6 +368,7 @@ def main(cfg: DictConfig):
     data_root = cfg.get("data_root", "./data")
     if cfg.get("overlap_pct", -1) >= 0:
         from data.cifar100_overlap import get_overlap_loaders
+
         (A_tr, A_te), (B_tr, B_te), _ = get_overlap_loaders(
             pct_overlap=cfg["overlap_pct"],
             batch_size=batch_size,
@@ -368,14 +378,20 @@ def main(cfg: DictConfig):
         )
         # 학생은 **두 교사 클래스의 합집합**을 모두 보게 해야 함
         train_loader = torch.utils.data.ConcatDataset([A_tr.dataset, B_tr.dataset])
-        test_loader  = torch.utils.data.ConcatDataset([A_te.dataset, B_te.dataset])
+        test_loader = torch.utils.data.ConcatDataset([A_te.dataset, B_te.dataset])
         train_loader = torch.utils.data.DataLoader(
-            train_loader, batch_size=batch_size, shuffle=True,
-            num_workers=cfg.get("num_workers", 2), pin_memory=True
+            train_loader,
+            batch_size=batch_size,
+            shuffle=True,
+            num_workers=cfg.get("num_workers", 2),
+            pin_memory=True,
         )
-        test_loader  = torch.utils.data.DataLoader(
-            test_loader,  batch_size=batch_size, shuffle=False,
-            num_workers=cfg.get("num_workers", 2), pin_memory=True
+        test_loader = torch.utils.data.DataLoader(
+            test_loader,
+            batch_size=batch_size,
+            shuffle=False,
+            num_workers=cfg.get("num_workers", 2),
+            pin_memory=True,
         )
     elif dataset == "cifar100":
         train_loader, test_loader = get_cifar100_loaders(
@@ -394,7 +410,7 @@ def main(cfg: DictConfig):
         raise ValueError(f"Unknown dataset_name={dataset}")
 
     if isinstance(train_loader.dataset, torch.utils.data.ConcatDataset):
-        num_classes = 100   # CIFAR-100 fixed
+        num_classes = 100  # CIFAR-100 fixed
     else:
         num_classes = len(train_loader.dataset.classes)
     cfg["num_classes"] = num_classes
@@ -410,7 +426,9 @@ def main(cfg: DictConfig):
     teacher1_type = cfg.get("teacher1_type", "resnet152")
     teacher2_type = cfg.get("teacher2_type", "resnet152")
 
-    teacher1_ckpt_path = cfg.get("teacher1_ckpt", f"./checkpoints/{teacher1_type}_ft.pth")
+    teacher1_ckpt_path = cfg.get(
+        "teacher1_ckpt", f"./checkpoints/{teacher1_type}_ft.pth"
+    )
     teacher1 = create_teacher_by_name(
         teacher_name=teacher1_type,
         num_classes=num_classes,
@@ -433,7 +451,8 @@ def main(cfg: DictConfig):
 
     if cfg.get("use_partial_freeze", True):
         partial_freeze_teacher_auto(
-            teacher1, teacher1_type,
+            teacher1,
+            teacher1_type,
             freeze_bn=cfg.get("teacher1_freeze_bn", True),
             freeze_ln=cfg.get("teacher1_freeze_ln", True),
             use_adapter=cfg.get("use_distillation_adapter", False),
@@ -442,7 +461,9 @@ def main(cfg: DictConfig):
             train_distill_adapter_only=cfg.get("use_distillation_adapter", False),
         )
 
-    teacher2_ckpt_path = cfg.get("teacher2_ckpt", f"./checkpoints/{teacher2_type}_ft.pth")
+    teacher2_ckpt_path = cfg.get(
+        "teacher2_ckpt", f"./checkpoints/{teacher2_type}_ft.pth"
+    )
     teacher2 = create_teacher_by_name(
         teacher_name=teacher2_type,
         num_classes=num_classes,
@@ -465,7 +486,8 @@ def main(cfg: DictConfig):
 
     if cfg.get("use_partial_freeze", True):
         partial_freeze_teacher_auto(
-            teacher2, teacher2_type,
+            teacher2,
+            teacher2_type,
             freeze_bn=cfg.get("teacher2_freeze_bn", True),
             freeze_ln=cfg.get("teacher2_freeze_ln", True),
             use_adapter=cfg.get("use_distillation_adapter", False),
@@ -546,7 +568,7 @@ def main(cfg: DictConfig):
     exp_logger.update_metric("teacher2_test_acc", te2_acc)
 
     # 5) Student
-    student_name  = cfg.get("student_type", "resnet")   # e.g. resnet / swin
+    student_name = cfg.get("student_type", "resnet")  # e.g. resnet / swin
     student_model = create_student_by_name(
         student_name,
         pretrained=cfg.get("student_pretrained", True),
@@ -583,12 +605,9 @@ def main(cfg: DictConfig):
             except ValueError:
                 pass  # ignore
 
-
     if cfg.get("student_ckpt"):
         student_model.load_state_dict(
-            torch.load(
-                cfg["student_ckpt"], map_location=device, weights_only=True
-            ),
+            torch.load(cfg["student_ckpt"], map_location=device, weights_only=True),
             strict=False,
         )
         print(f"[Main] Loaded student from {cfg['student_ckpt']}")
@@ -618,9 +637,7 @@ def main(cfg: DictConfig):
         if cfg.get("mbm_out_dim") in (None, 0):
             cfg["mbm_out_dim"] = feat_dim
             exp_logger.update_metric("mbm_out_dim", feat_dim)
-            print(
-                f"[Info] mbm_out_dim set to student feature dimension {feat_dim}"
-            )
+            print(f"[Info] mbm_out_dim set to student feature dimension {feat_dim}")
         elif cfg["mbm_out_dim"] != feat_dim:
             print(
                 f"[Warning] mbm_out_dim ({cfg['mbm_out_dim']}) does not match the student feature dimension ({feat_dim})."
@@ -705,9 +722,13 @@ def main(cfg: DictConfig):
         ),
     )
 
-    teacher_total_epochs = num_stages * cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5))
+    teacher_total_epochs = num_stages * cfg.get(
+        "teacher_iters", cfg.get("teacher_adapt_epochs", 5)
+    )
     if cfg.get("lr_schedule", "step") == "cosine":
-        teacher_scheduler = CosineAnnealingLR(teacher_optimizer, T_max=teacher_total_epochs)
+        teacher_scheduler = CosineAnnealingLR(
+            teacher_optimizer, T_max=teacher_total_epochs
+        )
     else:
         teacher_scheduler = StepLR(
             teacher_optimizer,
@@ -727,9 +748,13 @@ def main(cfg: DictConfig):
         eps=1e-8,
     )
 
-    student_total_epochs = num_stages * cfg.get("student_iters", cfg.get("student_epochs_per_stage", 15))
+    student_total_epochs = num_stages * cfg.get(
+        "student_iters", cfg.get("student_epochs_per_stage", 15)
+    )
     if cfg.get("lr_schedule", "step") == "cosine":
-        student_scheduler = CosineAnnealingLR(student_optimizer, T_max=student_total_epochs)
+        student_scheduler = CosineAnnealingLR(
+            student_optimizer, T_max=student_total_epochs
+        )
     else:
         student_scheduler = StepLR(
             student_optimizer,
@@ -807,16 +832,17 @@ def main(cfg: DictConfig):
 
             # ---------- DEBUG: disagreement weight 파라미터 확인 ----------
             dbg_mode = cfg.get("disagree_mode", "both_wrong")
-            dbg_lh   = cfg.get("disagree_lambda_high", 1.2)
-            dbg_ll   = cfg.get("disagree_lambda_low", 0.8)
-            print(
-                f"[DBG] disagree_mode={dbg_mode}, "
-                f"λ_high={dbg_lh}, λ_low={dbg_ll}"
-            )
+            dbg_lh = cfg.get("disagree_lambda_high", 1.2)
+            dbg_ll = cfg.get("disagree_lambda_low", 0.8)
+            print(f"[DBG] disagree_mode={dbg_mode}, λ_high={dbg_lh}, λ_low={dbg_ll}")
             # --------------------------------------------------------------
 
-            teacher_epochs = cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5))
-            student_epochs = cfg.get("student_iters", cfg.get("student_epochs_per_stage", 15))
+            teacher_epochs = cfg.get(
+                "teacher_iters", cfg.get("teacher_adapt_epochs", 5)
+            )
+            student_epochs = cfg.get(
+                "student_iters", cfg.get("student_epochs_per_stage", 15)
+            )
 
             # (A) Teacher adaptive update
             teacher_adaptive_update(
@@ -874,7 +900,7 @@ def main(cfg: DictConfig):
 
     # ---- Key 동기화 ----
     final_key = f"stage{cfg['num_stages']}_student_acc"
-    exp_logger.update_metric(final_key, final_acc)   # CSV / JSON 기록
+    exp_logger.update_metric(final_key, final_acc)  # CSV / JSON 기록
 
     if wandb and wandb.run:
         # sweep metric 이 'stage4_student_acc' 같은 형식일 때 그대로 복사
@@ -882,6 +908,7 @@ def main(cfg: DictConfig):
         # 선택: 별도 generic 키도 남기고 싶다면
         wandb.run.summary["best_student_acc"] = final_acc
     exp_logger.finalize()
+
 
 if __name__ == "__main__":
     main()

@@ -2,7 +2,7 @@
 
 model:
   student:
-    name: resnet152_adapter
+    name: resnet152
     pretrained: true
     lr: 8e-4
     weight_decay: 8e-4
