@@ -27,9 +27,6 @@ if "weights_only" not in inspect.signature(torch.load).parameters:
         return _orig_torch_load(*args, **kwargs)
 
     torch.load = _patched_torch_load
-    print(
-        "[utils.misc]  ⚠  PyTorch <2.1 detected → 'weights_only' patched for torch.load()."
-    )
 # ───────────────────────────────────────────────────────────────
 
 def set_random_seed(seed: int = 42, deterministic: bool = True) -> None:

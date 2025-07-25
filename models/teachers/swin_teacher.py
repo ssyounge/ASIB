@@ -24,16 +24,14 @@ class SwinTeacher(BaseKDModel):
     
     def extract_feats(self, x):
         # Official Swin forward: features -> norm -> permute -> avgpool -> flatten
-        out = self.backbone.features(x)
+        out = self.backbone.features(x)        # [N, C, H, W]
         out = self.backbone.norm(out)
-        out = self.backbone.permute(out)
-        out = self.backbone.avgpool(out)
-        feat_2d = self.backbone.flatten(out)
+        out = out.permute(0, 2, 3, 1)          # -> [N, H, W, C]
+        out = self.backbone.avgpool(out)       # GAP
+        feat_2d = out.flatten(1)               # [N, C]
 
         # Recompute 4D feature before pooling for compatibility
-        feat_4d_for_compat = self.backbone.features(x)
-        feat_4d_for_compat = self.backbone.norm(feat_4d_for_compat)
-        feat_4d_for_compat = self.backbone.permute(feat_4d_for_compat)
+        feat_4d_for_compat = self.backbone.norm(self.backbone.features(x))
 
         return feat_4d_for_compat, feat_2d
 
