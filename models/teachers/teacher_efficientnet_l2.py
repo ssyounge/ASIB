@@ -1,3 +1,5 @@
+# models/teachers/teacher_efficientnet_l2.py
+
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Optional
