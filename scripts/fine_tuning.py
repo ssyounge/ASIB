@@ -31,8 +31,8 @@ from data.cifar100 import get_cifar100_loaders
 from data.imagenet32 import get_imagenet32_loaders
 
 # teacher factories
-from models.teachers.teacher_resnet import create_resnet101, create_resnet152
-from models.teachers.teacher_swin import create_swin_t
+from models.teachers.resnet_teacher import create_resnet101, create_resnet152
+from models.teachers.swin_teacher import create_swin_t
 
 # partial freeze
 from modules.partial_freeze import (
@@ -93,7 +93,7 @@ def create_teacher_by_name(
             cfg=cfg,
         )
     elif teacher_type in ("efficientnet_l2", "effnet_l2"):
-        from models.teachers.teacher_efficientnet_l2 import create_efficientnet_l2
+        from models.teachers.efficientnet_l2_teacher import create_efficientnet_l2
         return create_efficientnet_l2(
             num_classes=num_classes,
             pretrained=pretrained,

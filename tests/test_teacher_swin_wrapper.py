@@ -1,7 +1,7 @@
 import pytest
 
 torch = pytest.importorskip("torch")
-from models.teachers.teacher_swin import TeacherSwinWrapper
+from models.teachers.swin_teacher import SwinTeacher
 
 class _Add(torch.nn.Module):
     def __init__(self, val):
@@ -40,7 +40,7 @@ class DummySwin(torch.nn.Module):
 
 def test_forward_basic():
     backbone = DummySwin()
-    wrapper = TeacherSwinWrapper(backbone)
+    wrapper = SwinTeacher(backbone, num_classes=2)
     x = torch.randn(2, 1, 2, 2)
 
     out = wrapper(x)

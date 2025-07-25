@@ -1,7 +1,5 @@
-"""
-리팩터링 후: ResNet student는 BaseKDModel 서브클래스로 간결하게 정의
-"""
-# models/students/student_resnet_adapter.py
+"""ResNet‑101 student with an adapter after layer3."""
+# models/students/resnet101_student.py
 
 import torch
 import torch.nn as nn
@@ -10,8 +8,8 @@ from torchvision.models import resnet101, ResNet101_Weights
 from models.common.base_wrapper import BaseKDModel, register
 from models.common.adapter import ChannelAdapter2D
 
-@register("resnet101_adapter_student")
-class ResNetAdapterStudent(BaseKDModel):
+@register("resnet101_student")
+class ResNetStudent(BaseKDModel):
     def __init__(self, *, pretrained: bool = True, num_classes: int = 100,
                  small_input: bool = False, cfg: dict | None = None):
         backbone = resnet101(
@@ -38,13 +36,16 @@ class ResNetAdapterStudent(BaseKDModel):
         f2d = torch.flatten(b.avgpool(f4d), 1)
         return f4d, f2d
 
+# legacy registry key for backward compatibility
+from models.common.base_wrapper import MODEL_REGISTRY
+MODEL_REGISTRY["resnet101_adapter_student"] = ResNetStudent
 
-def create_resnet101_with_extended_adapter(pretrained: bool = True,
-                                           num_classes: int = 100,
-                                           small_input: bool = False,
-                                           cfg: dict | None = None):
-    """Backward compatible helper."""
-    return ResNetAdapterStudent(pretrained=pretrained,
-                                num_classes=num_classes,
-                                small_input=small_input,
-                                cfg=cfg)
+
+# ── 역호환 alias (기존 import 유지) ────────────────────────────
+def create_resnet101_with_extended_adapter(*a, **kw):
+    import warnings
+    warnings.warn(
+        "renamed → models.students.resnet101_student.ResNetStudent",
+        DeprecationWarning, stacklevel=2,
+    )
+    return ResNetStudent(*a, **kw)

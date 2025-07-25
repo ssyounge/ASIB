@@ -1,10 +1,10 @@
-# models/students/student_swin_adapter.py
+# models/students/swin_student.py
 
 import torch.nn as nn
 import timm
 from typing import Optional
 
-class StudentSwinAdapter(nn.Module):
+class SwinStudent(nn.Module):
     """
     Example Student model:
       1) Swin => (N, in_features)
@@ -81,14 +81,20 @@ class StudentSwinAdapter(nn.Module):
         return feature_dict, logit, ce_loss
 
 
-def create_swin_adapter_student(pretrained=True, adapter_dim=64, num_classes=100,
-                                small_input: bool = False, cfg: Optional[dict] = None):
+def create_swin_adapter_student(*a, **kw):
+    import warnings
+    warnings.warn(
+        "renamed → models.students.swin_student.SwinStudent",
+        DeprecationWarning, stacklevel=2,
+    )
+    return SwinStudent(*a, **kw)
+
+def create_swin_student(pretrained=True, adapter_dim=64, num_classes=100,
+                        small_input: bool = False, cfg: Optional[dict] = None):
     if cfg is not None:
         adapter_dim = cfg.get("swin_adapter_dim", adapter_dim)
-    """
-    Creates the Student Swin model w/ adapter => (dict, logit, ce_loss)
-    """
-    return StudentSwinAdapter(
+    """Creates the Student Swin model w/ adapter."""
+    return SwinStudent(
         pretrained=pretrained,
         adapter_dim=adapter_dim,
         num_classes=num_classes,
