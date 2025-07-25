@@ -1,4 +1,4 @@
-# models/students/student_resnet152_adapter.py
+# models/students/resnet152_student.py
 
 import torch
 import torch.nn as nn
