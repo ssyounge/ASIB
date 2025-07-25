@@ -80,9 +80,13 @@ def student_distillation_update(
     for ep in range(student_epochs):
         if scheduler is not None and hasattr(scheduler, "T_max"):
             total_epochs = scheduler.T_max
-            cur_tau = get_tau(cfg, min(global_ep + ep, total_epochs - 1))
         else:
-            cur_tau = get_tau(cfg, global_ep + ep)
+            total_epochs = cfg.get("total_epochs", 1)
+        cur_tau = get_tau(
+            cfg,
+            epoch=global_ep + ep,
+            total_epochs=total_epochs,
+        )
         distill_loss_sum = 0.0
         cnt = 0
         student_model.train()
