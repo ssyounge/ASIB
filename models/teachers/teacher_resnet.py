@@ -1,143 +1,68 @@
-# models/teachers/teacher_resnet.py
-
 import torch
 import torch.nn as nn
-from typing import Optional
-from .adapters import DistillationAdapter
-from torchvision.models import (
-    resnet101,
-    ResNet101_Weights,
-    resnet152,
-    ResNet152_Weights,
-)
+from models.common.base_wrapper import BaseKDModel, register
+from models.common.adapter import ChannelAdapter2D
 
-class TeacherResNetWrapper(nn.Module):
-    """
-    Teacher 모델(ResNet101) forward:
-     => dict 반환 {"feat_4d", "feat_2d", "logit", "ce_loss"}
-    feature_dict 예시:
-      {
-        "feat_4d": [N, 2048, H, W],   # layer4까지의 4D 출력
-        "feat_2d": [N, 2048],        # global pooled
-      }
-    """
-    def __init__(self, backbone: nn.Module, cfg: Optional[dict] = None):
-        super().__init__()
-        self.backbone = backbone
-        self.criterion_ce = nn.CrossEntropyLoss()
+import torchvision.models as tv
 
-        # 추가: ResNet101의 글로벌 피처 차원 (기본 2048)
-        self.feat_dim = 2048
-        self.feat_channels = 2048
+@register("resnet101_teacher")
+class ResNet101Teacher(BaseKDModel):
+    """ResNet-101 Teacher with optional distillation adapter."""
 
-        # distillation adapter
-        cfg = cfg or {}
-        hidden_dim = cfg.get("distill_hidden_dim")
-        out_dim = cfg.get("distill_out_dim")
-        self.distillation_adapter = DistillationAdapter(
-            self.feat_dim, hidden_dim=hidden_dim, out_dim=out_dim, cfg=cfg
+    def __init__(self, *, pretrained: bool = True, num_classes: int = 100,
+                 small_input: bool = False, cfg: dict | None = None):
+        backbone = tv.resnet101(
+            weights=tv.ResNet101_Weights.IMAGENET1K_V2 if pretrained else None
         )
-        self.distill_dim = self.distillation_adapter.out_dim
-    
-    def forward(self, x, y=None):
-        # 1) stem
-        x = self.backbone.conv1(x)
-        x = self.backbone.bn1(x)
-        x = self.backbone.relu(x)
-        x = self.backbone.maxpool(x)
+        if small_input:
+            backbone.conv1 = nn.Conv2d(3, 64, 3, stride=1, padding=1, bias=False)
+            backbone.maxpool = nn.Identity()
+        super().__init__(backbone, num_classes, role="teacher", cfg=cfg or {})
 
-        # 2) layers
-        x = self.backbone.layer1(x)
-        feat_layer1 = x
-        x = self.backbone.layer2(x)
-        feat_layer2 = x
-        x = self.backbone.layer3(x)
-        feat_layer3 = x
-        f4d = self.backbone.layer4(x)  # [N, 2048, H, W]
-
-        # 3) global pool => 2D
-        gp = self.backbone.avgpool(f4d)  # [N, 2048, 1, 1]
-        feat_2d = torch.flatten(gp, 1)   # [N, 2048]
-
-        # distillation adapter feature
-        distill_feat = self.distillation_adapter(feat_2d)
-
-        # 4) fc => logit
-        logit = self.backbone.fc(feat_2d)
-
-        # (optional) CE loss
-        ce_loss = None
-        if y is not None:
-            ce_loss = self.criterion_ce(logit, y)
-
-        # Dict
-        return {
-            "feat_4d": f4d,      # [N, 2048, H, W]
-            "feat_2d": feat_2d,  # [N, 2048]
-            "distill_feat": distill_feat,
-            "logit": logit,
-            "ce_loss": ce_loss,
-            "feat_4d_layer1": feat_layer1,
-            "feat_4d_layer2": feat_layer2,
-            "feat_4d_layer3": feat_layer3,
-        }
-
-    def get_feat_dim(self):
-        """
-        Returns the dimension of the 2D feature (feat_2d).
-        ResNet101 => 2048
-        """
-        return self.feat_dim
-
-    def get_feat_channels(self):
-        """Channel dimension of the 4D feature."""
-        return self.feat_channels
-
-def create_resnet101(
-    num_classes=100,
-    pretrained=True,
-    small_input=False,
-    cfg: Optional[dict] = None,
-):
-    """
-    ResNet101 로드 후 stem을 optional로 CIFAR-friendly 형태로 바꾸고,
-    마지막 FC 교체 => TeacherResNetWrapper
-    """
-    if pretrained:
-        model = resnet101(weights=ResNet101_Weights.IMAGENET1K_V2)
-    else:
-        model = resnet101(weights=None)
-
-    if small_input:
-        # 32x32 input 등에 맞게 3x3 conv + stride1, maxpool 제거
-        model.conv1 = nn.Conv2d(3, 64, 3, stride=1, padding=1, bias=False)
-        model.maxpool = nn.Identity()
-
-    in_feats = model.fc.in_features
-    model.fc = nn.Linear(in_feats, num_classes)
-
-    teacher_model = TeacherResNetWrapper(model, cfg=cfg)
-    return teacher_model
+    def extract_feats(self, x):
+        b = self.backbone
+        x = b.relu(b.bn1(b.conv1(x)))
+        x = b.maxpool(x)
+        x = b.layer1(x)
+        x = b.layer2(x)
+        x = b.layer3(x)
+        f4d = b.layer4(x)
+        f2d = torch.flatten(b.avgpool(f4d), 1)
+        return f4d, f2d
 
 
-def create_resnet152(
-    num_classes=100,
-    pretrained=True,
-    small_input=False,
-    cfg: Optional[dict] = None,
-):
-    """Create a ResNet152 teacher wrapped with ``TeacherResNetWrapper``."""
-    if pretrained:
-        model = resnet152(weights=ResNet152_Weights.IMAGENET1K_V2)
-    else:
-        model = resnet152(weights=None)
+@register("resnet152_teacher")
+class ResNet152Teacher(BaseKDModel):
+    """ResNet-152 Teacher with optional distillation adapter."""
 
-    if small_input:
-        model.conv1 = nn.Conv2d(3, 64, 3, stride=1, padding=1, bias=False)
-        model.maxpool = nn.Identity()
+    def __init__(self, *, pretrained: bool = True, num_classes: int = 100,
+                 small_input: bool = False, cfg: dict | None = None):
+        backbone = tv.resnet152(
+            weights=tv.ResNet152_Weights.IMAGENET1K_V2 if pretrained else None
+        )
+        if small_input:
+            backbone.conv1 = nn.Conv2d(3, 64, 3, stride=1, padding=1, bias=False)
+            backbone.maxpool = nn.Identity()
+        super().__init__(backbone, num_classes, role="teacher", cfg=cfg or {})
 
-    in_feats = model.fc.in_features
-    model.fc = nn.Linear(in_feats, num_classes)
+    def extract_feats(self, x):
+        b = self.backbone
+        x = b.relu(b.bn1(b.conv1(x)))
+        x = b.maxpool(x)
+        x = b.layer1(x)
+        x = b.layer2(x)
+        x = b.layer3(x)
+        f4d = b.layer4(x)
+        f2d = torch.flatten(b.avgpool(f4d), 1)
+        return f4d, f2d
 
-    teacher_model = TeacherResNetWrapper(model, cfg=cfg)
-    return teacher_model
+
+def create_resnet101(num_classes: int = 100, pretrained: bool = True,
+                     small_input: bool = False, cfg: dict | None = None):
+    return ResNet101Teacher(pretrained=pretrained, num_classes=num_classes,
+                            small_input=small_input, cfg=cfg)
+
+def create_resnet152(num_classes: int = 100, pretrained: bool = True,
+                     small_input: bool = False, cfg: dict | None = None):
+    return ResNet152Teacher(pretrained=pretrained, num_classes=num_classes,
+                            small_input=small_input, cfg=cfg)
