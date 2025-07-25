@@ -1,3 +1,5 @@
+# models/teachers/resnet_wrapper.py
+
 import torch.nn as nn
 
 class ResNetWrapper(nn.Module):
