@@ -77,10 +77,10 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 
   | Student model                | Feature dim |
   |------------------------------|-------------|
-  | `student_resnet_adapter`       | 2048        |
-  | `student_swin_adapter`         | 768         |
+  | `resnet101_student`            | 2048        |
+  | `swin_student`                 | 768         |
 - **Swin Adapter Dim**: `swin_adapter_dim` sets the hidden size of the MLP
-  adapter used by `student_swin_adapter` (default `64`)
+  adapter used by `swin_student` (default `64`)
 - **Smart Progress Bars**: progress bars hide automatically when stdout isn't a TTY
 - **CIFAR-friendly ResNet/EfficientNet stem**: use `--small_input 1` when
   fine-tuning or evaluating models that modify the conv stem for 32x32 inputs
@@ -213,7 +213,7 @@ python main.py --config-name base \
 ```bash
 python scripts/run_single_teacher.py --config-name base \
   +method=vanilla_kd +teacher_type=resnet152 +teacher_ckpt=teacher.pth \
-  +student_type=resnet_adapter +epochs=40 \
+  +student_type=resnet +epochs=40 \
   dataset=imagenet32
 ```
 
@@ -231,7 +231,7 @@ Run the student alone using the same partial-freeze settings to gauge its standa
 
 ```bash
 python scripts/train_student_baseline.py --config-name base \
-  +student_type=resnet_adapter +epochs=40 dataset=cifar100
+  +student_type=resnet +epochs=40 dataset=cifar100
 # Freeze levels come from the student YAML under configs/model/
 ```
 
@@ -251,7 +251,7 @@ python eval.py +eval_mode=synergy \
   # uses checkpoints/{teacher_type}_ft.pth if available \
   +mbm_ckpt=mbm.pth \
   +head_ckpt=synergy_head.pth \
-  +student_type=resnet_adapter \
+  +student_type=resnet \
   +student_ckpt=student.pth \
   +mbm_type=ib_mbm +mbm_r=4 +mbm_n_head=1 +mbm_learnable_q=1
   # mbm_query_dim and mbm_out_dim are automatically set to the student feature dimension
@@ -329,7 +329,7 @@ Swin) to expect 32×32 inputs.
 
 Fine-tune the individual teachers before running the distillation stages.
 All fine-tuning options live in the teacher configs under `configs/model/teacher/`.
-The bundled `TeacherSwinWrapper` expects the Swin backbone to call
+The bundled `SwinTeacher` expects the Swin backbone to call
 `features`, `norm`, `permute`, `avgpool` and `flatten` in sequence when
 producing its feature map. This mirrors torchvision's official
 `SwinTransformer` forward path.
@@ -482,12 +482,13 @@ Folder Structure
 │   ├── common/
 │   │   └── adapter.py
 │   ├── students/
-│   │   ├── student_resnet_adapter.py
-│   │   ├── student_resnet152_adapter.py
-│   │   └── student_swin_adapter.py
+│   │   ├── resnet101_student.py
+│   │   ├── resnet152_student.py
+│   │   └── swin_student.py
 │   └── teachers/
-│       ├── teacher_resnet.py
-│       └── teacher_swin.py
+│       ├── resnet_teacher.py
+│       ├── efficientnet_l2_teacher.py
+│       └── swin_teacher.py
 
 ├── modules/
 │   ├── trainer_student.py

@@ -131,7 +131,7 @@ def main(cfg: DictConfig):
         small_input = dataset in ("cifar100", "imagenet32")
 
     student = create_student_by_name(
-        cfg.get("student_type", "resnet_adapter"),
+        cfg.get("student_type", "resnet"),
         pretrained=cfg.get("student_pretrained", True),
         small_input=small_input,
         num_classes=num_classes,
