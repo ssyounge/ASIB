@@ -242,8 +242,8 @@ class ASMBDistiller(nn.Module):
         - L2 정규화(reg_lambda)
         """
         # 1) Teacher/MBM 파라미터만 requires_grad=True 여야 함
-        #    (partial freeze는 이미 외부에서 했다고 가정, 또는 여기서 처리)
-        params = []
+        #    └ teach_params / mbm_params 를 별도로 기록해 L2 계수를 분리
+        params, teach_params, mbm_params = [], [], []
         use_da = self.config.get("use_distillation_adapter", False)
         # teacher1
         param_src = (
@@ -254,6 +254,7 @@ class ASMBDistiller(nn.Module):
         for p in param_src:
             if p.requires_grad:
                 params.append(p)
+                teach_params.append(p)          # ← Teacher 전용
         # teacher2
         param_src = (
             self.teacher2.distillation_adapter.parameters()
@@ -263,13 +264,16 @@ class ASMBDistiller(nn.Module):
         for p in param_src:
             if p.requires_grad:
                 params.append(p)
+                teach_params.append(p)          # ← Teacher 전용
         # mbm, synergy_head
         for p in self.mbm.parameters():
             if p.requires_grad:
                 params.append(p)
+                mbm_params.append(p)            # ← MBM / synergy 용
         for p in self.synergy_head.parameters():
             if p.requires_grad:
                 params.append(p)
+                mbm_params.append(p)
 
         # ``optimizer`` is constructed outside and shared across stages
 
@@ -340,14 +344,21 @@ class ASMBDistiller(nn.Module):
                             norm=self.config.get("feat_kd_norm", "none"),
                         )
 
-                    # L2 regularization (per-batch)
-                    reg_loss = torch.stack([(p ** 2).mean() for p in params]).mean()
+                    # ── L2 regularization (per‑batch) ──────────────────
+                    reg_teach = torch.stack(
+                        [(p ** 2).mean() for p in teach_params]
+                    ).mean() if teach_params else torch.tensor(0.0, device=x.device)
+
+                    reg_mbm   = torch.stack(
+                        [(p ** 2).mean() for p in mbm_params]
+                    ).mean() if mbm_params else torch.tensor(0.0, device=x.device)
 
                     loss = (
                         kl_val
                         + synergy_ce
                         + self.config.get("feat_kd_alpha", 0) * feat_kd_val
-                        + self.reg_lambda * reg_loss
+                        + self.reg_lambda     * reg_teach      # 기존
+                        + self.mbm_reg_lambda * reg_mbm        # ★ 추가됨
                     )
 
                 if logger is not None and attn is not None:
