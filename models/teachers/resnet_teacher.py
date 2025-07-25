@@ -1,4 +1,4 @@
-# models/teachers/teacher_resnet.py
+# models/teachers/resnet_teacher.py
 
 import torch
 import torch.nn as nn
