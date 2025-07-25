@@ -76,7 +76,16 @@ def create_student_by_name(
     Returns a student model that follows the common interface
     (feature_dict, logits, ce_loss).
     """
-    if student_name == "resnet":
+    if student_name in ("resnet50", "resnet_50"):
+        return build_model(
+            "resnet50_student",
+            pretrained=pretrained,
+            num_classes=num_classes,
+            small_input=small_input,
+            cfg=cfg,
+        )
+
+    elif student_name in ("resnet101", "resnet_101", "resnet"):
         return build_model(
             "resnet101_student",
             pretrained=pretrained,
@@ -85,9 +94,18 @@ def create_student_by_name(
             cfg=cfg,
         )
 
-    elif student_name == "resnet152":
+    elif student_name in ("resnet152", "resnet_152"):
         return build_model(
             "resnet152_student",
+            pretrained=pretrained,
+            num_classes=num_classes,
+            small_input=small_input,
+            cfg=cfg,
+        )
+
+    elif student_name in ("effb2", "efficientnet_b2"):
+        return build_model(
+            "efficientnet_b2_student",
             pretrained=pretrained,
             num_classes=num_classes,
             small_input=small_input,
@@ -148,10 +166,12 @@ def create_teacher_by_name(
             small_input=small_input,
             cfg=cfg,
         )
-    elif teacher_name == "swin_tiny":
-        return create_swin_t(
+    elif teacher_name in ("convnext_l", "convnext_large"):
+        from models.teachers.convnext_l_teacher import ConvNeXtLTeacher
+        return ConvNeXtLTeacher(
             num_classes=num_classes,
             pretrained=pretrained,
+            small_input=small_input,
             cfg=cfg,
         )
     else:
