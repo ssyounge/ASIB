@@ -79,12 +79,6 @@ def feat_mse_loss(s_feat, t_feat, norm: str = "none", reduction="mean"):
         t_feat = F.normalize(t_feat, dim=1)
 
     loss = F.mse_loss(s_feat, t_feat, reduction=reduction)
-    # DEBUG
-    from utils.debug import dprint
-    dprint(
-        f"[feat_mse_loss] s={tuple(s_feat.shape)} "
-        f"t={tuple(t_feat.shape)} norm={norm} loss={loss.item():.4e}"
-    )
     return loss
 
 
