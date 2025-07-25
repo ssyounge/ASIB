@@ -19,8 +19,8 @@ from main import create_student_by_name
 
 # Teacher Factory
 # Import the three teacher creation functions:
-from models.teachers.teacher_resnet import create_resnet101, create_resnet152
-from models.teachers.teacher_swin import create_swin_t
+from models.teachers.resnet_teacher import create_resnet101, create_resnet152
+from models.teachers.swin_teacher import create_swin_t
 
 def create_teacher_by_name(
     teacher_name,
@@ -45,7 +45,7 @@ def create_teacher_by_name(
             cfg=cfg,
         )
     elif teacher_name in ("efficientnet_l2", "effnet_l2"):
-        from models.teachers.teacher_efficientnet_l2 import create_efficientnet_l2
+        from models.teachers.efficientnet_l2_teacher import create_efficientnet_l2
         return create_efficientnet_l2(
             num_classes=num_classes,
             pretrained=pretrained,
@@ -160,7 +160,7 @@ def main(cfg: DictConfig):
 
     if cfg["eval_mode"] == "single":
         # single model eval
-        from models.students.student_resnet_adapter import create_resnet101_with_extended_adapter
+        from models.students.resnet101_student import create_resnet101_with_extended_adapter
         model = create_resnet101_with_extended_adapter(pretrained=False).to(device)
 
         # load single model ckpt
@@ -241,7 +241,7 @@ def main(cfg: DictConfig):
             synergy_head.load_state_dict(head_ck, strict=False)
 
         # 5) student for query-based MBM or optional synergy
-        student_name = cfg.get("student_type", "resnet_adapter")
+        student_name = cfg.get("student_type", "resnet")
         student = create_student_by_name(
             student_name,
             pretrained=False,

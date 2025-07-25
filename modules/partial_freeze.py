@@ -344,20 +344,20 @@ def freeze_teacher_params(
 
 def freeze_student_with_adapter(
     model: nn.Module,
-    student_name: str = "resnet_adapter",
+    student_name: str = "resnet",
     freeze_bn: bool = True,
     freeze_ln: bool = True,
     freeze_level: int = 1,
 ) -> None:
     """Wrapper that freezes a student and optionally unfreezes its adapters."""
-    if student_name == "resnet_adapter":
+    if student_name == "resnet":
         partial_freeze_student_resnet(
             model,
             freeze_bn=freeze_bn,
             use_adapter=True,
             freeze_level=freeze_level,
         )
-    elif student_name == "swin_adapter":
+    elif student_name == "swin":
         partial_freeze_student_swin(
             model,
             freeze_ln=freeze_ln,

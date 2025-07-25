@@ -87,7 +87,7 @@ def main(cfg: DictConfig):
     if method != "asmb":
         cfg["use_partial_freeze"] = False
     teacher_type = cfg.get("teacher_type", cfg.get("default_teacher_type"))
-    student_type = cfg.get("student_type", "resnet_adapter")
+    student_type = cfg.get("student_type", "resnet")
     print(
         f">>> [run_single_teacher.py] method={method} teacher={teacher_type} student={student_type}"
     )
@@ -156,7 +156,7 @@ def main(cfg: DictConfig):
         )
 
     student = create_student_by_name(
-        cfg.get("student_type", "resnet_adapter"),
+        cfg.get("student_type", "resnet"),
         pretrained=cfg.get("student_pretrained", True),
         small_input=small_input,
         num_classes=num_classes,
