@@ -326,12 +326,27 @@ class ASMBDistiller(nn.Module):
                     )
                     synergy_ce = self.synergy_ce_alpha * ce_val
 
+                    # ---------- Feature-KD (MSE) ----------
+                    feat_kd_val = torch.tensor(0.0, device=s_feat.device)
+                    if self.config.get("feat_kd_alpha", 0) > 0:
+                        fsyn_use = syn_feat
+                        if fsyn_use.dim() == 4 and s_feat.dim() == 2:
+                            fsyn_use = torch.nn.functional.adaptive_avg_pool2d(
+                                fsyn_use, (1, 1)
+                            ).flatten(1)
+                        feat_kd_val = feat_mse_loss(
+                            s_feat,
+                            fsyn_use,
+                            norm=self.config.get("feat_kd_norm", "none"),
+                        )
+
                     # L2 regularization (per-batch)
                     reg_loss = torch.stack([(p ** 2).mean() for p in params]).mean()
 
                     loss = (
                         kl_val
                         + synergy_ce
+                        + self.config.get("feat_kd_alpha", 0) * feat_kd_val
                         + self.reg_lambda * reg_loss
                     )
 
