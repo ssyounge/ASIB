@@ -48,8 +48,13 @@ from modules.partial_freeze import (
 )
 
 # Teacher creation (factory):
-from models.teachers.teacher_resnet import create_resnet101
+from models.common.base_wrapper import MODEL_REGISTRY
 from models.teachers.teacher_swin import create_swin_t
+
+# ---------------------------------------------------------------------------
+# Helper to instantiate models registered via MODEL_REGISTRY
+def build_model(name: str, **kwargs):
+    return MODEL_REGISTRY[name](**kwargs)
 
 def create_student_by_name(
     student_name: str,
@@ -63,13 +68,12 @@ def create_student_by_name(
     (feature_dict, logits, ce_loss).
     """
     if student_name == "resnet_adapter":
-        from models.students.student_resnet_adapter import (
-            create_resnet101_with_extended_adapter,
-        )
-        return create_resnet101_with_extended_adapter(
+        return build_model(
+            "resnet101_adapter_student",
             pretrained=pretrained,
             num_classes=num_classes,
             small_input=small_input,
+            cfg=cfg,
         )
 
     elif student_name == "resnet152_adapter":
@@ -115,15 +119,16 @@ def create_teacher_by_name(
     cfg: Optional[dict] = None,
 ):
     if teacher_name == "resnet101":
-        return create_resnet101(
+        return build_model(
+            "resnet101_teacher",
             num_classes=num_classes,
             pretrained=pretrained,
             small_input=small_input,
             cfg=cfg,
         )
     elif teacher_name == "resnet152":
-        from models.teachers.teacher_resnet import create_resnet152
-        return create_resnet152(
+        return build_model(
+            "resnet152_teacher",
             num_classes=num_classes,
             pretrained=pretrained,
             small_input=small_input,
