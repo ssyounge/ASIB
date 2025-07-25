@@ -47,8 +47,9 @@ class ASMBDistiller(nn.Module):
         self.student  = student
         self.mbm = mbm
         self.synergy_head = synergy_head
-        # LightweightAttnMBM 은 더 이상 쓰지 않는다 → 항상 False
+        # LightweightAttnMBM 기능은 제거되었습니다.
         self.la_mode = False
+        assert not self.la_mode, "LA\u2011MBM support has been completely removed."
 
         # 하이퍼파라미터
         cfg = config or {}
@@ -97,9 +98,11 @@ class ASMBDistiller(nn.Module):
         zsyn = self.synergy_head(syn_feat)
 
         # CE
-        ce_val = 0.0
-        if y is not None:
-            ce_val = self.ce_loss_fn(s_logit, y)
+        ce_val = (
+            self.ce_loss_fn(s_logit, y)
+            if y is not None
+            else torch.tensor(0.0, device=s_logit.device)
+        )
 
         # KL
         kd_val = kd_loss_fn(s_logit, zsyn, T=self.T, reduction="batchmean")
@@ -283,6 +286,7 @@ class ASMBDistiller(nn.Module):
                 print(f"\n[DBG][Teacher] ====== Stage-Teacher ep {ep}/{epochs} ======")
             cur_tau = get_tau(self.config, ep-1)
             total_loss, total_num = 0.0, 0
+            # L2 정규화는 매 batch 재계산해 그래프 중복 backward 오류를 방지
             for it, (x, y) in enumerate(train_loader):
                 x, y = x.to(self.device), y.to(self.device)
 
@@ -321,7 +325,7 @@ class ASMBDistiller(nn.Module):
                     )
                     synergy_ce = self.synergy_ce_alpha * ce_val
 
-                    # 파라미터 개수로 나눠 스케일 다운
+                    # L2 regularization (per-batch)
                     reg_loss = torch.stack([(p ** 2).mean() for p in params]).mean()
 
                     loss = (
