@@ -7,7 +7,7 @@ from utils.progress import smart_tqdm
 from models.mbm import IB_MBM
 
 from modules.losses import (
-    kd_loss_fn, ce_loss_fn, ib_loss, certainty_weights
+    kd_loss_fn, ce_loss_fn, ib_loss, certainty_weights, feat_mse_loss
 )
 from modules.disagreement import sample_weights_from_disagreement
 from utils.misc import mixup_data, cutmix_data, mixup_criterion, get_amp_components
@@ -73,10 +73,10 @@ def student_distillation_update(
 
     autocast_ctx, scaler = get_amp_components(cfg)
     # ---------------------------------------------------------
-    # query-based MBM? (only IB_MBM remains)
+    # query‑based MBM?
     # ---------------------------------------------------------
-    use_ib_mbm = isinstance(mbm, IB_MBM) \
-                 or cfg.get("mbm_type", "").lower() == "ib_mbm"
+    use_ib_mbm = isinstance(mbm, IB_MBM) or cfg.get("mbm_type", "").lower() == "ib_mbm"
+    attn = None  # 안전하게 초기화
     for ep in range(student_epochs):
         if scheduler is not None and hasattr(scheduler, "T_max"):
             total_epochs = scheduler.T_max
@@ -187,8 +187,6 @@ def student_distillation_update(
                 )
             else:
                 weights = torch.ones_like(y, dtype=s_logit.dtype, device=y.device)
-
-            weights = weights.to(s_logit.dtype)
 
             if cfg.get("use_ib", False) and isinstance(mbm, IB_MBM):
                 cw = certainty_weights(logvar).mean(dim=1).to(s_logit.dtype)

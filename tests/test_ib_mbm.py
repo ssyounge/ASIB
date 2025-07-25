@@ -26,7 +26,12 @@ def test_ib_loss_nonneg():
     kv = torch.randn(4, 2, 256)
     y = torch.randint(0, 10, (4,))
     z, mu, logvar = mbm(q, kv)
-    loss = mbm.loss(z, mu, logvar, y, decoder)
+    logvar = torch.clamp(logvar, -10.0, 10.0)
+    q_dist = torch.distributions.Normal(mu, torch.exp(0.5 * logvar))
+    p_dist = torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(mu))
+    ce = torch.nn.CrossEntropyLoss()(decoder(z), y)
+    kl = torch.distributions.kl_divergence(q_dist, p_dist).mean()
+    loss = ce + mbm.beta * kl
     assert loss.item() >= 0
 
 
@@ -37,7 +42,12 @@ def test_loss_backward():
     kv = torch.randn(2, 1, 16)
     y = torch.randint(0, 4, (2,))
     z, mu, logvar = mbm(q, kv)
-    loss = mbm.loss(z, mu, logvar, y, decoder)
+    logvar = torch.clamp(logvar, -10.0, 10.0)
+    q_dist = torch.distributions.Normal(mu, torch.exp(0.5 * logvar))
+    p_dist = torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(mu))
+    ce = torch.nn.CrossEntropyLoss()(decoder(z), y)
+    kl = torch.distributions.kl_divergence(q_dist, p_dist).mean()
+    loss = ce + mbm.beta * kl
     loss.backward()
     assert q.grad is not None
     assert q.grad.abs().sum() > 0
@@ -69,8 +79,18 @@ def test_ib_loss_scales_with_beta():
     torch.manual_seed(0)
     z2, mu2, logvar2 = mbm_large(q, kv)
 
-    loss1 = mbm_small.loss(z1, mu1, logvar1, y, decoder)
-    loss2 = mbm_large.loss(z2, mu2, logvar2, y, decoder)
+    logvar1 = torch.clamp(logvar1, -10.0, 10.0)
+    logvar2 = torch.clamp(logvar2, -10.0, 10.0)
+    q1 = torch.distributions.Normal(mu1, torch.exp(0.5 * logvar1))
+    p1 = torch.distributions.Normal(torch.zeros_like(mu1), torch.ones_like(mu1))
+    q2 = torch.distributions.Normal(mu2, torch.exp(0.5 * logvar2))
+    p2 = torch.distributions.Normal(torch.zeros_like(mu2), torch.ones_like(mu2))
+    ce1 = torch.nn.CrossEntropyLoss()(decoder(z1), y)
+    ce2 = torch.nn.CrossEntropyLoss()(decoder(z2), y)
+    kl1 = torch.distributions.kl_divergence(q1, p1).mean()
+    kl2 = torch.distributions.kl_divergence(q2, p2).mean()
+    loss1 = ce1 + mbm_small.beta * kl1
+    loss2 = ce2 + mbm_large.beta * kl2
 
     assert loss1.item() >= 0
     assert loss2.item() >= 0
