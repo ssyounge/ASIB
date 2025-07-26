@@ -171,7 +171,7 @@ def teacher_adaptive_update(
                     ).sum(dim=1)
 
                     # ---- DEBUG: 첫 batch 모양 확인 ----
-                    if ep == 0 and step == 0:
+                    if ep == 0 and step == 0 and cfg.get("debug_verbose", False):
                         print(
                             "[DBG/teacher] t1_logit",
                             tuple(t1_dict["logit"].shape),
