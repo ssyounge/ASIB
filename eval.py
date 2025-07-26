@@ -20,7 +20,6 @@ from main import create_student_by_name
 # Teacher Factory
 # Import the three teacher creation functions:
 from models.teachers.resnet_teacher import create_resnet101, create_resnet152
-from models.teachers.swin_teacher import create_swin_t
 
 def create_teacher_by_name(
     teacher_name,
@@ -50,12 +49,6 @@ def create_teacher_by_name(
             num_classes=num_classes,
             pretrained=pretrained,
             small_input=small_input,
-            cfg=cfg,
-        )
-    elif teacher_name == "swin_tiny":
-        return create_swin_t(
-            num_classes=num_classes,
-            pretrained=pretrained,
             cfg=cfg,
         )
     else:
