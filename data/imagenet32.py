@@ -6,13 +6,15 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
+from utils.data_utils import ClassInfoMixin
 
-class ImageNet32(Dataset):
+class ImageNet32(ClassInfoMixin, Dataset):
     """
     Downsampled ImageNet-32x32 (Chrabaszcz et al.)
     – train_data_batch_{1..10}, valid_data, test_data  (Pickle)
     """
     def __init__(self, root, split="train", transform=None):
+        root = root or os.getenv("DATA_ROOT", "./data")
         assert split in ("train", "val", "test")
         self.split, self.transform = split, transform
 

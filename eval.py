@@ -42,6 +42,7 @@ def create_teacher_by_name(
             num_classes=num_classes,
             pretrained=pretrained,
             small_input=small_input,
+            dropout_p=cfg.get("efficientnet_dropout"),
             cfg=cfg,
         )
     else:

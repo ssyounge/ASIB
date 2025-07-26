@@ -42,3 +42,10 @@ def test_method_params_propagated():
     out = cu.flatten_hydra_config(dict(cfg))
     assert out["ce_alpha"] == 0.3
     assert out["kd_alpha"] == 0.7
+
+
+def test_cl_block_propagated():
+    cfg = {"cl": {"mode": "split", "num_tasks": 5}}
+    out = cu.flatten_hydra_config(dict(cfg))
+    assert out["cl_mode"] == "split"
+    assert out["num_tasks"] == 5

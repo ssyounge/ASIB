@@ -34,6 +34,14 @@ def flatten_hydra_config(cfg: dict) -> dict:
     cfg.setdefault("small_input", dataset.get("small_input"))
     cfg.setdefault("data_aug", dataset.get("data_aug"))
 
+    cl_cfg = cfg.get("cl", {})
+    if isinstance(cl_cfg, dict):
+        cfg.setdefault("cl_mode", cl_cfg.get("mode"))
+        cfg.setdefault("num_tasks", cl_cfg.get("num_tasks"))
+        cfg.setdefault("replay_ratio", cl_cfg.get("replay_ratio"))
+        cfg.setdefault("lambda_ewc", cl_cfg.get("lambda_ewc"))
+        cfg.setdefault("dataset_order_seed", cl_cfg.get("dataset_order_seed"))
+
     schedule = cfg.get("schedule", {})
     cfg.setdefault("lr_schedule", schedule.get("type"))
     cfg.setdefault("lr_warmup_epochs", schedule.get("lr_warmup_epochs"))

@@ -18,6 +18,8 @@ class IB_MBM(nn.Module):
         logvar_clip: float = 10.0,
         min_std: float = 1e-4,
     ):
+        if d_emb % n_head != 0:
+            raise ValueError("d_emb must be divisible by n_head")
         super().__init__()
         self.q_proj = nn.Linear(q_dim, d_emb)
         self.kv_proj = nn.Linear(kv_dim, d_emb)
