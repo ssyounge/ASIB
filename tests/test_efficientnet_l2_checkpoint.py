@@ -22,46 +22,20 @@ def setup_timm(monkeypatch, modules):
 def test_import_from_layers(monkeypatch):
     layers = types.ModuleType("timm.layers")
     layers.checkpoint_seq = lambda x: "layers"
-    modules = {"timm.layers": layers, "timm.utils": types.ModuleType("timm.utils")}
-    setup_timm(monkeypatch, modules)
+    setup_timm(monkeypatch, {"timm.layers": layers})
     teacher = create_efficientnet_l2(use_checkpointing=True)
     assert teacher.backbone.blocks == "layers"
 
 
-def test_import_from_utils(monkeypatch):
-    layers = types.ModuleType("timm.layers")
-    utils = types.ModuleType("timm.utils")
-    utils.checkpoint_seq = lambda x: "utils"
-    modules = {"timm.layers": layers, "timm.utils": utils}
-    setup_timm(monkeypatch, modules)
+def test_import_from_factory(monkeypatch):
+    factory = types.ModuleType("timm.models._factory")
+    factory.checkpoint_seq = lambda x: "factory"
+    setup_timm(monkeypatch, {"timm.models._factory": factory})
     teacher = create_efficientnet_l2(use_checkpointing=True)
-    assert teacher.backbone.blocks == "utils"
-
-
-def test_import_from_utils_checkpoint(monkeypatch):
-    layers = types.ModuleType("timm.layers")
-    utils = types.ModuleType("timm.utils")
-    utils_checkpoint = types.ModuleType("timm.utils.checkpoint")
-    utils_checkpoint.checkpoint_seq = lambda x: "checkpoint"
-    modules = {
-        "timm.layers": layers,
-        "timm.utils": utils,
-        "timm.utils.checkpoint": utils_checkpoint,
-    }
-    setup_timm(monkeypatch, modules)
-    teacher = create_efficientnet_l2(use_checkpointing=True)
-    assert teacher.backbone.blocks == "checkpoint"
+    assert teacher.backbone.blocks == "factory"
 
 
 def test_import_error(monkeypatch):
-    layers = types.ModuleType("timm.layers")
-    utils = types.ModuleType("timm.utils")
-    utils_checkpoint = types.ModuleType("timm.utils.checkpoint")
-    modules = {
-        "timm.layers": layers,
-        "timm.utils": utils,
-        "timm.utils.checkpoint": utils_checkpoint,
-    }
-    setup_timm(monkeypatch, modules)
+    setup_timm(monkeypatch, {})
     with pytest.raises(ImportError):
         create_efficientnet_l2(use_checkpointing=True)
