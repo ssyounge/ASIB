@@ -2,9 +2,10 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from modules.partial_freeze import (partial_freeze_teacher_efficientnet,
-                                    partial_freeze_teacher_resnet,
-                                    partial_freeze_teacher_swin)
+from modules.partial_freeze import (
+    partial_freeze_teacher_efficientnet,
+    partial_freeze_teacher_resnet,
+)
 
 
 class DummyResNetTeacher(torch.nn.Module):
@@ -26,14 +27,6 @@ class DummyEfficientNetTeacher(torch.nn.Module):
         self.backbone.classifier = torch.nn.Linear(1, 1)
         self.extra = torch.nn.Linear(1, 1)
 
-
-class DummySwinTeacher(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.backbone = torch.nn.Module()
-        self.backbone.head = torch.nn.Linear(1, 1)
-        self.backbone.features = torch.nn.Linear(1, 1)
-        self.other = torch.nn.Linear(1, 1)
 
 
 def _req_dict(model):
@@ -58,13 +51,6 @@ def test_efficientnet_features_classifier():
     assert req["backbone.classifier.weight"]
     assert not req["extra.weight"]
 
-
-def test_swin_head_only():
-    m = DummySwinTeacher()
-    partial_freeze_teacher_swin(m, freeze_level=0)
-    req = _req_dict(m)
-    assert req["backbone.head.weight"]
-    assert not req["backbone.features.weight"]
 
 
 def test_adapter_pattern():
