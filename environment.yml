@@ -1,4 +1,4 @@
-name: tlqkf          # 원하는 env 이름
+name: ${CONDA_ENV:-asmb}          # 원하는 env 이름
 channels:
   - pytorch
   - nvidia            # CUDA 12.1 wheel을 conda로 받고 싶을 때만
@@ -7,8 +7,16 @@ dependencies:
   - python=3.12
   - pip
   - cudatoolkit=12.1          # (CUDA 11.x 사용 시 버전 맞춰 조정)
+  - numpy<2.0
+  - pytorch::torch==2.2.0
+  - pytorch::torchvision==0.17.0
   - pip:
       - -r requirements.txt   # 위에서 정리한 파일
+
+  # development tools
+  - pytest
+  - ruff
+  - pre-commit
 
 # conda + pip 혼합 방식입니다. cudatoolkit 만 conda 로 받고,
 # PyTorch wheel은 GPU, CUDA 버전에 맞춰 pip로 수동 설치(주석 참고).

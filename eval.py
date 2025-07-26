@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 import hydra
 from omegaconf import DictConfig, OmegaConf
+from utils.logging_utils import init_logger
 
 from data.cifar100 import get_cifar100_loaders
 from data.imagenet32 import get_imagenet32_loaders
@@ -111,6 +112,7 @@ def main(cfg: DictConfig):
     cfg = OmegaConf.to_container(cfg, resolve=True)
     from utils.config_utils import flatten_hydra_config
     cfg = flatten_hydra_config(cfg)
+    init_logger(cfg.get("log_level", "INFO"))
 
     # 2) set seed
     deterministic = cfg.get("deterministic", True)
@@ -166,13 +168,13 @@ def main(cfg: DictConfig):
                 model.load_state_dict(ckpt["model_state"], strict=False)
             else:
                 model.load_state_dict(ckpt, strict=False)
-            print(f"[Eval single] loaded from {cfg['ckpt_path']}")
+            logging.info("[Eval single] loaded from %s", cfg["ckpt_path"])
         else:
-            print("[Eval single] no ckpt => random init")
+            logging.info("[Eval single] no ckpt => random init")
 
         train_acc = evaluate_acc(model, train_loader, device, cfg)
         test_acc  = evaluate_acc(model, test_loader, device, cfg)
-        print(f"[Single] Train={train_acc:.2f}, Test={test_acc:.2f}")
+        logging.info("[Single] Train=%.2f, Test=%.2f", train_acc, test_acc)
 
         logger.update_metric("eval_mode", "single")
         logger.update_metric("train_acc", train_acc)
@@ -264,7 +266,7 @@ def main(cfg: DictConfig):
         # evaluate
         train_acc = evaluate_acc(synergy_model, train_loader, device, cfg)
         test_acc  = evaluate_acc(synergy_model, test_loader, device, cfg)
-        print(f"[Synergy] Train={train_acc:.2f}, Test={test_acc:.2f}")
+        logging.info("[Synergy] Train=%.2f, Test=%.2f", train_acc, test_acc)
 
         logger.update_metric("eval_mode", "synergy")
         logger.update_metric("train_acc", train_acc)

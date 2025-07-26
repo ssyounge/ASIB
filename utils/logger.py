@@ -4,6 +4,7 @@ import os
 import csv
 import json
 import time
+import logging
 from datetime import datetime
 
 
@@ -106,7 +107,7 @@ class ExperimentLogger:
         현재는 stdout으로만 출력하지만, 필요하면
         파일에 따로 쓰거나 time-stamp를 붙이는 등 확장 가능.
         """
-        print(msg)
+        logging.info(msg)
 
     def finalize(self):
         """
@@ -135,7 +136,7 @@ class ExperimentLogger:
 
         # Save the JSON (all info)
         save_json(self.config, json_path)
-        print(f"[ExperimentLogger] JSON saved ⇒ {json_path}")
+        logging.info("[ExperimentLogger] JSON saved ⇒ %s", json_path)
 
         # 최신 결과 가리키는 심링크/복사본
         latest_path = os.path.join(self.results_dir, "latest.json")
@@ -176,4 +177,4 @@ class ExperimentLogger:
         fieldnames = base_cols + sorted(epoch_cols)
 
         save_csv_row(self.config, csv_path, fieldnames, write_header_if_new=True)
-        print(f"[ExperimentLogger] CSV saved => {csv_path}")
+        logging.info("[ExperimentLogger] CSV saved => %s", csv_path)
