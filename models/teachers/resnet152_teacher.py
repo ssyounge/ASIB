@@ -20,7 +20,15 @@ class ResNet152Teacher(BaseKDModel):
         cfg: dict | None = None,
     ):
         weights = tv.ResNet152_Weights.IMAGENET1K_V2 if pretrained else None
-        backbone = tv.resnet152(weights=weights, num_classes=num_classes)
+        if weights is not None:
+            # Torchvision's weights objects enforce ``num_classes`` to match
+            # the pretraining dataset (1000 for ResNet-152). Creating the
+            # backbone without specifying ``num_classes`` avoids a mismatch
+            # error when we later replace the classification head for a
+            # different dataset (e.g. CIFAR-100).
+            backbone = tv.resnet152(weights=weights)
+        else:
+            backbone = tv.resnet152(weights=None, num_classes=num_classes)
         if small_input:
             backbone.conv1 = nn.Conv2d(
                 3, 64, kernel_size=3, stride=1, padding=1, bias=False
