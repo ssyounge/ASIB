@@ -65,6 +65,9 @@ beta_schedule: [0.0, 0.01, 5]     # 0→0.01 로 5 epoch linear warm‑up
 # 차원 설정
 mbm_query_dim: 2048               # student feat dim (ResNet‑152)
 mbm_out_dim: 2048                  # synergy‑head 입력 dim (= d_emb)
+mbm_n_head: 1
+mbm_logvar_clip: 10
+mbm_min_std: 1e-4
 ## IB-MBM options: keep mbm_query_dim, mbm_out_dim, ib_beta
 
 # ---------- Distillation Adapter 기본 ----------
@@ -82,6 +85,9 @@ grad_clip_norm: 1.0
 # ───────── KD hyper-parameters ─────────
 ce_alpha: 0.5         # CE(student, GT) weight
 kd_alpha: 0.5         # KL(student‖teacher) weight
+
+# EfficientNet teacher dropout
+efficientnet_dropout: 0.3
 
 # ─────── Temperature Decay (polynomial) ───────
 #   τ(e) = tau_end + (tau_start - tau_end)·(1 - e/E)^tau_decay_power

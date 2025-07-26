@@ -2,6 +2,7 @@
 
 import torch
 import copy
+import logging
 from utils.progress import smart_tqdm
 from models.mbm import IB_MBM
 
@@ -172,12 +173,10 @@ def teacher_adaptive_update(
 
                     # ---- DEBUG: 첫 batch 모양 확인 ----
                     if ep == 0 and step == 0 and cfg.get("debug_verbose", False):
-                        print(
-                            "[DBG/teacher] t1_logit",
+                        logging.debug(
+                            "[DBG/teacher] t1_logit %s s_logit %s zsyn %s",
                             tuple(t1_dict["logit"].shape),
-                            "s_logit",
                             tuple(s_logit.shape),
-                            "zsyn",
                             tuple(zsyn.shape),
                         )
                     cw = certainty_weights(logvar).mean(dim=1).to(zsyn.dtype)
