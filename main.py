@@ -119,8 +119,9 @@ def create_teacher_by_name(
     cfg: Optional[dict] = None,
 ):
     if teacher_name == "resnet152":
-        return build_model(
-            "resnet152_teacher",
+        from models.teachers.resnet152_teacher import create_resnet152
+
+        return create_resnet152(
             num_classes=num_classes,
             pretrained=pretrained,
             small_input=small_input,
