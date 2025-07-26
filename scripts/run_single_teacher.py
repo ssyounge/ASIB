@@ -6,6 +6,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import torch
+import logging
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from utils.misc import set_random_seed, check_label_range, get_model_num_classes
@@ -88,8 +89,11 @@ def main(cfg: DictConfig):
         cfg["use_partial_freeze"] = False
     teacher_type = cfg.get("teacher_type", cfg.get("default_teacher_type"))
     student_type = cfg.get("student_type", "resnet")
-    print(
-        f">>> [run_single_teacher.py] method={method} teacher={teacher_type} student={student_type}"
+    logging.info(
+        ">>> [run_single_teacher.py] method=%s teacher=%s student=%s",
+        method,
+        teacher_type,
+        student_type,
     )
     device = cfg.get("device", "cuda")
     if device == "cuda" and not torch.cuda.is_available():
@@ -143,7 +147,7 @@ def main(cfg: DictConfig):
             torch.load(teacher_ckpt_path, map_location=device, weights_only=True),
             strict=False,
         )
-        print(f"[run_single_teacher.py] Loaded teacher from {teacher_ckpt_path}")
+        logging.info("[run_single_teacher.py] Loaded teacher from %s", teacher_ckpt_path)
     if cfg.get("use_partial_freeze", True):
         partial_freeze_teacher_auto(
             teacher,
@@ -188,7 +192,7 @@ def main(cfg: DictConfig):
     os.makedirs(ckpt_dir, exist_ok=True)
     ckpt = os.path.join(ckpt_dir, f"final_student_{method}.pth")
     torch.save(student.state_dict(), ckpt)
-    print(f"[run_single_teacher] final_acc={acc:.2f}% -> {ckpt}")
+    logging.info("[run_single_teacher] final_acc=%.2f%% -> %s", acc, ckpt)
 
 
 if __name__ == "__main__":

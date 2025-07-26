@@ -132,6 +132,7 @@ def create_teacher_by_name(
             num_classes=num_classes,
             pretrained=pretrained,
             small_input=small_input,
+            dropout_p=cfg.get("efficientnet_dropout"),
             cfg=cfg,
         )
     elif teacher_name in ("convnext_l", "convnext_large"):
@@ -228,15 +229,16 @@ def main(cfg: DictConfig):
     # ------------------------------------------------------------------
     if "student_pretrained" not in cfg:
         cfg["student_pretrained"] = bool(fl >= 0)
-        print(
-            f"[Auto-cfg] student_pretrained\u2190{cfg['student_pretrained']} "
-            f"(freeze_level={fl})"
-        )
+        if cfg.get("debug_verbose"):
+            logging.debug(
+                "[Auto-cfg] student_pretrained←%s (freeze_level=%s)",
+                cfg["student_pretrained"],
+                fl,
+            )
 
     if fl >= 0 and not cfg.get("student_pretrained", False):
-        print(
-            "[Warn] freeze_level ≥0 인데 student_pretrained=False ‑‑ "
-            "동결된 층이 랜덤 초기화 상태가 됩니다."
+        logging.warning(
+            "freeze_level ≥0 인데 student_pretrained=False ‑‑ 동결된 층이 랜덤 초기화 상태가 됩니다."
         )
 
     # --------------- α/β 재정규화 (한 번만) -------------
@@ -246,10 +248,12 @@ def main(cfg: DictConfig):
             if abs(ce + kd - 1) > 1e-5:
                 tot = ce + kd
                 d["ce_alpha"], d["kd_alpha"] = ce / tot, kd / tot
-                print(
-                    f"[Auto-cfg] ce_alpha+kd_alpha \u22601 \u2192 \uc7ac\uc815\uaddc\ud654 "
-                    f"(ce={d['ce_alpha']:.3f}, kd={d['kd_alpha']:.3f})"
-                )
+                if cfg.get("debug_verbose"):
+                    logging.debug(
+                        "[Auto-cfg] ce_alpha+kd_alpha !=1 → 재정규화 (ce=%.3f, kd=%.3f)",
+                        d["ce_alpha"],
+                        d["kd_alpha"],
+                    )
 
     _renorm_ce_kd(cfg)
 
@@ -327,7 +331,7 @@ def main(cfg: DictConfig):
 
     device = cfg.get("device", "cuda")
     if device == "cuda" and not torch.cuda.is_available():
-        print("[Warning] No CUDA => Using CPU")
+        logging.warning("No CUDA => Using CPU")
         device = "cpu"
 
     # fix seed
@@ -425,7 +429,7 @@ def main(cfg: DictConfig):
             torch.load(teacher1_ckpt_path, map_location=device, weights_only=True),
             strict=False,
         )
-        print(f"[Main] Loaded teacher1 from {teacher1_ckpt_path}")
+        logging.info("Loaded teacher1 from %s", teacher1_ckpt_path)
 
     if cfg.get("use_partial_freeze", True):
         partial_freeze_teacher_auto(
@@ -460,7 +464,7 @@ def main(cfg: DictConfig):
             torch.load(teacher2_ckpt_path, map_location=device, weights_only=True),
             strict=False,
         )
-        print(f"[Main] Loaded teacher2 from {teacher2_ckpt_path}")
+        logging.info("Loaded teacher2 from %s", teacher2_ckpt_path)
 
     if cfg.get("use_partial_freeze", True):
         partial_freeze_teacher_auto(
@@ -482,7 +486,7 @@ def main(cfg: DictConfig):
             standard_ce_finetune,
         )
 
-        print(f"[Main] Fine-tuning teachers for {finetune_epochs} epochs")
+        logging.info("Fine-tuning teachers for %d epochs", finetune_epochs)
         lr = cfg.get("finetune_lr", 1e-3)
         wd = cfg.get("finetune_weight_decay", 1e-4)
         use_cutmix = bool(cfg.get("finetune_use_cutmix", True))
@@ -540,8 +544,8 @@ def main(cfg: DictConfig):
 
     te1_acc = eval_teacher(teacher1, test_loader, device=device, cfg=cfg)
     te2_acc = eval_teacher(teacher2, test_loader, device=device, cfg=cfg)
-    print(f"[Main] Teacher1 ({teacher1_type}) testAcc={te1_acc:.2f}%")
-    print(f"[Main] Teacher2 ({teacher2_type}) testAcc={te2_acc:.2f}%")
+    logging.info("Teacher1 (%s) testAcc=%.2f%%", teacher1_type, te1_acc)
+    logging.info("Teacher2 (%s) testAcc=%.2f%%", teacher2_type, te2_acc)
     exp_logger.update_metric("teacher1_test_acc", te1_acc)
     exp_logger.update_metric("teacher2_test_acc", te2_acc)
 
@@ -562,7 +566,8 @@ def main(cfg: DictConfig):
             feat_dict, _, _ = student_model(dummy)
             qdim = feat_dict.get("distill_feat", feat_dict.get("feat_2d")).shape[-1]
             cfg["mbm_query_dim"] = int(qdim)
-            print(f"[Auto-cfg] mbm_query_dim ← {qdim}")
+            if cfg.get("debug_verbose"):
+                logging.debug("[Auto-cfg] mbm_query_dim ← %d", qdim)
 
     # ── NEW: ② 문자열 숫자 → float/int 캐스팅 --------------------------------
     _num_keys = [
@@ -588,7 +593,7 @@ def main(cfg: DictConfig):
             torch.load(cfg["student_ckpt"], map_location=device, weights_only=True),
             strict=False,
         )
-        print(f"[Main] Loaded student from {cfg['student_ckpt']}")
+        logging.info("Loaded student from %s", cfg["student_ckpt"])
 
     # freeze 옵션 켜져 있을 때만 수행
     if cfg.get("use_partial_freeze", False):
@@ -601,11 +606,10 @@ def main(cfg: DictConfig):
     # ───────────────────────── debug: trainable 파라미터 개수 로그 ──────────────
     n_trainable = count_trainable(student_model)
     if cfg.get("debug_verbose", False):
-        print(f"[Debug] Student trainable **elements** → {n_trainable:,}")
-        # freeze‑level 검증
+        logging.debug("[Debug] Student trainable **elements** → %s", f"{n_trainable:,}")
         frz_lvl = cfg.get("student_freeze_level", -1)
         n_requires_grad = sum(1 for p in student_model.parameters() if p.requires_grad)
-        print(f"[DBG] freeze_level={frz_lvl}, tensors_grad={n_requires_grad}")
+        logging.debug("[DBG] freeze_level=%s, tensors_grad=%s", frz_lvl, n_requires_grad)
     exp_logger.update_metric("n_trainable_student", n_trainable)
 
     # Obtain student feature dimension for MBM defaults
@@ -615,22 +619,27 @@ def main(cfg: DictConfig):
         if cfg.get("mbm_out_dim") in (None, 0):
             cfg["mbm_out_dim"] = feat_dim
             exp_logger.update_metric("mbm_out_dim", feat_dim)
-            print(f"[Info] mbm_out_dim set to student feature dimension {feat_dim}")
+            logging.info("mbm_out_dim set to student feature dimension %d", feat_dim)
         elif cfg["mbm_out_dim"] != feat_dim:
-            print(
-                f"[Warning] mbm_out_dim ({cfg['mbm_out_dim']}) does not match the student feature dimension ({feat_dim})."
+            logging.warning(
+                "mbm_out_dim (%s) does not match the student feature dimension (%s).",
+                cfg["mbm_out_dim"],
+                feat_dim,
             )
 
         # 이미 student_feat_dim 을 이용해 mbm_query_dim 은 채워놓은 상태
         if "mbm_query_dim" not in cfg or cfg["mbm_query_dim"] <= 0:
             cfg["mbm_query_dim"] = feat_dim
-            print(f"[Auto-cfg] mbm_query_dim ← {cfg['mbm_query_dim']}")
+            if cfg.get("debug_verbose"):
+                logging.debug("[Auto-cfg] mbm_query_dim ← %d", cfg["mbm_query_dim"])
 
         # mbm_out_dim 이 query_dim 과 다르면 경고만 뜨는데,
         # 특별한 이유가 없으면 동일하게 맞춰 주는 편이 안전하다.
         if cfg.get("mbm_out_dim") != cfg["mbm_query_dim"]:
-            print(
-                f"[Auto-cfg] mbm_out_dim 조정: {cfg['mbm_out_dim']} → {cfg['mbm_query_dim']}"
+            logging.info(
+                "[Auto-cfg] mbm_out_dim 조정: %s → %s",
+                cfg["mbm_out_dim"],
+                cfg["mbm_query_dim"],
             )
             cfg["mbm_out_dim"] = cfg["mbm_query_dim"]
 
@@ -726,7 +735,9 @@ def main(cfg: DictConfig):
     # ------------------------------------------------------------
 
     if cfg.get("cl_mode", False):
-        print("[main] Continual-Learning mode ON (β=%.3f)" % cfg.get("ib_beta", 0.01))
+        logging.info(
+            "Continual-Learning mode ON (β=%.3f)", cfg.get("ib_beta", 0.01)
+        )
 
         from utils.data import get_split_cifar100_loaders
         from utils.cl_utils import ReplayBuffer, EWC
@@ -749,7 +760,7 @@ def main(cfg: DictConfig):
 
         global_ep = 0
         for task_id, (tl, vl) in enumerate(task_loaders):
-            print(f"\n=== Task {task_id + 1}/{num_tasks} ===")
+            logging.info("\n=== Task %d/%d ===", task_id + 1, num_tasks)
             student_model.train()
             epochs = cfg.get("epochs", 1)
             for ep in range(epochs):
@@ -783,18 +794,23 @@ def main(cfg: DictConfig):
 
             acc = eval_student(student_model, vl, device, cfg)
             exp_logger.update_metric(f"task{task_id + 1}_acc", acc)
-            print(f"[Task {task_id + 1}] acc={acc:.2f}%")
+            logging.info("[Task %d] acc=%.2f%%", task_id + 1, acc)
     else:
         global_ep = 0
         for stage_id in range(1, num_stages + 1):
-            print(f"\n=== Stage {stage_id}/{num_stages} ===")
+            logging.info("\n=== Stage %d/%d ===", stage_id, num_stages)
 
             # ---------- DEBUG: disagreement weight 파라미터 확인 ----------
             dbg_mode = cfg.get("disagree_mode", "both_wrong")
             dbg_lh = cfg.get("disagree_lambda_high", 1.2)
             dbg_ll = cfg.get("disagree_lambda_low", 0.8)
             if cfg.get("debug_verbose", False):
-                print(f"[DBG] disagree_mode={dbg_mode}, λ_high={dbg_lh}, λ_low={dbg_ll}")
+                logging.debug(
+                    "[DBG] disagree_mode=%s, λ_high=%s, λ_low=%s",
+                    dbg_mode,
+                    dbg_lh,
+                    dbg_ll,
+                )
             # --------------------------------------------------------------
 
             teacher_epochs = cfg.get(
@@ -829,7 +845,9 @@ def main(cfg: DictConfig):
                 cfg=cfg,
                 mode=cfg.get("disagree_mode", "both_wrong"),
             )
-            print(f"[Stage {stage_id}] Teacher disagreement= {dis_rate:.2f}%")
+            logging.info(
+                "[Stage %d] Teacher disagreement= %.2f%%", stage_id, dis_rate
+            )
             exp_logger.update_metric(f"stage{stage_id}_disagreement_rate", dis_rate)
 
             # (B) Student distillation
@@ -847,7 +865,9 @@ def main(cfg: DictConfig):
                 global_ep=global_ep,
             )
             global_ep += student_epochs
-            print(f"[Stage {stage_id}] Student final acc= {final_acc:.2f}%")
+            logging.info(
+                "[Stage %d] Student final acc= %.2f%%", stage_id, final_acc
+            )
             exp_logger.update_metric(f"stage{stage_id}_student_acc", final_acc)
 
     # 8) save final
@@ -855,7 +875,7 @@ def main(cfg: DictConfig):
     os.makedirs(ckpt_dir, exist_ok=True)
     student_ckpt_path = os.path.join(ckpt_dir, "student_final.pth")
     torch.save(student_model.state_dict(), student_ckpt_path)
-    print(f"[main] Distillation done => {student_ckpt_path}")
+    logging.info("Distillation done => %s", student_ckpt_path)
     exp_logger.update_metric("final_student_ckpt", student_ckpt_path)
 
     # ---- Key 동기화 ----

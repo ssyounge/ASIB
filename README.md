@@ -115,7 +115,13 @@ mkdir checkpoints
 wget -O checkpoints/resnet152_ft.pth <링크>
 wget -O checkpoints/efficientnet_l2_ft.pth <링크>  # optional EfficientNet-L2
 ```
-5. **Run a single experiment**:
+5. **Set dataset and W&B paths (optional)**:
+```bash
+export DATA_ROOT=/path/to/datasets
+export WANDB_ENTITY=my_entity
+export WANDB_PROJECT=my_project
+```
+6. **Run a single experiment**:
 ```bash
 python main.py --config-name experiment/res152_effi_l2  # EfficientNet-L2 teacher
 ```

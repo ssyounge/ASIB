@@ -2,6 +2,7 @@
 
 import os
 import copy
+import logging
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -164,13 +165,13 @@ def finetune_teacher_cutmix(
     teacher_model = teacher_model.to(device)
 
     if os.path.exists(ckpt_path):
-        print(f"[CutMix] Found checkpoint => load {ckpt_path}")
+        logging.info("[CutMix] Found checkpoint => load %s", ckpt_path)
         teacher_model.load_state_dict(
             torch.load(ckpt_path, map_location=device, weights_only=True),
             strict=False,
         )
         test_acc = eval_teacher(teacher_model, test_loader, device=device, cfg=None)
-        print(f"[CutMix] loaded => testAcc={test_acc:.2f}")
+        logging.info("[CutMix] loaded => testAcc=%.2f", test_acc)
         return teacher_model, test_acc
 
     num_classes = len(getattr(train_loader.dataset, "classes", []))
@@ -210,12 +211,19 @@ def finetune_teacher_cutmix(
 
         scheduler.step()
 
-        print(
-            f"[CutMix|ep={ep}/{epochs}] lr={scheduler.get_last_lr()[0]:.6f}, "
-            f"trainAcc={tr_acc:.2f}, testAcc={te_acc:.2f}, best={best_acc:.2f}"
+        logging.info(
+            "[CutMix|ep=%d/%d] lr=%.6f, trainAcc=%.2f, testAcc=%.2f, best=%.2f",
+            ep,
+            epochs,
+            scheduler.get_last_lr()[0],
+            tr_acc,
+            te_acc,
+            best_acc,
         )
 
-    print(f"[CutMix] Fine-tune done => bestAcc={best_acc:.2f}, saved={ckpt_path}")
+    logging.info(
+        "[CutMix] Fine-tune done => bestAcc=%.2f, saved=%s", best_acc, ckpt_path
+    )
     # reload the best checkpoint (already saved during training)
     teacher_model.load_state_dict(
         torch.load(ckpt_path, map_location=device, weights_only=True)
@@ -245,13 +253,13 @@ def standard_ce_finetune(
     autocast_ctx, scaler = get_amp_components(cfg or {})
 
     if os.path.exists(ckpt_path):
-        print(f"[CEFineTune] Found checkpoint => load {ckpt_path}")
+        logging.info("[CEFineTune] Found checkpoint => load %s", ckpt_path)
         teacher_model.load_state_dict(
             torch.load(ckpt_path, map_location=device, weights_only=True),
             strict=False,
         )
         test_acc = eval_teacher(teacher_model, test_loader, device=device, cfg=cfg)
-        print(f"[CEFineTune] loaded => testAcc={test_acc:.2f}")
+        logging.info("[CEFineTune] loaded => testAcc=%.2f", test_acc)
         return teacher_model, test_acc
 
     optimizer = optim.AdamW(
@@ -290,9 +298,17 @@ def standard_ce_finetune(
             # save checkpoint whenever best accuracy improves
             os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
             torch.save(best_state, ckpt_path)
-        print(f"[CE FineTune|ep={ep}/{epochs}] testAcc={te_acc:.2f}, best={best_acc:.2f}")
+        logging.info(
+            "[CE FineTune|ep=%d/%d] testAcc=%.2f, best=%.2f",
+            ep,
+            epochs,
+            te_acc,
+            best_acc,
+        )
 
-    print(f"[CEFineTune] done => bestAcc={best_acc:.2f}, saved={ckpt_path}")
+    logging.info(
+        "[CEFineTune] done => bestAcc=%.2f, saved=%s", best_acc, ckpt_path
+    )
     teacher_model.load_state_dict(
         torch.load(ckpt_path, map_location=device, weights_only=True)
     )
