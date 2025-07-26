@@ -5,5 +5,5 @@ dataset:
   root: "./data"
   small_input: true       # 32×32
   data_aug: 1             # 0: no aug, 1: 기본 + RandAug
-batch_size: 32
+batch_size: 16
 num_workers: 2
