@@ -57,9 +57,12 @@ def create_efficientnet_l2(
                 continue
 
         if checkpoint_seq is None:
-            raise ImportError(
-                "Unable to import 'checkpoint_seq' from timm; please upgrade timm"
-            )
+            try:
+                from torch.utils.checkpoint import checkpoint_sequential as checkpoint_seq
+            except Exception as e:  # noqa: BLE001
+                raise ImportError(
+                    "Unable to import 'checkpoint_seq' from timm or torch; please upgrade dependencies"
+                ) from e
 
         backbone.blocks = checkpoint_seq(backbone.blocks)
 
