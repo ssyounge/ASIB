@@ -40,54 +40,16 @@ def create_efficientnet_l2(
     )
 
     # ------------------------------------------------------------
-    # (선택) gradient-checkpointing 활성화
-    #  - timm 0.9.x  : timm.models.helpers.checkpoint_seq
-    #  - timm 1.x    : timm.layers.helpers.checkpoint_seq
-    #  - timm ≥0.9.12 일부 릴리스에서 경로가 바뀌므로 다단계 fallback
+    # gradient-checkpointing (timm ≥ 0.9.8)
     # ------------------------------------------------------------
     if use_checkpointing:
-        import importlib, inspect
-
-        checkpoint_seq = None
-        CANDIDATES = (
-            "timm.models.helpers",   # timm 0.9.x / 1.x (모듈당-checkpoint 버전)
-            "timm.layers.helpers",   # timm 1.x 일부 릴리스
-            "timm.layers",           # timm 1.x 경로 변형
-        )
-
-        for _path in CANDIDATES:
-            try:
-                mod = importlib.import_module(_path)
-                fn = getattr(mod, "checkpoint_seq", None)
-                if fn is None:
-                    continue
-
-                # ── 시그니처 검사 ──
-                sig = inspect.signature(fn)
-                # 필수 positional-only / positional-or-keyword 인자
-                req = [
-                    p for p in sig.parameters.values()
-                    if p.default is p.empty
-                    and p.kind in (
-                        inspect.Parameter.POSITIONAL_ONLY,
-                        inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                    )
-                ]
-                if len(req) == 1:  # <modules> 하나만 필수 → 사용 가능
-                    checkpoint_seq = fn
-                    break
-            except ImportError:
-                continue
-
-        if checkpoint_seq is not None:
-            backbone.blocks = checkpoint_seq(backbone.blocks)   # ✅
+        if hasattr(backbone, 'set_grad_checkpointing'):
+            # timm 1.x 권장 방식
+            backbone.set_grad_checkpointing()
         else:
-            import warnings
-            warnings.warn(
-                "[Eff-L2] ‘checkpoint_seq’ 시그니처를 만족하는 버전을 찾지 못했습니다. "
-                "gradient-checkpointing을 비활성화합니다.",
-                RuntimeWarning,
-            )
+            # 구버전 timm 호환(최속 0.9.0)
+            from timm.models.helpers import checkpoint_seq  # noqa: E402
+            backbone.blocks = checkpoint_seq(backbone.blocks)
 
     if small_input:
         stem = backbone.conv_stem
