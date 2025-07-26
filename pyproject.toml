@@ -1,3 +1,0 @@
-[tool.ruff.lint]
-extend-ignore = ["E402"]
-exclude = ["analysis/plot_results.ipynb"]
