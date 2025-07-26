@@ -78,9 +78,6 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
   | Student model                | Feature dim |
   |------------------------------|-------------|
   | `resnet101_student`            | 2048        |
-  | `swin_student`                 | 768         |
-- **Swin Adapter Dim**: `swin_adapter_dim` sets the hidden size of the MLP
-  adapter used by `swin_student` (default `64`)
 - **Smart Progress Bars**: progress bars hide automatically when stdout isn't a TTY
 - **CIFAR-friendly ResNet/EfficientNet stem**: use `--small_input 1` when
   fine-tuning or evaluating models that modify the conv stem for 32x32 inputs
@@ -483,12 +480,10 @@ Folder Structure
 │   │   └── adapter.py
 │   ├── students/
 │   │   ├── resnet101_student.py
-│   │   ├── resnet152_student.py
-│   │   └── swin_student.py
+│   │   └── resnet152_student.py
 │   └── teachers/
 │       ├── resnet_teacher.py
-│       ├── efficientnet_l2_teacher.py
-│       └── swin_teacher.py
+│       └── efficientnet_l2_teacher.py
 
 ├── modules/
 │   ├── trainer_student.py

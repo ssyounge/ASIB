@@ -43,14 +43,11 @@ from modules.partial_freeze import (
     apply_partial_freeze,
     partial_freeze_teacher_resnet,
     partial_freeze_teacher_efficientnet,
-    partial_freeze_teacher_swin,
     partial_freeze_student_resnet,
-    partial_freeze_student_swin,
 )
 
 # Teacher creation (factory):
 from models.common.base_wrapper import MODEL_REGISTRY
-from models.teachers.swin_teacher import create_swin_t
 
 
 # ---------------------------------------------------------------------------
@@ -112,18 +109,6 @@ def create_student_by_name(
             cfg=cfg,
         )
 
-    elif student_name == "swin":
-        adapter_dim = 64
-        if cfg is not None:
-            adapter_dim = cfg.get("swin_adapter_dim", adapter_dim)
-        return build_model(
-            "swin_student",
-            pretrained=pretrained,
-            small_input=small_input,
-            num_classes=num_classes,
-            adapter_dim=adapter_dim,
-            cfg=cfg,
-        )
 
     else:
         raise ValueError(
@@ -208,14 +193,6 @@ def partial_freeze_teacher_auto(
             freeze_level=freeze_level,
             train_distill_adapter_only=train_distill_adapter_only,
         )
-    elif teacher_name == "swin_tiny":
-        partial_freeze_teacher_swin(
-            model,
-            freeze_ln=freeze_ln,
-            use_adapter=use_adapter,
-            freeze_level=freeze_level,
-            train_distill_adapter_only=train_distill_adapter_only,
-        )
     else:
         raise ValueError(
             f"[partial_freeze_teacher_auto] Unknown teacher_name={teacher_name}"
@@ -238,13 +215,6 @@ def partial_freeze_student_auto(
         partial_freeze_student_resnet(
             model,
             freeze_bn=freeze_bn,
-            use_adapter=use_adapter,
-            freeze_level=freeze_level,
-        )
-    elif student_name == "swin":
-        partial_freeze_student_swin(
-            model,
-            freeze_ln=freeze_ln,
             use_adapter=use_adapter,
             freeze_level=freeze_level,
         )
@@ -588,7 +558,7 @@ def main(cfg: DictConfig):
     exp_logger.update_metric("teacher2_test_acc", te2_acc)
 
     # 5) Student
-    student_name = cfg.get("student_type", "resnet")  # e.g. resnet / swin
+    student_name = cfg.get("student_type", "resnet")
     student_model = create_student_by_name(
         student_name,
         pretrained=cfg.get("student_pretrained", True),
