@@ -481,7 +481,7 @@ Folder Structure
 │   ├── students/
 │   │   └── resnet101_student.py
 │   └── teachers/
-│       ├── resnet_teacher.py
+│       ├── resnet152_teacher.py
 │       └── efficientnet_l2_teacher.py
 
 ├── modules/
