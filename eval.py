@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 import hydra
 from omegaconf import DictConfig, OmegaConf
+import logging
 from utils.logging_utils import init_logger
 
 from data.cifar100 import get_cifar100_loaders
