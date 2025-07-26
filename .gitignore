@@ -113,3 +113,5 @@ data/cifar-100-python/
 # 만약 개인적인 설정값이라 숨기고 싶다면 #을 지워주세요.
 # configs/hparams.yaml
 
+*.yaml
+*.yml
