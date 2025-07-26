@@ -29,16 +29,20 @@ def apply_partial_freeze(model, level: int, freeze_bn: bool = False):
 
     patterns = []
     if level == 0:
-        patterns = [r"\.fc\.", r"\.classifier\.", r"\.head\."]
+        patterns = [
+            r"(?:^|\.)fc\.",
+            r"(?:^|\.)classifier\.",
+            r"(?:^|\.)head\.",
+        ]
     elif level == 1:
         patterns = [
             r"\.layer4\.",
             r"features\.7\.",
             r"features\.8\.",
             r"\.layers\.3\.",
-            r"\.fc\.",
-            r"\.classifier\.",
-            r"\.head\.",
+            r"(?:^|\.)fc\.",
+            r"(?:^|\.)classifier\.",
+            r"(?:^|\.)head\.",
         ]
     else:  # level >= 2
         patterns = [
@@ -49,9 +53,9 @@ def apply_partial_freeze(model, level: int, freeze_bn: bool = False):
             r"features\.8\.",
             r"\.layers\.2\.",
             r"\.layers\.3\.",
-            r"\.fc\.",
-            r"\.classifier\.",
-            r"\.head\.",
+            r"(?:^|\.)fc\.",
+            r"(?:^|\.)classifier\.",
+            r"(?:^|\.)head\.",
         ]
 
     unfreeze_by_regex(model, patterns)
