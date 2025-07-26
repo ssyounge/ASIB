@@ -378,6 +378,7 @@ GPU memory usage at the cost of a slower runtime.
 #### EfficientNet-L2 Batch Size
 
 EfficientNet-L2 requires more memory than ResNet teachers. A 96-image batch from `configs/dataset/cifar100.yaml` can exhaust a 24 GB GPU. Begin fine-tuning with around **32** images per batch and increase only if your card allows.
+The sample configuration `configs/finetune/efficientnet_l2_cifar32.yaml` sets `batch_size: 32` and keeps AMP enabled with `use_amp: true`.
 
 #### Fine-tuning a Teacher
 
