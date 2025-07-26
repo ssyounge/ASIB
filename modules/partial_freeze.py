@@ -312,7 +312,7 @@ def freeze_teacher_params(
     train_distill_adapter_only: bool = False,
 ) -> None:
     """Wrapper that partially freezes a teacher model by type."""
-    if teacher_name in ("resnet101", "resnet152"):
+    if teacher_name == "resnet152":
         partial_freeze_teacher_resnet(
             model,
             freeze_bn=freeze_bn,

@@ -91,15 +91,6 @@ def create_student_by_name(
             cfg=cfg,
         )
 
-    elif student_name in ("resnet152", "resnet_152"):
-        return build_model(
-            "resnet152_student",
-            pretrained=pretrained,
-            num_classes=num_classes,
-            small_input=small_input,
-            cfg=cfg,
-        )
-
     elif student_name in ("effb2", "efficientnet_b2"):
         return build_model(
             "efficientnet_b2_student",
@@ -126,15 +117,7 @@ def create_teacher_by_name(
     small_input=False,
     cfg: Optional[dict] = None,
 ):
-    if teacher_name == "resnet101":
-        return build_model(
-            "resnet101_teacher",
-            num_classes=num_classes,
-            pretrained=pretrained,
-            small_input=small_input,
-            cfg=cfg,
-        )
-    elif teacher_name == "resnet152":
+    if teacher_name == "resnet152":
         return build_model(
             "resnet152_teacher",
             num_classes=num_classes,
@@ -175,7 +158,7 @@ def partial_freeze_teacher_auto(
     freeze_level=1,
     train_distill_adapter_only=False,
 ):
-    if teacher_name == "resnet101" or teacher_name == "resnet152":
+    if teacher_name == "resnet152":
         partial_freeze_teacher_resnet(
             model,
             freeze_bn=freeze_bn,
