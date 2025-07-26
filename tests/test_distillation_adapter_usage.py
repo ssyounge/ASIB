@@ -1,6 +1,7 @@
 import pytest
 torch = pytest.importorskip("torch")
 from modules.trainer_student import student_distillation_update
+from models.mbm import IB_MBM
 
 class DummyTeacher(torch.nn.Module):
     distill_dim = 1
@@ -28,13 +29,13 @@ class DummyStudent(torch.nn.Module):
     def get_feat_dim(self):
         return 1
 
-class RecordMBM(torch.nn.Module):
+class RecordMBM(IB_MBM):
     def __init__(self):
-        super().__init__()
+        super().__init__(q_dim=1, kv_dim=1, d_emb=1)
         self.record = None
-    def forward(self, q, feats_2d):
-        self.record = [f.size(1) for f in feats_2d]
-        return torch.zeros(q.size(0), 1), torch.zeros(q.size(0),1), q, q
+    def forward(self, q, feats):
+        self.record = [feats[:, i].size(-1) for i in range(feats.size(1))]
+        return super().forward(q, feats)
 
 class DummyHead(torch.nn.Module):
     def forward(self, x):
@@ -54,7 +55,7 @@ def test_student_distill_uses_distill_feat():
     head = DummyHead()
     loader = [(torch.zeros(1,3), torch.tensor([0]))]
     cfg = {"device": "cpu", "ce_alpha": 1.0, "kd_alpha": 1.0, "student_iters": 1,
-           "mbm_type": "LA", "use_distillation_adapter": True}
+           "use_distillation_adapter": True}
     logger = DummyLogger()
     opt = torch.optim.Adam(student.parameters(), lr=0.1)
     sched = torch.optim.lr_scheduler.StepLR(opt, step_size=1)

@@ -114,7 +114,6 @@ class DummyTeacher(torch.nn.Module):
 def test_build_from_teachers_distill_dim(use_da):
     teacher = DummyTeacher()
     cfg = {
-        "mbm_type": "ib_mbm",
         "mbm_query_dim": 16,
         "mbm_out_dim": 8,
         "use_distillation_adapter": use_da,

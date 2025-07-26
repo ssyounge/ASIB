@@ -73,10 +73,9 @@ def student_distillation_update(
 
     autocast_ctx, scaler = get_amp_components(cfg)
     # ---------------------------------------------------------
-    # query‑based MBM?
+    # IB‑MBM forward
     # ---------------------------------------------------------
-    use_ib_mbm = isinstance(mbm, IB_MBM) or cfg.get("mbm_type", "").lower() == "ib_mbm"
-    attn = None  # 안전하게 초기화
+    # no attention weights returned in simplified IB-MBM
     for ep in range(student_epochs):
         if scheduler is not None and hasattr(scheduler, "T_max"):
             total_epochs = scheduler.T_max
@@ -124,27 +123,18 @@ def student_distillation_update(
                                else "feat_2d"
                     f1_2d = t1_dict[feat_key]
                     f2_2d = t2_dict[feat_key]
-                    f1_4d = t1_dict.get("feat_4d")
-                    f2_4d = t2_dict.get("feat_4d")
 
-                if use_ib_mbm:
-                    s_feat = feat_dict[cfg.get("feat_kd_key", "feat_2d")]
-                    if isinstance(mbm, IB_MBM):
-                        # IB-MBM returns z, mu, logvar
-                        syn_feat, mu, logvar = mbm(
-                            s_feat, torch.stack([f1_2d, f2_2d], dim=1)
-                        )
-                        # optional IB loss
-                        if cfg.get("use_ib", False):
-                            ib_beta = get_beta(cfg, global_ep + ep)
-                            mu, logvar = mu.float(), logvar.float()
-                            ib_loss_val = ib_loss(mu, logvar, beta=ib_beta)
-                        else:
-                            ib_loss_val = torch.tensor(0.0, device=cfg["device"])
-                    fsyn = syn_feat
+                s_feat = feat_dict[cfg.get("feat_kd_key", "feat_2d")]
+                syn_feat, mu, logvar = mbm(
+                    s_feat, torch.stack([f1_2d, f2_2d], dim=1)
+                )
+                if cfg.get("use_ib", False):
+                    ib_beta = get_beta(cfg, global_ep + ep)
+                    mu, logvar = mu.float(), logvar.float()
+                    ib_loss_val = ib_loss(mu, logvar, beta=ib_beta)
                 else:
-                    fsyn = mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
                     ib_loss_val = torch.tensor(0.0, device=cfg["device"])
+                fsyn = syn_feat
                 zsyn = synergy_head(fsyn)
 
                 if mix_mode != "none":
