@@ -8,4 +8,4 @@ model:
     freeze_level: 0
     freeze_bn: false
     use_adapter: false
-    use_checkpointing: false
+    use_checkpointing: true
