@@ -86,8 +86,9 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 
   | Student model                | Feature dim |
   |------------------------------|-------------|
-  | `resnet101_student`            | 2048        |
+-  | `resnet101_student`            | 2048        |
 - **Smart Progress Bars**: progress bars hide automatically when stdout isn't a TTY
+- **Expandable CUDA Segments**: training scripts set `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` when CUDA is available
 - **CIFAR-friendly ResNet/EfficientNet stem**: use `--small_input 1` when
   fine-tuning or evaluating models that modify the conv stem for 32x32 inputs
   (and remove max-pool for ResNet)
@@ -138,6 +139,7 @@ export CONDA_ENV=asmb
 | `WANDB_ENTITY`| Weights & Biases entity name      |
 | `WANDB_PROJECT`| W&B project name                 |
 | `CONDA_ENV`   | Conda environment name           |
+| `PYTORCH_CUDA_ALLOC_CONF` | Set automatically to `expandable_segments:True` when using CUDA |
 
 6. **Run a single experiment**:
 ```bash
