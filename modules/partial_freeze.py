@@ -142,8 +142,8 @@ def partial_freeze_teacher_efficientnet(
     bn_head_only: bool = False,
     freeze_level: int = 1,
     train_distill_adapter_only: bool = False,
-):
-"""Partially freeze an EfficientNet teacher using a numeric level.
+): 
+    """Partially freeze an EfficientNet teacher using a numeric level.
 
     ``freeze_all`` is called first and layers are unfrozen based on
     ``freeze_level``:
