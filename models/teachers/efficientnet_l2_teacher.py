@@ -39,7 +39,7 @@ def create_efficientnet_l2(
     )
 
     if use_checkpointing:
-        from timm.models.layers import checkpoint_seq
+        from timm.layers import checkpoint_seq
         backbone.blocks = checkpoint_seq(backbone.blocks)
 
     if small_input:
