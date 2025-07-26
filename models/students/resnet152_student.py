@@ -1,3 +1,5 @@
+# models/students/resnet152_student.py
+
 """
 ResNet-152 student with Channel-Adapter after layer3 (registry v2).
 """
