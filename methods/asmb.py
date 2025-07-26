@@ -83,8 +83,7 @@ class ASMBDistiller(nn.Module):
         with torch.no_grad():
             t1 = self.teacher1(x)
             t2 = self.teacher2(x)
-            feats_2d = [t1["feat_2d"], t2["feat_2d"]]
-            feats_4d = [t1.get("feat_4d"), t2.get("feat_4d")]
+            feats_2d = torch.stack([t1["feat_2d"], t2["feat_2d"]], dim=1)
 
         # 3) student (query feature)
         feat_dict, s_logit, _ = self.student(x)
@@ -95,7 +94,7 @@ class ASMBDistiller(nn.Module):
         if self.la_mode:
             syn_feat, _, _, _ = self.mbm(s_feat, feats_2d)
         else:
-            syn_feat = self.mbm(feats_2d, feats_4d)
+            syn_feat = self.mbm(s_feat, feats_2d)
         zsyn = self.synergy_head(syn_feat)
 
         # CE
@@ -311,8 +310,7 @@ class ASMBDistiller(nn.Module):
                         t1 = self.teacher1(x)
                         t2 = self.teacher2(x)
                         key = "distill_feat" if self.config.get("use_distillation_adapter", False) else "feat_2d"
-                        f1 = [t1[key], t2[key]]
-                        f2 = [t1.get("feat_4d"), t2.get("feat_4d")]
+                        f1 = torch.stack([t1[key], t2[key]], dim=1)
 
                     # synergy
                     if self.la_mode:
@@ -320,7 +318,7 @@ class ASMBDistiller(nn.Module):
                         attn_flat = attn.squeeze(1)
                         _, _ = attn_flat[:, 0], attn_flat[:, 1]
                     else:
-                        syn_feat = self.mbm(f1, f2)
+                        syn_feat = self.mbm(s_feat, f1)
                         attn = None
                     zsyn = self.synergy_head(syn_feat)
 
@@ -474,8 +472,7 @@ class ASMBDistiller(nn.Module):
                         # teacher feats
                         t1 = self.teacher1(x)
                         t2 = self.teacher2(x)
-                        f1 = [t1["feat_2d"], t2["feat_2d"]]
-                        f2 = [t1.get("feat_4d"), t2.get("feat_4d")]
+                        f1 = torch.stack([t1["feat_2d"], t2["feat_2d"]], dim=1)
 
                     # student forward (query)
                     feat_dict, s_logit, _ = self.student(x)
@@ -486,7 +483,7 @@ class ASMBDistiller(nn.Module):
                     attn_flat = attn.squeeze(1)
                     w1, w2 = attn_flat[:, 0], attn_flat[:, 1]
                 else:
-                    syn_feat = self.mbm(f1, f2)
+                    syn_feat = self.mbm(s_feat, f1)
                     attn = None
                     w1, w2 = None, None
                 zsyn = self.synergy_head(syn_feat)
