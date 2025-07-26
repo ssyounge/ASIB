@@ -16,7 +16,7 @@ python main.py cl=split_cifar
 `--cl_mode 1` 활성화 후 `--num_tasks` 값을 지정하면 별도의 CL 전용 YAML 없이 연속 학습을 수행할 수 있습니다.
 
 ## 주요 config 플래그
-* `mbm_type` : **mlp | ib_mbm**
+* `mbm_type` (ignored) : always uses **ib_mbm**
 * `use_ib`   : true / false  (IB ablation)
 * `ib_beta_warmup_epochs` : ramp-up epochs for the IB KL weight
 * `cl_mode`  : true → CL 활성화
@@ -197,7 +197,7 @@ Baseline runs (e.g., `vanilla_kd`) produce their own logs such as `VanillaKD => 
 1) Multi-Stage Distillation (main.py)
 
 python main.py --config-name base \
-  device=cuda mbm_type=ib_mbm mbm_r=4 mbm_n_head=1 mbm_learnable_q=1
+  device=cuda mbm_r=4 mbm_n_head=1 mbm_learnable_q=1
   # Freeze levels are defined in the model YAMLs under configs/model/
   # mbm_query_dim and mbm_out_dim are automatically set to the student feature dimension
         •       Adjust model settings in `configs/model/*` or pass Hydra overrides.
@@ -250,7 +250,7 @@ python eval.py +eval_mode=synergy \
   +head_ckpt=synergy_head.pth \
   +student_type=resnet \
   +student_ckpt=student.pth \
-  +mbm_type=ib_mbm +mbm_r=4 +mbm_n_head=1 +mbm_learnable_q=1
+  +mbm_r=4 +mbm_n_head=1 +mbm_learnable_q=1
   # mbm_query_dim and mbm_out_dim are automatically set to the student feature dimension
 
 	•	Prints Train/Test accuracy, optionally logs to CSV if configured.

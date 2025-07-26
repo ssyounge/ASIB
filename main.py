@@ -315,7 +315,7 @@ def main(cfg: DictConfig):
     exp_logger = ExperimentLogger(cfg, exp_name="asmb_experiment")
     exp_logger.update_metric("use_amp", cfg.get("use_amp", False))
     exp_logger.update_metric("amp_dtype", cfg.get("amp_dtype", "float16"))
-    exp_logger.update_metric("mbm_type", cfg.get("mbm_type", "MLP"))
+    exp_logger.update_metric("mbm_type", "ib_mbm")
     exp_logger.update_metric("mbm_r", cfg.get("mbm_r"))
     exp_logger.update_metric("mbm_n_head", cfg.get("mbm_n_head"))
     exp_logger.update_metric("mbm_learnable_q", cfg.get("mbm_learnable_q"))
@@ -628,25 +628,6 @@ def main(cfg: DictConfig):
                 f"[Auto-cfg] mbm_out_dim 조정: {cfg['mbm_out_dim']} → {cfg['mbm_query_dim']}"
             )
             cfg["mbm_out_dim"] = cfg["mbm_query_dim"]
-
-    # Validate or infer MBM query dimension
-    mbm_query_dim = cfg.get("mbm_query_dim", 0)
-    if cfg.get("mbm_type", "MLP") == "LA":
-        if mbm_query_dim <= 0:
-            if feat_dim is not None:
-                mbm_query_dim = feat_dim
-                cfg["mbm_query_dim"] = mbm_query_dim
-                print(
-                    f"[Info] mbm_query_dim not specified; using student feature dimension {mbm_query_dim}"
-                )
-            else:
-                print(
-                    "[Warning] Student model does not expose get_feat_dim(); please set mbm_query_dim manually"
-                )
-        elif feat_dim is not None and mbm_query_dim != feat_dim:
-            raise ValueError(
-                f"mbm_query_dim ({mbm_query_dim}) does not match the student feature dimension ({feat_dim})."
-            )
 
     # 6) MBM and synergy head
     mbm_query_dim = cfg.get("mbm_query_dim")

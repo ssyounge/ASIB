@@ -119,7 +119,7 @@ def main(cfg: DictConfig):
     logger = ExperimentLogger(cfg, exp_name="eval_experiment")
     logger.update_metric("use_amp", cfg.get("use_amp", False))
     logger.update_metric("amp_dtype", cfg.get("amp_dtype", "float16"))
-    logger.update_metric("mbm_type", cfg.get("mbm_type", "MLP"))
+    logger.update_metric("mbm_type", "ib_mbm")
     logger.update_metric("mbm_r", cfg.get("mbm_r"))
     logger.update_metric("mbm_n_head", cfg.get("mbm_n_head"))
     logger.update_metric("mbm_learnable_q", cfg.get("mbm_learnable_q"))
