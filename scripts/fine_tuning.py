@@ -168,7 +168,13 @@ def standard_ce_finetune(
             optim.zero_grad()
             with autocast_ctx:
                 out = model(x)
-                loss = crit(out["logit"], y)
+                if isinstance(out, tuple):
+                    logits = out[1]
+                elif isinstance(out, dict):
+                    logits = out["logit"]
+                else:
+                    logits = out
+                loss = crit(logits, y)
             if scaler is not None:
                 scaler.scale(loss).backward()
                 scaler.step(optim)
