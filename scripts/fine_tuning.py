@@ -15,6 +15,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import torch
+import logging
 from typing import Optional
 import hydra
 from omegaconf import DictConfig, OmegaConf
@@ -190,7 +191,7 @@ def main(cfg: DictConfig):
     cfg = flatten_hydra_config(cfg)
     device = cfg.get("device", "cuda")
     if device == "cuda" and not torch.cuda.is_available():
-        print("[Warning] No CUDA => Using CPU")
+        logging.warning("[FineTune] No CUDA => Using CPU")
         device = "cpu"
 
     seed = cfg.get("seed", 42)
@@ -243,7 +244,9 @@ def main(cfg: DictConfig):
 
     # 2) teacher
     teacher_type = cfg.get("teacher_type", cfg.get("default_teacher_type"))
-    print(f"[FineTune] ===== Now fine-tuning teacher: {teacher_type} =====")
+    logging.info(
+        "[FineTune] ===== Now fine-tuning teacher: %s =====", teacher_type
+    )
     teacher_model = create_teacher_by_name(
         teacher_type,
         num_classes=num_classes,
@@ -268,10 +271,10 @@ def main(cfg: DictConfig):
             ),
             strict=False,
         )
-        print(f"[FineTune] ckpt exists → fine-tune 스킵 ({ckpt_path_cfg})")
+        logging.info("[FineTune] ckpt exists → fine-tune 스킵 (%s)", ckpt_path_cfg)
         # 평가만 한 번 찍고 바로 반환
         best_acc = eval_teacher(teacher_model, test_loader, device)
-        print(f"[FineTune] testAcc={best_acc:.2f}")
+        logging.info("[FineTune] testAcc=%.2f", best_acc)
         return
 
     # 3) partial freeze or full fine-tune?
@@ -288,10 +291,10 @@ def main(cfg: DictConfig):
             bn_head_only=cfg.get("teacher_bn_head_only", False),
             freeze_level=cfg.get("teacher_freeze_level", 1),
         )
-        print("[FineTune] partial freeze mode => only head is trainable (example).")
+        logging.info("[FineTune] partial freeze mode => only head is trainable (example).")
     else:
         # full fine-tune => do nothing or freeze_all if you want the opposite
-        print("[FineTune] full fine-tune => no partial freeze applied.")
+        logging.info("[FineTune] full fine-tune => no partial freeze applied.")
 
     # 4) use cutmix or standard CE?
     use_cutmix = cfg.get("finetune_use_cutmix", True)
@@ -307,7 +310,12 @@ def main(cfg: DictConfig):
 
     if use_cutmix:
         # => call finetune_teacher_cutmix
-        print(f"[FineTune] Using CutMix alpha={cutmix_alpha}, epochs={finetune_epochs}, lr={lr}")
+        logging.info(
+            "[FineTune] Using CutMix alpha=%s, epochs=%s, lr=%s",
+            cutmix_alpha,
+            finetune_epochs,
+            lr,
+        )
         teacher_model, best_acc = finetune_teacher_cutmix(
             teacher_model,
             train_loader,
@@ -336,7 +344,9 @@ def main(cfg: DictConfig):
             cfg=cfg,
         )
 
-    print(f"[FineTune] done => bestAcc={best_acc:.2f}, final ckpt={ckpt_path}")
+    logging.info(
+        "[FineTune] done => bestAcc=%.2f, final ckpt=%s", best_acc, ckpt_path
+    )
 
 if __name__ == "__main__":
     main()

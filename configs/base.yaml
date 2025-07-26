@@ -45,8 +45,8 @@ ckpt_dir: "./checkpoints"
 # ---------- W&B ----------
 wandb:
   use: false
-  entity: "kakamy0820-yonsei-university"
-  project: "kd_monitor"
+  entity: ${env:WANDB_ENTITY}
+  project: ${env:WANDB_PROJECT}
   run_name: ""              # 비우면 exp_id 사용
   api_key: ""               # "" → wandb login 로드
 

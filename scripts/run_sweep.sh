@@ -23,8 +23,9 @@ conda activate tlqkf
 export PYTHONPATH="$(pwd):$PYTHONPATH"
 
 # ---------- W&B 설정 ----------
-export WANDB_ENTITY="kakamy0820-yonsei-university"
-export WANDB_PROJECT="kd_monitor"
+# If not provided, use empty defaults
+export WANDB_ENTITY="${WANDB_ENTITY:-}"
+export WANDB_PROJECT="${WANDB_PROJECT:-}"
 # export WANDB_API_KEY="<원하면_직접_기입>"
 
 # ---------------------------------------------------------------------------

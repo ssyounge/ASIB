@@ -6,6 +6,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import copy
+import logging
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -40,13 +41,13 @@ def train_student_ce(
     autocast_ctx, scaler = get_amp_components(cfg or {})
 
     if os.path.exists(ckpt_path):
-        print(f"[StudentCE] Found checkpoint => load {ckpt_path}")
+        logging.info("[StudentCE] Found checkpoint => load %s", ckpt_path)
         student_model.load_state_dict(
             torch.load(ckpt_path, map_location=device, weights_only=True),
             strict=False,
         )
         test_acc = eval_teacher(student_model, test_loader, device=device, cfg=cfg)
-        print(f"[StudentCE] loaded => testAcc={test_acc:.2f}")
+        logging.info("[StudentCE] loaded => testAcc=%.2f", test_acc)
         return test_acc
 
     optimizer = optim.AdamW(
@@ -83,12 +84,20 @@ def train_student_ce(
         if te_acc > best_acc:
             best_acc = te_acc
             best_state = copy.deepcopy(student_model.state_dict())
-        print(f"[StudentCE|ep={ep}/{epochs}] testAcc={te_acc:.2f}, best={best_acc:.2f}")
+        logging.info(
+            "[StudentCE|ep=%d/%d] testAcc=%.2f, best=%.2f",
+            ep,
+            epochs,
+            te_acc,
+            best_acc,
+        )
 
     student_model.load_state_dict(best_state)
     os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
     torch.save(student_model.state_dict(), ckpt_path)
-    print(f"[StudentCE] done => bestAcc={best_acc:.2f}, saved={ckpt_path}")
+    logging.info(
+        "[StudentCE] done => bestAcc=%.2f, saved=%s", best_acc, ckpt_path
+    )
     return best_acc
 
 
@@ -164,7 +173,7 @@ def main(cfg: DictConfig):
         cfg=cfg,
     )
 
-    print(f"[train_student_baseline] final_acc={acc:.2f}% -> {ckpt}")
+    logging.info("[train_student_baseline] final_acc=%.2f%% -> %s", acc, ckpt)
 
 
 if __name__ == "__main__":

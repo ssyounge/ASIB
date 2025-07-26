@@ -2,6 +2,7 @@
 """Utility helpers for continual-learning datasets."""
 
 from typing import List, Tuple
+import os
 
 import torch
 from torchvision.datasets import CIFAR100
@@ -26,6 +27,7 @@ def get_split_cifar100_loaders(
     transform_train = T.Compose(transform_train)
     transform_test = T.Compose([T.ToTensor()])
 
+    root = root or os.getenv("DATA_ROOT", "./data")
     full_train = CIFAR100(root=root, train=True, download=True, transform=transform_train)
     full_test = CIFAR100(root=root, train=False, download=True, transform=transform_test)
 
