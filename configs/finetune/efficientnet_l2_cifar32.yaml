@@ -27,3 +27,5 @@ finetune_ckpt_path: checkpoints/efficientnet_l2_cifar32.pth
 
 dataset_name: cifar100
 data_root: ./data
+batch_size: 32
+use_amp: true
