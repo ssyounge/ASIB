@@ -6,7 +6,7 @@ with req_path.open() as f:
     install_requires = [
         ln.strip()
         for ln in f
-        if ln.strip() and not ln.startswith("#")
+        if ln.strip() and not ln.startswith(("#", "-e", "--"))
     ]
 
 setup(
