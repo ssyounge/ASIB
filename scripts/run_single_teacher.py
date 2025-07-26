@@ -96,8 +96,13 @@ def main(cfg: DictConfig):
         student_type,
     )
     device = cfg.get("device", "cuda")
-    if device == "cuda" and not torch.cuda.is_available():
-        device = "cpu"
+    if device == "cuda":
+        if torch.cuda.is_available():
+            os.environ.setdefault(
+                "PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True"
+            )
+        else:
+            device = "cpu"
 
     set_random_seed(cfg.get("seed", 42))
 

@@ -198,9 +198,14 @@ def main(cfg: DictConfig):
     cfg = flatten_hydra_config(cfg)
     init_logger(cfg.get("log_level", "INFO"))
     device = cfg.get("device", "cuda")
-    if device == "cuda" and not torch.cuda.is_available():
-        logging.warning("[FineTune] No CUDA => Using CPU")
-        device = "cpu"
+    if device == "cuda":
+        if torch.cuda.is_available():
+            os.environ.setdefault(
+                "PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True"
+            )
+        else:
+            logging.warning("[FineTune] No CUDA => Using CPU")
+            device = "cpu"
 
     seed = cfg.get("seed", 42)
     deterministic = cfg.get("deterministic", True)
