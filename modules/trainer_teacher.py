@@ -35,8 +35,6 @@ def eval_synergy(
     """
 
     autocast_ctx, _ = get_amp_components(cfg or {})
-    use_ib_mbm = isinstance(mbm, IB_MBM) \
-                 or (cfg or {}).get("mbm_type", "").lower() == "ib_mbm"
     correct, total = 0, 0
     for x, y in loader:
         x, y = x.to(device), y.to(device)
@@ -47,18 +45,10 @@ def eval_synergy(
             key = "distill_feat" if (cfg or {}).get("use_distillation_adapter", False) else "feat_2d"
             f1_2d = t1_dict[key]
             f2_2d = t2_dict[key]
-            f1_4d = t1_dict.get("feat_4d")
-            f2_4d = t2_dict.get("feat_4d")
 
-            if use_ib_mbm:
-                assert student_model is not None, "student_model required for query-based MBM"
-                s_feat = student_model(x)[0][cfg.get("feat_kd_key", "feat_2d")]
-                if isinstance(mbm, IB_MBM):
-                    fsyn, _, _ = mbm(s_feat, torch.stack([f1_2d, f2_2d], dim=1))
-                else:
-                    fsyn, _, _, _ = mbm(s_feat, [f1_2d, f2_2d])
-            else:
-                fsyn = mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
+            assert student_model is not None, "student_model required for IB-MBM"
+            s_feat = student_model(x)[0][cfg.get("feat_kd_key", "feat_2d")]
+            fsyn, _, _ = mbm(s_feat, torch.stack([f1_2d, f2_2d], dim=1))
             zsyn = synergy_head(fsyn)
 
         pred = zsyn.argmax(dim=1)
@@ -114,8 +104,6 @@ def teacher_adaptive_update(
     logger.info(f"[TeacherAdaptive] Using teacher_epochs={teacher_epochs}")
 
     autocast_ctx, scaler = get_amp_components(cfg)
-    use_ib_mbm = isinstance(mbm, IB_MBM) \
-                 or cfg.get("mbm_type", "").lower() == "ib_mbm"
     for ep in range(teacher_epochs):
         for tw in teacher_wrappers:
             tw.train()
@@ -145,13 +133,11 @@ def teacher_adaptive_update(
                 # (A) Student features and logits (kept fixed)
                 with torch.no_grad():
                     feat_dict, s_logit, _ = student_model(x)
-                    if use_ib_mbm:
-                        key = cfg.get("feat_kd_key", "feat_2d")
-                        s_feat = feat_dict[key]
+                    key = cfg.get("feat_kd_key", "feat_2d")
+                    s_feat = feat_dict[key]
 
                 # (B) Teacher features
                 feats_2d = []
-                feats_4d = []
                 feat_key = "distill_feat" if cfg.get("use_distillation_adapter", False) else "feat_2d"
                 t1_dict = None
                 for i, tw in enumerate(teacher_wrappers):
@@ -159,23 +145,17 @@ def teacher_adaptive_update(
                     if i == 0:
                         t1_dict = t_dict
                     feats_2d.append(t_dict[feat_key])
-                    feats_4d.append(t_dict.get("feat_4d"))
 
-                # (C) MBM + synergy_head
-                if use_ib_mbm:
-                    if isinstance(mbm, IB_MBM):
-                        syn_feat, mu, logvar = mbm(
-                            s_feat, torch.stack(feats_2d, dim=1)
-                        )
-                        ib_loss_val = 0.0
-                        if cfg.get("use_ib", False):
-                            mu, logvar = mu.float(), logvar.float()
-                            ib_beta = get_beta(cfg, global_ep + ep)
-                            ib_loss_val = ib_loss(mu, logvar, beta=ib_beta)
-                    fsyn = syn_feat
-                else:
-                    fsyn = mbm(feats_2d, feats_4d)
-                    ib_loss_val = 0.0
+                # (C) MBM + synergy_head (IB-MBM only)
+                syn_feat, mu, logvar = mbm(
+                    s_feat, torch.stack(feats_2d, dim=1)
+                )
+                ib_loss_val = 0.0
+                if cfg.get("use_ib", False):
+                    mu, logvar = mu.float(), logvar.float()
+                    ib_beta = get_beta(cfg, global_ep + ep)
+                    ib_loss_val = ib_loss(mu, logvar, beta=ib_beta)
+                fsyn = syn_feat
                 zsyn = synergy_head(fsyn)
 
                 # (D) compute loss (KL + synergyCE)
@@ -216,7 +196,7 @@ def teacher_adaptive_update(
                 synergy_ce_loss = synergy_weight * loss_ce
 
                 feat_kd_loss = torch.tensor(0.0, device=cfg["device"])
-                if use_ib_mbm and cfg.get("feat_kd_alpha", 0) > 0:
+                if cfg.get("feat_kd_alpha", 0) > 0:
                     feat_kd_loss = feat_mse_loss(
                         s_feat, fsyn,
                         norm=cfg.get("feat_kd_norm", "none")
@@ -276,7 +256,7 @@ def teacher_adaptive_update(
             loader=testloader,
             device=cfg["device"],
             cfg=cfg,
-            student_model=student_model if use_ib_mbm else None,
+            student_model=student_model,
         )
     else:
         synergy_test_acc = -1

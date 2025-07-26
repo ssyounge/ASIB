@@ -2,7 +2,6 @@
 
 import torch
 import torch.nn as nn
-from torch.distributions import Normal, kl_divergence
 from typing import List, Optional, Tuple
 
 # ────────────────────────────── IB‑MBM ──────────────────────────────
@@ -31,82 +30,9 @@ class IB_MBM(nn.Module):
 
     # legacy `loss()` 는 사용처가 사라져 제거했습니다.
 
-class ManifoldBridgingModule(nn.Module):
-    """Fuses teacher features using optional MLP, convolutional and attention paths."""
-
-    def __init__(
-        self,
-        feat_dims: List[int],
-        hidden_dim: int,
-        out_dim: int,
-        dropout: float = 0.0,
-        use_4d: bool = False,
-        in_ch_4d: Optional[int] = None,
-        out_ch_4d: Optional[int] = None,
-        attn_heads: int = 0,
-    ) -> None:
-        super().__init__()
-        self.use_2d = True  # always available
-        self.use_4d = use_4d and in_ch_4d is not None and out_ch_4d is not None
-        self.use_attn = attn_heads > 0
-
-        in_dim = sum(feat_dims)
-
-        if self.use_2d:
-            self.mlp = nn.Sequential(
-                nn.Linear(in_dim, hidden_dim),
-                nn.ReLU(inplace=True),
-                nn.Dropout(dropout),
-                nn.Linear(hidden_dim, hidden_dim),
-                nn.ReLU(inplace=True),
-                nn.Dropout(dropout),
-                nn.Linear(hidden_dim, out_dim),
-            )
-
-        if self.use_4d:
-            self.conv = nn.Sequential(
-                nn.Conv2d(in_ch_4d, out_ch_4d, kernel_size=1),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(out_ch_4d, out_ch_4d, kernel_size=3, padding=1),
-                nn.ReLU(inplace=True),
-            )
-            self.conv_pool = nn.AdaptiveAvgPool2d((1, 1))
-            self.conv_fc = nn.Linear(out_ch_4d, out_dim)
-
-        if self.use_attn:
-            self.attn_proj = nn.ModuleList([nn.Linear(d, out_dim) for d in feat_dims])
-            self.attn = nn.MultiheadAttention(out_dim, attn_heads, batch_first=True)
-
-    def forward(
-        self,
-        feats_2d: List[torch.Tensor],
-        feats_4d: Optional[List[torch.Tensor]] = None,
-    ) -> torch.Tensor:
-        outputs = []
-
-        if self.use_2d:
-            cat = torch.cat(feats_2d, dim=1)
-            outputs.append(self.mlp(cat))
-
-        if self.use_4d and feats_4d is not None:
-            cat4d = torch.cat(feats_4d, dim=1)
-            x = self.conv(cat4d)
-            x = self.conv_pool(x).flatten(1)
-            outputs.append(self.conv_fc(x))
-
-        if self.use_attn:
-            tokens = [proj(f).unsqueeze(1) for f, proj in zip(feats_2d, self.attn_proj)]
-            tokens = torch.cat(tokens, dim=1)
-            attn_out, _ = self.attn(tokens, tokens, tokens)
-            outputs.append(attn_out.mean(dim=1))
-
-        assert len(outputs) > 0, "No active MBM paths"
-        if len(outputs) == 1:
-            return outputs[0]
-        return sum(outputs) / len(outputs)
 
 class SynergyHead(nn.Sequential):
-    """FC-ReLU-(Dropout)-FC mapping from synergy embedding to logits."""
+    """2‑Layer MLP head mapping IB‑MBM embedding → logits."""
 
     def __init__(self, in_dim: int, num_classes: int = 100, p: float = 0.0) -> None:
         super().__init__(
@@ -120,49 +46,26 @@ def build_from_teachers(
     teachers: List[nn.Module],
     cfg: dict,
     query_dim: Optional[int] = None,
-) -> Tuple[ManifoldBridgingModule, SynergyHead]:
-    use_da = bool(cfg.get("use_distillation_adapter", False))
-    feat_dims = []
-    for t in teachers:
-        if use_da and hasattr(t, "distill_dim"):
-            feat_dims.append(getattr(t, "distill_dim"))
-        else:
-            feat_dims.append(t.get_feat_dim())
-    use_4d = bool(cfg.get("mbm_use_4d", False))
-    if use_4d:
-        channels = [t.get_feat_channels() for t in teachers]
-        in_ch_4d = sum(channels)
-        out_ch_4d = cfg.get("mbm_out_ch_4d", cfg.get("mbm_out_dim", 256))
-    else:
-        in_ch_4d = out_ch_4d = None
+) -> Tuple[IB_MBM, SynergyHead]:
+    """Returns ``(IB_MBM, SynergyHead)``. ``mbm_type`` is ignored."""
 
-    mbm_type = cfg.get("mbm_type", "mlp").lower()
-    if mbm_type == "ib_mbm":
-        qdim = cfg.get("mbm_query_dim")
-        if qdim is None or qdim <= 0:
-            raise ValueError(
-                "[IB_MBM] cfg.mbm_query_dim (student feature dim) 필요합니다 "
-                "(e.g. 2048 for ResNet-152)."
-            )
-        mbm = IB_MBM(
-            q_dim=qdim,
-            kv_dim=max(feat_dims),
-            d_emb=cfg.get("mbm_out_dim", 512),
-            beta=cfg.get("ib_beta", 0.01),
-        )
-    elif mbm_type == "la":
-        raise RuntimeError("LA‑MBM has been removed ‑‑ set mbm_type: ib_mbm")
-    else:
-        mbm = ManifoldBridgingModule(
-            feat_dims=feat_dims,
-            hidden_dim=cfg.get("mbm_hidden_dim", 512),
-            out_dim=cfg.get("mbm_out_dim", 512),
-            dropout=cfg.get("mbm_dropout", 0.0),
-            use_4d=use_4d,
-            in_ch_4d=in_ch_4d,
-            out_ch_4d=out_ch_4d,
-            attn_heads=int(cfg.get("mbm_attn_heads", 0)),
-        )
+    # 1) collect feature dimensions from teachers
+    use_da = bool(cfg.get("use_distillation_adapter", False))
+    feat_dims = [
+        (t.distill_dim if use_da and hasattr(t, "distill_dim") else t.get_feat_dim())
+        for t in teachers
+    ]
+
+    qdim = cfg.get("mbm_query_dim") or query_dim
+    if not qdim:
+        raise ValueError("`mbm_query_dim` must be specified for IB‑MBM.")
+
+    mbm = IB_MBM(
+        q_dim=qdim,
+        kv_dim=max(feat_dims),
+        d_emb=cfg.get("mbm_out_dim", 512),
+        beta=cfg.get("ib_beta", 1e-2),
+    )
 
     head = SynergyHead(
         in_dim=cfg.get("mbm_out_dim", 512),

@@ -28,7 +28,7 @@ def get_loader(num_classes):
 @pytest.mark.parametrize("n_cls", [3, 7])
 def test_synergy_head_output_matches_dataset_class_count(n_cls):
     loader = get_loader(n_cls)
-    cfg = {"mbm_out_dim": 8}
+    cfg = {"mbm_out_dim": 8, "mbm_query_dim": 4}
     # mimic logic in main.py/eval.py
     num_classes = len(loader.dataset.classes)
     cfg["num_classes"] = num_classes
