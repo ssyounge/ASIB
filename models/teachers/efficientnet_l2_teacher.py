@@ -39,10 +39,13 @@ def create_efficientnet_l2(
     )
 
     if use_checkpointing:
+        # ------------------------------------------------------------------
+        # timm ≥1.0  →  checkpoint_seq 가 timm.layers 로 이동
+        # timm 0.9.x →  timm.models._factory 에 존재
+        # ------------------------------------------------------------------
         try:
-            from timm.layers import checkpoint_seq  # timm >= 1.0
-        except ImportError:
-            # timm 0.9.x fallback
+            from timm.layers import checkpoint_seq  # timm ≥1.0
+        except ImportError:  # timm 0.9 fallback
             from timm.models._factory import checkpoint_seq
 
         backbone.blocks = checkpoint_seq(backbone.blocks)
