@@ -31,7 +31,7 @@ from data.cifar100 import get_cifar100_loaders
 from data.imagenet32 import get_imagenet32_loaders
 
 # teacher factories
-from models.teachers.resnet_teacher import create_resnet101, create_resnet152
+from models.teachers.resnet_teacher import create_resnet152
 
 # partial freeze
 from modules.partial_freeze import (
@@ -73,16 +73,9 @@ def create_teacher_by_name(
     cfg: Optional[dict] = None,
 ):
     """
-    Extends to handle resnet152, resnet101 and efficientnet_l2 models.
+    Extends to handle resnet152 and efficientnet_l2 models.
     """
-    if teacher_type == "resnet101":
-        return create_resnet101(
-            num_classes=num_classes,
-            pretrained=pretrained,
-            small_input=small_input,
-            cfg=cfg,
-        )
-    elif teacher_type == "resnet152":
+    if teacher_type == "resnet152":
         return create_resnet152(
             num_classes=num_classes,
             pretrained=pretrained,
@@ -113,7 +106,7 @@ def partial_freeze_teacher_auto(
     """
     If needed, partial freeze for fine-tune. Or you can freeze nothing if you want full fine-tune.
     """
-    if teacher_type in ("resnet101", "resnet152"):
+    if teacher_type == "resnet152":
         partial_freeze_teacher_resnet(
             model,
             freeze_bn=freeze_bn,
