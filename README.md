@@ -458,7 +458,7 @@ Folder Structure
 
 ├── analysis/
 │   ├── compare_ablation.py
-│   └── plot_results.ipynb
+│   └── plot_results.py
 
 ├── configs/
 │   ├── base.yaml
@@ -549,7 +549,7 @@ Folder Structure
 Results
 
 Experiment outputs (CSV, logs, etc.) reside in the results/ folder.
-You can run analysis/compare_ablation.py or analysis/plot_results.ipynb to analyze or visualize them. These scripts require the pandas library, which is installed via `requirements.txt`.
+You can run analysis/compare_ablation.py or analysis/plot_results.py to analyze or visualize them. These scripts require the pandas library, which is installed via `requirements.txt`.
 
 ---
 
