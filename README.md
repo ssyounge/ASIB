@@ -479,8 +479,7 @@ Folder Structure
 │   ├── common/
 │   │   └── adapter.py
 │   ├── students/
-│   │   ├── resnet101_student.py
-│   │   └── resnet152_student.py
+│   │   └── resnet101_student.py
 │   └── teachers/
 │       ├── resnet_teacher.py
 │       └── efficientnet_l2_teacher.py

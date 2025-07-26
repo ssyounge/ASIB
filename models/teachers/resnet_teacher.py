@@ -7,39 +7,7 @@ from models.common.base_wrapper import BaseKDModel, register
 import torchvision.models as tv
 
 
-@register("resnet101_teacher")
-class ResNet101Teacher(BaseKDModel):
-    """ResNet-101 Teacher with optional distillation adapter."""
-
-    def __init__(
-        self,
-        *,
-        pretrained: bool = True,
-        num_classes: int = 100,
-        small_input: bool = False,
-        cfg: dict | None = None,
-    ):
-        backbone = tv.resnet101(
-            weights=tv.ResNet101_Weights.IMAGENET1K_V2 if pretrained else None
-        )
-        if small_input:
-            backbone.conv1 = nn.Conv2d(3, 64, 3, stride=1, padding=1, bias=False)
-            backbone.maxpool = nn.Identity()
-        super().__init__(backbone, num_classes, role="teacher", cfg=cfg or {})
-
-    def extract_feats(self, x):
-        b = self.backbone
-        x = b.relu(b.bn1(b.conv1(x)))
-        x = b.maxpool(x)
-        x = b.layer1(x)
-        x = b.layer2(x)
-        x = b.layer3(x)
-        f4d = b.layer4(x)
-        f2d = torch.flatten(b.avgpool(f4d), 1)
-        return f4d, f2d
-
-
-@register("resnet_teacher")
+@register("resnet_teacher")  # single entry
 class ResNet152Teacher(BaseKDModel):
     """ResNet-152 Teacher with optional distillation adapter."""
 
@@ -69,17 +37,6 @@ class ResNet152Teacher(BaseKDModel):
         f4d = b.layer4(x)
         f2d = torch.flatten(b.avgpool(f4d), 1)
         return f4d, f2d
-
-
-def create_resnet101(
-    num_classes: int = 100,
-    pretrained: bool = True,
-    small_input: bool = False,
-    cfg: dict | None = None,
-):
-    return ResNet101Teacher(
-        pretrained=pretrained, num_classes=num_classes, small_input=small_input, cfg=cfg
-    )
 
 
 def create_resnet152(
