@@ -4,6 +4,7 @@ import pytest
 
 from models.teachers.efficientnet_l2_teacher import create_efficientnet_l2
 
+
 class DummyBackbone(types.SimpleNamespace):
     def __init__(self):
         super().__init__()
@@ -41,6 +42,24 @@ def test_import_from_models_helpers(monkeypatch):
     setup_timm(monkeypatch, {"timm.models.helpers": models_helpers})
     teacher = create_efficientnet_l2(use_checkpointing=True)
     assert teacher.backbone.blocks == "models_helpers"
+
+
+def test_fallback_on_signature_mismatch(monkeypatch):
+    """Fallback to next module when checkpoint_seq signature is unexpected."""
+    bad_helpers = types.ModuleType("timm.models.helpers")
+    # invalid signature: requires two params not matching (x, y)
+    bad_helpers.checkpoint_seq = lambda x, y: "bad"
+    layers = types.ModuleType("timm.layers")
+    layers.checkpoint_seq = lambda x: "layers"
+    setup_timm(
+        monkeypatch,
+        {
+            "timm.models.helpers": bad_helpers,
+            "timm.layers": layers,
+        },
+    )
+    teacher = create_efficientnet_l2(use_checkpointing=True)
+    assert teacher.backbone.blocks == "layers"
 
 
 def test_import_error(monkeypatch):
