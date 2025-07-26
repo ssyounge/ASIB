@@ -367,7 +367,12 @@ efficientnet_dropout: 0.3  # dropout probability for EfficientNet teachers
 ```
 
 Set `efficientnet_dropout` to control the dropout rate used in EfficientNet
+
 teachers. The default value is **0.3**.
+
+#### EfficientNet-L2 Batch Size
+
+EfficientNet-L2 requires more memory than ResNet teachers. A 96-image batch from `configs/dataset/cifar100.yaml` can exhaust a 24 GB GPU. Begin fine-tuning with around **32** images per batch and increase only if your card allows.
 
 #### Fine-tuning a Teacher
 
