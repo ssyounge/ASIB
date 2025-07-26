@@ -20,7 +20,7 @@ class ResNet152Teacher(BaseKDModel):
         cfg: dict | None = None,
     ):
         weights = tv.ResNet152_Weights.IMAGENET1K_V2 if pretrained else None
-        backbone = tv.resnet152(weights=weights)
+        backbone = tv.resnet152(weights=weights, num_classes=num_classes)
         if small_input:
             backbone.conv1 = nn.Conv2d(3, 64, 3, stride=1, padding=1, bias=False)
             backbone.maxpool = nn.Identity()
