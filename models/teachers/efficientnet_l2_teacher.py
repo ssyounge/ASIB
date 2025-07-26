@@ -26,6 +26,7 @@ def create_efficientnet_l2(
     pretrained: bool = True,
     small_input: bool = False,
     dropout_p: float = 0.4,
+    use_checkpointing: bool = False,
     cfg: Optional[dict] = None,
 ):
     """Create an EfficientNet-L2 (Noisy Student) teacher via timm."""
@@ -36,6 +37,10 @@ def create_efficientnet_l2(
         num_classes=num_classes,
         drop_rate=dropout_p,
     )
+
+    if use_checkpointing:
+        from timm.models.layers import checkpoint_seq
+        backbone.blocks = checkpoint_seq(backbone.blocks)
 
     if small_input:
         stem = backbone.conv_stem

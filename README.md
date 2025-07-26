@@ -371,6 +371,9 @@ efficientnet_dropout: 0.3  # dropout probability for EfficientNet teachers
 Set `efficientnet_dropout` to control the dropout rate used in EfficientNet
 
 teachers. The default value is **0.3**.
+Set `use_checkpointing: true` in `configs/model/teacher/efficientnet_l2.yaml`
+to activate gradient checkpointing for the EfficientNet teacher. This reduces
+GPU memory usage at the cost of a slower runtime.
 
 #### EfficientNet-L2 Batch Size
 
