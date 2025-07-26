@@ -288,7 +288,9 @@ class ASMBDistiller(nn.Module):
 
         for ep in range(1, epochs+1):
             if self.debug:
-                print(f"\n[DBG][Teacher] ====== Stage-Teacher ep {ep}/{epochs} ======")
+                logging.debug(
+                    "[Teacher] ====== Stage-Teacher ep %s/%s ======", ep, epochs
+                )
             # 전 스테이지 누적 epoch = (stage-1)·epochs + (ep-1)
             cur_tau = get_tau(
                 self.config,
@@ -370,10 +372,14 @@ class ASMBDistiller(nn.Module):
                     logger.debug(f"attn_mean={attn.mean().item():.4f}")
 
                 if self.debug and it == 0 and ep == 1:
-                    print(
-                        f"[DBG|TA] stage={stage} ep={ep} "
-                        f"ce={ce_val.item():.3f} kl={kl_val.item():.3f} "
-                        f"zsyn \u03bc={zsyn.mean():.2f} \u03c3={zsyn.std():.2f}"
+                    logging.debug(
+                        "[TA] stage=%s ep=%s ce=%.3f kl=%.3f zsyn mu=%.2f sigma=%.2f",
+                        stage,
+                        ep,
+                        ce_val.item(),
+                        kl_val.item(),
+                        zsyn.mean(),
+                        zsyn.std(),
                     )
 
                 optimizer.zero_grad()
@@ -450,7 +456,9 @@ class ASMBDistiller(nn.Module):
 
         for ep in range(1, epochs+1):
             if self.debug:
-                print(f"\n[DBG][Student] ====== Distill ep {ep}/{epochs} ======")
+                logging.debug(
+                    "[Student] ====== Distill ep %s/%s ======", ep, epochs
+                )
             cur_tau = get_tau(
                 self.config,
                 epoch=(stage - 1) * epochs + (ep - 1),
@@ -556,10 +564,14 @@ class ASMBDistiller(nn.Module):
 
                 # —— DEBUG: first batch summary ——
                 if self.debug and it == 0 and ep == 1:
-                    print(
-                        f"[DBG|SD] stage={stage} ep={ep} "
-                        f"ce={ce_val.item():.3f} kd={kd_val.item():.3f} "
-                        f"s_logit μ={s_logit.mean():.2f} σ={s_logit.std():.2f}"
+                    logging.debug(
+                        "[SD] stage=%s ep=%s ce=%.3f kd=%.3f s_logit μ=%.2f σ=%.2f",
+                        stage,
+                        ep,
+                        ce_val.item(),
+                        kd_val.item(),
+                        s_logit.mean(),
+                        s_logit.std(),
                     )
 
                 optimizer.zero_grad()
@@ -570,7 +582,7 @@ class ASMBDistiller(nn.Module):
                             filter(lambda p: p.requires_grad, self.student.parameters()),
                             max_norm=1e9,
                         )
-                        print(f"[DBG][Student] grad-norm={total_norm:.3e}")
+                        logging.debug("[Student] grad-norm=%.3e", total_norm)
                     scaler.step(optimizer)
                     scaler.update()
                 else:
@@ -580,7 +592,7 @@ class ASMBDistiller(nn.Module):
                             filter(lambda p: p.requires_grad, self.student.parameters()),
                             max_norm=1e9,
                         )
-                        print(f"[DBG][Student] grad-norm={total_norm:.3e}")
+                        logging.debug("[Student] grad-norm=%.3e", total_norm)
                     optimizer.step()
 
                 bs = x.size(0)
@@ -596,7 +608,9 @@ class ASMBDistiller(nn.Module):
             if self.logger:
                 self.logger.info(f"[StudentDistill] ep={ep} => loss={avg_loss:.4f}, acc={acc:.2f}")
             elif self.debug:
-                print(f"[DBG][Student] ep={ep} avg_loss={avg_loss:.3f}, acc={acc:.2f}")
+                logging.debug(
+                    "[Student] ep=%s avg_loss=%.3f, acc=%.2f", ep, avg_loss, acc
+                )
 
             if acc > best_acc:
                 best_acc = acc
