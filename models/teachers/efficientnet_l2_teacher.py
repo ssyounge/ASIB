@@ -31,7 +31,10 @@ def create_efficientnet_l2(
     cfg: Optional[dict] = None,
 ):
     """Create an EfficientNet-L2 (Noisy Student) teacher via timm."""
-    model_name = "tf_efficientnet_l2_ns"
+    # timm 1.x uses a new official identifier
+    #  - old name: tf_efficientnet_l2_ns
+    #  - new name: tf_efficientnet_l2.ns_jft_in1k
+    model_name = "tf_efficientnet_l2.ns_jft_in1k"
     backbone = timm.create_model(
         model_name,
         pretrained=pretrained,
