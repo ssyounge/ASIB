@@ -44,7 +44,7 @@ class ImageNet32(ClassInfoMixin, Dataset):
         return self.data.shape[0]
 
     def __getitem__(self, idx):
-        img = torch.tensor(self.data[idx], dtype=torch.uint8).float().div_(255.0)
+        img = torch.from_numpy(self.data[idx]).float().div_(255.0)
         if self.transform is not None:
             img = self.transform(img)          # e.g. RandomFlip + ToTensor etc.
         target = int(self.labels[idx])         # already 0-based
