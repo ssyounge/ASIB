@@ -38,17 +38,35 @@ def create_efficientnet_l2(
         drop_rate=dropout_p,
     )
 
+    # ------------------------------------------------------------
+    # (선택) gradient-checkpointing 활성화
+    #  - timm 0.9.x  : timm.models.helpers.checkpoint_seq
+    #  - timm 1.x    : timm.layers.helpers.checkpoint_seq
+    #  - timm ≥0.9.12 일부 릴리스에서 경로가 바뀌므로 다단계 fallback
+    # ------------------------------------------------------------
     if use_checkpointing:
-        # ------------------------------------------------------------------
-        # timm ≥1.0  →  checkpoint_seq 가 timm.layers 로 이동
-        # timm 0.9.x →  timm.models._factory 에 존재
-        # ------------------------------------------------------------------
-        try:
-            from timm.layers import checkpoint_seq  # timm ≥1.0
-        except ImportError:  # timm 0.9 fallback
-            from timm.models._factory import checkpoint_seq
+        checkpoint_seq = None
+        for _path in (
+            "timm.layers.helpers",     # timm ≥1.0
+            "timm.layers",             # timm 1.x (일부 빌드)
+            "timm.models.helpers",     # timm 0.9.x
+        ):
+            try:
+                checkpoint_seq = __import__(_path, fromlist=["checkpoint_seq"]).checkpoint_seq
+                break
+            except (ImportError, AttributeError):
+                continue
 
-        backbone.blocks = checkpoint_seq(backbone.blocks)
+        if checkpoint_seq is not None:
+            backbone.blocks = checkpoint_seq(backbone.blocks)
+        else:
+            import warnings
+            warnings.warn(
+                "[Eff-L2] timm 모듈에서 'checkpoint_seq'를 찾지 못해 "
+                "gradient-checkpointing을 비활성화합니다. "
+                "(timm 업그레이드가 필요할 수 있습니다)",
+                RuntimeWarning,
+            )
 
     if small_input:
         stem = backbone.conv_stem

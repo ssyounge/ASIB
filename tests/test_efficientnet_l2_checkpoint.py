@@ -19,6 +19,14 @@ def setup_timm(monkeypatch, modules):
         monkeypatch.setitem(sys.modules, name, mod)
 
 
+def test_import_from_layers_helpers(monkeypatch):
+    layers_helpers = types.ModuleType("timm.layers.helpers")
+    layers_helpers.checkpoint_seq = lambda x: "layers_helpers"
+    setup_timm(monkeypatch, {"timm.layers.helpers": layers_helpers})
+    teacher = create_efficientnet_l2(use_checkpointing=True)
+    assert teacher.backbone.blocks == "layers_helpers"
+
+
 def test_import_from_layers(monkeypatch):
     layers = types.ModuleType("timm.layers")
     layers.checkpoint_seq = lambda x: "layers"
@@ -27,15 +35,16 @@ def test_import_from_layers(monkeypatch):
     assert teacher.backbone.blocks == "layers"
 
 
-def test_import_from_factory(monkeypatch):
-    factory = types.ModuleType("timm.models._factory")
-    factory.checkpoint_seq = lambda x: "factory"
-    setup_timm(monkeypatch, {"timm.models._factory": factory})
+def test_import_from_models_helpers(monkeypatch):
+    models_helpers = types.ModuleType("timm.models.helpers")
+    models_helpers.checkpoint_seq = lambda x: "models_helpers"
+    setup_timm(monkeypatch, {"timm.models.helpers": models_helpers})
     teacher = create_efficientnet_l2(use_checkpointing=True)
-    assert teacher.backbone.blocks == "factory"
+    assert teacher.backbone.blocks == "models_helpers"
 
 
 def test_import_error(monkeypatch):
     setup_timm(monkeypatch, {})
-    with pytest.raises(ImportError):
-        create_efficientnet_l2(use_checkpointing=True)
+    with pytest.warns(RuntimeWarning):
+        teacher = create_efficientnet_l2(use_checkpointing=True)
+    assert teacher.backbone.blocks == "orig"
