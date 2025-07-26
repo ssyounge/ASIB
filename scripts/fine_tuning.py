@@ -69,7 +69,7 @@ def create_teacher_by_name(
     num_classes=100,
     pretrained=True,
     small_input=False,
-    dropout_p=0.3,
+    dropout_p: float | None = None,
     cfg: Optional[dict] = None,
 ):
     """
@@ -84,11 +84,13 @@ def create_teacher_by_name(
         )
     elif teacher_type in ("efficientnet_l2", "effnet_l2"):
         from models.teachers.efficientnet_l2_teacher import create_efficientnet_l2
+        if dropout_p is None and cfg is not None:
+            dropout_p = cfg.get("efficientnet_dropout", 0.3)
         return create_efficientnet_l2(
             num_classes=num_classes,
             pretrained=pretrained,
             small_input=small_input,
-            dropout_p=dropout_p,
+            dropout_p=dropout_p if dropout_p is not None else 0.3,
             cfg=cfg,
         )
     else:
@@ -247,7 +249,7 @@ def main(cfg: DictConfig):
         num_classes=num_classes,
         pretrained=cfg.get("teacher_pretrained", True),
         small_input=small_input,
-        dropout_p=cfg.get("efficientnet_dropout", 0.3),
+        dropout_p=cfg.get("efficientnet_dropout"),
         cfg=cfg,
     ).to(device)
 
