@@ -191,20 +191,12 @@ top‑level keys `log_level` and `log_filename` so older scripts continue to wor
 
 ## Testing
 
-Run the helper script to install **PyTorch** and all remaining dependencies,
-then invoke `pytest`:
-
 ```bash
-bash scripts/setup_tests.sh
-pytest
+pip install torch==2.2.0+cpu torchvision==0.17.0+cpu \
+    -f https://download.pytorch.org/whl/torch_stable.html
+pip install -r requirements.txt
+pytest        # 전체 테스트 ≤ 1 min on CPU
 ```
-
-Unit tests are skipped unless **PyTorch** is installed.
-
-> **Note**
-> The training and evaluation scripts now call `torch.load(..., weights_only=True)`
-> when loading checkpoints. Make sure you have **PyTorch&nbsp;2.1** or newer
-> installed, otherwise loading state dictionaries will fail.
 
 ---
 

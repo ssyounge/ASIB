@@ -9,5 +9,7 @@ jobs:
         with:
           python-version: '3.10'
       - run: pip install .[dev]
+      - run: pip install torch==2.2.0+cpu torchvision==0.17.0+cpu \
+          -f https://download.pytorch.org/whl/torch_stable.html
       - run: pre-commit run --all-files
       - run: pytest -q
