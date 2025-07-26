@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #SBATCH --job-name=ft_teacher
 #SBATCH --partition=dell_rtx3090
 #SBATCH --qos=base_qos
@@ -8,26 +8,27 @@
 #SBATCH --time=01:00:00
 #SBATCH --output=logs/ft_%j.log
 #SBATCH --error=logs/ft_%j.err
+# ---------------------------------------------------------
+# Fine-tune teacher checkpoints (clean - no SLURM required)
+# 스크립트를 어디서 실행하든 레포 루트에서 시작하도록 고정
+# ---------------------------------------------------------
+set -euo pipefail
 
-# When dispatched via sbatch, SLURM_SUBMIT_DIR points to the directory
-# the job was submitted from. Fall back to the script location when run
-# manually so relative paths (e.g., scripts/fine_tuning.py) still work.
-cd "${SLURM_SUBMIT_DIR:-$(dirname "$0")}"
-source ~/.bashrc
-conda activate tlqkf
-export PYTHONPATH="$(pwd):$PYTHONPATH"
+# 1) 리포 최상위로 이동
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
 
-CONFIGS=(resnet152_cifar32 efficientnet_l2_cifar32)
-IDX=${1:-0}
-CFG_NAME=${CONFIGS[$IDX]}
+# 2) PYTHONPATH 추가 (내부 모듈 import 용)
+export PYTHONPATH="${ROOT}:${PYTHONPATH:-}"
 
-if [ -z "$CFG_NAME" ]; then
-  echo "❌  잘못된 인덱스 $IDX" >&2
-  exit 1
-fi
+# 3) 인자: <yaml basename> (default=resnet152_cifar32)
+CFG_NAME="${1:-resnet152_cifar32}"
+shift || true         # 나머지 인자 → Hydra override
 
-echo "▶ Fine-tuning config: $CFG_NAME"
-mkdir -p logs
+# 4) 실행
 python scripts/fine_tuning.py \
-  --config-path configs/finetune \
-  --config-name "$CFG_NAME"
+    --config-path configs/finetune \
+    --config-name "$CFG_NAME" \
+    "$@"
+
+echo "[run_finetune_clean.sh] ✅ finished – $CFG_NAME"
