@@ -46,45 +46,46 @@ def create_efficientnet_l2(
     #  - timm ≥0.9.12 일부 릴리스에서 경로가 바뀌므로 다단계 fallback
     # ------------------------------------------------------------
     if use_checkpointing:
-        checkpoint_seq = None
-        # 1) models.helpers 버전(시그니처 OK)을 **우선** 시도
-        # 2) 그 외 버전은 시그니처 확인 후, modules-only 호출이 가능할 때만 채택
-        for _path in (
-            "timm.models.helpers",  # ✅ 올바른 시그니처
-            "timm.layers.helpers",  # 시그니처 확인 필요
-            "timm.layers",
-        ):
-            try:
-                checkpoint_seq = __import__(
-                    _path, fromlist=["checkpoint_seq"]
-                ).checkpoint_seq
-                import inspect
+        import importlib, inspect
 
-                sig = inspect.signature(checkpoint_seq)
-                # 파라미터가 1개이거나 두 번째 파라미터가 every(=default)일 때만 OK
-                params = list(sig.parameters.values())
-                if (
-                    len(params) >= 1
-                    and params[0].kind
-                    in (
+        checkpoint_seq = None
+        CANDIDATES = (
+            "timm.models.helpers",   # timm 0.9.x / 1.x (모듈당-checkpoint 버전)
+            "timm.layers.helpers",   # timm 1.x 일부 릴리스
+            "timm.layers",           # timm 1.x 경로 변형
+        )
+
+        for _path in CANDIDATES:
+            try:
+                mod = importlib.import_module(_path)
+                fn = getattr(mod, "checkpoint_seq", None)
+                if fn is None:
+                    continue
+
+                # ── 시그니처 검사 ──
+                sig = inspect.signature(fn)
+                # 필수 positional-only / positional-or-keyword 인자
+                req = [
+                    p for p in sig.parameters.values()
+                    if p.default is p.empty
+                    and p.kind in (
                         inspect.Parameter.POSITIONAL_ONLY,
                         inspect.Parameter.POSITIONAL_OR_KEYWORD,
                     )
-                    and (len(params) == 1 or params[1].name == "every")
-                ):
-                    break  # ✔️  사용 가능
-            except (ImportError, AttributeError, ValueError):
+                ]
+                if len(req) == 1:  # <modules> 하나만 필수 → 사용 가능
+                    checkpoint_seq = fn
+                    break
+            except ImportError:
                 continue
 
         if checkpoint_seq is not None:
-            backbone.blocks = checkpoint_seq(backbone.blocks)
+            backbone.blocks = checkpoint_seq(backbone.blocks)   # ✅
         else:
             import warnings
-
             warnings.warn(
-                "[Eff-L2] timm 모듈에서 'checkpoint_seq'를 찾지 못해 "
-                "gradient-checkpointing을 비활성화합니다. "
-                "(timm 업그레이드가 필요할 수 있습니다)",
+                "[Eff-L2] ‘checkpoint_seq’ 시그니처를 만족하는 버전을 찾지 못했습니다. "
+                "gradient-checkpointing을 비활성화합니다.",
                 RuntimeWarning,
             )
 
