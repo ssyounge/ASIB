@@ -51,7 +51,7 @@ wandb:
 #  ※ 코드( main.py, trainer_*.py ) 는 중첩 dict 대신 **flat key** 를 조회합니다.
 #    그래서 기존 `mbm:` 블록을 없애고 flat alias 로 교체합니다.
 
-# 모듈 종류  ('la', 'ib_mbm', 'mlp')
+# 모듈 종류 (고정: ib_mbm)
 mbm_type: ib_mbm
 
 # IB 옵션
