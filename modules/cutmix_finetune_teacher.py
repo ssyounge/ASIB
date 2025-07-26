@@ -69,7 +69,12 @@ def train_one_epoch_cutmix(
         # 2) forward + loss
         with autocast_ctx:
             out = teacher_model(x_cm)  # we only need `logits` for classification
-            logits = out["logit"]
+            if isinstance(out, tuple):
+                logits = out[1]
+            elif isinstance(out, dict):
+                logits = out["logit"]
+            else:
+                logits = out
             if num_classes is None:
                 num_classes = logits.size(1)
             min_label = int(torch.cat((y_a, y_b)).min())
@@ -283,7 +288,13 @@ def standard_ce_finetune(
             optimizer.zero_grad()
             with autocast_ctx:
                 out = teacher_model(x)
-                loss = criterion(out["logit"], y)
+                if isinstance(out, tuple):
+                    logits = out[1]
+                elif isinstance(out, dict):
+                    logits = out["logit"]
+                else:
+                    logits = out
+                loss = criterion(logits, y)
             if scaler is not None:
                 scaler.scale(loss).backward()
                 scaler.step(optimizer)
