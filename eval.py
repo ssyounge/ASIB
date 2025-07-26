@@ -19,7 +19,7 @@ from main import create_student_by_name
 
 # Teacher Factory
 # Import the three teacher creation functions:
-from models.teachers.resnet_teacher import create_resnet152
+from models.teachers.resnet152_teacher import create_resnet152
 
 def create_teacher_by_name(
     teacher_name,

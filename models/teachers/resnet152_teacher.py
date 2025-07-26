@@ -1,4 +1,4 @@
-# models/teachers/resnet_teacher.py
+# models/teachers/resnet152_teacher.py
 
 import torch
 import torch.nn as nn
@@ -7,7 +7,7 @@ from models.common.base_wrapper import BaseKDModel, register
 import torchvision.models as tv
 
 
-@register("resnet_teacher")  # single entry
+@register("resnet152_teacher")  # single entry
 class ResNet152Teacher(BaseKDModel):
     """ResNet-152 Teacher with optional distillation adapter."""
 
@@ -49,6 +49,7 @@ def create_resnet152(
         pretrained=pretrained, num_classes=num_classes, small_input=small_input, cfg=cfg
     )
 
-# previous key kept for backward compatibility
-from models.common.base_wrapper import MODEL_REGISTRY
-MODEL_REGISTRY["resnet152_teacher"] = ResNet152Teacher
+# (For backward compatibility, you may keep the alias below. Remove the
+# commented lines if you don't need it.)
+# from models.common.base_wrapper import MODEL_REGISTRY
+# MODEL_REGISTRY["resnet_teacher"] = ResNet152Teacher
