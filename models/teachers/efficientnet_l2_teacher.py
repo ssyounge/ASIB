@@ -11,8 +11,9 @@ from models.common.base_wrapper import BaseKDModel, register
 class EfficientNetL2Teacher(BaseKDModel):
     """EfficientNet-L2 (Noisy Student) Teacher."""
 
-    def __init__(self, backbone: nn.Module, *, num_classes: int,
-                 cfg: Optional[dict] = None):
+    def __init__(
+        self, backbone: nn.Module, *, num_classes: int, cfg: Optional[dict] = None
+    ):
         super().__init__(backbone, num_classes, role="teacher", cfg=cfg or {})
 
     def extract_feats(self, x):
@@ -46,21 +47,40 @@ def create_efficientnet_l2(
     # ------------------------------------------------------------
     if use_checkpointing:
         checkpoint_seq = None
+        # 1) models.helpers 버전(시그니처 OK)을 **우선** 시도
+        # 2) 그 외 버전은 시그니처 확인 후, modules-only 호출이 가능할 때만 채택
         for _path in (
-            "timm.layers.helpers",     # timm ≥1.0
-            "timm.layers",             # timm 1.x (일부 빌드)
-            "timm.models.helpers",     # timm 0.9.x
+            "timm.models.helpers",  # ✅ 올바른 시그니처
+            "timm.layers.helpers",  # 시그니처 확인 필요
+            "timm.layers",
         ):
             try:
-                checkpoint_seq = __import__(_path, fromlist=["checkpoint_seq"]).checkpoint_seq
-                break
-            except (ImportError, AttributeError):
+                checkpoint_seq = __import__(
+                    _path, fromlist=["checkpoint_seq"]
+                ).checkpoint_seq
+                import inspect
+
+                sig = inspect.signature(checkpoint_seq)
+                # 파라미터가 1개이거나 두 번째 파라미터가 every(=default)일 때만 OK
+                params = list(sig.parameters.values())
+                if (
+                    len(params) >= 1
+                    and params[0].kind
+                    in (
+                        inspect.Parameter.POSITIONAL_ONLY,
+                        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    )
+                    and (len(params) == 1 or params[1].name == "every")
+                ):
+                    break  # ✔️  사용 가능
+            except (ImportError, AttributeError, ValueError):
                 continue
 
         if checkpoint_seq is not None:
             backbone.blocks = checkpoint_seq(backbone.blocks)
         else:
             import warnings
+
             warnings.warn(
                 "[Eff-L2] timm 모듈에서 'checkpoint_seq'를 찾지 못해 "
                 "gradient-checkpointing을 비활성화합니다. "
