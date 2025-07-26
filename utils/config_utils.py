@@ -65,6 +65,7 @@ def flatten_hydra_config(cfg: dict) -> dict:
     cfg.setdefault("teacher_freeze_ln", teacher.get("freeze_ln"))
     cfg.setdefault("teacher_use_adapter", teacher.get("use_adapter"))
     cfg.setdefault("teacher_bn_head_only", teacher.get("bn_head_only"))
+    cfg.setdefault("teacher_use_checkpointing", teacher.get("use_checkpointing"))
 
     student = model.get("student", {})
     if isinstance(student, dict) and "model" in student:
