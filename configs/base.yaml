@@ -45,8 +45,8 @@ ckpt_dir: "./checkpoints"
 # ---------- W&B ----------
 wandb:
   use: false
-  entity: ${oc.env:WANDB_ENTITY}
-  project: ${oc.env:WANDB_PROJECT}
+  entity: ${oc.env:WANDB_ENTITY, default=null}
+  project: ${oc.env:WANDB_PROJECT, default=null}
   run_name: ""              # 비우면 exp_id 사용
   api_key: ""               # "" → wandb login 로드
 
