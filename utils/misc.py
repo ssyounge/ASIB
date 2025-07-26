@@ -67,12 +67,13 @@ def save_checkpoint(model, optimizer, epoch, save_path="checkpoint.pth"):
     }
     torch.save(ckpt, save_path)
 
-def load_checkpoint(model, optimizer, load_path):
+def load_checkpoint(model, optimizer, load_path, cfg=None):
     """
     Load model & optimizer from checkpoint file.
     """
     if not os.path.exists(load_path):
-        print(f"[Warning] No checkpoint found at {load_path}")
+        if cfg is not None and cfg.get("debug_verbose"):
+            logging.debug("[Warning] No checkpoint found at %s", load_path)
         return 0  # or -1, indicating failure
 
     ckpt = torch.load(load_path, weights_only=True)

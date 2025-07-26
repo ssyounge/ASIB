@@ -160,12 +160,10 @@ def student_distillation_update(
 
                 # ---- DEBUG: 첫 batch 모양 확인 ----
                 if ep == 0 and step == 0 and cfg.get("debug_verbose", False):
-                    print(
-                        "[DBG/student] x",
+                    logging.debug(
+                        "[DBG/student] x %s s_logit %s zsyn %s",
                         tuple(x.shape),
-                        "s_logit",
                         tuple(s_logit.shape),
-                        "zsyn",
                         tuple(zsyn.shape),
                     )
 
@@ -219,7 +217,9 @@ def student_distillation_update(
             else:
                 loss.backward()
                 if cfg.get("debug_verbose", False):
-                    print(f"[StudentDistill] batch loss={loss.item():.4f}")
+                    logging.debug(
+                        "[StudentDistill] batch loss=%.4f", loss.item()
+                    )
                 if cfg.get("grad_clip_norm", 0) > 0:
                     torch.nn.utils.clip_grad_norm_(
                         student_model.parameters(), cfg["grad_clip_norm"]
