@@ -18,6 +18,7 @@ Usage::
 import os
 import argparse
 import pandas as pd
+import logging
 
 
 def parse_args():
@@ -43,7 +44,7 @@ def main():
     # 예: results/summary.csv 에는 여러 파라미터/성과가 정리돼 있다고 가정
     summary_path = args.summary_csv
     if not os.path.exists(summary_path):
-        print(f"[Error] summary.csv not found at {summary_path}")
+        logging.error("summary.csv not found at %s", summary_path)
         return
 
     df = pd.read_csv(summary_path)  
@@ -55,12 +56,12 @@ def main():
     # "mean" -> test_acc_mean, "std" -> test_acc_std
 
     # 2) print or save
-    print("== Ablation Summary: By Method & LR & synergy_ce_alpha ==\n")
-    print(agg_result)
+    logging.info("== Ablation Summary: By Method & LR & synergy_ce_alpha ==\n")
+    logging.info("%s", agg_result)
 
     out_path = args.out_path
     agg_result.to_csv(out_path, index=False)
-    print(f"[Info] ablation summary saved to {out_path}")
+    logging.info("ablation summary saved to %s", out_path)
 
 if __name__ == "__main__":
     main()

@@ -2,6 +2,7 @@
 
 import torch
 import os
+import logging
 import torchvision
 import torchvision.transforms as T
 
@@ -64,8 +65,11 @@ def get_cifar100_loaders(root="./data", batch_size=128, num_workers=2, augment=T
 
 # —— Quick sanity check (optional) ————————————
 #   python -m data.cifar100
-if __name__ == "__main__":        # noqa: D401
+if __name__ == "__main__":  # noqa: D401
     tr, te = get_cifar100_loaders(batch_size=256, augment=False)
     ys = [y for _, y in tr.dataset]
-    print("[DBG] CIFAR-100 label range:", min(ys), max(ys))
-    print("[DBG] train len =", len(tr.dataset), "test len =", len(te.dataset))
+    logging.basicConfig(level=logging.DEBUG)
+    logging.debug("[DBG] CIFAR-100 label range: %s %s", min(ys), max(ys))
+    logging.debug(
+        "[DBG] train len = %s test len = %s", len(tr.dataset), len(te.dataset)
+    )

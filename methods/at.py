@@ -158,12 +158,17 @@ class ATDistiller(nn.Module):
             # evaluate
             if test_loader is not None:
                 acc = self.evaluate(test_loader, device)
-                print(f"[Epoch {epoch}] AT => loss={avg_loss:.4f}, testAcc={acc:.2f}")
+                logging.info(
+                    "[Epoch %s] AT => loss=%.4f, testAcc=%.2f",
+                    epoch,
+                    avg_loss,
+                    acc,
+                )
                 if acc > best_acc:
                     best_acc = acc
                     best_state = {"student": self.student.state_dict()}
             else:
-                print(f"[Epoch {epoch}] AT => loss={avg_loss:.4f}")
+                logging.info("[Epoch %s] AT => loss=%.4f", epoch, avg_loss)
 
         if best_state is not None:
             self.student.load_state_dict(best_state["student"])

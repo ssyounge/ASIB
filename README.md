@@ -13,6 +13,12 @@ python main.py
 python main.py cl=split_cifar
 ```
 
+Docker quick test:
+```bash
+docker build -t asmb-kd .
+docker run --gpus all -e DATA_ROOT=/datasets -it asmb-kd
+```
+
 `--cl_mode 1` 활성화 후 `--num_tasks` 값을 지정하면 별도의 CL 전용 YAML 없이 연속 학습을 수행할 수 있습니다.
 
 ## 주요 config 플래그
@@ -71,6 +77,9 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
   dimension reported by the student model (if available).
   The MBM output dimension (`mbm_out_dim`) now defaults to this student
   feature size as well.
+- **MBM Head Multiple**: `mbm_out_dim` must be a multiple of `mbm_n_head`.
+  For example, `mbm_n_head=4` → `mbm_out_dim=2048` is valid, whereas
+  `mbm_out_dim=2050` would raise an error.
 - **Requires Student Features**: `ib_mbm` relies on student features as the
   attention query, so the student model must be provided.
   Common student feature dimensions are:
@@ -100,8 +109,8 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 ```
 2. *(Optional)* **Create and activate a Conda environment**:
 ```bash
-conda env create -f environment.yml
-conda activate tlqkf
+CONDA_ENV=myenv conda env create -f environment.yml
+conda activate ${CONDA_ENV:-asmb}
 ```
 3. *(Optional)* **Install dependencies manually**:
 ```bash
@@ -120,7 +129,16 @@ wget -O checkpoints/efficientnet_l2_ft.pth <링크>  # optional EfficientNet-L2
 export DATA_ROOT=/path/to/datasets
 export WANDB_ENTITY=my_entity
 export WANDB_PROJECT=my_project
+export CONDA_ENV=asmb
 ```
+
+| Variable       | Description                      |
+|---------------|----------------------------------|
+| `DATA_ROOT`   | Dataset directory                |
+| `WANDB_ENTITY`| Weights & Biases entity name      |
+| `WANDB_PROJECT`| W&B project name                 |
+| `CONDA_ENV`   | Conda environment name           |
+
 6. **Run a single experiment**:
 ```bash
 python main.py --config-name experiment/res152_effi_l2  # EfficientNet-L2 teacher

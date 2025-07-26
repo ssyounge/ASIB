@@ -13,6 +13,7 @@ import os
 import json
 import torch
 from typing import Optional
+from utils.logging_utils import init_logger
 
 import hydra
 from omegaconf import DictConfig, OmegaConf
@@ -216,6 +217,7 @@ def main(cfg: DictConfig):
     from utils.config_utils import flatten_hydra_config
 
     cfg = flatten_hydra_config(cfg)
+    init_logger(cfg.get("log_level", "INFO"))
 
     fl = cfg.get("student_freeze_level", -1)
     if fl is None:
