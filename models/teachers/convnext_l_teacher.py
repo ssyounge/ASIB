@@ -1,3 +1,5 @@
+# models/teachers/convnext_l_teacher.py
+
 import torch.nn as nn
 from typing import Optional
 
