@@ -1,3 +1,5 @@
+# models/students/efficientnet_b2_student.py
+
 import torch
 import torch.nn as nn
 import timm
