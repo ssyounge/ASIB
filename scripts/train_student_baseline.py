@@ -12,6 +12,7 @@ import torch.nn as nn
 import torch.optim as optim
 import hydra
 from omegaconf import DictConfig, OmegaConf
+from utils.logging_utils import init_logger
 
 from utils.misc import set_random_seed, check_label_range
 from data.cifar100 import get_cifar100_loaders
@@ -106,6 +107,7 @@ def main(cfg: DictConfig):
     cfg = OmegaConf.to_container(cfg, resolve=True)
     from utils.config_utils import flatten_hydra_config
     cfg = flatten_hydra_config(cfg)
+    init_logger(cfg.get("log_level", "INFO"))
 
     device = cfg.get("device", "cuda")
     if device == "cuda" and not torch.cuda.is_available():
