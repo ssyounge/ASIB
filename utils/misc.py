@@ -231,9 +231,19 @@ def check_label_range(dataset, num_classes: int) -> None:
 
 def get_model_num_classes(model):
     """Return the classifier output dimension for a variety of models."""
+    # First check if the outer wrapper exposes a classifier.  This covers
+    # ``BaseKDModel`` wrappers that register their own ``classifier`` module
+    # while keeping the original backbone classification head intact.
+    if hasattr(model, "classifier"):
+        cls = model.classifier
+        if isinstance(cls, torch.nn.Linear):
+            return cls.out_features
+        if isinstance(cls, torch.nn.Sequential):
+            for layer in reversed(cls):
+                if isinstance(layer, torch.nn.Linear):
+                    return layer.out_features
+
     module = getattr(model, "backbone", model)
-    if hasattr(module, "fc"):
-        return module.fc.out_features
     if hasattr(module, "classifier"):
         cls = module.classifier
         if isinstance(cls, torch.nn.Linear):
@@ -242,6 +252,9 @@ def get_model_num_classes(model):
             for layer in reversed(cls):
                 if isinstance(layer, torch.nn.Linear):
                     return layer.out_features
+
+    if hasattr(module, "fc"):
+        return module.fc.out_features
     if hasattr(module, "head"):
         return module.head.out_features
     raise AttributeError("Unable to infer num_classes from model")
