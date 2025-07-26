@@ -135,6 +135,7 @@ def create_teacher_by_name(
             pretrained=pretrained,
             small_input=small_input,
             dropout_p=cfg.get("efficientnet_dropout"),
+            use_checkpointing=cfg.get("teacher_use_checkpointing", False),
             cfg=cfg,
         )
     elif teacher_name in ("convnext_l", "convnext_large"):

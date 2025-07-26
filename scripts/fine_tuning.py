@@ -93,6 +93,7 @@ def create_teacher_by_name(
             pretrained=pretrained,
             small_input=small_input,
             dropout_p=dropout_p if dropout_p is not None else 0.3,
+            use_checkpointing=cfg.get("teacher_use_checkpointing", False),
             cfg=cfg,
         )
     else:
