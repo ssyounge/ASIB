@@ -1,6 +1,7 @@
 # data/cifar100.py
 
 import torch
+import os
 import torchvision
 import torchvision.transforms as T
 
@@ -31,6 +32,7 @@ def get_cifar100_loaders(root="./data", batch_size=128, num_workers=2, augment=T
                     (0.2673,0.2564,0.2762))
     ])
 
+    root = root or os.getenv("DATA_ROOT", "./data")
     train_dataset = torchvision.datasets.CIFAR100(
         root=root,
         train=True,
