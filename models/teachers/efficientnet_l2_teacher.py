@@ -39,27 +39,11 @@ def create_efficientnet_l2(
     )
 
     if use_checkpointing:
-        import importlib
-
-        checkpoint_seq = None
-        for module_path in (
-            "timm.layers",
-            "timm.utils",
-            "timm.utils.checkpoint",
-        ):
-            try:
-                checkpoint_seq = getattr(
-                    importlib.import_module(module_path),
-                    "checkpoint_seq",
-                )
-                break
-            except (ImportError, AttributeError):
-                continue
-
-        if checkpoint_seq is None:
-            raise ImportError(
-                "Unable to import 'checkpoint_seq' from timm; please upgrade timm"
-            )
+        try:
+            from timm.layers import checkpoint_seq  # timm >= 1.0
+        except ImportError:
+            # timm 0.9.x fallback
+            from timm.models._factory import checkpoint_seq
 
         backbone.blocks = checkpoint_seq(backbone.blocks)
 
