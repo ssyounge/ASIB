@@ -333,9 +333,14 @@ def main(cfg: DictConfig):
         wandb.run.summary["overlap_pct"] = cfg_overlap
 
     device = cfg.get("device", "cuda")
-    if device == "cuda" and not torch.cuda.is_available():
-        logging.warning("No CUDA => Using CPU")
-        device = "cpu"
+    if device == "cuda":
+        if torch.cuda.is_available():
+            os.environ.setdefault(
+                "PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True"
+            )
+        else:
+            logging.warning("No CUDA => Using CPU")
+            device = "cpu"
 
     # fix seed
     seed = cfg.get("seed", 42)
