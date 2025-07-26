@@ -385,7 +385,12 @@ def main(cfg: DictConfig):
     if isinstance(train_loader.dataset, torch.utils.data.ConcatDataset):
         num_classes = 100  # CIFAR-100 fixed
     else:
-        num_classes = len(train_loader.dataset.classes)
+        n_classes = getattr(train_loader.dataset, "classes", None)
+        if n_classes is None:
+            n_classes = getattr(train_loader.dataset, "num_classes", None)
+        if n_classes is None:
+            raise AttributeError("Dataset must expose `classes` or `num_classes`")
+        num_classes = len(n_classes) if not isinstance(n_classes, int) else n_classes
     cfg["num_classes"] = num_classes
     exp_logger.update_metric("num_classes", num_classes)
     check_label_range(train_loader.dataset, num_classes)
@@ -595,8 +600,8 @@ def main(cfg: DictConfig):
 
     # ───────────────────────── debug: trainable 파라미터 개수 로그 ──────────────
     n_trainable = count_trainable(student_model)
-    print(f"[Debug] Student trainable **elements** → {n_trainable:,}")
-    if cfg.get("debug_verbose", True):
+    if cfg.get("debug_verbose", False):
+        print(f"[Debug] Student trainable **elements** → {n_trainable:,}")
         # freeze‑level 검증
         frz_lvl = cfg.get("student_freeze_level", -1)
         n_requires_grad = sum(1 for p in student_model.parameters() if p.requires_grad)
@@ -788,7 +793,8 @@ def main(cfg: DictConfig):
             dbg_mode = cfg.get("disagree_mode", "both_wrong")
             dbg_lh = cfg.get("disagree_lambda_high", 1.2)
             dbg_ll = cfg.get("disagree_lambda_low", 0.8)
-            print(f"[DBG] disagree_mode={dbg_mode}, λ_high={dbg_lh}, λ_low={dbg_ll}")
+            if cfg.get("debug_verbose", False):
+                print(f"[DBG] disagree_mode={dbg_mode}, λ_high={dbg_lh}, λ_low={dbg_ll}")
             # --------------------------------------------------------------
 
             teacher_epochs = cfg.get(

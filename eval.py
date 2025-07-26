@@ -140,7 +140,12 @@ def main(cfg: DictConfig):
     small_input = cfg.get("small_input")
     if small_input is None:
         small_input = dataset_name == "cifar100"
-    n_classes = len(train_loader.dataset.classes)
+    n_classes = getattr(train_loader.dataset, "classes", None)
+    if n_classes is None:
+        n_classes = getattr(train_loader.dataset, "num_classes", None)
+    if n_classes is None:
+        raise AttributeError("Dataset must expose `classes` or `num_classes`")
+    n_classes = len(n_classes) if not isinstance(n_classes, int) else n_classes
     cfg["num_classes"] = n_classes
     logger.update_metric("num_classes", n_classes)
 

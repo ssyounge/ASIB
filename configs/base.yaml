@@ -35,6 +35,9 @@ log:
 disable_tqdm: false
 log_all_hparams: true
 
+# ---- Debugging -----------------------------------------------
+debug_verbose: false        # set true to enable verbose debug prints
+
 # ---------- Checkpoint ----------
 save_checkpoint: true
 ckpt_dir: "./checkpoints"

@@ -29,17 +29,23 @@ class ImageNet32(Dataset):
                 entry = pickle.load(f, encoding="latin1")
             self.data.append(entry["data"])
             self.labels += entry["labels"]
-        self.data = np.vstack(self.data).reshape(-1, 3, 32, 32)
+        # ------------------------------- #
+        #  • data  : [N, 3, 32, 32] uint8
+        #  • labels: 0-based int64
+        #  • classes: List[int] (for len(...))
+        # ------------------------------- #
+        self.data   = np.vstack(self.data).reshape(-1, 3, 32, 32)
+        self.labels = (np.array(self.labels, dtype=np.int64) - 1)
+        self.classes = list(range(self.labels.max() + 1))
 
     def __len__(self):
         return self.data.shape[0]
 
     def __getitem__(self, idx):
-        img = torch.tensor(self.data[idx], dtype=torch.uint8)
-        img = img.float() / 255.0
-        if self.transform:
-            img = self.transform(img)
-        target = self.labels[idx] - 1
+        img = torch.tensor(self.data[idx], dtype=torch.uint8).float().div_(255.0)
+        if self.transform is not None:
+            img = self.transform(img)          # e.g. RandomFlip + ToTensor etc.
+        target = int(self.labels[idx])         # already 0-based
         return img, target
 
 
