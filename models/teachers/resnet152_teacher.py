@@ -2,7 +2,7 @@
 
 import torch
 import torch.nn as nn
-from models.common.base_wrapper import BaseKDModel, register
+from models.common.base_wrapper import BaseKDModel, register, MODEL_REGISTRY
 
 import torchvision.models as tv
 
@@ -49,7 +49,5 @@ def create_resnet152(
         pretrained=pretrained, num_classes=num_classes, small_input=small_input, cfg=cfg
     )
 
-# (For backward compatibility, you may keep the alias below. Remove the
-# commented lines if you don't need it.)
-# from models.common.base_wrapper import MODEL_REGISTRY
-# MODEL_REGISTRY["resnet_teacher"] = ResNet152Teacher
+# backward compatibility
+MODEL_REGISTRY["resnet_teacher"] = ResNet152Teacher

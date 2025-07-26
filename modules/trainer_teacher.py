@@ -197,10 +197,9 @@ def teacher_adaptive_update(
 
                 feat_kd_loss = torch.tensor(0.0, device=cfg["device"])
                 if cfg.get("feat_kd_alpha", 0) > 0:
-                    feat_kd_loss = feat_mse_loss(
-                        s_feat, fsyn,
-                        norm=cfg.get("feat_kd_norm", "none")
-                    )
+                    diff = (s_feat - mu).pow(2).sum(dim=1)
+                    cw   = certainty_weights(logvar).mean(dim=1).to(s_feat.dtype)
+                    feat_kd_loss = (cw * diff).mean()
 
                 # ---- (1) 전체 손실 구성 ----
                 kd_weight = cfg.get("teacher_adapt_alpha_kd",
