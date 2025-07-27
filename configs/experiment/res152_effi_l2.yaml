@@ -1,34 +1,52 @@
-# configs/experiment/res152_effi_l2.yaml
+
+
+# ─────────────────────────────────────────────────────────────
+#   Experiment:   ResNet‑152  ×  EfficientNet‑L2   →  ResNet‑152 (student)
+#   Dataset   :   CIFAR‑100 (32×32)
+#   Method    :   ASMB  (3 stages, cosine LR)
+# ─────────────────────────────────────────────────────────────
 
 defaults:
   - /base
-  - override /dataset: cifar100
-  - override /model/teacher: resnet152
-  - override /model/student: resnet152_pretrain
+  - override /dataset: cifar100                 # 32×32 dataloader
+  - override /model/teacher: resnet152          # teacher 1 spec (runtime CKPT 아래서 교체)
+  - override /model/student: resnet152_pretrain # student backbone (Imagenet pretrained)
   - override /method: asmb
   - override /schedule: cosine
   - _self_
 
+# ─────────── Teacher 1  (ResNet‑152) ───────────
 teacher1_type: resnet152
-teacher1_ckpt: checkpoints/resnet152_cifar32.pth
+teacher1_ckpt: checkpoints/resnet152_cifar32.pth   # ← run_finetune_clean.sh 출력
+teacher1_small_input: true      # 32×32 stem
 
+# ─────────── Teacher 2  (EffNet‑L2) ───────────
 teacher2_type: efficientnet_l2
 teacher2_ckpt: checkpoints/efficientnet_l2_cifar32.pth
-
-teacher1_small_input: true
 teacher2_small_input: true
 
+# ─────────── Student  (ResNet‑152) ───────────
 student_type: resnet152
-student_pretrained: true
-student_freeze_level: 1
+student_pretrained: true        # ImageNet‑1k Init
+student_freeze_level: 1         # 마지막 block + fc 학습
 
+# ─────────── Distillation / MBM ───────────
 num_stages: 3
-batch_size: 128
-
-use_distillation_adapter: true
+use_distillation_adapter: true    # 1×1 conv adapter
 distill_out_dim: 512
+mbm_query_dim: 5504               # ← student layer3 feat_dim
+mbm_n_head: 1
 
-mbm_query_dim: 5504
+# ─────────── Training H‑params ───────────
+batch_size: 128
+seed: 42
+device: cuda
+use_amp: true
+grad_scaler_init_scale: 1024
 
+# ─────────── Logging / Output ───────────
 results_dir: outputs/res152_effi_l2
 exp_id: res152_effi_l2
+log:
+  level: INFO
+  step_interval: 100
