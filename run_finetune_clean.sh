@@ -23,6 +23,7 @@ export PYTHONPATH="${ROOT}:${PYTHONPATH:-}"
 
 # 3) 인자: <yaml basename> (default=resnet152_cifar32)
 CFG_NAME="${1:-resnet152_cifar32}"
+# efficientnet_l2_cifar32, resnet152_cifar32
 shift || true         # 나머지 인자 → Hydra override
 
 # 4) 실행
