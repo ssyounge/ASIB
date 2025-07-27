@@ -6,17 +6,17 @@
 #  Student → ResNet‑152 (pre‑trained, freeze L4)
 #──────────────────────────────────────────────────────────
 defaults:
-  - base                                   # 공통 기본
-  - dataset=cifar100                       # 데이터셋
+  - ../base
+  - ../dataset/cifar100
 
   # ── 교사 두 명 ───────────────────────────
-  - model/teacher@teacher1=resnet152
-  - model/teacher@teacher2=efficientnet_l2
+  - ../model/teacher@teacher1=resnet152
+  - ../model/teacher@teacher2=efficientnet_l2
 
   # ── 학생 · 방법 · 스케줄 ───────────────
-  - model/student=resnet152_pretrain
-  - method=asmb
-  - schedule=cosine
+  - ../model/student=resnet152_pretrain
+  - ../method/asmb
+  - ../schedule/cosine
   - _self_
 
 # ──────────────────────────────────────────────────────────
