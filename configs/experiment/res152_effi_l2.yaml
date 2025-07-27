@@ -1,9 +1,9 @@
 # configs/experiment/res152_effi_l2.yaml
 defaults:
   - /base
-  - override /model/teacher@teacher1: resnet152
-  - override /model/teacher@teacher2: efficientnet_l2
-  - override /model/student: resnet152_pretrain
+  - model/teacher@teacher1: resnet152          # ← 처음 선언 → “override” 제거
+  - model/teacher@teacher2: efficientnet_l2    # ← idem
+  - model/student:          resnet152_pretrain # ← override 불필요
   - _self_ 
 
 # ===== 필수 하이퍼파라미터 =====
