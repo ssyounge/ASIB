@@ -28,12 +28,27 @@ teacher2_ckpt: checkpoints/efficientnet_l2_cifar32.pth
 teacher1_small_input: true
 teacher2_small_input: true
 
-# Student
-student_freeze_level: -1
-# -1=off / 0=head / 1=layer4 / 2=layer3+4
+# ───────── Freeze / 스케줄 ─────────
+use_partial_freeze: true
+
+num_stages: 4                         # freeze/epoch 스케줄 길이와 반드시 일치
+
+# Student (ResNet‑152 pre‑train)
+student_lr: 8e-4
+student_weight_decay: 8e-4
+student_freeze_schedule:  [-1, 2, 1, 0]   # stage0~3
+student_epochs_schedule: [30, 15, 15, 15]
+student_freeze_bn:        false
+
+# Teacher‑1 (ResNet‑152)
+teacher1_freeze_level: 1      # layer4+fc
+teacher1_freeze_bn:    false
+
+# Teacher‑2 (EfficientNet‑L2)
+teacher2_freeze_level: 0      # classifier only
+teacher2_freeze_bn:    true
 
 # ASMB
-num_stages: 3
 batch_size: 128
 use_distillation_adapter: true
 distill_out_dim: 512
