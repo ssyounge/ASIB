@@ -1,14 +1,8 @@
 # configs/base.yaml
 
 defaults:
-  - dataset: cifar100
-  - method: asmb              # ← “기본값”    (실험에서 바꾸면 override)
-  - schedule: cosine          # ← “기본값”
+  - base
+  - /model/teacher@teacher1: resnet152
+  - /model/teacher@teacher2: efficientnet_l2
+  - /model/student: resnet152_pretrain
   - _self_
-
-# 공통 하이퍼파라미터 -----------------------------
-device: cuda
-seed: 42
-small_input: true             # 32×32 입력
-batch_size: 128
-use_partial_freeze: false     # OFF → 실험에서 켜기
