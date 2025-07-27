@@ -1,7 +1,6 @@
 # configs/schedule/step.yaml
 
-schedule:
-  type: step
-  lr_step_size: 10
-  gamma: 0.1
-  lr_warmup_epochs: 0
+type: step
+lr_step_size: 10
+gamma: 0.1
+lr_warmup_epochs: 0
