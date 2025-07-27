@@ -1,5 +1,8 @@
 # configs/model/student/resnet50_scratch.yaml
 
+num_stages: 3            # 스테이지 수(스케줄 길이와 일치)
+student_type: resnet50   # main.py 가 읽는 식별자
+
 model:
   student:
     name: resnet50
