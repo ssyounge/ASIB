@@ -254,12 +254,14 @@ def main(cfg: DictConfig):
     #   · freeze_level  <0 →  scratch (꺼두기)
     # ------------------------------------------------------------------
     if "student_pretrained" not in cfg:
-        cfg["student_pretrained"] = bool(fl >= 0)
+        # 스케줄에 0 이상 값이 하나라도 있으면 pretrained 권장
+        need_pt = any(lvl >= 0 for lvl in cfg["student_freeze_schedule"])
+        cfg["student_pretrained"] = need_pt
         if cfg.get("debug_verbose"):
             logging.debug(
-                "[Auto-cfg] student_pretrained←%s (freeze_level=%s)",
+                "[Auto-cfg] student_pretrained←%s (freeze_sched=%s)",
                 cfg["student_pretrained"],
-                fl,
+                cfg["student_freeze_schedule"],
             )
 
     if fl >= 0 and not cfg.get("student_pretrained", False):
@@ -856,7 +858,7 @@ def main(cfg: DictConfig):
                 lvl_now = cfg["student_freeze_schedule"][stage_id-1]
                 partial_freeze_student_auto(
                     student_model,
-                    student_name="resnet",                 # 필요 시 분기
+                    student_name=student_name,            # ← 실제 학생 이름
                     freeze_bn=cfg.get("student_freeze_bn", False),
                     use_adapter=cfg.get("student_use_adapter", True),
                     freeze_level=lvl_now,
