@@ -86,7 +86,9 @@ This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-
 
   | Student model                | Feature dim |
   |------------------------------|-------------|
+-  | `resnet50_student`             | 2048        |
 -  | `resnet101_student`            | 2048        |
+-  | `resnet152_student`            | 2048        |
 - **Smart Progress Bars**: progress bars hide automatically when stdout isn't a TTY
 - **Expandable CUDA Segments**: training scripts set `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` when CUDA is available
 - **CIFAR-friendly ResNet/EfficientNet stem**: use `--small_input 1` when

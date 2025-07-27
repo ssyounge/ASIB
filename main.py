@@ -92,6 +92,15 @@ def create_student_by_name(
             cfg=cfg,
         )
 
+    elif student_name in ("resnet152", "resnet_152"):
+        return build_model(
+            "resnet152_student",
+            pretrained=pretrained,
+            num_classes=num_classes,
+            small_input=small_input,
+            cfg=cfg,
+        )
+
     elif student_name in ("effb2", "efficientnet_b2"):
         return build_model(
             "efficientnet_b2_student",
