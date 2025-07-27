@@ -6,6 +6,9 @@ model:
     pretrained: false
     lr: 8e-4
     weight_decay: 8e-4
-    freeze_level: -1
+    freeze_level: -1          # 그대로
     freeze_bn: false
     use_adapter: true
+
+# scratch → 전 스테이지 no-freeze
+student_freeze_schedule: [-1, -1, -1]   # (num_stages=3 예시)
