@@ -1,5 +1,8 @@
 # configs/model/student/resnet152_scratch.yaml
 
+num_stages: 3
+student_type: resnet152
+
 model:
   student:
     name: resnet152
