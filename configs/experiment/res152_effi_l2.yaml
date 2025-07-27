@@ -1,4 +1,4 @@
-
+# configs/experiment/res152_effi_l2.yaml
 
 # ─────────────────────────────────────────────────────────────
 #   Experiment:   ResNet‑152  ×  EfficientNet‑L2   →  ResNet‑152 (student)
