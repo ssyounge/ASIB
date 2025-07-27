@@ -1,103 +1,14 @@
 # configs/base.yaml
 
-# ---------------------------------------------------------------
-#  Global defaults – 공통 설정 / 가장 먼저 로드
-# ---------------------------------------------------------------
 defaults:
-  - dataset: cifar100                # 데이터셋·로더 관리
-  - model/teacher: resnet152         # 교사 모델
-  - model/student: resnet152_pretrain # 학생 모델
-  - method: asmb                     # KD 방법
-  - schedule: cosine                 # LR 스케줄
-  - _self_                           # (항상 마지막)
+  - dataset: cifar100
+  - method: asmb              # ← “기본값”    (실험에서 바꾸면 override)
+  - schedule: cosine          # ← “기본값”
+  - _self_
 
-# ───────── Freeze 기능 기본 OFF ─────────
-use_partial_freeze: false            # 실험 YAML에서 true 로 켜줌
-
-# ---------- 실험 공통 ----------
+# 공통 하이퍼파라미터 -----------------------------
 device: cuda
 seed: 42
-deterministic: true
-use_amp: true
-amp_dtype: float16
-grad_scaler_init_scale: 1024
-
-# Teacher identifiers (used by synergy/eval scripts)
-teacher1_type: resnet152
-teacher2_type: resnet152
-
-# ---------- Data ----------
-batch_size: 128            # dataset 그룹 값으로 덮어써도 됨
-num_workers: 4
-
-# 모든 모델(교사·학생)에서 32×32 입력 경로(conv1 3×3, max‑pool 제거) 사용
-small_input: true
-
-# ---------- Logging ----------
-log:
-  filename: "train.log"
-  level: DEBUG
-  step_interval: 100
-disable_tqdm: false
-log_all_hparams: true
-
-# ---- Debugging -----------------------------------------------
-debug_verbose: false        # set true to enable verbose debug prints
-
-# ---------- Checkpoint ----------
-save_checkpoint: true
-ckpt_dir: "./checkpoints"
-
-# ---------- W&B ----------
-wandb:
-  use: false
-  entity: ${oc.env:WANDB_ENTITY, null}
-  project: ${oc.env:WANDB_PROJECT, null}
-  run_name: ""              # 비우면 exp_id 사용
-  api_key: ""               # "" → wandb login 로드
-
-# ---------- MBM / Information‑Bottleneck ---------------------------------
-#  ※ 코드( main.py, trainer_*.py ) 는 중첩 dict 대신 **flat key** 를 조회합니다.
-#    그래서 기존 `mbm:` 블록을 없애고 flat alias 로 교체합니다.
-
-# 모듈 종류 (고정: ib_mbm)
-mbm_type: ib_mbm
-
-# IB 옵션
-use_ib: true
-ib_beta: 0.01                     # 최종 β
-beta_schedule: [0.0, 0.01, 5]     # 0→0.01 로 5 epoch linear warm‑up
-
-# 차원 설정
-mbm_query_dim: 2048               # student feat dim (ResNet‑152)
-mbm_out_dim: 2048                  # synergy‑head 입력 dim (= d_emb)
-mbm_n_head: 1
-mbm_logvar_clip: 10
-mbm_min_std: 1e-4
-## IB-MBM options: keep mbm_query_dim, mbm_out_dim, ib_beta
-
-# ---------- Distillation Adapter 기본 ----------
-use_distillation_adapter: false
-# teacher adapter MLP 크기 (선택)
-distill_hidden_dim: 512
-distill_out_dim: 512
-
-# ---------- Distillation stage 기본 ----------
-num_stages: 3
-student_epochs_per_stage: 15
-teacher_adapt_epochs: 2
-grad_clip_norm: 1.0
-
-# ───────── KD hyper-parameters ─────────
-ce_alpha: 0.5         # CE(student, GT) weight
-kd_alpha: 0.5         # KL(student‖teacher) weight
-
-# EfficientNet teacher dropout
-efficientnet_dropout: 0.3
-
-# ─────── Temperature Decay (polynomial) ───────
-#   τ(e) = tau_end + (tau_start - tau_end)·(1 - e/E)^tau_decay_power
-#   논문 실험: 4.0 → 1.0, power = 2
-tau_start:       4.0      # initial temperature
-tau_end:         1.0      # final temperature
-tau_decay_power: 2.0      # curvature (≥1 : convex decay)
+small_input: true             # 32×32 입력
+batch_size: 128
+use_partial_freeze: false     # OFF → 실험에서 켜기
