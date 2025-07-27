@@ -1,32 +1,55 @@
-# configs/experiment/_template.yaml
+# ──────────────────────────────────────────────────────────────
+#  configs/experiment/_template.yaml
+#  ─ 실험별 YAML 은 이 파일을 복사해서 < > 부분만 채우면 끝!
+# ──────────────────────────────────────────────────────────────
 defaults:
-  - /base
-  # ↧ 필요한 경우에만 덮어쓰기
-  # - override /dataset: cifar100
-  - override /model/teacher@teacher1: <TEACHER1_YAML>
-  - override /model/teacher@teacher2: <TEACHER2_YAML>
-  - override /model/student:          <STUDENT_YAML>
-  # - override /method: dkd           # 바꾸고 싶을 때만
-  # - override /schedule: step        # 바꾸고 싶을 때만
-  - _self_
+  # ―― 공통 설정 ――
+  - /base                                   # 반드시 첫 줄에(base.yaml)
 
-# ------- 필수 하이퍼파라미터 -------
-student_type: <fill>          # 예: resnet152
-teacher_lr:   1e-4
-teacher_weight_decay: 1e-4
-student_lr:   8e-4
-student_weight_decay: 8e-4
+  # ―― (선택) 데이터셋 바꾸고 싶을 때만 ↓ 한 줄 추가 ――
+  # - /dataset: imagenet32
 
-# ------- 경로 -------
-teacher1_ckpt: checkpoints/<file>.pth
-teacher2_ckpt: checkpoints/<file>.pth
-results_dir:  outputs/<exp_id>
-exp_id:       <exp_id>
+  # ―― Teacher 2 명 (alias 사용) ――
+  - /model/teacher@teacher1: <TEACHER1_YAML>   # 예) resnet152
+  - /model/teacher@teacher2: <TEACHER2_YAML>   # 예) efficientnet_l2
 
-# ------- Freeze & Stage -------
-use_partial_freeze: true
+  # ―― Student ――
+  - /model/student: <STUDENT_YAML>             # 예) resnet152_pretrain
+
+  # ―― (선택) KD 방법·LR 스케줄 교체 ――
+  # - /method: dkd
+  # - /schedule: step
+
+  - _self_    # ← 항상 마지막
+#───────────────────────────────────────────────────────────────
+#  ↓↓↓ 실험별로 반드시 채워야 하는 필수 하이퍼파라미터 ↓↓↓
+#───────────────────────────────────────────────────────────────
+# --- 경로 & ID ------------------------------------------------
+teacher1_ckpt: checkpoints/<teacher1_ckpt>.pth
+teacher2_ckpt: checkpoints/<teacher2_ckpt>.pth
+results_dir:   outputs/<exp_id>
+exp_id:        <exp_id>                       # 폴더/로그 식별자
+
+# --- 모델·옵티마이저 ----------------------------------------
+student_type:          <fill>       # 예) resnet152
+teacher_lr:            1e-4
+teacher_weight_decay:  1e-4
+student_lr:            8e-4
+student_weight_decay:  8e-4
+
+# --- Freeze & Stage 스케줄 ----------------------------------
+use_partial_freeze: true             # 실험에서 켜면 base 값 덮어씀
 num_stages: 4
-student_freeze_schedule: [-1, 2, 1, 0]
-student_epochs_schedule: [30, 15, 15, 15]
-teacher1_freeze_level: 1
+student_freeze_schedule:  [-1, 2, 1, 0]   # stage 0~3
+student_epochs_schedule:  [30, 15, 15, 15]
+teacher1_freeze_level: 1                 # 0=head, 1=L4, 2=L3+4 …
 teacher2_freeze_level: 1
+student_freeze_bn:     false
+teacher1_freeze_bn:    true
+teacher2_freeze_bn:    true
+
+# --- (선택) ASMB·IB‑MBM 추가 옵션 ---------------------------
+batch_size: 128
+use_distillation_adapter: true
+distill_out_dim: 512
+mbm_query_dim: 5504               # resnet152 feat_2d dim
