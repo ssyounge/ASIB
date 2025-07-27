@@ -28,7 +28,7 @@ teacher2_small_input: true
 # ─────────── Student  (ResNet‑152) ───────────
 student_type: resnet152
 student_pretrained: true        # ImageNet‑1k Init
-student_freeze_level: 1         # 마지막 block + fc 학습
+student_freeze_level: -1         # 마지막 block + fc 학습
 
 # ─────────── Distillation / MBM ───────────
 num_stages: 3
