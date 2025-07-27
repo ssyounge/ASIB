@@ -22,6 +22,17 @@ defaults:
 # ──────────────────────────────────────────────────────────
 #  추가 override (필요한 것만)
 # ──────────────────────────────────────────────────────────
+########################################
+# 필수 하이퍼파라미터 (main.py 의 KeyError 방지)
+########################################
+student_type:          resnet152     # ← 모델 매핑용
+student_lr:            8e-4          # ← optim.AdamW 에 사용
+student_weight_decay:  8e-4
+
+teacher_lr:            1e-4          # ← 두 교사 공통
+teacher_weight_decay:  1e-4
+
+########################################
 teacher1_ckpt: checkpoints/resnet152_cifar32.pth
 teacher2_ckpt: checkpoints/efficientnet_l2_cifar32.pth
 
