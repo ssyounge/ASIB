@@ -1,12 +1,10 @@
 # configs/experiment/res152_effi_l2.yaml
 defaults:
-  - /base                                 # ← 슬래시 없이
-  # ---------- teachers ----------
+  - /base
   - override /model/teacher@teacher1: resnet152
   - override /model/teacher@teacher2: efficientnet_l2
-  # ---------- student ----------
   - override /model/student: resnet152_pretrain
-  - _self_
+  - _self_ 
 
 # ===== 필수 하이퍼파라미터 =====
 student_type: resnet152
