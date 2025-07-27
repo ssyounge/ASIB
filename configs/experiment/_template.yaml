@@ -1,0 +1,39 @@
+# configs/experiment/_template.yaml
+defaults:
+  - base
+
+  # dataset ---------- (필요하면 변경)
+  - override /dataset: cifar100
+
+  # teachers ---------
+  - override /model/teacher@teacher1: <TEACHER1_YAML_NAME>
+  - override /model/teacher@teacher2: <TEACHER2_YAML_NAME>
+
+  # student ----------
+  - override /model/student: <STUDENT_YAML_NAME>
+
+  # method & schedule (바꾸고 싶을 때만)
+  # - override /method: dkd
+  # - override /schedule: step
+  - _self_
+
+# ================ 필수 하이퍼파라미터 =================
+student_type:          <fill>      # ex) resnet152
+teacher_lr:            1e-4
+teacher_weight_decay:  1e-4
+student_lr:            8e-4
+student_weight_decay:  8e-4
+
+# ================ 경로 ===============================
+teacher1_ckpt: checkpoints/<file>.pth
+teacher2_ckpt: checkpoints/<file>.pth
+results_dir:  outputs/<exp_id>
+exp_id:       <exp_id>
+
+# ================ Freeze / 스케줄 =====================
+use_partial_freeze: true
+num_stages: 4
+student_freeze_schedule: [-1, 2, 1, 0]
+student_epochs_schedule: [30, 15, 15, 15]
+teacher1_freeze_level: 1
+teacher2_freeze_level: 1
