@@ -1,5 +1,9 @@
 # configs/model/student/resnet152_pretrain.yaml
 
+num_stages: 4
+
+student_type: resnet152
+
 model:
   student:
     name: resnet152
