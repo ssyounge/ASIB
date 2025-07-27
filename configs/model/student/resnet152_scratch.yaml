@@ -1,19 +1,8 @@
 # configs/model/student/resnet152_scratch.yaml
 
-num_stages: 3
-student_type: resnet152
-
 model:
   student:
     name: resnet152
     pretrained: false
-    lr: 5e-4
-    weight_decay: 8e-4
-    freeze_bn: false
     use_adapter: true
-
-# scratch → 전 스테이지 no-freeze
-student_freeze_schedule: [-1, -1, -1]
-
-# 각 스테이지 student 학습 epoch
-student_epochs_schedule: [15, 15, 15]
+# ↑ 학습 전략(동결, LR, 스케줄 등)은 실험 YAML에서 설정

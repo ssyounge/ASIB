@@ -11,6 +11,9 @@ defaults:
   - schedule: cosine                 # LR 스케줄
   - _self_                           # (항상 마지막)
 
+# ───────── Freeze 기능 기본 OFF ─────────
+use_partial_freeze: false            # 실험 YAML에서 true 로 켜줌
+
 # ---------- 실험 공통 ----------
 device: cuda
 seed: 42

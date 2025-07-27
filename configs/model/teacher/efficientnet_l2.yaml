@@ -3,10 +3,5 @@ model:
   teacher:
     name: efficientnet_l2
     pretrained: true
-    lr: 1e-4
-    weight_decay: 1e-4
-    freeze_level: 0
-    # -1=off / 0=head / 1=layer4 / 2=layer3+4
-    freeze_bn: false
-    use_adapter: false
+    # 학습 전략(Freeze 등)은 실험 YAML에서 설정
     use_checkpointing: true
