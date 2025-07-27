@@ -49,10 +49,10 @@ student_freeze_bn:        false
 
 # Teacher‑1 (ResNet‑152)
 teacher1_freeze_level: 1      # layer4+fc
-teacher1_freeze_bn:    false
+teacher1_freeze_bn:    true
 
 # Teacher‑2 (EfficientNet‑L2)
-teacher2_freeze_level: 0      # classifier only
+teacher2_freeze_level: 1      # classifier only
 teacher2_freeze_bn:    true
 
 # ASMB
