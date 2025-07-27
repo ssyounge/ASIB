@@ -1,66 +1,39 @@
 # configs/experiment/res152_effi_l2.yaml
-
-#──────────────────────────────────────────────────────────
-#  ResNet‑152  (Teacher‑1)
-#  EfficientNet‑L2 (Teacher‑2)
-#  Student → ResNet‑152 (pre‑trained, freeze L4)
-#──────────────────────────────────────────────────────────
 defaults:
-  - /base                           # 공통 기본
-  - /dataset: cifar100              # ← colon 표기
-
-  # ── 교사 두 명 (alias) ───────────────────
-  - /model/teacher@teacher1: resnet152
-  - /model/teacher@teacher2: efficientnet_l2
-
-  # ── 학생 · 방법 · 스케줄 ───────────────
-  - /model/student: resnet152_pretrain
-  - /method: asmb
-  - /schedule: cosine
+  - base                                 # ← 슬래시 없이
+  # ---------- teachers ----------
+  - override /model/teacher@teacher1: resnet152
+  - override /model/teacher@teacher2: efficientnet_l2
+  # ---------- student ----------
+  - override /model/student: resnet152_pretrain
   - _self_
 
-# ──────────────────────────────────────────────────────────
-#  추가 override (필요한 것만)
-# ──────────────────────────────────────────────────────────
-########################################
-# 필수 하이퍼파라미터 (main.py 의 KeyError 방지)
-########################################
-student_type:          resnet152     # ← 모델 매핑용
-student_lr:            8e-4          # ← optim.AdamW 에 사용
-student_weight_decay:  8e-4
-teacher_lr:            1e-4          # ← 두 교사 공통
-teacher_weight_decay:  1e-4
+# ===== 필수 하이퍼파라미터 =====
+student_type: resnet152
+teacher_lr:   1e-4
+teacher_weight_decay: 1e-4
+student_lr:   8e-4
+student_weight_decay: 8e-4
 
-########################################
+# ===== 경로 =====
 teacher1_ckpt: checkpoints/resnet152_cifar32.pth
 teacher2_ckpt: checkpoints/efficientnet_l2_cifar32.pth
+results_dir:  outputs/res152_effi_l2
+exp_id:       res152_effi_l2
 
-
-# ───────── Freeze / 스케줄 ─────────
+# ===== Freeze / Stage 스케줄 =====
 use_partial_freeze: true
-
-num_stages: 4                         # freeze/epoch 스케줄 길이와 반드시 일치
-
-# Student (ResNet‑152 pre‑train)
-# lr/weight_decay는 이미 위쪽 ‘필수 하이퍼파라미터’ 블록에 있으므로 중복 제거
-student_freeze_schedule:  [-1, 2, 1, 0]   # stage0~3
-student_epochs_schedule: [30, 15, 15, 15]
-student_freeze_bn:        false
-
-# Teacher‑1 (ResNet‑152)
-teacher1_freeze_level: 1      # layer4+fc
+num_stages: 4
+student_freeze_schedule:  [-1, 2, 1, 0]
+student_epochs_schedule:  [30, 15, 15, 15]
+teacher1_freeze_level: 1
+teacher2_freeze_level: 1
+student_freeze_bn:     false
 teacher1_freeze_bn:    true
-
-# Teacher‑2 (EfficientNet‑L2)
-teacher2_freeze_level: 1      # classifier only
 teacher2_freeze_bn:    true
 
-# ASMB
+# ===== ASMB 추가 옵션 =====
 batch_size: 128
 use_distillation_adapter: true
 distill_out_dim: 512
-mbm_query_dim: 5504         # resnet152 feat_2d 크기
-
-# 결과 경로
-results_dir: outputs/res152_effi_l2
-exp_id:      res152_effi_l2
+mbm_query_dim: 5504        # resnet152 feat_2d 크기
