@@ -15,7 +15,7 @@ defaults:
 
   # ── 학생, 방법, 스케줄 ───────────────────────────────
   - model/student=resnet152_pretrain
-  - method=asmb
+  - /method/asmb
   - /schedule/cosine
   - _self_
 
