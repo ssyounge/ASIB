@@ -83,7 +83,7 @@ def create_student_by_name(
             cfg=cfg,
         )
 
-    elif student_name in ("resnet101", "resnet_101", "resnet"):
+    elif student_name in ("resnet101", "resnet_101"):
         return build_model(
             "resnet101_student",
             pretrained=pretrained,
