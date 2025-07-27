@@ -1,0 +1,11 @@
+# configs/model/student/resnet101_scratch.yaml
+
+model:
+  student:
+    name: resnet101
+    pretrained: false
+    lr: 8e-4
+    weight_decay: 8e-4
+    freeze_level: 1
+    freeze_bn: false
+    use_adapter: true
