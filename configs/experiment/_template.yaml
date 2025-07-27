@@ -1,6 +1,6 @@
 # configs/experiment/_template.yaml
 defaults:
-  - base
+  - /base
   # ↧ 필요한 경우에만 덮어쓰기
   # - override /dataset: cifar100
   - override /model/teacher@teacher1: <TEACHER1_YAML>
