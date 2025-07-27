@@ -30,6 +30,9 @@ teacher2_type: resnet152
 batch_size: 128            # dataset 그룹 값으로 덮어써도 됨
 num_workers: 4
 
+# 모든 모델(교사·학생)에서 32×32 입력 경로(conv1 3×3, max‑pool 제거) 사용
+small_input: true
+
 # ---------- Logging ----------
 log:
   filename: "train.log"
