@@ -6,8 +6,11 @@ model:
     pretrained: false
     lr: 5e-4
     weight_decay: 8e-4
-    freeze_level: -1
     freeze_bn: false
     use_adapter: true
 
+# scratch → 전 스테이지 no-freeze
 student_freeze_schedule: [-1, -1, -1]
+
+# 각 스테이지 student 학습 epoch
+student_epochs_schedule: [15, 15, 15]
