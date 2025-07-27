@@ -6,13 +6,11 @@ model:
     pretrained: true          # ✅ 사전학습 가중치 사용
     lr: 8e-4
     weight_decay: 8e-4
-    freeze_level: -1          # Stage 0: full-tune
     freeze_bn: false
     use_adapter: true
 
-# ── NEW ─────────────────────────────────────────
 # Stage0,1,2,3 →  [-1,2,1,0]
 student_freeze_schedule: [-1, 2, 1, 0]
 
-# (선택) 각 스테이지 student 학습 epoch
-# student_epochs_schedule: [30, 15, 15, 15]
+# 각 스테이지 student 학습 epoch
+student_epochs_schedule: [30, 15, 15, 15]
