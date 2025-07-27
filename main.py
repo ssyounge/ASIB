@@ -12,7 +12,7 @@ import logging
 import os
 import json
 import torch
-from typing import Optional
+from typing import Optional, List
 from utils.logging_utils import init_logger
 
 import hydra
@@ -230,10 +230,23 @@ def main(cfg: DictConfig):
     cfg = flatten_hydra_config(cfg)
     init_logger(cfg.get("log_level", "INFO"))
 
-    fl = cfg.get("student_freeze_level", -1)
-    if fl is None:
-        fl = -1
-    cfg["student_freeze_level"] = fl
+    # ──────────────────────────────────────────────────────────────
+    # (NEW) Stage‑별 freeze_level 스케줄
+    #   · cfg.student_freeze_schedule  : e.g. [-1,2,1,0]
+    #   · 없으면 기존 freeze_level 로부터 자동 생성 (2→1→0…)
+    # ──────────────────────────────────────────────────────────────
+    num_stages = int(cfg.get("num_stages", 2))
+    fl = int(cfg.get("student_freeze_level", -1) or -1)
+
+    plan: List[int] | None = cfg.get("student_freeze_schedule")
+    if plan is None:
+        # fallback :  init_lvl,  max(init_lvl-1,‑1), …
+        plan = [max(-1, fl - s) for s in range(num_stages)]
+    if len(plan) < num_stages:
+        raise ValueError(
+            f"student_freeze_schedule 길이({len(plan)}) < num_stages({num_stages})"
+        )
+    cfg["student_freeze_schedule"] = plan
 
     # ------------------------------------------------------------------
     # (NEW)  student_pretrained 기본값 자동 결정
@@ -278,6 +291,7 @@ def main(cfg: DictConfig):
         cfg["student_freeze_level"] = -1
         cfg["teacher1_freeze_level"] = -1
         cfg["teacher2_freeze_level"] = -1
+        cfg["student_freeze_schedule"] = [-1] * num_stages
     # ------------------------------------------- #
 
     # ── tqdm 전체 OFF ─────────────────────────────
@@ -615,9 +629,10 @@ def main(cfg: DictConfig):
 
     # freeze 옵션 켜져 있을 때만 수행
     if cfg.get("use_partial_freeze", False):
+        # Stage 0 freeze_level = plan[0]
         apply_partial_freeze(
             student_model,
-            cfg.get("student_freeze_level", -1),
+            cfg["student_freeze_schedule"][0],
             cfg.get("student_freeze_bn", False),
         )
 
@@ -734,9 +749,12 @@ def main(cfg: DictConfig):
         eps=1e-8,
     )
 
-    student_total_epochs = num_stages * cfg.get(
-        "student_iters", cfg.get("student_epochs_per_stage", 15)
-    )
+    if "student_epochs_schedule" in cfg:
+        student_total_epochs = sum(int(e) for e in cfg["student_epochs_schedule"])
+    else:
+        student_total_epochs = num_stages * cfg.get(
+            "student_iters", cfg.get("student_epochs_per_stage", 15)
+        )
     if cfg.get("lr_schedule", "step") == "cosine":
         student_scheduler = CosineAnnealingLR(
             student_optimizer, T_max=student_total_epochs
@@ -816,7 +834,9 @@ def main(cfg: DictConfig):
     else:
         global_ep = 0
         for stage_id in range(1, num_stages + 1):
-            logging.info("\n=== Stage %d/%d ===", stage_id, num_stages)
+            logging.info("\n=== Stage %d/%d : student freeze→%d ===",
+                         stage_id, num_stages,
+                         cfg["student_freeze_schedule"][stage_id-1])
 
             # ---------- DEBUG: disagreement weight 파라미터 확인 ----------
             dbg_mode = cfg.get("disagree_mode", "both_wrong")
@@ -831,12 +851,30 @@ def main(cfg: DictConfig):
                 )
             # --------------------------------------------------------------
 
+            # (NEW) Stage 진입 시 학생 freeze_level 갱신
+            if cfg.get("use_partial_freeze", False) and stage_id > 1:
+                lvl_now = cfg["student_freeze_schedule"][stage_id-1]
+                partial_freeze_student_auto(
+                    student_model,
+                    student_name="resnet",                 # 필요 시 분기
+                    freeze_bn=cfg.get("student_freeze_bn", False),
+                    use_adapter=cfg.get("student_use_adapter", True),
+                    freeze_level=lvl_now,
+                )
+                logging.info("[Freeze] Stage %d → freeze_level=%d",
+                             stage_id, lvl_now)
+
             teacher_epochs = cfg.get(
                 "teacher_iters", cfg.get("teacher_adapt_epochs", 5)
             )
-            student_epochs = cfg.get(
-                "student_iters", cfg.get("student_epochs_per_stage", 15)
-            )
+            # (NEW) stage‑별 epoch 배열이 있으면 사용, 아니면 기본값
+            if "student_epochs_schedule" in cfg:
+                student_epochs = int(cfg["student_epochs_schedule"][stage_id-1])
+            else:
+                student_epochs = cfg.get(
+                    "student_iters",
+                    cfg.get("student_epochs_per_stage", 15),
+                )
 
             # (A) Teacher adaptive update
             teacher_adaptive_update(
