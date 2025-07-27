@@ -26,6 +26,8 @@ defaults:
 # 필수 하이퍼파라미터 (main.py 의 KeyError 방지)
 ########################################
 student_type:          resnet152     # ← 모델 매핑용
+student_lr:            8e-4          # ← optim.AdamW 에 사용
+student_weight_decay:  8e-4
 teacher_lr:            1e-4          # ← 두 교사 공통
 teacher_weight_decay:  1e-4
 
@@ -33,8 +35,6 @@ teacher_weight_decay:  1e-4
 teacher1_ckpt: checkpoints/resnet152_cifar32.pth
 teacher2_ckpt: checkpoints/efficientnet_l2_cifar32.pth
 
-teacher1_small_input: true
-teacher2_small_input: true
 
 # ───────── Freeze / 스케줄 ─────────
 use_partial_freeze: true
@@ -42,8 +42,7 @@ use_partial_freeze: true
 num_stages: 4                         # freeze/epoch 스케줄 길이와 반드시 일치
 
 # Student (ResNet‑152 pre‑train)
-student_lr:            8e-4          # ← optim.AdamW 에 사용
-student_weight_decay:  8e-4
+# lr/weight_decay는 이미 위쪽 ‘필수 하이퍼파라미터’ 블록에 있으므로 중복 제거
 student_freeze_schedule:  [-1, 2, 1, 0]   # stage0~3
 student_epochs_schedule: [30, 15, 15, 15]
 student_freeze_bn:        false
