@@ -1,7 +1,7 @@
 # configs/model/student/resnet101_scratch.yaml
 
-num_stages: 3             # 스테이지 수
-student_type: resnet101   # main.py 가 읽는 식별자
+num_stages: 3
+student_type: resnet101
 
 model:
   student:
