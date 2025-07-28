@@ -12,15 +12,15 @@ teacher_pretrained:  true
 teacher_ckpt_init:   null                 # 이어서 학습할 ckpt 경로가 있으면 지정
 
 # ─── 옵티마이저 & 학습 하이퍼파라미터 ──────────────────────────
-finetune_epochs:        30        # 30 epoch이면 충분히 수렴 (32×32 데이터셋)
-finetune_lr:            5e-4      # AdamW + cosine
-finetune_weight_decay:  5e-2
-warmup_epochs:          3
-min_lr:                 1e-6
-batch_size:             32        # 3090 GPU에서 여유
-label_smoothing:        0.1
-finetune_use_cutmix:    true
-finetune_cutmix_alpha:  1.0
+finetune_epochs: 30        # 30 epoch이면 충분히 수렴 (32×32 데이터셋)
+finetune_lr: 5e-4      # AdamW + cosine
+finetune_weight_decay: 5e-2
+warmup_epochs: 3
+min_lr: 1e-6
+batch_size: 16        # 3090 GPU에서 여유
+label_smoothing: 0.1
+finetune_use_cutmix: true
+finetune_cutmix_alpha: 1.0
 
 # ─── 출력 경로 ────────────────────────────────────────────────
 results_dir:        outputs/convnext_l_cifar32_ft
