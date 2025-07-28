@@ -1,0 +1,24 @@
+# ConvNeXt‑L 파인튜닝 (CIFAR‑100, 32×32 입력)
+defaults:
+  - /dataset:  cifar100            # 32×32 이미지
+  - /schedule: cosine              # 기본 LR 스케줄
+  - _self_
+
+model:
+  teacher:
+    name:  convnext_l_teacher      # registry key
+    pretrained: true               # ImageNet‑22k 권장 가중치
+    small_input: true              # 32×32 입력일 때 stem stride=1
+                                   # (모델 클래스에서 자동 처리)
+
+# ─── 옵티마이저 & 학습 하이퍼파라미터 ──────────────────────────
+epochs:             90             # 필요 시 조정
+batch_size:         128
+lr:                 1e-3
+weight_decay:       0.05
+warmup_epochs:      5
+min_lr:             1e-5
+
+# ─── 출력 경로 ────────────────────────────────────────────────
+results_dir:        outputs/convnext_l_cifar32_ft
+exp_id:             convnext_l_cifar32
