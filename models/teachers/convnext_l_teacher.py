@@ -38,3 +38,5 @@ class ConvNeXtLTeacher(BaseKDModel):
         feat_2d = feat_4d.mean([-2, -1])
         return feat_4d, feat_2d
 
+from models.common.base_wrapper import register
+register("convnext_l")(ConvNeXtLTeacher)      # ←★ alias 추가
