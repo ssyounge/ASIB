@@ -667,6 +667,13 @@ def main(cfg: DictConfig):
             cfg["mbm_query_dim"] = feat_dim
             if cfg.get("debug_verbose"):
                 logging.debug("[Auto-cfg] mbm_query_dim ← %d", cfg["mbm_query_dim"])
+        elif cfg["mbm_query_dim"] != feat_dim:
+            logging.warning(
+                "mbm_query_dim (%s) does not match the student feature dimension (%s).",
+                cfg["mbm_query_dim"],
+                feat_dim,
+            )
+            cfg["mbm_query_dim"] = feat_dim
 
         # mbm_out_dim 이 query_dim 과 다르면 경고만 뜨는데,
         # 특별한 이유가 없으면 동일하게 맞춰 주는 편이 안전하다.
