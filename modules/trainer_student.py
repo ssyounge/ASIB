@@ -12,6 +12,7 @@ from modules.losses import (
 from modules.disagreement import sample_weights_from_disagreement
 from utils.misc import mixup_data, cutmix_data, mixup_criterion, get_amp_components
 from utils.schedule import get_tau, get_beta
+from utils.metrics import StageMeter
 
 try:
     import wandb
@@ -66,6 +67,8 @@ def student_distillation_update(
 
     student_epochs = cfg.get("student_iters", cfg.get("student_epochs_per_stage", 15))
 
+    # ──────────────────────────────────────────────────────────
+    stage_meter = StageMeter(cfg.get("cur_stage", 1), logger, cfg, student_model)
     best_acc = 0.0
     best_state = copy.deepcopy(student_model.state_dict())
 
@@ -229,8 +232,9 @@ def student_distillation_update(
                 optimizer.step()
 
             bs = x.size(0)
-            distill_loss_sum += loss.item()*bs
+            distill_loss_sum += loss.item() * bs
             cnt += bs
+            stage_meter.step(bs)
 
         ep_loss = distill_loss_sum / cnt
 
@@ -279,6 +283,7 @@ def student_distillation_update(
         p.requires_grad = rg
     synergy_head.train(syn_train_state)
 
+    stage_meter.finish(best_acc)
     logger.info(f"[StudentDistill] bestAcc={best_acc:.2f}")
     return best_acc
 
