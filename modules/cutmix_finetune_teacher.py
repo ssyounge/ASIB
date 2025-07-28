@@ -235,7 +235,9 @@ def finetune_teacher_cutmix(
             best_acc = te_acc
             best_state = copy.deepcopy(teacher_model.state_dict())
             # --- save best checkpoint whenever best accuracy is updated ---
-            os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
+            ckpt_dir = os.path.dirname(ckpt_path)
+            if ckpt_dir:                      # ← 폴더가 있을 때만 생성
+                os.makedirs(ckpt_dir, exist_ok=True)
             torch.save(best_state, ckpt_path)
 
         if ep > warm_epochs:                              # cosine step
