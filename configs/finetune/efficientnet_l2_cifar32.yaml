@@ -9,7 +9,6 @@ small_input: true
 # Recommended batch sizes for EfficientNet-L2 are noted in README.md
 teacher_pretrained: true
 teacher_ckpt_init: null
-teacher_use_checkpointing: true
 
 finetune_epochs: 10
 finetune_lr: 3e-4
