@@ -13,6 +13,8 @@ exp_id:        res152_effi_l2
 
 # ───────── Optim & 모델 크기 ─────────
 student_type:   resnet152
+teacher1_type:  resnet152
+teacher2_type:  efficientnet_l2
 teacher_lr:     1.0e-4
 teacher_weight_decay: 1.0e-4
 student_lr:     8.0e-4
