@@ -28,8 +28,8 @@ shift || true         # 나머지 인자 → Hydra override
 
 # 4) 실행
 python scripts/fine_tuning.py \
-    --config-path ../configs/finetune \
-    --config-name "$CFG_NAME" \
+    --config-path ../configs \
+    --config-name "finetune/$CFG_NAME" \
     "$@"
 
 echo "[run_finetune_clean.sh] ✅ finished – $CFG_NAME"
