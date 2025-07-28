@@ -1,50 +1,48 @@
-# configs/experiment/res152_effi_l2.yaml
 defaults:
-  - /base
-  - /model/teacher@teacher1: resnet152          # ← 처음 선언 → “override” 제거
-  - /model/teacher@teacher2: efficientnet_l2    # ← idem
-  - /model/student:          resnet152_pretrain # ← override 불필요
+  - base
+  - /model/teacher@teacher1: resnet152
+  - /model/teacher@teacher2: efficientnet_l2
+  - /model/student:          resnet152_pretrain
   - _self_
 
-# ===== 필수 하이퍼파라미터 =====
-student_type: resnet152
-teacher_lr:   1e-4
-teacher_weight_decay: 1e-4
-student_lr:   8e-4
-student_weight_decay: 8e-4
-
-# 사용될 teacher 아키텍처 이름 지정
-teacher1_type: resnet152
-teacher2_type: efficientnet_l2
-
-# ===== 경로 =====
+# ───────── 필수 경로 / ID ─────────
 teacher1_ckpt: checkpoints/resnet152_cifar32.pth
 teacher2_ckpt: checkpoints/efficientnet_l2_cifar32.pth
-results_dir:  outputs/res152_effi_l2
-exp_id:       res152_effi_l2
+results_dir:   outputs/res152_effi_l2
+exp_id:        res152_effi_l2
 
-# ===== Freeze / Stage 스케줄 =====
+# ───────── Optim & 모델 크기 ─────────
+student_type:   resnet152
+teacher_lr:     1.0e-4
+teacher_weight_decay: 1.0e-4
+student_lr:     8.0e-4
+student_weight_decay: 8.0e-4
+
+# ───────── Partial‑Freeze 스케줄 ─────────
 use_partial_freeze: true
 num_stages: 4
-teacher_adapt_epochs: 3
-student_freeze_schedule:  [-1, 2, 1, 0]
-student_epochs_schedule:  [30, 6, 4, 4]
+teacher_adapt_epochs: 3            # stage 당 teacher update 횟수
+student_freeze_schedule: [-1, 2, 1, 0]   # stage 0 → 3
+student_epochs_schedule: [30, 6, 4, 4]   # 빠르게 수렴
+
 teacher1_freeze_level: 1
 teacher2_freeze_level: 1
 student_freeze_bn:     false
 teacher1_freeze_bn:    true
 teacher2_freeze_bn:    true
 
-# ===== ASMB 추가 옵션 =====
-batch_size: 128
+# ───────── MBM / Adapter ─────────
 use_distillation_adapter: true
 distill_out_dim: 512
-mbm_query_dim: 2048        # resnet152 feat_2d 크기
+mbm_query_dim:   2048            # ← student feat_2d 크기에 맞춤
 
-# ───── KD 세부 옵션 ───────────────────────────────
-# Ensemble Distill + Disagreement Weighting
-kd_alpha:       0.0        # 개별 KL OFF
-kd_ens_alpha:   0.7        # Ensemble‑KL ON
-disagree_mode:  both_wrong # pred | both_wrong | any_wrong
-lambda_high:    1.5        # 동시 오류 샘플 가중치 ↑
-lambda_low:     1.0
+# ───────── Ensemble Distill + 동시 오류 가중치 ─────────
+kd_alpha:      0.0               # 개별 KL OFF
+kd_ens_alpha:  0.7               # 앙상블 KL ON
+use_disagree_weight:  true
+disagree_mode:        both_wrong
+disagree_lambda_high: 1.5
+disagree_lambda_low:  1.0
+
+# ───────── 데이터 증강 ─────────
+cutmix_alpha_distill: 0.3        # KD 단계에만 CutMix 사용
