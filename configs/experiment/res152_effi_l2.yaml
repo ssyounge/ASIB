@@ -26,6 +26,7 @@ exp_id:       res152_effi_l2
 # ===== Freeze / Stage 스케줄 =====
 use_partial_freeze: true
 num_stages: 4
+teacher_adapt_epochs: 3
 student_freeze_schedule:  [-1, 2, 1, 0]
 student_epochs_schedule:  [30, 6, 4, 4]
 teacher1_freeze_level: 1
