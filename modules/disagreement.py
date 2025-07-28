@@ -59,8 +59,12 @@ def compute_disagreement_rate(
         x, y = x.to(device), y.to(device)
 
         with autocast_ctx:
-            logit1 = teacher1(x)["logit"]
-            logit2 = teacher2(x)["logit"]
+            out1 = teacher1(x)
+            out2 = teacher2(x)
+            t1 = out1[0] if isinstance(out1, tuple) else out1
+            t2 = out2[0] if isinstance(out2, tuple) else out2
+            logit1 = t1["logit"]
+            logit2 = t2["logit"]
 
         # argmax predictions
         pred1 = logit1.argmax(dim=1)

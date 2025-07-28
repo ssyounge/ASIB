@@ -116,8 +116,10 @@ def student_distillation_update(
                 feat_dict, s_logit, _ = student_model(x_mixed)
 
                 with torch.no_grad():
-                    t1_dict = teacher_wrappers[0](x_mixed)
-                    t2_dict = teacher_wrappers[1](x_mixed)
+                    t1_out = teacher_wrappers[0](x_mixed)
+                    t2_out = teacher_wrappers[1](x_mixed)
+                    t1_dict = t1_out[0] if isinstance(t1_out, tuple) else t1_out
+                    t2_dict = t2_out[0] if isinstance(t2_out, tuple) else t2_out
 
                     feat_key = "distill_feat" if cfg.get("use_distillation_adapter", False) \
                                else "feat_2d"
