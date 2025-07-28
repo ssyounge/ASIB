@@ -7,10 +7,15 @@ from utils.progress import smart_tqdm
 from models.mbm import IB_MBM
 
 from modules.losses import (
-    kd_loss_fn, ce_loss_fn, ib_loss, certainty_weights, feat_mse_loss
+    kd_loss_fn,
+    ce_loss_fn,
+    ib_loss,
+    certainty_weights,
+    feat_mse_loss,
 )
 from utils.schedule import get_tau, get_beta
 from utils.misc import get_amp_components
+
 
 def _cpu_state_dict(module: torch.nn.Module):
     """Return a copy of ``module.state_dict()`` on the CPU.
@@ -18,6 +23,7 @@ def _cpu_state_dict(module: torch.nn.Module):
     Useful when saving snapshots to RAM to reduce GPU memory usage.
     """
     return {k: v.detach().cpu().clone() for k, v in module.state_dict().items()}
+
 
 @torch.no_grad()
 def eval_synergy(
@@ -47,7 +53,11 @@ def eval_synergy(
             t1_dict = t1_out[0] if isinstance(t1_out, tuple) else t1_out
             t2_dict = t2_out[0] if isinstance(t2_out, tuple) else t2_out
 
-            key = "distill_feat" if (cfg or {}).get("use_distillation_adapter", False) else "feat_2d"
+            key = (
+                "distill_feat"
+                if (cfg or {}).get("use_distillation_adapter", False)
+                else "feat_2d"
+            )
             f1_2d = t1_dict[key]
             f2_2d = t2_dict[key]
 
@@ -58,14 +68,16 @@ def eval_synergy(
 
         pred = zsyn.argmax(dim=1)
         correct += (pred == y).sum().item()
-        total   += y.size(0)
+        total += y.size(0)
 
-    acc = 100.0 * correct / total if total>0 else 0
+    acc = 100.0 * correct / total if total > 0 else 0
     return acc
+
 
 def teacher_adaptive_update(
     teacher_wrappers,
-    mbm, synergy_head,
+    mbm,
+    synergy_head,
     student_model,
     trainloader,
     testloader,
@@ -97,7 +109,6 @@ def teacher_adaptive_update(
     syn_params = [p for p in synergy_head.parameters() if p.requires_grad]
 
     teacher_epochs = cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5))
-
 
     best_synergy = -1
     best_state = {
@@ -143,7 +154,11 @@ def teacher_adaptive_update(
 
                 # (B) Teacher features
                 feats_2d = []
-                feat_key = "distill_feat" if cfg.get("use_distillation_adapter", False) else "feat_2d"
+                feat_key = (
+                    "distill_feat"
+                    if cfg.get("use_distillation_adapter", False)
+                    else "feat_2d"
+                )
                 t1_dict = None
                 for i, tw in enumerate(teacher_wrappers):
                     out = tw(x)
@@ -153,9 +168,7 @@ def teacher_adaptive_update(
                     feats_2d.append(t_dict[feat_key])
 
                 # (C) MBM + synergy_head (IB-MBM only)
-                syn_feat, mu, logvar = mbm(
-                    s_feat, torch.stack(feats_2d, dim=1)
-                )
+                syn_feat, mu, logvar = mbm(s_feat, torch.stack(feats_2d, dim=1))
                 ib_loss_val = 0.0
                 if cfg.get("use_ib", False):
                     mu, logvar = mu.float(), logvar.float()
@@ -172,9 +185,9 @@ def teacher_adaptive_update(
                         label_smoothing=cfg.get("label_smoothing", 0.0),
                         reduction="none",
                     )
-                    kd_vec = kd_loss_fn(
-                        zsyn, s_logit, T=cur_tau, reduction="none"
-                    ).sum(dim=1)
+                    kd_vec = kd_loss_fn(zsyn, s_logit, T=cur_tau, reduction="none").sum(
+                        dim=1
+                    )
 
                     # ---- DEBUG: 첫 batch 모양 확인 ----
                     if ep == 0 and step == 0 and cfg.get("debug_verbose", False):
@@ -202,25 +215,33 @@ def teacher_adaptive_update(
                 feat_kd_loss = torch.tensor(0.0, device=cfg["device"])
                 if cfg.get("feat_kd_alpha", 0) > 0:
                     diff = (s_feat - mu).pow(2).sum(dim=1)
-                    cw   = certainty_weights(logvar).mean(dim=1).to(s_feat.dtype)
+                    cw = certainty_weights(logvar).mean(dim=1).to(s_feat.dtype)
                     feat_kd_loss = (cw * diff).mean()
 
                 # ---- (1) 전체 손실 구성 ----
-                kd_weight = cfg.get("teacher_adapt_alpha_kd",
-                                    cfg.get("kd_alpha", 1.0))
+                kd_weight = cfg.get("teacher_adapt_alpha_kd", cfg.get("kd_alpha", 1.0))
 
                 # 정규화 항은 batch-별로 포함
-                reg_loss     = torch.stack([(p ** 2).mean()
-                                    for p in teacher_params]).mean()
-                mbm_reg_loss = torch.stack([(p ** 2).mean()
-                                    for p in mbm_params + syn_params]).mean()
+                if teacher_params:
+                    reg_loss = torch.stack(
+                        [(p**2).mean() for p in teacher_params]
+                    ).mean()
+                else:
+                    reg_loss = torch.tensor(0.0, device=cfg["device"])
+
+                if mbm_params or syn_params:
+                    mbm_reg_loss = torch.stack(
+                        [(p**2).mean() for p in mbm_params + syn_params]
+                    ).mean()
+                else:
+                    mbm_reg_loss = torch.tensor(0.0, device=cfg["device"])
 
                 total_loss_step = (
                     kd_weight * loss_kd
                     + synergy_ce_loss
                     + cfg.get("feat_kd_alpha", 0) * feat_kd_loss
                     + ib_loss_val
-                    + float(cfg.get("reg_lambda", 0.0))  * reg_loss
+                    + float(cfg.get("reg_lambda", 0.0)) * reg_loss
                     + float(cfg.get("mbm_reg_lambda", 0.0)) * mbm_reg_loss
                 )
 
@@ -230,23 +251,27 @@ def teacher_adaptive_update(
                 scaler.scale(total_loss_step).backward()
                 if cfg.get("grad_clip_norm", 0) > 0:
                     scaler.unscale_(optimizer)
-                    torch.nn.utils.clip_grad_norm_(
-                        teacher_params + mbm_params + syn_params,
-                        cfg["grad_clip_norm"],
-                    )
+                    grad_params = teacher_params + mbm_params + syn_params
+                    if grad_params:
+                        torch.nn.utils.clip_grad_norm_(
+                            grad_params,
+                            cfg["grad_clip_norm"],
+                        )
                 scaler.step(optimizer)
                 scaler.update()
             else:
                 total_loss_step.backward()
                 if cfg.get("grad_clip_norm", 0) > 0:
-                    torch.nn.utils.clip_grad_norm_(
-                        teacher_params + mbm_params + syn_params,
-                        cfg["grad_clip_norm"],
-                    )
+                    grad_params = teacher_params + mbm_params + syn_params
+                    if grad_params:
+                        torch.nn.utils.clip_grad_norm_(
+                            grad_params,
+                            cfg["grad_clip_norm"],
+                        )
                 optimizer.step()
 
             teacher_loss_sum += total_loss_step.item() * x.size(0)
-            count            += x.size(0)
+            count += x.size(0)
 
     ep_loss = teacher_loss_sum / count
 
@@ -264,7 +289,9 @@ def teacher_adaptive_update(
     else:
         synergy_test_acc = -1
 
-    logger.info(f"[TeacherAdaptive ep={ep+1}] loss={ep_loss:.4f}, synergy={synergy_test_acc:.2f}")
+    logger.info(
+        f"[TeacherAdaptive ep={ep+1}] loss={ep_loss:.4f}, synergy={synergy_test_acc:.2f}"
+    )
 
     # ── NEW: per-epoch logging ───────────────────────────────
     logger.update_metric(f"teacher_ep{ep+1}_loss", ep_loss)
@@ -277,7 +304,9 @@ def teacher_adaptive_update(
     # best snapshot
     if synergy_test_acc > best_synergy:
         best_synergy = synergy_test_acc
-        best_state["teacher_wraps"] = [copy.deepcopy(tw.state_dict()) for tw in teacher_wrappers]
+        best_state["teacher_wraps"] = [
+            copy.deepcopy(tw.state_dict()) for tw in teacher_wrappers
+        ]
         best_state["mbm"] = copy.deepcopy(mbm.state_dict())
         best_state["syn_head"] = copy.deepcopy(synergy_head.state_dict())
 
