@@ -3,4 +3,3 @@ model:
   teacher:
     name: convnext_l_teacher      # <-- registry key
     pretrained: true              # ImageNet‑22k weights
-    # small_input 는 실험 YAML에서 상속하도록 두지 않음
