@@ -5,7 +5,7 @@ defaults:
   - ../dataset/cifar100            # 32×32 이미지
   - _self_
 
-teacher_type:        convnext_l_teacher   # registry key
+teacher_type:        convnext_l   # registry key
 small_input:         true
 teacher_pretrained:  true
 teacher_ckpt_init:   null                 # 이어서 학습할 ckpt 경로가 있으면 지정
