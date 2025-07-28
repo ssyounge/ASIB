@@ -96,6 +96,15 @@ def create_teacher_by_name(
             use_checkpointing=cfg.get("teacher_use_checkpointing", False),
             cfg=cfg,
         )
+    elif teacher_type in ("convnext_l_teacher", "convnext_l"):
+        # registry 에 이미 올라와 있으므로 factory 호출
+        from models.common.base_wrapper import MODEL_REGISTRY
+        return MODEL_REGISTRY[teacher_type](
+            num_classes=num_classes,
+            pretrained=pretrained,
+            small_input=small_input,
+            cfg=cfg,
+        )
     else:
         raise ValueError(f"[fine_tuning.py] Unknown teacher_type={teacher_type}")
 
