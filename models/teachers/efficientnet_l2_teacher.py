@@ -72,5 +72,17 @@ def create_efficientnet_l2(
     return EfficientNetL2Teacher(backbone, num_classes=num_classes, cfg=cfg)
 
 
+# -----------------------------------------------------------------
+# build_model() 이 kwargs 만으로 객체를 만들 수 있도록
+#  ‑ create_efficientnet_l2() 를 registry 엔트리로 등록
+#  ‑ 기존 class 엔트리는 그대로 두어도 무방
+# -----------------------------------------------------------------
+
 from models.common.base_wrapper import register
-register("efficientnet_l2")(EfficientNetL2Teacher)
+
+# 클래스 이름 그대로도 남기고
+# 실제 생성은 factory 가 담당하도록 별도 키 추가
+register("efficientnet_l2_teacher")(create_efficientnet_l2)   # ← 핵심
+
+# 편의 alias(선택)
+# register("efficientnet_l2")(create_efficientnet_l2)
