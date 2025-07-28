@@ -11,3 +11,8 @@ seed: 42
 small_input: true              # 모든 모델 32×32 입력
 batch_size: 128
 use_partial_freeze: false      # 실험에서 필요할 때만 true
+
+# ───────── Disagreement Weighting 기본값 ─────────
+disagree_mode: none      # pred | both_wrong | any_wrong | none
+lambda_high:   1.0
+lambda_low:    1.0
