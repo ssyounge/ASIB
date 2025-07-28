@@ -1,5 +1,5 @@
 # configs/model/teacher/convnext_l.yaml
 model:
   teacher:
-    name: convnext_l_teacher      # <-- registry key
+    name: convnext_l      # registry key와 동일하게
     pretrained: true              # ImageNet‑22k weights
