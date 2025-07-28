@@ -276,6 +276,12 @@ def standard_ce_finetune(
             cfg.get("adam_beta2", 0.999) if cfg is not None else 0.999,
         ),
     )
+    # --- Scheduler : linear warm-up + cosine ------------------------------------
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(
+        optimizer,
+        T_max=epochs - cfg.get("warmup_epochs", 0),
+        eta_min=cfg.get("min_lr", 1e-6),
+    )
     criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
 
     best_acc = 0.0
@@ -283,6 +289,11 @@ def standard_ce_finetune(
 
     for ep in range(1, epochs + 1):
         teacher_model.train()
+        # optional warm-up
+        if ep <= cfg.get("warmup_epochs", 0):
+            warm_lr = (ep / cfg["warmup_epochs"]) * cfg["finetune_lr"]
+            for pg in optimizer.param_groups:
+                pg["lr"] = warm_lr
         for x, y in smart_tqdm(train_loader, desc=f"[CE FineTune ep={ep}]"):
             x, y = x.to(device), y.to(device)
             optimizer.zero_grad()
@@ -303,6 +314,8 @@ def standard_ce_finetune(
                 loss.backward()
                 optimizer.step()
         te_acc = eval_teacher(teacher_model, test_loader, device=device, cfg=cfg)
+        if ep > cfg.get("warmup_epochs", 0):
+            scheduler.step()
         if te_acc > best_acc:
             best_acc = te_acc
             best_state = copy.deepcopy(teacher_model.state_dict())
