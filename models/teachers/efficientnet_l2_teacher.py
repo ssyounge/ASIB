@@ -70,3 +70,7 @@ def create_efficientnet_l2(
         backbone.conv_stem = new_stem
 
     return EfficientNetL2Teacher(backbone, num_classes=num_classes, cfg=cfg)
+
+
+from models.common.base_wrapper import register
+register("efficientnet_l2")(EfficientNetL2Teacher)
