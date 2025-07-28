@@ -82,8 +82,10 @@ class ASMBDistiller(nn.Module):
         """
         # 1) teacher feats
         with torch.no_grad():
-            t1 = self.teacher1(x)
-            t2 = self.teacher2(x)
+            t1_out = self.teacher1(x)
+            t2_out = self.teacher2(x)
+            t1 = t1_out[0] if isinstance(t1_out, tuple) else t1_out
+            t2 = t2_out[0] if isinstance(t2_out, tuple) else t2_out
             feats_2d = torch.stack([t1["feat_2d"], t2["feat_2d"]], dim=1)
 
         # 3) student (query feature)
@@ -306,8 +308,10 @@ class ASMBDistiller(nn.Module):
                         feat_dict, s_logit, _ = self.student(x)
                         s_feat = feat_dict[self.config.get("feat_kd_key", "feat_2d")]
                         # teacher feats
-                        t1 = self.teacher1(x)
-                        t2 = self.teacher2(x)
+                        t1_out = self.teacher1(x)
+                        t2_out = self.teacher2(x)
+                        t1 = t1_out[0] if isinstance(t1_out, tuple) else t1_out
+                        t2 = t2_out[0] if isinstance(t2_out, tuple) else t2_out
                         key = "distill_feat" if self.config.get("use_distillation_adapter", False) else "feat_2d"
                         f1 = torch.stack([t1[key], t2[key]], dim=1)
 
@@ -469,8 +473,10 @@ class ASMBDistiller(nn.Module):
                 with autocast_ctx:
                     with torch.no_grad():
                         # teacher feats
-                        t1 = self.teacher1(x)
-                        t2 = self.teacher2(x)
+                        t1_out = self.teacher1(x)
+                        t2_out = self.teacher2(x)
+                        t1 = t1_out[0] if isinstance(t1_out, tuple) else t1_out
+                        t2 = t2_out[0] if isinstance(t2_out, tuple) else t2_out
                         f1 = torch.stack([t1["feat_2d"], t2["feat_2d"]], dim=1)
 
                     # student forward (query)
