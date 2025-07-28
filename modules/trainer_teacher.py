@@ -40,8 +40,12 @@ def eval_synergy(
     for x, y in loader:
         x, y = x.to(device), y.to(device)
         with autocast_ctx:
-            t1_dict = teacher_wrappers[0](x)
-            t2_dict = teacher_wrappers[1](x)
+            # ``BaseKDModel`` may return a tuple ``(feat_dict, logit, aux)``
+            # for backward compatibility, extract the first element when needed.
+            t1_out = teacher_wrappers[0](x)
+            t2_out = teacher_wrappers[1](x)
+            t1_dict = t1_out[0] if isinstance(t1_out, tuple) else t1_out
+            t2_dict = t2_out[0] if isinstance(t2_out, tuple) else t2_out
 
             key = "distill_feat" if (cfg or {}).get("use_distillation_adapter", False) else "feat_2d"
             f1_2d = t1_dict[key]
@@ -142,7 +146,8 @@ def teacher_adaptive_update(
                 feat_key = "distill_feat" if cfg.get("use_distillation_adapter", False) else "feat_2d"
                 t1_dict = None
                 for i, tw in enumerate(teacher_wrappers):
-                    t_dict = tw(x)
+                    out = tw(x)
+                    t_dict = out[0] if isinstance(out, tuple) else out
                     if i == 0:
                         t1_dict = t_dict
                     feats_2d.append(t_dict[feat_key])
