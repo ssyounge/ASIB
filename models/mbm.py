@@ -18,6 +18,9 @@ class IB_MBM(nn.Module):
         logvar_clip: float = 10.0,
         min_std: float = 1e-4,
     ):
+        # handle None or string inputs from config
+        n_head = int(n_head or 1)
+        d_emb = int(d_emb)
         if d_emb % n_head != 0:
             raise ValueError("d_emb must be divisible by n_head")
         super().__init__()
