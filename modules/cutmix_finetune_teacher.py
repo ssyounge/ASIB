@@ -184,17 +184,41 @@ def finetune_teacher_cutmix(
         from utils.misc import get_model_num_classes
         num_classes = get_model_num_classes(teacher_model)
 
+    # ------------------------------------------------------------------
+    # 0) Optimizer / Scheduler
+    # ------------------------------------------------------------------
     optimizer = optim.AdamW(
         teacher_model.parameters(),
         lr=lr,
         weight_decay=weight_decay,
     )
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+    warm_epochs = int(cfg.get("warmup_epochs", 0))
+    if warm_epochs >= epochs:            # Guard
+        logging.warning(
+            "[CutMix] warmup_epochs(%d) >= epochs(%d) \u27A1 warmup_epochs = %d",
+            warm_epochs, epochs, max(0, epochs - 1)
+        )
+        warm_epochs = max(0, epochs - 1)
+
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(
+        optimizer,
+        T_max=max(1, epochs - warm_epochs),
+        eta_min=cfg.get("min_lr", 1e-6),
+    )
+    base_lr = lr
 
     best_acc = 0.0
     best_state = copy.deepcopy(teacher_model.state_dict())
 
     for ep in range(1, epochs + 1):
+        # ------------------------------------------------------------------
+        # 1) 1-epoch CutMix train
+        # ------------------------------------------------------------------
+        if warm_epochs and ep <= warm_epochs:             # linear warm-up
+            warm_lr = base_lr * ep / warm_epochs
+            for pg in optimizer.param_groups:
+                pg["lr"] = warm_lr
+
         tr_loss, tr_acc = train_one_epoch_cutmix(
             teacher_model,
             train_loader,
@@ -214,7 +238,8 @@ def finetune_teacher_cutmix(
             os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
             torch.save(best_state, ckpt_path)
 
-        scheduler.step()
+        if ep > warm_epochs:                              # cosine step
+            scheduler.step()
 
         logging.info(
             "[CutMix|ep=%d/%d] lr=%.6f, trainAcc=%.2f, testAcc=%.2f, best=%.2f",
