@@ -1,5 +1,4 @@
 # configs/finetune/convnext_l_cifar32.yaml
-
 # ConvNeXt‑L 파인튜닝 (CIFAR‑100, 32×32 입력)
 # @package _global_
 defaults:
