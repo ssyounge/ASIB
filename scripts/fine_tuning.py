@@ -168,12 +168,23 @@ def standard_ce_finetune(
             cfg.get("adam_beta2", 0.999) if cfg is not None else 0.999,
         ),
     )
-    # --- Scheduler : linear warm-up + cosine ------------------------------------
+    # ------------------------------------------------------------------
+    # Scheduler ( warm-up \u2192 cosine )
+    # ------------------------------------------------------------------
+    warm_epochs = int(cfg.get("warmup_epochs", 0))
+    if warm_epochs >= epochs:                            # Guard
+        logging.warning(
+            "[FineTune] warmup_epochs(%d) >= epochs(%d) \u27A1 warmup_epochs = %d",
+            warm_epochs, epochs, max(0, epochs - 1)
+        )
+        warm_epochs = max(0, epochs - 1)
+
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(
         optim,
-        T_max=epochs - cfg.get("warmup_epochs", 0),
+        T_max=max(1, epochs - warm_epochs),
         eta_min=cfg.get("min_lr", 1e-6),
     )
+    base_lr = lr
     crit  = torch.nn.CrossEntropyLoss(label_smoothing=label_smoothing)
     best_acc = 0.0
     for ep in range(1, epochs+1):
@@ -181,8 +192,8 @@ def standard_ce_finetune(
         total_loss = 0.0
         total = 0
         # optional warm-up
-        if ep <= cfg.get("warmup_epochs", 0):
-            warm_lr = (ep / cfg["warmup_epochs"]) * cfg["finetune_lr"]
+        if warm_epochs and ep <= warm_epochs:
+            warm_lr = base_lr * ep / warm_epochs
             for pg in optim.param_groups:
                 pg["lr"] = warm_lr
         for x, y in train_loader:
@@ -211,7 +222,7 @@ def standard_ce_finetune(
 
         train_loss = total_loss / total if total > 0 else 0.0
         acc = eval_teacher(model, test_loader, device, cfg=cfg)
-        if ep > cfg.get("warmup_epochs", 0):
+        if ep > warm_epochs:
             sched.step()
         if acc > best_acc:
             best_acc = acc
