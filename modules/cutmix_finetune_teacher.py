@@ -200,10 +200,15 @@ def finetune_teacher_cutmix(
         )
         warm_epochs = max(0, epochs - 1)
 
+    # (1) eta_min 방어구문
+    eta_min = cfg.get("min_lr")
+    if eta_min is None:
+        eta_min = 1e-6
+
     scheduler = optim.lr_scheduler.CosineAnnealingLR(
         optimizer,
         T_max=max(1, epochs - warm_epochs),
-        eta_min=cfg.get("min_lr", 1e-6),
+        eta_min=eta_min,
     )
     base_lr = lr
 
