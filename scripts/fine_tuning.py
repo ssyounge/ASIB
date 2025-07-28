@@ -172,6 +172,8 @@ def standard_ce_finetune(
     best_acc = 0.0
     for ep in range(1, epochs+1):
         model.train()
+        total_loss = 0.0
+        total = 0
         for x, y in train_loader:
             x, y = x.to(device), y.to(device)
             optim.zero_grad()
@@ -191,6 +193,12 @@ def standard_ce_finetune(
             else:
                 loss.backward()
                 optim.step()
+
+            bs = x.size(0)
+            total_loss += loss.item() * bs
+            total += bs
+
+        train_loss = total_loss / total if total > 0 else 0.0
         acc = eval_teacher(model, test_loader, device, cfg=cfg)
         if acc > best_acc:
             best_acc = acc
@@ -198,6 +206,16 @@ def standard_ce_finetune(
             if ckpt_dir:
                 os.makedirs(ckpt_dir, exist_ok=True)
             torch.save(model.state_dict(), ckpt_path)
+
+        logging.info(
+            "[FineTune][%s] ep=%3d/%d  trainLoss=%.4f  valAcc=%.2f  best=%.2f",
+            cfg.get("teacher_type"),
+            ep,
+            epochs,
+            train_loss,
+            acc,
+            best_acc,
+        )
     return model, best_acc
 
 @hydra.main(config_path="../configs", config_name="base", version_base="1.3")
