@@ -147,6 +147,9 @@ export CONDA_ENV=asmb
 ```bash
 python main.py --config-name experiment/res152_effi_l2  # EfficientNet-L2 teacher
 ```
+The example YAML defines `teacher1_type: resnet152` and
+`teacher2_type: efficientnet_l2`, so the command above works without
+additional flags.
 
 The unified script `run_experiments.sh` automatically tries to activate a
 Conda environment named `tlqkf`. If you use a different environment name,
