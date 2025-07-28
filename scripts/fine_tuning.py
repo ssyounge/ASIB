@@ -77,14 +77,14 @@ def create_teacher_by_name(
     """
     Extends to handle resnet152 and efficientnet_l2 models.
     """
-    if teacher_type == "resnet152":
+    if teacher_type in ["resnet152", "resnet152_teacher"]:
         return create_resnet152(
             num_classes=num_classes,
             pretrained=pretrained,
             small_input=small_input,
             cfg=cfg,
         )
-    elif teacher_type in ("efficientnet_l2", "effnet_l2"):
+    elif teacher_type in ["efficientnet_l2", "efficientnet_l2_teacher", "effnet_l2"]:
         from models.teachers.efficientnet_l2_teacher import create_efficientnet_l2
         if dropout_p is None and cfg is not None:
             dropout_p = cfg.get("efficientnet_dropout", 0.3)
@@ -96,10 +96,9 @@ def create_teacher_by_name(
             use_checkpointing=cfg.get("teacher_use_checkpointing", False),
             cfg=cfg,
         )
-    elif teacher_type in ("convnext_l_teacher", "convnext_l"):
-        # registry 에 이미 올라와 있으므로 factory 호출
-        from models.common.base_wrapper import MODEL_REGISTRY
-        return MODEL_REGISTRY[teacher_type](
+    elif teacher_type in ["convnext_l", "convnext_l_teacher"]:
+        from models.teachers.convnext_l_teacher import ConvNeXtLTeacher  # noqa
+        return ConvNeXtLTeacher(
             num_classes=num_classes,
             pretrained=pretrained,
             small_input=small_input,
