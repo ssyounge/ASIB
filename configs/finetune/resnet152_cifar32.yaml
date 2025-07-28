@@ -1,8 +1,9 @@
 # 32×32 CIFAR-100 – ResNet-152 fine-tune
-# @package _global_
 defaults:
   - /dataset: cifar100      # 작은 입력용 dataloader
   - _self_
+
+# @package _global_
 
 # ---------- 모델 ----------
 teacher_type:  resnet152          # registry key
