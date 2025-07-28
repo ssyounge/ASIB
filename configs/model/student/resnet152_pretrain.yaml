@@ -2,7 +2,7 @@
 
 model:
   student:
-    name: resnet152
+    name: resnet152_student
     pretrained: true          # ✅ 사전학습 가중치 사용
     use_adapter: true
 # ↑ 학습 전략(동결, LR, 스케줄 등)은 실험 YAML에서 설정
