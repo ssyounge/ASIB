@@ -1,7 +1,7 @@
 # configs/model/teacher/efficientnet_l2.yaml
 model:
   teacher:
-    name: efficientnet_l2
+    name: efficientnet_l2_teacher
     pretrained: true
     # 학습 전략(Freeze 등)은 실험 YAML에서 설정
     use_checkpointing: true
