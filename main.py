@@ -846,6 +846,7 @@ def main(cfg: DictConfig):
             logging.info("\n=== Stage %d/%d : student freeze→%d ===",
                          stage_id, num_stages,
                          cfg["student_freeze_schedule"][stage_id-1])
+            cfg["cur_stage"] = stage_id
 
             # ---------- DEBUG: disagreement weight 파라미터 확인 ----------
             dbg_mode = cfg.get("disagree_mode", "both_wrong")
