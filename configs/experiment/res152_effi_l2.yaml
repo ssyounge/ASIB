@@ -40,3 +40,11 @@ batch_size: 128
 use_distillation_adapter: true
 distill_out_dim: 512
 mbm_query_dim: 2048        # resnet152 feat_2d 크기
+
+# ───── KD 세부 옵션 ───────────────────────────────
+# Ensemble Distill + Disagreement Weighting
+kd_alpha:       0.0        # 개별 KL OFF
+kd_ens_alpha:   0.7        # Ensemble‑KL ON
+disagree_mode:  both_wrong # pred | both_wrong | any_wrong
+lambda_high:    1.5        # 동시 오류 샘플 가중치 ↑
+lambda_low:     1.0
