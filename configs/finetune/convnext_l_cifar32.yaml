@@ -17,7 +17,7 @@ finetune_lr:            5e-4      # AdamW + cosine
 finetune_weight_decay:  5e-2
 warmup_epochs:          3
 min_lr:                 1e-6
-batch_size:             64        # 3090 GPU에서 여유
+batch_size:             32        # 3090 GPU에서 여유
 label_smoothing:        0.1
 finetune_use_cutmix:    true
 finetune_cutmix_alpha:  1.0
