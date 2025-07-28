@@ -307,7 +307,12 @@ def main(cfg: DictConfig):
         small_input = dataset_name in ("cifar100", "imagenet32")
 
     # 2) teacher
-    teacher_type = cfg.get("teacher_type", cfg.get("default_teacher_type"))
+    # ── robust lookup ──────────────────────────────────────────
+    teacher_type = (
+        cfg.get("teacher_type")                        # ① 루트
+        or cfg.get("finetune", {}).get("teacher_type") # ② finetune 그룹
+        or cfg.get("default_teacher_type")             # ③ 마지막 fallback
+    )
     logging.info(
         "[FineTune] ===== Now fine-tuning teacher: %s =====", teacher_type
     )
