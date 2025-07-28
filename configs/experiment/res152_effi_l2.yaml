@@ -27,7 +27,7 @@ exp_id:       res152_effi_l2
 use_partial_freeze: true
 num_stages: 4
 student_freeze_schedule:  [-1, 2, 1, 0]
-student_epochs_schedule:  [30, 15, 15, 15]
+student_epochs_schedule:  [30, 6, 4, 4]
 teacher1_freeze_level: 1
 teacher2_freeze_level: 1
 student_freeze_bn:     false
@@ -38,4 +38,4 @@ teacher2_freeze_bn:    true
 batch_size: 128
 use_distillation_adapter: true
 distill_out_dim: 512
-mbm_query_dim: 5504        # resnet152 feat_2d 크기
+mbm_query_dim: 2048        # resnet152 feat_2d 크기
