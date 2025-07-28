@@ -210,10 +210,17 @@ def teacher_adaptive_update(
                                     cfg.get("kd_alpha", 1.0))
 
                 # 정규화 항은 batch-별로 포함
-                reg_loss     = torch.stack([(p ** 2).mean()
-                                    for p in teacher_params]).mean()
-                mbm_reg_loss = torch.stack([(p ** 2).mean()
-                                    for p in mbm_params + syn_params]).mean()
+                reg_loss = (
+                    torch.stack([(p ** 2).mean() for p in teacher_params]).mean()
+                    if teacher_params
+                    else torch.tensor(0.0, device=cfg["device"])
+                )
+                mbm_reg_params = mbm_params + syn_params
+                mbm_reg_loss = (
+                    torch.stack([(p ** 2).mean() for p in mbm_reg_params]).mean()
+                    if mbm_reg_params
+                    else torch.tensor(0.0, device=cfg["device"])
+                )
 
                 total_loss_step = (
                     kd_weight * loss_kd
