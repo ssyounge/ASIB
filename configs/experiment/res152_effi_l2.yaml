@@ -1,5 +1,5 @@
 defaults:
-  - base
+  - /base
   - /model/teacher@teacher1: resnet152
   - /model/teacher@teacher2: efficientnet_l2
   - /model/student:          resnet152_pretrain
