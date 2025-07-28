@@ -168,12 +168,23 @@ def standard_ce_finetune(
             cfg.get("adam_beta2", 0.999) if cfg is not None else 0.999,
         ),
     )
+    # --- Scheduler : linear warm-up + cosine ------------------------------------
+    sched = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optim,
+        T_max=epochs - cfg.get("warmup_epochs", 0),
+        eta_min=cfg.get("min_lr", 1e-6),
+    )
     crit  = torch.nn.CrossEntropyLoss(label_smoothing=label_smoothing)
     best_acc = 0.0
     for ep in range(1, epochs+1):
         model.train()
         total_loss = 0.0
         total = 0
+        # optional warm-up
+        if ep <= cfg.get("warmup_epochs", 0):
+            warm_lr = (ep / cfg["warmup_epochs"]) * cfg["finetune_lr"]
+            for pg in optim.param_groups:
+                pg["lr"] = warm_lr
         for x, y in train_loader:
             x, y = x.to(device), y.to(device)
             optim.zero_grad()
@@ -200,6 +211,8 @@ def standard_ce_finetune(
 
         train_loss = total_loss / total if total > 0 else 0.0
         acc = eval_teacher(model, test_loader, device, cfg=cfg)
+        if ep > cfg.get("warmup_epochs", 0):
+            sched.step()
         if acc > best_acc:
             best_acc = acc
             ckpt_dir = os.path.dirname(ckpt_path)
