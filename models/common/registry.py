@@ -29,8 +29,10 @@ def _import_submodules(pkg_root: str):
         mod = f"{pkg_root}.{rel.as_posix().replace('/', '.')}"
         import_module(mod)
 
-_import_submodules("models.students")
-_import_submodules("models.teachers")
+# 외부에서 늦게 호출하도록 노출
+def scan_submodules():
+    _import_submodules("models.students")
+    _import_submodules("models.teachers")
 
 # ---------------------------------------------------------
 # 2)  선택형 데코레이터  (기존 코드 호환)
@@ -40,13 +42,13 @@ _import_submodules("models.teachers")
 # 3)  **BaseKDModel 파생 클래스 자동 등록**
 #     ‑ @register() 안 붙여도 작동
 # ---------------------------------------------------------
-from models.common.base_wrapper import BaseKDModel   # pylint: disable=cyclic-import
-
 def _snake(s: str) -> str:
     s1 = re.sub(r"(.)([A-Z][a-z]+)", r"\1_\2", s)
     return re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
 
 def _auto_register():
+    # BaseKDModel import 는 scan 이후 base_wrapper 쪽에서 호출
+    from models.common.base_wrapper import BaseKDModel  # noqa
     for cls in BaseKDModel.__subclasses__():
         camel = cls.__name__
         snake = _snake(camel)
@@ -54,4 +56,6 @@ def _auto_register():
         for k in (camel, snake, short):
             MODEL_REGISTRY.setdefault(k, cls)
 
-_auto_register()
+# 외부에서 늦게 호출하도록 노출
+def auto_register():
+    _auto_register()
