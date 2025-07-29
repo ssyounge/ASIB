@@ -5,13 +5,8 @@ import torch.nn as nn
 from typing import Dict, Tuple, Any
 
 # -------------------------------- Registry ----------------------------------
-MODEL_REGISTRY: dict[str, type[nn.Module]] = {}
-
-def register(name: str):
-    def _wrap(cls):
-        MODEL_REGISTRY[name] = cls
-        return cls
-    return _wrap
+from models.common.registry import register
+from models.common.registry import MODEL_REGISTRY
 
 # ---------------------------   BaseKDModel  ---------------------------------
 class BaseKDModel(nn.Module):
