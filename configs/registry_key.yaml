@@ -1,3 +1,5 @@
+# configs/registry_key.yaml
+
 student_keys:
   - resnet50_scratch_student
   - resnet101_pretrain_student
