@@ -4,12 +4,11 @@ import torch
 import torch.nn as nn
 from torchvision.models import resnet50, ResNet50_Weights
 
-@register("resnet50_scratch")
 from models.common.base_wrapper import BaseKDModel, register
 from models.common.adapter import ChannelAdapter2D
 
 
-@register("resnet50_student")
+@register("resnet50_scratch")
 class ResNet50Student(BaseKDModel):
     """ResNet-50 student with ChannelAdapter after layer3."""
 
