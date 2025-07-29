@@ -174,11 +174,16 @@ def main(cfg: DictConfig):
 
     else:
         # synergy mode
-        # 1) YAML: teacher1_type, teacher2_type (필수)
-        teacher1_type = cfg.get("teacher1_type")
-        teacher2_type = cfg.get("teacher2_type")
-        if not teacher1_type or not teacher2_type:
-            raise ValueError("`teacher1_type` / `teacher2_type` 을 반드시 지정하세요.")
+        # 1) YAML 안쪽 name 만 사용
+        teacher1_type = cfg.get("teacher1", {}) \
+            .get("model", {}).get("teacher", {}).get("name")
+        teacher2_type = cfg.get("teacher2", {}) \
+            .get("model", {}).get("teacher", {}).get("name")
+        if not (teacher1_type and teacher2_type):
+            raise ValueError(
+                "`teacher{1,2}.model.teacher.name` 누락 – "
+                "experiment YAML defaults 를 확인하세요"
+            )
 
         # 2) create teachers
         teacher1 = create_teacher_by_name(
@@ -228,8 +233,15 @@ def main(cfg: DictConfig):
             )
             synergy_head.load_state_dict(head_ck, strict=False)
 
-        # 5) student for query-based MBM or optional synergy
-        student_name = cfg.get("student_type", "resnet")
+        # 5) student 키도 내부 name만 사용
+        student_name = cfg.get("model", {}) \
+            .get("student", {}).get("model", {}) \
+            .get("student", {}).get("name")
+        if not student_name:
+            raise ValueError(
+                "`model.student.model.student.name` 누락 – "
+                "experiment YAML defaults 를 확인하세요"
+            )
         student = create_student_by_name(
             student_name,
             pretrained=False,
