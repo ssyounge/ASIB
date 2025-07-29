@@ -175,8 +175,10 @@ def main(cfg: DictConfig):
     else:
         # synergy mode
         # 1) YAML: teacher1_type, teacher2_type
-        teacher1_type = cfg.get("teacher1_type", "resnet152")
-        teacher2_type = cfg.get("teacher2_type", "resnet152")
+        teacher1_type = cfg.get("teacher1_type")
+        teacher2_type = cfg.get("teacher2_type")
+        if not teacher1_type or not teacher2_type:
+            raise ValueError("`teacher1_type` / `teacher2_type` 을 반드시 지정하세요.")
 
         # 2) create teachers
         teacher1 = create_teacher_by_name(

@@ -393,16 +393,18 @@ def main(cfg: DictConfig):
         .get("model", {})
         .get("teacher", {})
         .get("name")
-        or "resnet152"
     )
+    if not teacher1_name:
+        raise ValueError("`teacher1_type` (or teacher1.model.teacher.name) 가 필요합니다.")
     teacher2_name = (
         cfg.get("teacher2_type")
         or cfg.get("teacher2", {})
         .get("model", {})
         .get("teacher", {})
         .get("name")
-        or "resnet152"
     )
+    if not teacher2_name:
+        raise ValueError("`teacher2_type` (or teacher2.model.teacher.name) 가 필요합니다.")
 
     teacher1_ckpt_path = cfg.get(
         "teacher1_ckpt", f"./checkpoints/{teacher1_name}_ft.pth"
@@ -555,6 +557,8 @@ def main(cfg: DictConfig):
         .get("student", {})
         .get("name")
     )
+    if not student_name:
+        raise ValueError("`student_type` (or model.student.model.student.name) 가 필요합니다.")
     student_model = create_student_by_name(
         student_name,
         pretrained=cfg.get("student_pretrained", True),
