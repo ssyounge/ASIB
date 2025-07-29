@@ -8,7 +8,7 @@ import timm
 from models.common.base_wrapper import BaseKDModel, register
 
 
-@register("convnext_l_teacher")
+@register("convnext_l")
 class ConvNeXtLTeacher(BaseKDModel):
     """ConvNeXt-Large teacher (22K pre-train)."""
 
