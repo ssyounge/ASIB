@@ -4,11 +4,6 @@ import torch
 import torch.nn as nn
 from typing import Dict, Tuple, Any
 
-# -------------------------------- Registry ----------------------------------
-from models.common import registry as _reg
-register = _reg.register          # 편의 alias
-MODEL_REGISTRY = _reg.MODEL_REGISTRY
-
 # ---------------------------   BaseKDModel  ---------------------------------
 class BaseKDModel(nn.Module):
     """Teacher/Student 공통 래퍼 - forward 규격 단일화."""
@@ -85,4 +80,7 @@ class BaseKDModel(nn.Module):
 # ------------------------------------------------------------------
 # 레지스트리 등록은 registry 모듈 import 시 구성 파일을 통해 수행됩니다.
 # ------------------------------------------------------------------
+
+# ❶ BaseKDModel 정의가 끝난 뒤에 registry 를 가져온다
+from models.common.registry import register, MODEL_REGISTRY  # noqa: E402
 
