@@ -17,6 +17,9 @@ def register(key: str):
     """Decorator for manual registration."""
 
     def _wrap(cls):
+        # 이미 같은 클래스가 등록돼 있으면 그대로 두고 조용히 return
+        if key in MODEL_REGISTRY and MODEL_REGISTRY[key] is cls:
+            return cls
         if key in MODEL_REGISTRY:
             raise KeyError(f"[registry] duplicate key: {key}")
         MODEL_REGISTRY[key] = cls

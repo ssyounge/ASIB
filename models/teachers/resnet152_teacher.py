@@ -72,6 +72,4 @@ def create_resnet152(
 MODEL_REGISTRY["resnet_teacher"] = ResNet152Teacher
 
 
-# ─── Student alias ───────────────────────────────────────────
-from models.common.base_wrapper import register
-register("resnet152_student")(ResNet152Teacher)
+
