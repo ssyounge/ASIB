@@ -389,20 +389,16 @@ def main(cfg: DictConfig):
     # 4) Create teacher1, teacher2
     teacher1_name = (
         cfg.get("teacher1_type")
-        or cfg.get("teacher1", {})
-        .get("model", {})
-        .get("teacher", {})
-        .get("name")
-        or "resnet152"
+        or cfg.get("teacher1", {}).get("model", {}).get("teacher", {}).get("name")
     )
+    if not teacher1_name:
+        raise ValueError("`teacher1_type` (or teacher1.model.teacher.name) 가 필요합니다.")
     teacher2_name = (
         cfg.get("teacher2_type")
-        or cfg.get("teacher2", {})
-        .get("model", {})
-        .get("teacher", {})
-        .get("name")
-        or "resnet152"
+        or cfg.get("teacher2", {}).get("model", {}).get("teacher", {}).get("name")
     )
+    if not teacher2_name:
+        raise ValueError("`teacher2_type` (or teacher2.model.teacher.name) 가 필요합니다.")
 
     teacher1_ckpt_path = cfg.get(
         "teacher1_ckpt", f"./checkpoints/{teacher1_name}_ft.pth"
@@ -549,12 +545,10 @@ def main(cfg: DictConfig):
     # 루트 키가 비어 있으면  →  YAML 내부(model.student…)  살펴보기
     student_name = (
         cfg.get("student_type")
-        or cfg.get("model", {})
-        .get("student", {})
-        .get("model", {})
-        .get("student", {})
-        .get("name")
+        or cfg.get("model", {}).get("student", {}).get("model", {}).get("student", {}).get("name")
     )
+    if not student_name:
+        raise ValueError("`student_type` (or model.student.model.student.name) 가 필요합니다.")
     student_model = create_student_by_name(
         student_name,
         pretrained=cfg.get("student_pretrained", True),
