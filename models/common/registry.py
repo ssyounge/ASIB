@@ -3,12 +3,19 @@ from pathlib import Path
 import re
 
 # ---------------------------------------------------------
-# 0)  공용 레지스트리
+# 0)  공용 레지스트리  &  데코레이터  **먼저 선언**
 # ---------------------------------------------------------
 MODEL_REGISTRY: dict[str, type] = {}
 
+def register(key: str):
+    def _wrap(cls):
+        MODEL_REGISTRY[key] = cls
+        return cls
+    return _wrap
+
 # ---------------------------------------------------------
 # 1)  하위 패키지 재귀 import  →  클래스 정의 로드
+#     (register 가 이미 존재하므로 안전)
 # ---------------------------------------------------------
 def _import_submodules(pkg_root: str):
     pkg = import_module(pkg_root)
@@ -26,11 +33,6 @@ _import_submodules("models.teachers")
 # ---------------------------------------------------------
 # 2)  선택형 데코레이터  (기존 코드 호환)
 # ---------------------------------------------------------
-def register(key: str):
-    def _wrap(cls):
-        MODEL_REGISTRY[key] = cls
-        return cls
-    return _wrap
 
 # ---------------------------------------------------------
 # 3)  **BaseKDModel 파생 클래스 자동 등록**
