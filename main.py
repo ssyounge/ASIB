@@ -436,14 +436,28 @@ def main(cfg: DictConfig):
         small_input = dataset == "cifar100"
 
     # 4) Create teacher1, teacher2
-    teacher1_type = cfg.get("teacher1_type", "resnet152")
-    teacher2_type = cfg.get("teacher2_type", "resnet152")
+    teacher1_name = (
+        cfg.get("teacher1_type")
+        or cfg.get("teacher1", {})
+        .get("model", {})
+        .get("teacher", {})
+        .get("name")
+        or "resnet152"
+    )
+    teacher2_name = (
+        cfg.get("teacher2_type")
+        or cfg.get("teacher2", {})
+        .get("model", {})
+        .get("teacher", {})
+        .get("name")
+        or "resnet152"
+    )
 
     teacher1_ckpt_path = cfg.get(
-        "teacher1_ckpt", f"./checkpoints/{teacher1_type}_ft.pth"
+        "teacher1_ckpt", f"./checkpoints/{teacher1_name}_ft.pth"
     )
     teacher1 = create_teacher_by_name(
-        teacher_name=teacher1_type,
+        teacher_name=teacher1_name,
         num_classes=num_classes,
         pretrained=cfg.get("teacher1_pretrained", True),
         small_input=small_input,
@@ -465,7 +479,7 @@ def main(cfg: DictConfig):
     if cfg.get("use_partial_freeze", True):
         partial_freeze_teacher_auto(
             teacher1,
-            teacher1_type,
+            teacher1_name,
             freeze_bn=cfg.get("teacher1_freeze_bn", True),
             freeze_ln=cfg.get("teacher1_freeze_ln", True),
             use_adapter=cfg.get("use_distillation_adapter", False),
@@ -475,10 +489,10 @@ def main(cfg: DictConfig):
         )
 
     teacher2_ckpt_path = cfg.get(
-        "teacher2_ckpt", f"./checkpoints/{teacher2_type}_ft.pth"
+        "teacher2_ckpt", f"./checkpoints/{teacher2_name}_ft.pth"
     )
     teacher2 = create_teacher_by_name(
-        teacher_name=teacher2_type,
+        teacher_name=teacher2_name,
         num_classes=num_classes,
         pretrained=cfg.get("teacher2_pretrained", True),
         small_input=small_input,
@@ -500,7 +514,7 @@ def main(cfg: DictConfig):
     if cfg.get("use_partial_freeze", True):
         partial_freeze_teacher_auto(
             teacher2,
-            teacher2_type,
+            teacher2_name,
             freeze_bn=cfg.get("teacher2_freeze_bn", True),
             freeze_ln=cfg.get("teacher2_freeze_ln", True),
             use_adapter=cfg.get("use_distillation_adapter", False),
@@ -575,13 +589,22 @@ def main(cfg: DictConfig):
 
     te1_acc = eval_teacher(teacher1, test_loader, device=device, cfg=cfg)
     te2_acc = eval_teacher(teacher2, test_loader, device=device, cfg=cfg)
-    logging.info("Teacher1 (%s) testAcc=%.2f%%", teacher1_type, te1_acc)
-    logging.info("Teacher2 (%s) testAcc=%.2f%%", teacher2_type, te2_acc)
+    logging.info("Teacher1 (%s) testAcc=%.2f%%", teacher1_name, te1_acc)
+    logging.info("Teacher2 (%s) testAcc=%.2f%%", teacher2_name, te2_acc)
     exp_logger.update_metric("teacher1_test_acc", te1_acc)
     exp_logger.update_metric("teacher2_test_acc", te2_acc)
 
     # 5) Student
-    student_name = cfg.get("student_type", "resnet")
+    # 루트 키가 비어 있으면  →  YAML 내부(model.student…)  살펴보기
+    student_name = (
+        cfg.get("student_type")
+        or cfg.get("model", {})
+        .get("student", {})
+        .get("model", {})
+        .get("student", {})
+        .get("name")
+        or "resnet"
+    )
     student_model = create_student_by_name(
         student_name,
         pretrained=cfg.get("student_pretrained", True),
