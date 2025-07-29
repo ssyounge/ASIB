@@ -5,4 +5,3 @@ model:
     name: resnet50
     pretrained: false
     use_adapter: true
-# ↑ 학습 전략(동결, LR, 스케줄 등)은 실험 YAML에서 설정
