@@ -25,9 +25,10 @@ def register(key: str):
     return _wrap
 
 
-# ---------------------------------------------------------------------------
-# 1)  하위 패키지 재귀 import → 클래스 정의 로드
-# ---------------------------------------------------------------------------
+# ---------------------------------------------------------
+# 내부 유틸: 서브모듈 import + BaseKDModel 자동 등록
+#   ‐ 직접 호출 금지, 아래 ensure_scanned() 에서만 사용
+# ---------------------------------------------------------
 def _import_submodules(pkg_root: str):
     pkg = import_module(pkg_root)
     root = Path(pkg.__file__).parent
@@ -39,17 +40,9 @@ def _import_submodules(pkg_root: str):
         import_module(mod)
 
 
-# ---------------------------------------------------------------------------
-# scan_submodules() : 나중에 필요할 때 호출하도록 제공
-# ---------------------------------------------------------------------------
-def scan_submodules():
-    _import_submodules("models.students")
-    _import_submodules("models.teachers")
-
-
-# ---------------------------------------------------------------------------
-# 2)  BaseKDModel 파생 클래스 자동 등록
-# ---------------------------------------------------------------------------
+# ---------------------------------------------------------
+# ❶  BaseKDModel → registry 자동 등록
+# ---------------------------------------------------------
 def _snake(s: str) -> str:
     s1 = re.sub(r"(.)([A-Z][a-z]+)", r"\1_\2", s)
     return re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
@@ -71,44 +64,37 @@ def _auto_register(slim: bool = False):
             MODEL_REGISTRY.setdefault(k, cls)
 
 
-def auto_register(*, slim: bool = False):
-    _auto_register(slim=slim)
-
-
-# ---------------------------------------------------------------------------
-# configs/registry_key.yaml 에 명시된 모듈들만 import 하여 레지스트리 등록
-# ---------------------------------------------------------------------------
-_CFG = Path(__file__).resolve().parent.parent.parent / "configs" / "registry_key.yaml"
-
-if _CFG.is_file():
-    with _CFG.open() as f:
-        _cfg = yaml.safe_load(f) or {}
-    _KEYS = _cfg.get("student_keys", []) + _cfg.get("teacher_keys", [])
-
-    for k in _KEYS:
-        # 간단한 휴리스틱으로 모듈 import 시도
-        if k.endswith("_teacher"):
-            mod = f"models.teachers.{k}"
-        elif k.endswith("_student"):
-            mod = f"models.students.{k}"
-        else:
-            mod = k
-        try:
-            import_module(mod)
-        except ModuleNotFoundError:
-            # 사용자가 외부에서 import 할 수도 있으므로 조용히 무시
-            pass
+# ---------------------------------------------------------
+# ❷  registry_key.yaml  (허용 키 필터)
+# ---------------------------------------------------------
+import yaml, pkg_resources, json
+_CFG_PATH = pkg_resources.resource_filename(__name__, "../../configs/registry_key.yaml")
+if Path(_CFG_PATH).is_file():
+    with open(_CFG_PATH, "r") as f:
+        _key_cfg = yaml.safe_load(f)
+    _ALLOW_KEYS = set(_key_cfg.get("student_keys", []) + _key_cfg.get("teacher_keys", []))
+else:
+    _ALLOW_KEYS = set()
 
 # ---------------------------------------------------------------------------
 # 호출 여부 플래그와 헬퍼
 _SCANNED = False
 
 
-def ensure_scanned():
-    """첫 호출 시에만 scan+auto_register 수행"""
+def ensure_scanned(*, slim: bool = False):
+    """첫 호출 시 students / teachers 서브모듈 import → 자동 등록"""
     global _SCANNED
-    if not _SCANNED:
-        scan_submodules()
-        auto_register()
-        _SCANNED = True
+    if _SCANNED:
+        return
+
+    _import_submodules("models.students")
+    _import_submodules("models.teachers")
+    _auto_register(slim=slim)
+
+    if _ALLOW_KEYS:
+        for k in list(MODEL_REGISTRY.keys()):
+            if k not in _ALLOW_KEYS:
+                MODEL_REGISTRY.pop(k)
+
+    _SCANNED = True
 

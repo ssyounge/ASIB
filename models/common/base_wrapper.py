@@ -9,9 +9,10 @@ from typing import Dict, Tuple, Any
 # ❶ registry 얇게 바인딩 ‑ 순환 임포트 회피용
 #     (scan 은 나중에 필요할 때 ensure_scanned() 로 수행)
 # ------------------------------------------------------------------
+# registry 객체는 즉시 쓰지만 **스캔은 하지 않는다**.
 from models.common import registry as _reg
-register        = _reg.register          # noqa: E305  : 기존 코드 호환
-MODEL_REGISTRY  = _reg.MODEL_REGISTRY
+register       = _reg.register
+MODEL_REGISTRY = _reg.MODEL_REGISTRY
 
 # ---------------------------   BaseKDModel  ---------------------------------
 class BaseKDModel(nn.Module):
