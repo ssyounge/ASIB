@@ -1,10 +1,6 @@
 # models/students/resnet152_student.py
 """ResNet‑152 학생 • layer3 이후 ChannelAdapter 추가"""
 
-
-@register("resnet152_pretrain")
-@register("resnet152_scratch")
-
 import torch
 import torch.nn as nn
 from torchvision.models import resnet152, ResNet152_Weights
@@ -12,8 +8,9 @@ from torchvision.models import resnet152, ResNet152_Weights
 from models.common.base_wrapper import BaseKDModel, register
 from models.common.adapter import ChannelAdapter2D
 
+@register("resnet152_pretrain")
+@register("resnet152_scratch")
 
-@register("resnet152_student")
 class ResNet152Student(BaseKDModel):
     """ResNet‑152 backbone + 1×1 Adapter + 학설용 classifier(fc)."""
 
