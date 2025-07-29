@@ -17,15 +17,15 @@ student_type:   resnet152
 teacher1_type:  convnext_l
 teacher2_type:  efficientnet_l2
 
-teacher_lr:            1e-4
-teacher_weight_decay:  1e-4
-student_lr:            8e-4
-student_weight_decay:  8e-4
+teacher_lr:            2.0e-4
+teacher_weight_decay:  1.0e-4
+student_lr:            1.0e-3
+student_weight_decay:  3.0e-4
 
 # ─── Partial‑Freeze Stage 스케줄 ──────────────────────────────
 use_partial_freeze: true
 num_stages: 4
-teacher_adapt_epochs: 2          # ConvNeXt‑L 학습 속도 보정
+teacher_adapt_epochs: 3          # ConvNeXt‑L 학습 속도 보정
 student_freeze_schedule:  [-1, 2, 1, 0]
 student_epochs_schedule:  [30, 15, 15, 15]
 teacher1_freeze_level: 1         # layer‑4 only
@@ -40,7 +40,7 @@ distill_out_dim: 512
 mbm_query_dim:   2048           # (= Res152 feat₂ᴅ)
 
 # ─── KD 세부 옵션 (Ensemble + Disagree) ──────────────────────
-kd_alpha:            0.0
+kd_alpha:            0.1
 kd_ens_alpha:        0.7
 use_disagree_weight: true
 disagree_mode:       both_wrong
