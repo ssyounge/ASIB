@@ -2,7 +2,7 @@
 #SBATCH --job-name=asmb_exp_clean
 #SBATCH --partition=suma_a6000
 #SBATCH --qos=base_qos
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:2
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
 #SBATCH --time=2-00:00:00
