@@ -87,5 +87,5 @@ class BaseKDModel(nn.Module):
 # ------------------------------------------------------------------
 if not getattr(_reg, "_SCANNED", False):
     _reg.scan_submodules()
-    _reg.auto_register()
+    _reg.auto_register(slim=True)
     _reg._SCANNED = True
