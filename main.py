@@ -49,17 +49,22 @@ from modules.partial_freeze import (
 
 # Teacher creation (factory):
 from models.common.base_wrapper import MODEL_REGISTRY
+from models.common import registry as _reg   # ensure_scanned()
 
 
 # ---------------------------------------------------------------------------
 # Helper – safe factory via registry
 def build_model(name: str, **kwargs):
+    # 필요할 때만 실제 모듈 import → 순환 임포트 방지
+    if name not in MODEL_REGISTRY:
+        _reg.ensure_scanned()           # ← scan_submodules() + auto_register()
     try:
         return MODEL_REGISTRY[name](**kwargs)
     except KeyError as exc:
         known = ", ".join(sorted(MODEL_REGISTRY.keys()))
         raise ValueError(
-            f"[build_model] Unknown model key '{name}'. Available: {known}"
+            f"[build_model] Unknown model key '{name}'. "
+            f"Available: {known}"
         ) from exc
 
 
