@@ -1,3 +1,5 @@
+# configs/dataset/imagenet32.yaml
+
 dataset:
   name: imagenet32
   root: "./data/imagenet32"
