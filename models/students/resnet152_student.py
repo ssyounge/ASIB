@@ -10,7 +10,6 @@ from models.common.adapter import ChannelAdapter2D
 
 @register("resnet152_pretrain_student")
 @register("resnet152_scratch_student")
-
 class ResNet152Student(BaseKDModel):
     """ResNet‑152 backbone + 1×1 Adapter + 학설용 classifier(fc)."""
 
