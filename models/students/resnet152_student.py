@@ -8,8 +8,8 @@ from torchvision.models import resnet152, ResNet152_Weights
 from models.common.base_wrapper import BaseKDModel, register
 from models.common.adapter import ChannelAdapter2D
 
-@register("resnet152_pretrain")
-@register("resnet152_scratch")
+@register("resnet152_pretrain_student")
+@register("resnet152_scratch_student")
 
 class ResNet152Student(BaseKDModel):
     """ResNet‑152 backbone + 1×1 Adapter + 학설용 classifier(fc)."""
