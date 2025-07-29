@@ -1,7 +1,0 @@
-# configs/cl/pycil_defaults.yaml
-
-cl:
-  mode: pycil               # 향후 PyCIL 통합용 자리
-  dataset_order_seed: 1993
-  replay_ratio: 0.3
-  lambda_ewc: 0.5

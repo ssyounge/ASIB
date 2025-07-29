@@ -1,9 +1,0 @@
-# configs/cl/split_cifar.yaml
-
-cl:
-  mode: split_cifar
-  num_tasks: 10
-  replay_ratio: 0.5
-  lambda_ewc: 0.4
-defaults:
-  - override /dataset: cifar100   # 같은 데이터셋을 타스크로 분할
