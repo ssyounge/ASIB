@@ -70,11 +70,9 @@ def create_student_by_name(
     num_classes: int = 100,
     cfg: Optional[dict] = None,
 ):
-    """Generic student factory (registry 우선)"""
+    """Create student from :data:`MODEL_REGISTRY`."""
 
-    from models.common.registry import MODEL_REGISTRY
-
-    if student_name and student_name in MODEL_REGISTRY:
+    try:
         return build_model(
             student_name,
             pretrained=pretrained,
@@ -82,95 +80,36 @@ def create_student_by_name(
             small_input=small_input,
             cfg=cfg,
         )
-
-    if student_name in ("resnet50", "resnet_50"):
-        return build_model(
-            "resnet50_student",
-            pretrained=pretrained,
-            num_classes=num_classes,
-            small_input=small_input,
-            cfg=cfg,
-        )
-
-    elif student_name in ("resnet101", "resnet_101"):
-        return build_model(
-            "resnet101_student",
-            pretrained=pretrained,
-            num_classes=num_classes,
-            small_input=small_input,
-            cfg=cfg,
-        )
-
-    elif student_name in ("resnet152", "resnet_152"):
-        return build_model(
-            "resnet152_student",
-            pretrained=pretrained,
-            num_classes=num_classes,
-            small_input=small_input,
-            cfg=cfg,
-        )
-
-    elif student_name in ("effb2", "efficientnet_b2"):
-        return build_model(
-            "efficientnet_b2_student",
-            pretrained=pretrained,
-            num_classes=num_classes,
-            small_input=small_input,
-            cfg=cfg,
-        )
-
-
-    # registry, 개별 분기 어디에도 없으면 오류
-    raise ValueError(
-        f"[create_student_by_name] unknown student_name={student_name}"
-    )
+    except ValueError as exc:
+        raise ValueError(
+            f"[create_student_by_name] '{student_name}' not in registry"
+        ) from exc
 
 
 from models.mbm import build_from_teachers
 
 
 def create_teacher_by_name(
-    teacher_name,
-    num_classes=100,
-    pretrained=True,
-    small_input=False,
+    teacher_name: str,
+    num_classes: int = 100,
+    pretrained: bool = True,
+    small_input: bool = False,
     cfg: Optional[dict] = None,
 ):
-    # ❶ _teacher 접미사 통일 삭제
-    teacher_name = teacher_name.replace("_teacher", "")
+    """Create teacher from :data:`MODEL_REGISTRY`."""
 
-    if teacher_name == "resnet152":
-        from models.teachers.resnet152_teacher import create_resnet152
-
-        return create_resnet152(
+    try:
+        return build_model(
+            teacher_name,
             num_classes=num_classes,
             pretrained=pretrained,
             small_input=small_input,
             cfg=cfg,
         )
-    elif teacher_name in ("efficientnet_l2", "effnet_l2"):
-        from models.teachers.efficientnet_l2_teacher import create_efficientnet_l2
-
-        return create_efficientnet_l2(
-            num_classes=num_classes,
-            pretrained=pretrained,
-            small_input=small_input,
-            dropout_p=cfg.get("efficientnet_dropout"),
-            use_checkpointing=cfg.get("teacher_use_checkpointing", False),
-            cfg=cfg,
-        )
-    elif teacher_name in ("convnext_l", "convnext_large"):
-        from models.teachers.convnext_l_teacher import ConvNeXtLTeacher
-        return ConvNeXtLTeacher(
-            num_classes=num_classes,
-            pretrained=pretrained,
-            small_input=small_input,
-            cfg=cfg,
-        )
-    else:
+    except ValueError as exc:
         raise ValueError(
-            f"[create_teacher_by_name] Unknown teacher_name={teacher_name}"
-        )
+            f"[create_teacher_by_name] '{teacher_name}' not in registry"
+        ) from exc
 
 
 def partial_freeze_teacher_auto(

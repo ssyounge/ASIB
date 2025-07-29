@@ -17,39 +17,29 @@ from data.imagenet32 import get_imagenet32_loaders
 from models.mbm import build_from_teachers
 from utils.logger import ExperimentLogger
 from utils.misc import set_random_seed, get_amp_components
-from main import create_student_by_name
+from main import create_student_by_name, build_model
 
 # Teacher Factory
-# Import the three teacher creation functions:
-from models.teachers.resnet152_teacher import create_resnet152
 
 def create_teacher_by_name(
-    teacher_name,
-    num_classes=100,
-    pretrained=False,
-    small_input=False,
+    teacher_name: str,
+    num_classes: int = 100,
+    pretrained: bool = False,
+    small_input: bool = False,
     cfg: dict | None = None,
 ):
-    """Creates a teacher model based on teacher_name."""
-    if teacher_name == "resnet152":
-        return create_resnet152(
+    """Create teacher from :data:`MODEL_REGISTRY`."""
+
+    try:
+        return build_model(
+            teacher_name,
             num_classes=num_classes,
             pretrained=pretrained,
             small_input=small_input,
             cfg=cfg,
         )
-    elif teacher_name in ("efficientnet_l2", "effnet_l2"):
-        from models.teachers.efficientnet_l2_teacher import create_efficientnet_l2
-        return create_efficientnet_l2(
-            num_classes=num_classes,
-            pretrained=pretrained,
-            small_input=small_input,
-            dropout_p=cfg.get("efficientnet_dropout"),
-            use_checkpointing=cfg.get("teacher_use_checkpointing", False),
-            cfg=cfg,
-        )
-    else:
-        raise ValueError(f"[eval.py] Unknown teacher_name={teacher_name}")
+    except ValueError as exc:
+        raise ValueError(f"[eval.py] Unknown teacher_name={teacher_name}") from exc
 
 # Argparse, YAML
 
