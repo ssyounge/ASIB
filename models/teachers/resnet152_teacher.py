@@ -7,7 +7,7 @@ from models.common.base_wrapper import BaseKDModel, register, MODEL_REGISTRY
 import torchvision.models as tv
 
 
-@register("resnet152")
+@register("resnet152_teacher")
 class ResNet152Teacher(BaseKDModel):
     """ResNet-152 Teacher with optional distillation adapter."""
 
