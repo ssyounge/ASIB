@@ -1,3 +1,5 @@
+# models/common/registry.py
+
 from importlib import import_module
 from pathlib import Path
 import re
