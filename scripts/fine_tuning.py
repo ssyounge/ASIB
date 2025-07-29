@@ -33,7 +33,6 @@ from data.cifar100 import get_cifar100_loaders
 from data.imagenet32 import get_imagenet32_loaders
 
 # teacher factories
-from models.teachers.resnet152_teacher import create_resnet152
 
 # partial freeze
 from modules.partial_freeze import (
@@ -67,45 +66,28 @@ def get_data_loaders(
         raise ValueError(f"Unknown dataset_name={dataset_name}")
 
 def create_teacher_by_name(
-    teacher_type,
-    num_classes=100,
-    pretrained=True,
-    small_input=False,
+    teacher_type: str,
+    num_classes: int = 100,
+    pretrained: bool = True,
+    small_input: bool = False,
     dropout_p: float | None = None,
     cfg: Optional[dict] = None,
 ):
-    """
-    Extends to handle resnet152 and efficientnet_l2 models.
-    """
-    if teacher_type in ["resnet152", "resnet152_teacher"]:
-        return create_resnet152(
+    """Create teacher from :data:`MODEL_REGISTRY`."""
+
+    try:
+        return build_model(
+            teacher_type,
             num_classes=num_classes,
             pretrained=pretrained,
             small_input=small_input,
+            dropout_p=dropout_p,
             cfg=cfg,
         )
-    elif teacher_type in ["efficientnet_l2", "efficientnet_l2_teacher", "effnet_l2"]:
-        from models.teachers.efficientnet_l2_teacher import create_efficientnet_l2
-        if dropout_p is None and cfg is not None:
-            dropout_p = cfg.get("efficientnet_dropout", 0.3)
-        return create_efficientnet_l2(
-            num_classes=num_classes,
-            pretrained=pretrained,
-            small_input=small_input,
-            dropout_p=dropout_p if dropout_p is not None else 0.3,
-            use_checkpointing=cfg.get("teacher_use_checkpointing", False),
-            cfg=cfg,
-        )
-    elif teacher_type in ["convnext_l", "convnext_l_teacher"]:
-        from models.teachers.convnext_l_teacher import ConvNeXtLTeacher  # noqa
-        return ConvNeXtLTeacher(
-            num_classes=num_classes,
-            pretrained=pretrained,
-            small_input=small_input,
-            cfg=cfg,
-        )
-    else:
-        raise ValueError(f"[fine_tuning.py] Unknown teacher_type={teacher_type}")
+    except ValueError as exc:
+        raise ValueError(
+            f"[fine_tuning.py] Unknown teacher_type={teacher_type}"
+        ) from exc
 
 def partial_freeze_teacher_auto(
     model,
