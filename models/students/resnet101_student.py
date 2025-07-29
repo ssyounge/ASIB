@@ -10,7 +10,6 @@ from models.common.adapter import ChannelAdapter2D
 
 @register("resnet101_pretrain_student")
 @register("resnet101_scratch_student")
-
 class ResNetStudent(BaseKDModel):
     def __init__(self, *, pretrained: bool = True, num_classes: int = 100,
                  small_input: bool = False, cfg: dict | None = None):
