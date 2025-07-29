@@ -13,7 +13,7 @@ results_dir:   outputs/res152_effi_l2
 exp_id:        res152_effi_l2
 
 # ───────── Optim & 모델 크기 ─────────
-student_type:   resnet152
+# student_type:   resnet152
 teacher1_type:  resnet152
 teacher2_type:  efficientnet_l2
 teacher_lr:     1.0e-4
