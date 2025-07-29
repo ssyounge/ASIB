@@ -70,10 +70,19 @@ def create_student_by_name(
     num_classes: int = 100,
     cfg: Optional[dict] = None,
 ):
-    """
-    Returns a student model that follows the common interface
-    (feature_dict, logits, ce_loss).
-    """
+    """Generic student factory (registry 우선)"""
+
+    from models.common.registry import MODEL_REGISTRY
+
+    if student_name and student_name in MODEL_REGISTRY:
+        return build_model(
+            student_name,
+            pretrained=pretrained,
+            num_classes=num_classes,
+            small_input=small_input,
+            cfg=cfg,
+        )
+
     if student_name in ("resnet50", "resnet_50"):
         return build_model(
             "resnet50_student",
@@ -111,10 +120,10 @@ def create_student_by_name(
         )
 
 
-    else:
-        raise ValueError(
-            f"[create_student_by_name] unknown student_name={student_name}"
-        )
+    # registry, 개별 분기 어디에도 없으면 오류
+    raise ValueError(
+        f"[create_student_by_name] unknown student_name={student_name}"
+    )
 
 
 from models.mbm import build_from_teachers
@@ -127,6 +136,9 @@ def create_teacher_by_name(
     small_input=False,
     cfg: Optional[dict] = None,
 ):
+    # ❶ _teacher 접미사 통일 삭제
+    teacher_name = teacher_name.replace("_teacher", "")
+
     if teacher_name == "resnet152":
         from models.teachers.resnet152_teacher import create_resnet152
 
@@ -603,7 +615,6 @@ def main(cfg: DictConfig):
         .get("model", {})
         .get("student", {})
         .get("name")
-        or "resnet"
     )
     student_model = create_student_by_name(
         student_name,
