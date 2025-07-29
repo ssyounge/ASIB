@@ -1,9 +1,9 @@
 # configs/finetune/efficientnet_l2_cifar32.yaml
+# @package _global_
+
 defaults:
   - /dataset: cifar100
   - _self_
-
-# @package _global_
 
 teacher_type: efficientnet_l2
 small_input: true
