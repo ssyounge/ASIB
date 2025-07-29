@@ -2,6 +2,6 @@
 
 model:
   student:
-    name: resnet152_scratch
+    name: resnet152_scratch_student
     pretrained: false
     use_adapter: true
