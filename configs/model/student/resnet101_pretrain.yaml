@@ -2,6 +2,6 @@
 
 model:
   student:
-    name: resnet101
+    name: resnet101_pretrain_student
     pretrained: true
     use_adapter: true
