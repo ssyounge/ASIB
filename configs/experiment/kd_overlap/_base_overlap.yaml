@@ -3,7 +3,7 @@ defaults:
   - base
   - /model/teacher@teacher1: resnet152_teacher
   - /model/teacher@teacher2: resnet152_teacher
-  - /model/student:          resnet152_pretrain
+  - /model/student:          resnet101_pretrain
   - _self_
 
 # ---------- 실험 식별 ----------
