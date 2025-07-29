@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=ft_teacher
-#SBATCH --partition=dell_rtx3090
+#SBATCH --partition=suma_a6000
 #SBATCH --qos=base_qos
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
