@@ -1,9 +1,9 @@
 # configs/experiment/res152_convnext_effi.yaml
 defaults:
   - /base
-  - /model/teacher@teacher1: convnext_l        # Teacher‑1 → ConvNeXt‑L
-  - /model/teacher@teacher2: efficientnet_l2   # Teacher‑2 → EffNet‑L2
-  - /model/student:          resnet152_pretrain
+  - /model/teacher@teacher1: convnext_l_teacher        # Teacher‑1 → ConvNeXt‑L
+  - /model/teacher@teacher2: efficientnet_l2_teacher   # Teacher‑2 → EffNet‑L2
+  - /model/student:          resnet152_pretrain_student
   - _self_
 
 # ─── 경로 & 식별자 ────────────────────────────────────────────
@@ -13,9 +13,9 @@ results_dir:   outputs/res152_convnext_effi
 exp_id:        res152_convnext_effi
 
 # ─── 모델 & Optim ────────────────────────────────────────────
-student_type:   resnet152
-teacher1_type:  convnext_l
-teacher2_type:  efficientnet_l2
+student_type:   resnet152_pretrain_student
+teacher1_type:  convnext_l_teacher
+teacher2_type:  efficientnet_l2_teacher
 
 teacher_lr:            2.0e-4
 teacher_weight_decay:  1.0e-4
