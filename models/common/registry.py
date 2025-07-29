@@ -7,6 +7,7 @@
 
 from pathlib import Path
 from importlib import import_module
+import re
 import yaml
 
 MODEL_REGISTRY: dict[str, type] = {}
@@ -22,6 +23,56 @@ def register(key: str):
         return cls
 
     return _wrap
+
+
+# ---------------------------------------------------------------------------
+# 1)  하위 패키지 재귀 import → 클래스 정의 로드
+# ---------------------------------------------------------------------------
+def _import_submodules(pkg_root: str):
+    pkg = import_module(pkg_root)
+    root = Path(pkg.__file__).parent
+    for p in root.glob("**/*.py"):
+        if p.name.startswith("_"):
+            continue
+        rel = p.with_suffix("").relative_to(root)
+        mod = f"{pkg_root}.{rel.as_posix().replace('/', '.')}"
+        import_module(mod)
+
+
+# ---------------------------------------------------------------------------
+# scan_submodules() : 나중에 필요할 때 호출하도록 제공
+# ---------------------------------------------------------------------------
+def scan_submodules():
+    _import_submodules("models.students")
+    _import_submodules("models.teachers")
+
+
+# ---------------------------------------------------------------------------
+# 2)  BaseKDModel 파생 클래스 자동 등록
+# ---------------------------------------------------------------------------
+def _snake(s: str) -> str:
+    s1 = re.sub(r"(.)([A-Z][a-z]+)", r"\1_\2", s)
+    return re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
+
+
+def _auto_register(slim: bool = False):
+    """Register subclasses of :class:`BaseKDModel` using multiple keys."""
+    from models.common.base_wrapper import BaseKDModel  # noqa: E402
+
+    for cls in BaseKDModel.__subclasses__():
+        camel = cls.__name__
+        snake = _snake(camel)
+        keys = (camel, snake) if slim else (
+            camel,
+            snake,
+            snake.replace("_student", "").replace("_teacher", ""),
+        )
+        for k in keys:
+            MODEL_REGISTRY.setdefault(k, cls)
+
+
+def auto_register(*, slim: bool = False):
+    _auto_register(slim=slim)
 
 
 # ---------------------------------------------------------------------------
@@ -47,4 +98,17 @@ if _CFG.is_file():
         except ModuleNotFoundError:
             # 사용자가 외부에서 import 할 수도 있으므로 조용히 무시
             pass
+
+# ---------------------------------------------------------------------------
+# 호출 여부 플래그와 헬퍼
+_SCANNED = False
+
+
+def ensure_scanned():
+    """첫 호출 시에만 scan+auto_register 수행"""
+    global _SCANNED
+    if not _SCANNED:
+        scan_submodules()
+        auto_register()
+        _SCANNED = True
 
