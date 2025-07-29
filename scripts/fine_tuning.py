@@ -245,6 +245,9 @@ def standard_ce_finetune(
 @hydra.main(config_path="../configs", config_name="base", version_base="1.3")
 def main(cfg: DictConfig):
     cfg = OmegaConf.to_container(cfg, resolve=True)  # 그대로 두고 flatten 제거
+    # ─── NEW: promote cfg["finetune"] → root ──────────────────────────
+    if isinstance(cfg.get("finetune"), dict):
+        cfg.update(cfg["finetune"])
     init_logger(cfg.get("log_level", "INFO"))
     device = cfg.get("device", "cuda")
     if device == "cuda":
