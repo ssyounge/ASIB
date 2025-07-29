@@ -44,27 +44,12 @@ def _import_submodules(pkg_root: str):
 
 
 # ---------------------------------------------------------
-# ❶  BaseKDModel → registry 자동 등록
+# ❶  *자동* alias 생성 **전면 제거**
+#     – BaseKDModel 서브클래스도 “데코레이터로 등록한 키”만 유지
 # ---------------------------------------------------------
-def _snake(s: str) -> str:
-    s1 = re.sub(r"(.)([A-Z][a-z]+)", r"\1_\2", s)
-    return re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
-
-
-def _auto_register(slim: bool = False):
-    """Register subclasses of :class:`BaseKDModel` using multiple keys."""
-    from models.common.base_wrapper import BaseKDModel  # noqa: E402
-
-    for cls in BaseKDModel.__subclasses__():
-        camel = cls.__name__
-        snake = _snake(camel)
-        keys = (camel, snake) if slim else (
-            camel,
-            snake,
-            snake.replace("_student", "").replace("_teacher", ""),
-        )
-        for k in keys:
-            MODEL_REGISTRY.setdefault(k, cls)
+def _auto_register():
+    """No-op: alias 자동 생성 로직을 완전히 비활성화."""
+    return
 
 
 # ---------------------------------------------------------
@@ -115,7 +100,7 @@ def ensure_scanned(*, slim: bool = False):
             import logging
             logging.warning("[registry] module '%s' not found for key-based import", m)
 
-    _auto_register(slim=slim)
+    _auto_register()        # ← 지금은 빈 함수 (alias X)
 
     # ------------------------------------------------------------------
     #  B) 2차: allow-list 필터  (scan 후에도 key 누락시 제거)
