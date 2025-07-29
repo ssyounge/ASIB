@@ -1,6 +1,6 @@
 # configs/experiment/res152_convnext_effi.yaml
 defaults:
-  - base
+  - /base
   - /model/teacher@teacher1: convnext_l        # Teacher‑1 → ConvNeXt‑L
   - /model/teacher@teacher2: efficientnet_l2   # Teacher‑2 → EffNet‑L2
   - /model/student:          resnet152_pretrain
