@@ -78,11 +78,4 @@ def create_efficientnet_l2(
 #  ‑ 기존 class 엔트리는 그대로 두어도 무방
 # -----------------------------------------------------------------
 
-from models.common.base_wrapper import register
 
-# 클래스 이름 그대로도 남기고
-# 실제 생성은 factory 가 담당하도록 별도 키 추가
-register("efficientnet_l2_teacher")(create_efficientnet_l2)   # ← 핵심
-
-# 편의 alias(선택)
-# register("efficientnet_l2")(create_efficientnet_l2)
