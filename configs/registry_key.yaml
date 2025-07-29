@@ -1,0 +1,9 @@
+student_keys:
+  - resnet50_scratch_student
+  - resnet101_pretrain_student
+  - resnet152_pretrain_student
+
+teacher_keys:
+  - resnet152_teacher
+  - efficientnet_l2_teacher
+  - convnext_l_teacher

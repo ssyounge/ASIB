@@ -4,9 +4,9 @@ from importlib import import_module
 from pathlib import Path
 import re
 
-# ---------------------------------------------------------
-# 0)  공용 레지스트리  &  데코레이터  **먼저 선언**
-# ---------------------------------------------------------
+# ------------------------------------------------------------------
+# (A) 선택적 수동 등록 – @register 데코레이터
+# ------------------------------------------------------------------
 MODEL_REGISTRY: dict[str, type] = {}
 
 def register(key: str):
@@ -63,5 +63,27 @@ def _auto_register(slim: bool = False):
             MODEL_REGISTRY.setdefault(k, cls)
 
 # 외부에서 늦게 호출하도록 노출
+import yaml
+import pkg_resources
+
+_CFG_PATH = pkg_resources.resource_filename(
+    __name__, "../../configs/registry_key.yaml"
+)
+if Path(_CFG_PATH).is_file():
+    with open(_CFG_PATH, "r") as f:
+        _key_cfg = yaml.safe_load(f)
+    ALLOW_KEYS = set(
+        _key_cfg.get("student_keys", []) + _key_cfg.get("teacher_keys", [])
+    )
+else:
+    ALLOW_KEYS = set()
+
+
 def auto_register(*, slim: bool = False):
+    """Auto register subclasses, then optionally filter by registry_key.yaml."""
     _auto_register(slim=slim)
+
+    if ALLOW_KEYS:
+        for k in list(MODEL_REGISTRY.keys()):
+            if k not in ALLOW_KEYS:
+                MODEL_REGISTRY.pop(k)
