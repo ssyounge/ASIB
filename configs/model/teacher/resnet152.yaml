@@ -1,5 +1,5 @@
 # configs/model/teacher/resnet152.yaml
 model:
   teacher:
-    name: resnet152_teacher
+    name: resnet152
     pretrained: true
