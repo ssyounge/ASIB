@@ -1,5 +1,5 @@
 # configs/model/teacher/efficientnet_l2.yaml
 model:
   teacher:
-    name: efficientnet_l2
+    name: efficientnet_l2_teacher
     pretrained: true
