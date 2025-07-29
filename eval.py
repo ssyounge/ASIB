@@ -113,9 +113,7 @@ class SynergyEnsemble(nn.Module):
 
 @hydra.main(config_path="configs", config_name="base", version_base="1.3")
 def main(cfg: DictConfig):
-    cfg = OmegaConf.to_container(cfg, resolve=True)
-    from utils.config_utils import flatten_hydra_config
-    cfg = flatten_hydra_config(cfg)
+    cfg = OmegaConf.to_container(cfg, resolve=True)  # 그대로 두고 flatten 제거
     init_logger(cfg.get("log_level", "INFO"))
 
     # 2) set seed
