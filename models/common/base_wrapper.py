@@ -83,9 +83,6 @@ class BaseKDModel(nn.Module):
 
 
 # ------------------------------------------------------------------
-# ❶ 서브모듈 스캔 & ❷ auto-register  (한 번만 호출)
+# 레지스트리 등록은 registry 모듈 import 시 구성 파일을 통해 수행됩니다.
 # ------------------------------------------------------------------
-if not getattr(_reg, "_SCANNED", False):
-    _reg.scan_submodules()
-    _reg.auto_register(slim=True)
-    _reg._SCANNED = True
+

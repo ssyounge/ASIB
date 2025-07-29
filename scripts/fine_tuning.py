@@ -292,10 +292,11 @@ def main(cfg: DictConfig):
     # 2) teacher
     # ── robust lookup ──────────────────────────────────────────
     teacher_type = (
-        cfg.get("teacher_type")                        # ① 루트
-        or cfg.get("finetune", {}).get("teacher_type") # ② finetune 그룹
-        or cfg.get("default_teacher_type")             # ③ 마지막 fallback
+        cfg.get("teacher_type")
+        or cfg.get("finetune", {}).get("teacher_type")
     )
+    if not teacher_type:
+        raise ValueError("`teacher_type` 을 YAML 또는 CLI override 로 지정해야 합니다.")
     logging.info(
         "[FineTune] ===== Now fine-tuning teacher: %s =====", teacher_type
     )
