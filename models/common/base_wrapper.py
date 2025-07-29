@@ -5,8 +5,9 @@ import torch.nn as nn
 from typing import Dict, Tuple, Any
 
 # -------------------------------- Registry ----------------------------------
-from models.common.registry import register
-from models.common.registry import MODEL_REGISTRY
+from models.common import registry as _reg
+register = _reg.register          # 편의 alias
+MODEL_REGISTRY = _reg.MODEL_REGISTRY
 
 # ---------------------------   BaseKDModel  ---------------------------------
 class BaseKDModel(nn.Module):
@@ -79,3 +80,12 @@ class BaseKDModel(nn.Module):
 
     def get_feat_channels(self):
         return self.feat_dim
+
+
+# ------------------------------------------------------------------
+# ❶ 서브모듈 스캔 & ❷ auto-register  (한 번만 호출)
+# ------------------------------------------------------------------
+if not getattr(_reg, "_SCANNED", False):
+    _reg.scan_submodules()
+    _reg.auto_register()
+    _reg._SCANNED = True
