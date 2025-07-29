@@ -2,7 +2,16 @@
 
 import torch
 import torch.nn as nn
+# typing …
 from typing import Dict, Tuple, Any
+
+# ------------------------------------------------------------------
+# ❶ registry 얇게 바인딩 ‑ 순환 임포트 회피용
+#     (scan 은 나중에 필요할 때 ensure_scanned() 로 수행)
+# ------------------------------------------------------------------
+from models.common import registry as _reg
+register        = _reg.register          # noqa: E305  : 기존 코드 호환
+MODEL_REGISTRY  = _reg.MODEL_REGISTRY
 
 # ---------------------------   BaseKDModel  ---------------------------------
 class BaseKDModel(nn.Module):
@@ -80,7 +89,4 @@ class BaseKDModel(nn.Module):
 # ------------------------------------------------------------------
 # 레지스트리 등록은 registry 모듈 import 시 구성 파일을 통해 수행됩니다.
 # ------------------------------------------------------------------
-
-# ❶ BaseKDModel 정의가 끝난 뒤에 registry 를 가져온다
-from models.common.registry import register, MODEL_REGISTRY  # noqa: E402
 
