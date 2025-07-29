@@ -1,6 +1,10 @@
 # models/students/resnet152_student.py
 """ResNet‑152 학생 • layer3 이후 ChannelAdapter 추가"""
 
+
+@register("resnet152_pretrain")
+@register("resnet152_scratch")
+
 import torch
 import torch.nn as nn
 from torchvision.models import resnet152, ResNet152_Weights
