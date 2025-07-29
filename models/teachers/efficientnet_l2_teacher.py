@@ -7,7 +7,7 @@ import timm
 from models.common.base_wrapper import BaseKDModel, register
 
 
-@register("efficientnet_l2_teacher")
+@register("efficientnet_l2")
 class EfficientNetL2Teacher(BaseKDModel):
     """EfficientNet-L2 (Noisy Student) Teacher."""
 
