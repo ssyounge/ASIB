@@ -46,16 +46,22 @@ def _snake(s: str) -> str:
     s1 = re.sub(r"(.)([A-Z][a-z]+)", r"\1_\2", s)
     return re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
 
-def _auto_register():
+def _auto_register(slim: bool = False):
+    """Register subclasses of :class:`BaseKDModel` using multiple keys."""
     # BaseKDModel import 는 scan 이후 base_wrapper 쪽에서 호출
     from models.common.base_wrapper import BaseKDModel  # noqa
+
     for cls in BaseKDModel.__subclasses__():
-        camel = cls.__name__
-        snake = _snake(camel)
-        short = snake.replace("_student", "").replace("_teacher", "")
-        for k in (camel, snake, short):
+        camel = cls.__name__           # e.g. ResNet152Student
+        snake = _snake(camel)          # -> res_net152_student
+        keys = (camel, snake) if slim else (
+            camel,
+            snake,
+            snake.replace("_student", "").replace("_teacher", ""),
+        )
+        for k in keys:
             MODEL_REGISTRY.setdefault(k, cls)
 
 # 외부에서 늦게 호출하도록 노출
-def auto_register():
-    _auto_register()
+def auto_register(*, slim: bool = False):
+    _auto_register(slim=slim)
