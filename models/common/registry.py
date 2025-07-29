@@ -121,9 +121,42 @@ def ensure_scanned(*, slim: bool = False):
     #  B) 2차: allow-list 필터  (scan 후에도 key 누락시 제거)
     # ------------------------------------------------------------------
     if _ALLOW_KEYS:
-        for k in list(MODEL_REGISTRY.keys()):
+        # 1-A) 먼저 허용-키에 없는 기존 엔트리는 제거
+        for k in list(MODEL_REGISTRY):
             if k not in _ALLOW_KEYS:
                 MODEL_REGISTRY.pop(k)
+
+        # 1-B) 허용-키인데 아직 없는 경우 ↔ 자동 alias 보강
+        def _try_alias(key: str, *candidates: str):
+            for c in candidates:
+                if c in MODEL_REGISTRY:
+                    MODEL_REGISTRY[key] = MODEL_REGISTRY[c]
+                    break
+
+        for k in _ALLOW_KEYS:
+            if k in MODEL_REGISTRY:
+                continue
+
+            # ── Student 키 패턴:  base_(pretrain|scratch)
+            m = re.match(r"(.+?)_(pretrain|scratch)$", k)
+            if m:
+                base = m.group(1)
+                _try_alias(
+                    k,
+                    f"{base}_student",
+                    base,
+                    f"{base}student",
+                )
+                continue
+
+            # ── Teacher 키:  base
+            base = k
+            _try_alias(
+                k,
+                f"{base}_teacher",
+                base,
+                f"{base}teacher",
+            )
 
     _SCANNED = True
 
