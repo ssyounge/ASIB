@@ -1,24 +1,8 @@
 # configs/experiment/kd_overlap/res152_asib_overlap.yaml
 defaults:
-  - base
-  - /model/teacher@teacher1: resnet152_teacher
-  - /model/teacher@teacher2: resnet152_teacher
-  - /model/student:          resnet152_pretrain
+  - kd_overlap/_base_overlap
   - _self_
 
-# --------- CLI 로 전달받을 것들 ----------
-subset_json: ??              # --overlap_json=...
-overlap_pct: ??              # --overlap=...
-# -----------------------------------------
-
-student_lr:   8e-4
-student_weight_decay: 3e-4
-teacher_lr:   2e-4
-teacher_weight_decay: 1e-4
-
-kd_mode:  synergy
-kd_alpha: 0.1            # CE(teacher→student) 가중치
-kd_ens_alpha: 0.7        # synergy loss 가중치
-
-use_distillation_adapter: true
-distill_out_dim: 512
+kd_mode:         synergy
+kd_alpha:        0.1    # CE
+kd_ens_alpha:    0.7    # Synergy loss
