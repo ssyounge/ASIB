@@ -1,5 +1,4 @@
 # configs/experiment/res152_effi_l2.yaml
-
 defaults:
   - /base
   - /model/teacher@teacher1: resnet152
