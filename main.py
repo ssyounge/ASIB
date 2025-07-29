@@ -49,15 +49,15 @@ from modules.partial_freeze import (
 
 # Teacher creation (factory):
 from models.common.base_wrapper import MODEL_REGISTRY
-from models.common import registry as _reg   # ensure_scanned()
+from models.common import registry as _reg  # ensure_scanned()
 
 
 # ---------------------------------------------------------------------------
 # Helper – safe factory via registry
 def build_model(name: str, **kwargs):
-    # 필요할 때만 실제 모듈 import → 순환 임포트 방지
+    # ❷ 요청 key 가 아직 없으면 그때 가서 import‑scan
     if name not in MODEL_REGISTRY:
-        _reg.ensure_scanned()           # ← scan_submodules() + auto_register()
+        _reg.ensure_scanned()
     try:
         return MODEL_REGISTRY[name](**kwargs)
     except KeyError as exc:
@@ -391,22 +391,24 @@ def main(cfg: DictConfig):
     if small_input is None:
         small_input = dataset == "cifar100"
 
-    # 4) Create teacher1, teacher2  ── ※ 루트 키(teacher*_type) 사용 금지
-    teacher1_name = cfg.get("teacher1", {}) \
-        .get("model", {}) \
-        .get("teacher", {}) \
+    # ❸ 필수 필드만 사용 – 빠지면 즉시 오류
+    teacher1_name = (
+        cfg.get("teacher1", {})
+        .get("model", {})
+        .get("teacher", {})
         .get("name")
-    teacher2_name = cfg.get("teacher2", {}) \
-        .get("model", {}) \
-        .get("teacher", {}) \
+    )
+    teacher2_name = (
+        cfg.get("teacher2", {})
+        .get("model", {})
+        .get("teacher", {})
         .get("name")
-
-    for _n, _who in ((teacher1_name, "teacher1"), (teacher2_name, "teacher2")):
-        if not _n:
-            raise ValueError(
-                f"[cfg] `{_who}.model.teacher.name` 가 비어 있습니다 "
-                "(defaults 절의 /model/teacher YAML을 확인하세요)"
-            )
+    )
+    if not teacher1_name or not teacher2_name:
+        raise ValueError(
+            "YAML 에 'model.teacher.name' 가 빠졌습니다 "
+            "(teacher1 / teacher2 모두 지정해야 함)."
+        )
 
     teacher1_ckpt_path = cfg.get(
         "teacher1_ckpt", f"./checkpoints/{teacher1_name}_ft.pth"
@@ -550,15 +552,16 @@ def main(cfg: DictConfig):
     exp_logger.update_metric("teacher2_test_acc", te2_acc)
 
     # 5) Student  ── 루트 키(student_type) 삭제 전제
-    student_name = cfg.get("model", {}) \
-        .get("student", {}) \
-        .get("model", {}) \
-        .get("student", {}) \
+    student_name = (
+        cfg.get("model", {})
+        .get("student", {})
+        .get("model", {})
+        .get("student", {})
         .get("name")
+    )
     if not student_name:
         raise ValueError(
-            "[cfg] `model.student.model.student.name` 가 비어 있습니다 "
-            "(defaults 절의 /model/student YAML을 확인하세요)"
+            "YAML 에 'model.student.name' 가 없습니다 (student 모델 미지정)."
         )
     student_model = create_student_by_name(
         student_name,
