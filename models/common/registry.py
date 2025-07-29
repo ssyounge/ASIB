@@ -17,10 +17,10 @@ def register(key: str):
     """Decorator for manual registration."""
 
     def _wrap(cls):
-        # 이미 같은 클래스가 등록돼 있으면 그대로 두고 조용히 return
-        if key in MODEL_REGISTRY and MODEL_REGISTRY[key] is cls:
-            return cls
         if key in MODEL_REGISTRY:
+            # 동일 클래스면 조용히 패스, 아니면 에러
+            if MODEL_REGISTRY[key] is cls:
+                return cls
             raise KeyError(f"[registry] duplicate key: {key}")
         MODEL_REGISTRY[key] = cls
         return cls
@@ -90,10 +90,36 @@ def ensure_scanned(*, slim: bool = False):
     if _SCANNED:
         return
 
-    _import_submodules("models.students")
-    _import_submodules("models.teachers")
+    # ------------------------------------------------------------------
+    #  A) 1차:  registry_key.yaml 의 key → 대응 모듈만 import
+    # ------------------------------------------------------------------
+    def _deduce_module(key: str) -> str | None:
+        """
+        heuristic:
+          · '..._student' → models.students.<key>
+          · '..._teacher' → models.teachers.<key>
+        """
+        if key.endswith("_student"):
+            return f"models.students.{key}"
+        if key.endswith("_teacher"):
+            return f"models.teachers.{key}"
+        return None
+
+    mods = {_deduce_module(k) for k in _ALLOW_KEYS}
+    mods.discard(None)
+    for m in mods:
+        try:
+            import_module(m)
+        except ModuleNotFoundError:
+            # key 는 있는데 모듈이 실제로 없으면 경고만 출력
+            import logging
+            logging.warning("[registry] module '%s' not found for key-based import", m)
+
     _auto_register(slim=slim)
 
+    # ------------------------------------------------------------------
+    #  B) 2차: allow-list 필터  (scan 후에도 key 누락시 제거)
+    # ------------------------------------------------------------------
     if _ALLOW_KEYS:
         for k in list(MODEL_REGISTRY.keys()):
             if k not in _ALLOW_KEYS:
