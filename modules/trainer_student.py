@@ -19,6 +19,21 @@ try:
 except ModuleNotFoundError:
     wandb = None
 
+
+def _get_cfg_val(cfg: dict, key: str, default):
+    """cfg 또는 cfg["method"]·cfg["method"]["method"]에서 키를 순차 검색."""
+    if key in cfg:
+        return cfg[key]
+    if "method" in cfg and key in cfg["method"]:
+        return cfg["method"][key]
+    if (
+        "method" in cfg
+        and "method" in cfg["method"]
+        and key in cfg["method"]["method"]
+    ):
+        return cfg["method"]["method"][key]
+    return default
+
 def student_distillation_update(
     teacher_wrappers,
     mbm, synergy_head,
@@ -203,7 +218,7 @@ def student_distillation_update(
                 feat_kd_val = (cw * diff).mean()
 
             loss = (
-                cfg["ce_alpha"] * ce_loss_val
+                _get_cfg_val(cfg, "ce_alpha", 1.0) * ce_loss_val
                 + cfg["kd_alpha"] * kd_loss_val
                 + cfg.get("feat_kd_alpha", 0.0) * feat_kd_val
                 + ib_loss_val
