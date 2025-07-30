@@ -45,6 +45,6 @@ disagree_lambda_high: 1.5
 disagree_lambda_low:  1.0
 
 # ─── 데이터증강 / 기타 ───────────────────────────────────────
-batch_size: 96                  # VRAM 여유 확보
+batch_size: 64                  # VRAM 여유 확보
 cutmix_alpha_distill: 0.3
 grad_clip_norm: 5.0
