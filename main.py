@@ -199,6 +199,10 @@ def main(cfg: DictConfig):
 
     init_logger(cfg.get("log_level", "INFO"))
 
+    # FLOPs 카운터(thop / ptflops / fvcore) INFO 스팸 억제
+    for noisy in ("thop", "ptflops", "fvcore.nn.jit_handles"):
+        logging.getLogger(noisy).setLevel(logging.ERROR)
+
     # ──────────────────────────────────────────────────────────────
     # (NEW) Stage‑별 freeze_level 스케줄
     #   · cfg.student_freeze_schedule  : e.g. [-1,2,1,0]
