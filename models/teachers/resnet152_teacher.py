@@ -2,12 +2,11 @@
 
 import torch
 import torch.nn as nn
-from models.common.base_wrapper import BaseKDModel, register, MODEL_REGISTRY
+from models.common.base_wrapper import BaseKDModel, MODEL_REGISTRY
 
 import torchvision.models as tv
 
 
-@register("resnet152_teacher")
 class ResNet152Teacher(BaseKDModel):
     """ResNet-152 Teacher with optional distillation adapter."""
 
@@ -56,6 +55,8 @@ class ResNet152Teacher(BaseKDModel):
         f4d = b.layer4(x)
         f2d = torch.flatten(b.avgpool(f4d), 1)
         return f4d, f2d
+
+# (등록은 registry_map.yaml에서 수행)
 
 
 def create_resnet152(

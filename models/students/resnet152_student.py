@@ -46,3 +46,18 @@ class ResNet152Student(BaseKDModel):
         f4d = b.layer4(x)
         f2d = torch.flatten(b.avgpool(f4d), 1)
         return f4d, f2d
+
+
+def create_resnet152_student(
+    num_classes: int = 100,
+    pretrained: bool = True,
+    small_input: bool = False,
+    cfg: dict | None = None,
+) -> ResNet152Student:
+    """Build :class:`ResNet152Student`."""
+    return ResNet152Student(
+        num_classes=num_classes,
+        pretrained=pretrained,
+        small_input=small_input,
+        cfg=cfg,
+    )

@@ -1,0 +1,9 @@
+teachers:
+  convnext_l_teacher:      models.teachers.convnext_l_teacher.create_convnext_l
+  efficientnet_l2_teacher: models.teachers.efficientnet_l2_teacher.create_efficientnet_l2
+  resnet152_teacher:       models.teachers.resnet152_teacher.create_resnet152
+
+students:
+  resnet152_pretrain_student: models.students.resnet152_student.create_resnet152_student
+  resnet101_pretrain_student: models.students.resnet101_student.create_resnet101_student
+  resnet50_scratch_student:   models.students.resnet50_student.create_resnet50_student
