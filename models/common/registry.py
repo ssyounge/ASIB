@@ -9,6 +9,7 @@ No automatic directory scanning is performed.
 
 from importlib import import_module
 from pathlib import Path
+from functools import partial
 import yaml
 
 MODEL_REGISTRY: dict[str, callable] = {}
@@ -40,11 +41,20 @@ if not _MAP_PATH.is_file():
 with open(_MAP_PATH, "r") as f:
     _MAP = yaml.safe_load(f)
 
+def _make_lazy_builder(mod_path: str, attr: str):
+    """Return a callable(**kw) that lazy-imports *mod_path.attr* and instantiates."""
+
+    def _builder(*args, **kwargs):
+        mod = import_module(mod_path)
+        cls_or_fn = getattr(mod, attr)
+        return cls_or_fn(*args, **kwargs)
+
+    return _builder
+
 for section in ("teachers", "students"):
     for key, target in (_MAP.get(section, {}) or {}).items():
         mod_path, attr = target.rsplit(".", 1)
-        obj = getattr(import_module(mod_path), attr)
-        MODEL_REGISTRY[key] = obj
+        MODEL_REGISTRY[key] = _make_lazy_builder(mod_path, attr)
 
 
 # ---------------------------------------------------------
