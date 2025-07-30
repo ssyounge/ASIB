@@ -127,6 +127,8 @@ def partial_freeze_teacher_auto(
     freeze_level=1,
     train_distill_adapter_only=False,
 ):
+    if teacher_name.endswith("_teacher"):
+        teacher_name = teacher_name[:-8]   # "efficientnet_l2_teacher" → "efficientnet_l2"
     if teacher_name == "resnet152":
         partial_freeze_teacher_resnet(
             model,
