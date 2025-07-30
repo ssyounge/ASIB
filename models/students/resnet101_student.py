@@ -37,6 +37,21 @@ class ResNetStudent(BaseKDModel):
         f2d = torch.flatten(b.avgpool(f4d), 1)
         return f4d, f2d
 
+
+def create_resnet101_student(
+    pretrained: bool = True,
+    num_classes: int = 100,
+    small_input: bool = False,
+    cfg: dict | None = None,
+) -> ResNetStudent:
+    """Build :class:`ResNetStudent`."""
+    return ResNetStudent(
+        pretrained=pretrained,
+        num_classes=num_classes,
+        small_input=small_input,
+        cfg=cfg,
+    )
+
 # legacy registry key for backward compatibility
 from models.common.base_wrapper import MODEL_REGISTRY
 MODEL_REGISTRY["resnet101_adapter_student"] = ResNetStudent
