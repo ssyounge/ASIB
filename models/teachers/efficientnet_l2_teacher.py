@@ -4,10 +4,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Optional
 import timm
-from models.common.base_wrapper import BaseKDModel, register
+from models.common.base_wrapper import BaseKDModel
 
 
-@register("efficientnet_l2_teacher")
 class EfficientNetL2Teacher(BaseKDModel):
     """EfficientNet-L2 (Noisy Student) Teacher."""
 
@@ -20,6 +19,8 @@ class EfficientNetL2Teacher(BaseKDModel):
         f4d = self.backbone.forward_features(x)
         f2d = F.adaptive_avg_pool2d(f4d, 1).flatten(1)
         return f4d, f2d
+
+# (등록은 registry_map.yaml에서 수행)
 
 
 def create_efficientnet_l2(
