@@ -360,7 +360,18 @@ def freeze_teacher_params(
     freeze_level: int = 1,
     train_distill_adapter_only: bool = False,
 ) -> None:
-    """Wrapper that partially freezes a teacher model by type."""
+    """Wrapper that partially freezes a teacher model by type.
+
+    The caller may pass either ``"convnext_l"`` or ``"convnext_l_teacher"``
+    — we strip a trailing ``"_teacher"`` so that both variants map to the
+    same control branch below.
+    """
+
+    # ----------------------------------------------------------
+    # (★) key normalisation →  convnext_l_teacher → convnext_l
+    # ----------------------------------------------------------
+    if teacher_name.endswith("_teacher"):
+        teacher_name = teacher_name[:-8]       # drop "_teacher"
     if teacher_name == "resnet152":
         partial_freeze_teacher_resnet(
             model,
