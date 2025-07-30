@@ -180,7 +180,12 @@ def partial_freeze_student_auto(
 
 @hydra.main(config_path="configs", config_name="base", version_base="1.3")
 def main(cfg: DictConfig):
-    cfg = OmegaConf.to_container(cfg, resolve=True)  # 그대로 두고 flatten 제거
+    cfg = OmegaConf.to_container(cfg, resolve=True)
+
+    # ── experiment 블록을 루트로 승격 ──────────────────────
+    if isinstance(cfg.get("experiment"), dict):
+        cfg.update(cfg["experiment"])
+
     init_logger(cfg.get("log_level", "INFO"))
 
     # ──────────────────────────────────────────────────────────────
