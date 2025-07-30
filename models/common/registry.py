@@ -105,14 +105,19 @@ def ensure_scanned(*, slim: bool = False):
             f"models.teachers.{key}_teacher",
         ]
 
+    import logging
+
     for k in _ALLOW_KEYS:
+        ok = False
         for m in _deduce_module(k):
             try:
                 import_module(m)
+                ok = True          # 한 번 성공하면 더 시도 X
+                break
             except ModuleNotFoundError:
-                # key 는 있는데 모듈이 실제로 없으면 경고만 출력
-                import logging
-                logging.warning("[registry] module '%s' not found", m)
+                continue
+        if not ok:                 # 후보 전부 실패했을 때만 경고
+            logging.warning("[registry] import failed for key '%s'", k)
 
     _auto_register()        # ← 지금은 빈 함수 (alias X)
 
