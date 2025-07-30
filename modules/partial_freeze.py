@@ -192,6 +192,50 @@ def partial_freeze_teacher_efficientnet(
     apply_bn_ln_policy(model, train_bn=not freeze_bn)
 
 
+# ──────────────────────────────────────────────────────────────
+# ConvNeXt-Large teacher
+# ──────────────────────────────────────────────────────────────
+def partial_freeze_teacher_convnext(
+    model: nn.Module,
+    *,
+    freeze_bn: bool = True,
+    freeze_level: int = 1,
+    use_adapter: bool = False,
+    train_distill_adapter_only: bool = False,
+):
+    """Partially freeze a ConvNeXt-Large teacher (rule compatible with ResNet)."""
+
+    if freeze_level < 0:
+        return
+
+    freeze_all(model)
+
+    if train_distill_adapter_only:
+        unfreeze_by_regex(model, r"\.distillation_adapter\.")
+        apply_bn_ln_policy(model, train_bn=not freeze_bn)
+        return
+
+    unfreeze = []
+    if freeze_level == 0:
+        unfreeze.append(r"(?:^|\.)head\.")
+    elif freeze_level == 2:
+        unfreeze.extend([
+            r"\.stages\.3\.",
+            r"(?:^|\.)head\.",
+        ])
+    else:  # level == 1
+        unfreeze.append(r"(?:^|\.)head\.")
+
+    if freeze_level >= 1:
+        unfreeze.append(r"^mbm\.")
+
+    if use_adapter:
+        unfreeze.append(r"\.distillation_adapter\.")
+
+    unfreeze_by_regex(model, unfreeze)
+    apply_bn_ln_policy(model, train_bn=not freeze_bn)
+
+
 def partial_freeze_teacher_swin(
     model: nn.Module,
     freeze_ln: bool = True,
@@ -343,9 +387,14 @@ def freeze_teacher_params(
             freeze_level=freeze_level,
             train_distill_adapter_only=train_distill_adapter_only,
         )
-    elif teacher_name in ("convnext_l", "convnext_large"):
-        # no dedicated freezing scheme yet
-        return
+    elif teacher_name in ("convnext_l", "convnext_large", "convnext_l_teacher"):
+        partial_freeze_teacher_convnext(
+            model,
+            freeze_bn=freeze_bn,
+            freeze_level=freeze_level,
+            use_adapter=use_adapter,
+            train_distill_adapter_only=train_distill_adapter_only,
+        )
     else:
         freeze_all(model)
 

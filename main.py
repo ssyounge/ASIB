@@ -145,6 +145,15 @@ def partial_freeze_teacher_auto(
             freeze_level=freeze_level,
             train_distill_adapter_only=train_distill_adapter_only,
         )
+    elif teacher_name in ("convnext_l", "convnext_large", "convnext_l_teacher"):
+        from modules.partial_freeze import partial_freeze_teacher_convnext
+        partial_freeze_teacher_convnext(
+            model,
+            freeze_bn=freeze_bn,
+            freeze_level=freeze_level,
+            use_adapter=use_adapter,
+            train_distill_adapter_only=train_distill_adapter_only,
+        )
     else:
         raise ValueError(
             f"[partial_freeze_teacher_auto] Unknown teacher_name={teacher_name}"
