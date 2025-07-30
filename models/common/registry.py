@@ -15,17 +15,15 @@ import yaml
 MODEL_REGISTRY: dict[str, callable] = {}
 
 
-def register(key: str):
-    """Decorator for manual registration."""
+def register(_: str):
+    """NO‑OP decorator.
 
-    def _wrap(cls):
-        if key in MODEL_REGISTRY:
-            # 동일 클래스면 조용히 패스, 아니면 에러
-            if MODEL_REGISTRY[key] is cls:
-                return cls
-            raise KeyError(f"[registry] duplicate key: {key}")
-        MODEL_REGISTRY[key] = cls
-        return cls
+    코드에 남은 ``@register("…")`` 줄을 지우지 않아도 되고,
+    레지스트리에 아무 것도 넣지 않고 클래스를 그대로 돌려준다.
+    """
+
+    def _wrap(cls):             # pylint: disable=unused-argument
+        return cls              # 아무 일도 하지 않는다
 
     return _wrap
 
@@ -65,7 +63,7 @@ for section in ("teachers", "students"):
 # ---------------------------------------------------------
 # ❸  Compatibility dummy – scanning no longer needed
 # ---------------------------------------------------------
-def ensure_scanned(*, slim: bool = False):  # noqa: D401
-    """Registry is ready at import-time (no auto-scan needed)."""
+def ensure_scanned(*_, **__):  # noqa: D401
+    """Legacy stub — does nothing anymore."""
     return
 
