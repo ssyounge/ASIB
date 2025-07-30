@@ -78,27 +78,41 @@ def ensure_scanned(*, slim: bool = False):
     # ------------------------------------------------------------------
     #  A) 1차:  registry_key.yaml 의 key → 대응 모듈만 import
     # ------------------------------------------------------------------
-    def _deduce_module(key: str) -> str | None:
+    def _deduce_module(key: str) -> list[str]:
         """
-        heuristic:
-          · '..._student' → models.students.<key>
-          · '..._teacher' → models.teachers.<key>
-        """
-        if key.endswith("_student"):
-            return f"models.students.{key}"
-        if key.endswith("_teacher"):
-            return f"models.teachers.{key}"
-        return None
+        key → import 대상 후보 목록
 
-    mods = {_deduce_module(k) for k in _ALLOW_KEYS}
-    mods.discard(None)
-    for m in mods:
-        try:
-            import_module(m)
-        except ModuleNotFoundError:
-            # key 는 있는데 모듈이 실제로 없으면 경고만 출력
-            import logging
-            logging.warning("[registry] module '%s' not found for key-based import", m)
+        - <base>_pretrain_student  →  models.students.<base>_student
+        - <base>_scratch_student   →            "
+        - <base>_student           →  그대로
+        - <base>_teacher           →  그대로
+        - 접미사 없으면 두 군데 모두 시도
+        """
+        if key.endswith("_teacher"):
+            return [f"models.teachers.{key}"]
+
+        if key.endswith("_student"):
+            # pretrain/scratch → student 파일
+            base = key.rsplit("_", 2)[0]   # 'resnet152'
+            return [
+                f"models.students.{base}_student",   # 표준 파일
+                f"models.students.{key}",            # 혹시 동일 파일명도 있을 때
+            ]
+
+        # 접미사 없는 경우
+        return [
+            f"models.students.{key}_student",
+            f"models.teachers.{key}_teacher",
+        ]
+
+    for k in _ALLOW_KEYS:
+        for m in _deduce_module(k):
+            try:
+                import_module(m)
+            except ModuleNotFoundError:
+                # key 는 있는데 모듈이 실제로 없으면 경고만 출력
+                import logging
+                logging.warning("[registry] module '%s' not found", m)
 
     _auto_register()        # ← 지금은 빈 함수 (alias X)
 
