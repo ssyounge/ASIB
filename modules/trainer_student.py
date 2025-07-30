@@ -6,8 +6,9 @@ import logging
 from utils.progress import smart_tqdm
 from models.mbm import IB_MBM
 
+from modules.loss_safe import ce_safe, kl_safe
 from modules.losses import (
-    kd_loss_fn, ce_loss_fn, ib_loss, certainty_weights, feat_mse_loss
+    ib_loss, certainty_weights, feat_mse_loss
 )
 from modules.disagreement import sample_weights_from_disagreement
 from utils.misc import mixup_data, cutmix_data, mixup_criterion, get_amp_components
@@ -157,26 +158,17 @@ def student_distillation_update(
                 fsyn = syn_feat
                 zsyn = synergy_head(fsyn)
 
-                if mix_mode != "none":
-                    def ce_obj(pred, target):
-                        return ce_loss_fn(
-                            pred,
-                            target,
-                            label_smoothing=cfg.get("label_smoothing", 0.0),
-                            reduction="none",
-                        )
-
-                    ce_vec = mixup_criterion(ce_obj, s_logit, y_a, y_b, lam)
-                else:
-                    ce_vec = ce_loss_fn(
-                        s_logit,
-                        y,
-                        label_smoothing=cfg.get("label_smoothing", 0.0),
-                        reduction="none",
-                    )
-                kd_vec = kd_loss_fn(
-                    s_logit, zsyn, T=cur_tau, reduction="none"
-                ).sum(dim=1)
+                # stable CE/KL calculations in float32
+                loss_ce = ce_safe(
+                    s_logit,
+                    y,
+                    ls_eps=cfg.get("label_smoothing", 0.0),
+                )
+                loss_kd = kl_safe(
+                    s_logit,
+                    zsyn,
+                    tau=cur_tau,
+                )
 
                 # ---- DEBUG: 첫 batch 모양 확인 ----
                 if ep == 0 and step == 0 and cfg.get("debug_verbose", False):
@@ -208,8 +200,8 @@ def student_distillation_update(
                 weights = weights * cw
 
             # apply sample weights to CE and KD losses computed above
-            ce_loss_val = (weights * ce_vec).mean()
-            kd_loss_val = (weights * kd_vec).mean()
+            ce_loss_val = loss_ce
+            kd_loss_val = loss_kd
 
             # --- μ‑MSE with certainty weight ---------------------------------
             feat_kd_val = torch.tensor(0.0, device=cfg["device"])
