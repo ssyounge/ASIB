@@ -1,3 +1,5 @@
+# configs/registry_map.yaml
+
 teachers:
   convnext_l_teacher:      models.teachers.convnext_l_teacher.create_convnext_l
   efficientnet_l2_teacher: models.teachers.efficientnet_l2_teacher.create_efficientnet_l2
