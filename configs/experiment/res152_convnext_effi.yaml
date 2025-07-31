@@ -33,8 +33,13 @@ teacher2_freeze_bn:    true
 
 # ─── MBM / Adapter ───────────────────────────────────────────
 use_distillation_adapter: true
-distill_out_dim: 512
-mbm_query_dim:   2048           # (= Res152 feat₂ᴅ)
+distill_out_dim: 512        # Key 채널 수
+mbm_query_dim:   2048       # 학생 2‑D feature dim
+mbm_out_dim:     2048       # MBM 출력 / VIB 입력 dim
+mbm_n_head:      8          # (예시) 2048 ÷ 8 = 256 per head
+use_ib:          true
+ib_beta:         0.01
+ib_beta_warmup_epochs: 3
 
 # ─── KD 세부 옵션 (Ensemble + Disagree) ──────────────────────
 kd_alpha:            0.1
