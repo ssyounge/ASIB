@@ -101,13 +101,22 @@ class ExperimentLogger:
         """
         self.config[key] = value
 
-    def info(self, msg: str):
-        """
-        drop-in replacement for logging.Logger.info.
-        현재는 stdout으로만 출력하지만, 필요하면
-        파일에 따로 쓰거나 time-stamp를 붙이는 등 확장 가능.
-        """
-        logging.info(msg)
+    # ------------------------------------------------------------------
+    # 표준 logging.Logger 인터페이스와 동일한 시그니처를 제공하여
+    # logger.info("… %d", val) 형태의 가변 인자 호출을 허용한다.
+    # 필요 시 debug / warning 등도 동일 패턴으로 확장해 둔다.
+    # ------------------------------------------------------------------
+    def info(self, msg: str, *args, **kwargs):
+        """Drop‑in for ``logging.Logger.info`` (가변 인자 지원)."""
+        logging.info(msg, *args, **kwargs)
+
+    def debug(self, msg: str, *args, **kwargs):
+        """Drop‑in for ``logging.Logger.debug``."""
+        logging.debug(msg, *args, **kwargs)
+
+    def warning(self, msg: str, *args, **kwargs):
+        """Drop‑in for ``logging.Logger.warning``."""
+        logging.warning(msg, *args, **kwargs)
 
     def finalize(self):
         """
