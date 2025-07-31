@@ -84,7 +84,7 @@ def feat_mse_loss(s_feat, t_feat, norm: str = "none", reduction="mean"):
 
 # ---------- Information Bottleneck ----------
 def ib_loss(mu, logvar, beta: float = 1e-3):
-    r"""Return β · KL\big(N(μ,σ²) \| N(0, 1)\big).
+    r"""Return β · KL\big(N(μ,σ²) \| N(0, 1)\big).
 
     fp16 under-/overflow 방지를 위해 float32 캐스팅 후 clipping을 적용한다."""  # <- r-string 로 SyntaxWarning 제거
 
@@ -92,7 +92,16 @@ def ib_loss(mu, logvar, beta: float = 1e-3):
     logvar = torch.clamp(logvar.float(), -10.0, 10.0)
 
     kl_elem = -0.5 * (1 + logvar - mu.pow(2) - logvar.exp())
-    return beta * kl_elem.mean()
+    
+    # 추가 안전장치: loss가 너무 크면 clipping
+    kl_elem = torch.clamp(kl_elem, -100.0, 100.0)
+    
+    loss = beta * kl_elem.mean()
+    
+    # 최종 loss도 clipping
+    loss = torch.clamp(loss, 0.0, 100.0)
+    
+    return loss
 
 
 def certainty_weights(logvar: torch.Tensor) -> torch.Tensor:

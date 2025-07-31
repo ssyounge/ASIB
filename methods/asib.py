@@ -1,4 +1,4 @@
-# methods/asmb.py
+# methods/asib.py
 
 import copy
 import torch
@@ -13,16 +13,16 @@ from modules.losses import (
     rkd_angle_loss,
     feat_mse_loss,
 )
-from utils.schedule import get_tau
-from utils.misc import get_amp_components
+from utils.training import get_tau
+from utils.common import get_amp_components
 # LightweightAttnMBM is deprecated and ignored
 
-class ASMBDistiller(nn.Module):
+class ASIBDistiller(nn.Module):
     """
-    Adaptive Synergy Manifold Bridging (ASMB) Distiller
+    Adaptive Synergy Information-Bottleneck (ASIB) Distiller
     - Teacher가 2명(teacher1, teacher2)
     - Student
-    - MBM(Manifold Bridging Module), synergy_head
+    - IB-MBM(Information-Bottleneck Manifold Bridging Module), synergy_head
     - 여러 stage에 걸쳐 (A) teacher update, (B) student distillation
     - 최종적으로 student의 Acc를 높이는 KD 프레임워크
     """
@@ -126,10 +126,10 @@ class ASMBDistiller(nn.Module):
         logger=None,
     ):
         """
-        ASMB Multi-Stage Self-Training:
-          for s in [1..num_stages]:
-            (A) Teacher Update (adaptive + MBM)
-            (B) Student Distillation
+        ASIB Multi-Stage Self-Training:
+        1) Teacher Adaptive Update (teacher1, teacher2, mbm, synergy_head)
+        2) Student Distillation (student)
+        반복
         """
         # GPU로 이동
         self.to(self.device)
@@ -187,7 +187,7 @@ class ASMBDistiller(nn.Module):
 
         for stage in range(1, self.num_stages+1):
             if self.logger:
-                self.logger.info(f"\n[ASMB] Stage {stage}/{self.num_stages} 시작.")
+                self.logger.info(f"\n[ASIB] Stage {stage}/{self.num_stages} 시작.")
 
             # (A) Teacher Update
             self._teacher_adaptive_update(
@@ -222,7 +222,7 @@ class ASMBDistiller(nn.Module):
         # 마지막에 best 복원
         self.student.load_state_dict(best_student_state)
         if self.logger:
-            self.logger.info(f"[ASMB] Done. best student acc= {best_acc:.2f}")
+            self.logger.info(f"[ASIB] Done. best student acc= {best_acc:.2f}")
         return best_acc
 
     def _teacher_adaptive_update(

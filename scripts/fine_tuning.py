@@ -19,12 +19,13 @@ import logging
 from typing import Optional
 import hydra
 from omegaconf import DictConfig, OmegaConf
-from utils.logging_utils import init_logger
-
-from utils.misc import (
+from utils.logging import init_logger
+from utils.common import (
     set_random_seed,
     check_label_range,
     get_model_num_classes,
+    count_trainable_parameters,
+    smart_tqdm,
     get_amp_components,
 )
 

@@ -7,9 +7,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from typing import Optional
-from utils.progress import smart_tqdm
-
-from utils.misc import cutmix_data, get_amp_components, check_label_range
+from utils.common import smart_tqdm, cutmix_data, get_amp_components, check_label_range, get_model_num_classes
 
 
 def cutmix_criterion(criterion, pred, y_a, y_b, lam):
@@ -181,7 +179,6 @@ def finetune_teacher_cutmix(
 
     num_classes = len(getattr(train_loader.dataset, "classes", []))
     if num_classes == 0:
-        from utils.misc import get_model_num_classes
         num_classes = get_model_num_classes(teacher_model)
 
     # ------------------------------------------------------------------

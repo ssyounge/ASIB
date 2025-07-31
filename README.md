@@ -1,602 +1,327 @@
-# ASIB-CL : Information-Bottleneck KD with Continual-Learning
+# ASIB Knowledge Distillation Framework
 
-**ASIB-CL** 확장은 기존 ASMB_KD 프레임워크에  
-*Information-Bottleneck Manifold Bridging Module* (IB-MBM)과  
-*Continual-Learning* (Replay + EWC) 지원을 추가합니다.
+**ASIB** (Adaptive Synergy Information-Bottleneck) is a multi-stage knowledge distillation framework that uses Information-Bottleneck Manifold Bridging Module (IB-MBM) to create synergistic knowledge from multiple teachers.
 
-## Quick-start
+## 🚀 Quick Start
+
+### Installation
+
 ```bash
-# IID 학습
+# Clone repository
+git clone https://github.com/YourName/ASIB-KD.git
+cd ASIB-KD
+
+# Create conda environment
+conda env create -f environment.yml
+conda activate asib
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### Basic Usage
+
+```bash
+# Run default experiment
 python main.py
 
-# Continual-Learning (Split-CIFAR 5 tasks 예시)
-python main.py cl=split_cifar
+# Run with custom config
+python main.py --config-name experiment/res152_convnext_effi
+
+# Run continual learning
+python main.py cl_mode=true
 ```
 
-Docker quick test:
-```bash
-docker build -t asmb-kd .
-docker run --gpus all -e DATA_ROOT=/datasets -it asmb-kd
+## 📁 Project Structure
+
+```
+ASIB-KD/
+├── main.py                 # Main training script (simplified)
+├── eval.py                 # Model evaluation
+├── core/                   # Core functionality
+│   ├── builder.py         # Model creation utilities
+│   ├── trainer.py         # Training logic
+│   └── utils.py           # Configuration utilities
+├── configs/               # Configuration files
+│   ├── base.yaml         # Base configuration
+│   ├── method/asib.yaml  # ASIB method config
+│   ├── experiment/       # Experiment configs
+│   └── model/           # Model configs
+├── utils/                # Utilities (reorganized)
+│   ├── logging/         # Logging utilities
+│   ├── data/           # Data utilities
+│   ├── training/       # Training utilities
+│   └── common/         # Common utilities
+├── modules/             # Training modules
+├── methods/            # Distillation methods
+├── models/             # Model definitions
+└── scripts/            # Helper scripts
 ```
 
-`--cl_mode 1` 활성화 후 `--num_tasks` 값을 지정하면 별도의 CL 전용 YAML 없이 연속 학습을 수행할 수 있습니다.
+## 🔧 Key Features
 
-## 주요 config 플래그
-* `mbm_type` (ignored) : always uses **ib_mbm**
-* `use_ib`   : true / false  (IB ablation)
-* `ib_beta_warmup_epochs` : ramp-up epochs for the IB KL weight
-* `cl_mode`  : true → CL 활성화
-* `num_tasks`, `replay_ratio`, `lambda_ewc`
-* `teacher1_type`, `teacher2_type` : teacher architecture names (default `resnet152`)
+### 🎯 **ASIB Method**
+- **Multi-Stage Distillation**: Teacher ↔ Student updates in phases
+- **Information-Bottleneck MBM**: Fuses teacher features using IB principles
+- **Adaptive Synergy**: Creates synergistic knowledge from multiple teachers
 
-# ASMB Knowledge Distillation Framework
+### 🧊 **Partial Freezing**
+- **Efficient Training**: Freeze backbone, adapt BN/Heads/MBM
+- **Flexible Levels**: -1 (no freeze) to N (freeze N blocks)
+- **Auto-Scheduling**: Stage-wise freeze level progression
 
-This repository provides an **Adaptive Synergy Manifold Bridging (ASMB)** multi-stage knowledge distillation framework, along with various KD methods (FitNet, CRD, AT, DKD, VanillaKD, etc.) and a partial-freeze mechanism for large models.
+### 🎨 **Multiple KD Methods**
+- **ASIB**: Our proposed method (default)
+- **Vanilla KD**: Traditional knowledge distillation
+- **FitNet**: Feature-level distillation
+- **CRD**: Contrastive representation distillation
+- **AT**: Attention transfer
+- **DKD**: Decoupled knowledge distillation
 
----
+### 📊 **Supported Datasets**
+- **CIFAR-100**: 100-class image classification
+- **ImageNet-32**: Downsampled ImageNet
+- **Custom**: Easy to extend
 
-## Features
+## 🛠️ Configuration
 
-- **Multi-Stage Distillation**: Teacher ↔ Student updates in a phased (block-wise) manner  
-- **ASMB** (Adaptive Synergy Manifold Bridging): Uses a Manifold Bridging Module (MBM) to fuse two Teacher feature maps into synergy logits  
-- **Partial Freeze**: Freeze backbone parameters, adapt BN/Heads/MBM for efficiency  
-- **Multiple KD Methods**: FitNet, CRD, AT, DKD, VanillaKD, plus custom `asmb.py`
-- **CIFAR-100 / ImageNet100** dataset support
-- **Automatic class count detection**: number of classes is inferred from the
-  training loader when using `ImageFolder` or CIFAR datasets
-- **Configurable Data Augmentation**: toggle with `--data_aug` (1/0)
-- **MixUp, CutMix & Label Smoothing**: enable with `--mixup_alpha`,
-  `--cutmix_alpha_distill` and `--label_smoothing`
-- **MBM Dropout**: set `mbm_dropout` in configs to add dropout within the
-  Manifold Bridging Module
-- **Gradient Clipping**: enable by setting `grad_clip_norm` (>0) in configs
-- **Teacher Weight Decay Override**: set `--teacher_weight_decay` to control
-  the Adam weight decay for teacher updates
-- **Learnable MBM Query**: set `mbm_learnable_q: true` to use a global learnable
-  token instead of the student feature as attention query
-- **IB β Warmup**: `ib_beta_warmup_epochs` linearly scales the KL weight from
-  0 to `ib_beta` over the specified epochs
-- **Feature-Level KD (disabled)**: set `feat_kd_alpha` > 0 to align student
-  features with the synergy representation during teacher and student updates.
-  Example model config snippet:
+### Basic Configuration
 
-  ```yaml
-  feat_kd_alpha: 0.0  # disabled by default
-  feat_kd_key: "feat_2d"
-  feat_kd_norm: "none"
-  ```
-
-  The same values can be overridden via CLI. Set `feat_kd_alpha` to a
-  positive value to enable this loss:
-  `--feat_kd_alpha 1.0 --feat_kd_key feat_2d --feat_kd_norm none`.
-- **Hybrid Guidance**: set `hybrid_beta` (>0) to blend vanilla KD from the
-  average teacher logits with the default ASMB loss.
-- **Custom MBM Query Dim**: `mbm_query_dim` sets the dimension of the
-  student features used as the attention query in `ib_mbm`.
-  When omitted or set to `0`, the script falls back to the feature
-  dimension reported by the student model (if available).
-  The MBM output dimension (`mbm_out_dim`) now defaults to this student
-  feature size as well.
-- **MBM Head Multiple**: `mbm_out_dim` must be a multiple of `mbm_n_head`.
-  For example, `mbm_n_head=4` → `mbm_out_dim=2048` is valid, whereas
-  `mbm_out_dim=2050` would raise an error.
-- **Requires Student Features**: `ib_mbm` relies on student features as the
-  attention query, so the student model must be provided.
-  Common student feature dimensions are:
-
-  | Student model                | Feature dim |
-  |------------------------------|-------------|
--  | `resnet50_student`             | 2048        |
--  | `resnet101_student`            | 2048        |
--  | `resnet152_student`            | 2048        |
-- **Smart Progress Bars**: progress bars hide automatically when stdout isn't a TTY
-- **Expandable CUDA Segments**: training scripts set `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` when CUDA is available
-- **CIFAR-friendly ResNet/EfficientNet stem**: use `--small_input 1` when
-  fine-tuning or evaluating models that modify the conv stem for 32x32 inputs
-  (and remove max-pool for ResNet)
-- **Distillation Adapter**: set `use_distillation_adapter: true` to enable
-  lightweight adapters on each teacher. `distill_out_dim` controls the common
- feature dimension used for synergy (default `512`). Set `debug_verbose: true` to print the teacher and student feature shapes every batch when troubleshooting (the example config `configs/experiment/res152_effi_l2.yaml` leaves this `false` by default).
-- **Disagreement Metrics**: `compute_disagreement_rate` now accepts
-  `mode="pred"` to measure prediction mismatch or `mode="both_wrong"` for
-  cross-error
-
----
-
-## Installation
-
-1. **Clone** this repo:
-   ```bash
-   git clone https://github.com/YourName/ASMB-KD.git
-   cd ASMB-KD
-```
-2. *(Optional)* **Create and activate a Conda environment**:
-```bash
-CONDA_ENV=myenv conda env create -f environment.yml
-conda activate ${CONDA_ENV:-asmb}
-```
-3. *(Optional)* **Install dependencies manually**:
-```bash
-pip install -r requirements.txt  # includes pandas for analysis
-```
-> **주의** : PyTorch 1.12 – 2.2 는 NumPy 2.x 와 ABI 불일치가 있어
-> `numpy<2.0`(예: 1.26.4) 로 고정해야 합니다.
-4. **Download pretrained checkpoints**:
-```bash
-mkdir checkpoints
-wget -O checkpoints/resnet152_ft.pth <링크>
-wget -O checkpoints/efficientnet_l2_ft.pth <링크>  # optional EfficientNet-L2
-```
-5. **Set dataset and W&B paths (optional)**:
-```bash
-export DATA_ROOT=/path/to/datasets
-export WANDB_ENTITY=my_entity
-export WANDB_PROJECT=my_project
-export CONDA_ENV=asmb
+```yaml
+# configs/base.yaml
+method: asib
+num_stages: 4
+teacher_lr: 0.0002
+student_lr: 0.001
+use_ib: true
+ib_beta: 0.001
+use_cccp: true  # Concave-Convex Procedure
 ```
 
-| Variable       | Description                      |
-|---------------|----------------------------------|
-| `DATA_ROOT`   | Dataset directory                |
-| `WANDB_ENTITY`| Weights & Biases entity name      |
-| `WANDB_PROJECT`| W&B project name                 |
-| `CONDA_ENV`   | Conda environment name           |
-| `PYTORCH_CUDA_ALLOC_CONF` | Set automatically to `expandable_segments:True` when using CUDA |
+### Model Configuration
 
-6. **Run a single experiment**:
-```bash
-python main.py --config-name experiment/res152_effi_l2  # EfficientNet-L2 teacher
+```yaml
+# configs/experiment/res152_convnext_effi.yaml
+teacher1:
+  model:
+    teacher:
+      name: convnext_l_teacher
+teacher2:
+  model:
+    teacher:
+      name: efficientnet_l2_teacher
+model:
+  student:
+    model:
+      student:
+        name: resnet152_pretrain_student
 ```
-The example YAML defines `teacher1_type: resnet152` and
-`teacher2_type: efficientnet_l2`, so the command above works without
-additional flags.
 
-The unified script `run_experiments.sh` automatically tries to activate a
-Conda environment named `tlqkf`. If you use a different environment name,
-set the `CONDA_ENV` variable accordingly. You can also skip activation
-entirely by exporting `USE_CONDA=0` before running the script. Run experiments
-directly with `bash scripts/run_experiments.sh --mode {loop,sweep}`.
+### Training Configuration
 
-Set the distillation method via the `METHOD` variable or provide a
-space‑separated list using `METHOD_LIST`. The default `asmb` runs the
-multi‑teacher pipeline in `main.py`. Specify `vanilla_kd`, `fitnet`, `dkd`,
-`at` or `crd` to launch the single‑teacher runner. With `METHOD_LIST` you can
-execute several methods sequentially:
+```yaml
+# Partial freezing
+use_partial_freeze: true
+student_freeze_schedule: [-1, 2, 1, 0]  # Stage-wise freeze levels
 
-The main training script accepts the same flag via `--method` (default `asmb`)
-so `run_experiments.sh` can pass it uniformly.
+# MBM settings
+mbm_query_dim: 1024
+mbm_out_dim: 1024
+mbm_n_head: 8
+
+# Loss weights
+ce_alpha: 0.3
+kd_alpha: 0.7
+ib_beta: 0.001
+```
+
+## 🚀 Usage Examples
+
+### 1. Standard Training
 
 ```bash
-METHOD_LIST="asmb fitnet vanilla_kd" bash scripts/run_experiments.sh --mode loop
+# Run with default settings
+python main.py
+
+# Run with custom experiment
+python main.py --config-name experiment/res152_convnext_effi
+
+# Override parameters
+python main.py student_lr=0.0005 ib_beta=0.01
 ```
 
-Hydra now composes configs directly. Run the default experiment with:
+### 2. Teacher Fine-tuning
 
 ```bash
-python main.py --config-name base
+# Fine-tune teachers before distillation
+python scripts/fine_tuning.py --config-name base \
+  +teacher_type=resnet152 +finetune_epochs=100
 ```
 
-Freeze levels and other hyperparameters are stored in `configs/model/` YAML files.
-Override any value via the command line, e.g.
+### 3. Student Baseline
 
 ```bash
-python main.py model.teacher.freeze_level=1 model.student.lr=0.0008
+# Train student alone for baseline
+python scripts/train_student_baseline.py --config-name base
 ```
 
-Batch scripts like `run_experiments.sh` simply forward arguments to `main.py`.
-
-When these scripts are submitted via `sbatch`, SLURM sets the environment
-variable `SLURM_SUBMIT_DIR` to the directory from which the job was launched.
-`run.sh` and `run_finetune_clean.sh` now use this variable to `cd` back to the
-repository root so relative paths (such as `scripts/fine_tuning.py`) resolve
-correctly.
-
-Logging options live under the `log:` section in each YAML.  The helper
-function `flatten_hydra_config` copies `log.level` and `log.filename` to the
-top‑level keys `log_level` and `log_filename` so older scripts continue to work.
-
-
-## Testing
+### 4. Evaluation
 
 ```bash
-pip install torch==2.2.0+cpu torchvision==0.17.0+cpu \
-    -f https://download.pytorch.org/whl/torch_stable.html
-pip install -r requirements.txt
-pytest        # 전체 테스트 ≤ 1 min on CPU
+# Evaluate single model
+python eval.py +eval_mode=single +ckpt_path=./results/student_final.pth
+
+# Evaluate synergy model
+python eval.py +eval_mode=synergy
 ```
 
----
+## 🔬 Advanced Features
 
-Usage
+### CCCP (Concave-Convex Procedure)
 
-### Typical Training Flow
+Enable CCCP for stable teacher updates:
 
-1. Fine-tune each teacher (optional but recommended).
-2. For each stage, perform a teacher adaptive update followed by student knowledge distillation.
-3. Repeat for the configured number of stages.
+```yaml
+use_cccp: true
+tau: 4.0  # Temperature for CCCP
+```
 
-Baseline runs (e.g., `vanilla_kd`) produce their own logs such as `VanillaKD => ...`.
-
-1) Multi-Stage Distillation (main.py)
-
-python main.py --config-name base \
-  device=cuda mbm_r=4 mbm_n_head=1 mbm_learnable_q=1
-  # Freeze levels are defined in the model YAMLs under configs/model/
-  # mbm_query_dim and mbm_out_dim are automatically set to the student feature dimension
-        •       Adjust model settings in `configs/model/*` or pass Hydra overrides.
-        •       Set `LR_SCHEDULE` to "step" or "cosine" to choose the learning rate scheduler.
-	•	Teacher checkpoints load automatically from `checkpoints/{teacher_type}_ft.pth` when available.
-        •       Each trainer creates its own optimizer and scheduler at the start of every stage.
-
-2) Single-Teacher Distillation (run_single_teacher.py)
+### Continual Learning
 
 ```bash
-python scripts/run_single_teacher.py --config-name base \
-  +method=vanilla_kd +teacher_type=resnet152 +teacher_ckpt=teacher.pth \
-  +student_type=resnet +epochs=40 \
-  dataset=imagenet32
+# Enable continual learning mode
+python main.py cl_mode=true num_tasks=5
 ```
-
-The `method` option selects one of `vanilla_kd`, `fitnet`, `dkd`, `at` or `crd`.
-Override the dataset by passing `dataset=imagenet32` or `dataset=cifar100` on
-the command line.
-Partial freezing is automatically turned off for these methods—`run_single_teacher.py`
-sets `use_partial_freeze: false` when the selected `method` is not `asmb`.
-
-3) Student Baseline (train_student_baseline.py)
-
-### Student Baseline
-
-Run the student alone using the same partial-freeze settings to gauge its standalone performance:
-
-```bash
-python scripts/train_student_baseline.py --config-name base \
-  +student_type=resnet +epochs=40 dataset=cifar100
-# Freeze levels come from the student YAML under configs/model/
-```
-
-The script uses the same optimizer and scheduler configuration as the distillation runs. The resulting accuracy serves as the reference for all distillation experiments and is saved under `results/`.
-
-
-4) Evaluation (eval.py)
-
-Evaluate a single model or a synergy model (Teacher1 + Teacher2 + MBM + synergy head):
-
-# Single model
-python eval.py +eval_mode=single \
-  +ckpt_path=./results/single_model.pth
-
-# Synergy model
-python eval.py +eval_mode=synergy \
-  # uses checkpoints/{teacher_type}_ft.pth if available \
-  +mbm_ckpt=mbm.pth \
-  +head_ckpt=synergy_head.pth \
-  +student_type=resnet \
-  +student_ckpt=student.pth \
-  +mbm_r=4 +mbm_n_head=1 +mbm_learnable_q=1
-  # mbm_query_dim and mbm_out_dim are automatically set to the student feature dimension
-
-	•	Prints Train/Test accuracy, optionally logs to CSV if configured.
 
 ### Data Augmentation
 
-Use the `--data_aug` flag to control dataset transforms. When set to `1` (default), the loaders apply `RandomCrop`, `RandomHorizontalFlip` and `RandAugment` for stronger augmentation. Passing `--data_aug 0` disables these operations and only performs normalization/resizing.
-
 ```bash
-python main.py --config-name base --data_aug 0
+# Enable/disable augmentation
+python main.py data_aug=true
+python main.py data_aug=false
+
+# MixUp and CutMix
+python main.py mixup_alpha=0.2 cutmix_alpha_distill=0.3
 ```
 
-Set `num_workers` in your YAML file to control how many processes each
-`DataLoader` uses (defaults to `2`).
-
-| Flag | Purpose |
-| ---- | ------- |
-| `--mixup_alpha` | MixUp alpha for distillation |
-| `--cutmix_alpha` | CutMix alpha during fine-tuning |
-| `--cutmix_alpha_distill` | CutMix alpha during distillation (YAML key `cutmix_alpha_distill`, default `0.0`) |
-
-CutMix takes priority over MixUp when both are > 0. MixUp is used when only `--mixup_alpha` > 0, otherwise no mixing is applied.
-
-### MixUp, CutMix & Label Smoothing
-
-Control MixUp or CutMix augmentation and label smoothing via CLI flags:
-
-```bash
-python main.py --mixup_alpha 0.2 --cutmix_alpha_distill 0.5 --label_smoothing 0.1
-```
-
-### Automatic Mixed Precision (AMP)
-
-Add the following keys to your config to enable AMP:
+### Automatic Mixed Precision
 
 ```yaml
 use_amp: true
 amp_dtype: float16  # or bfloat16
-grad_scaler_init_scale: 1024
 ```
 
-Example usage:
+## 📈 Results
+
+Results are saved in the `outputs/` directory:
+
+```
+outputs/
+├── experiment_name/
+│   ├── train.log          # Training logs
+│   ├── metrics.csv        # Performance metrics
+│   ├── config.yaml        # Final configuration
+│   └── checkpoints/       # Model checkpoints
+```
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+pytest
+
+# Run specific test
+pytest tests/test_asib_step.py
+```
+
+## 📚 API Reference
+
+### Core Functions
 
 ```python
-from utils.misc import get_amp_components
+from core import (
+    create_student_by_name,
+    create_teacher_by_name,
+    run_training_stages,
+    run_continual_learning
+)
 
-autocast_ctx, scaler = get_amp_components(cfg)
-with autocast_ctx:
-    out = model(x)
-    loss = criterion(out, target)
-if scaler:
-    scaler.scale(loss).backward()
-    scaler.step(optimizer)
-    scaler.update()
-else:
-    loss.backward()
-    optimizer.step()
+# Create models
+student = create_student_by_name("resnet152_pretrain_student")
+teacher1 = create_teacher_by_name("convnext_l_teacher")
+
+# Run training
+final_acc = run_training_stages(
+    teacher_wrappers=[teacher1, teacher2],
+    mbm=mbm,
+    synergy_head=synergy_head,
+    student_model=student,
+    train_loader=train_loader,
+    test_loader=test_loader,
+    cfg=cfg,
+    exp_logger=exp_logger,
+    num_stages=4
+)
 ```
 
-```bash
-python main.py --use_amp 1 --amp_dtype bfloat16
+### Configuration Utilities
+
+```python
+from core.utils import (
+    setup_partial_freeze_schedule,
+    auto_set_mbm_query_dim,
+    cast_numeric_configs
+)
+
+# Setup training configuration
+setup_partial_freeze_schedule(cfg, num_stages)
+auto_set_mbm_query_dim(student_model, cfg)
+cast_numeric_configs(cfg)
 ```
 
-### Small Input Checkpoints
+## 🤝 Contributing
 
-Models fine-tuned with `--small_input 1` replace their conv stems for small
-images. When distilling or evaluating such checkpoints you must pass the same
-`--small_input 1` flag to `main.py` or `eval.py` so the architectures match.
-The flag now also configures **all student adapters** (ResNet, EfficientNet and
-Swin) to expect 32×32 inputs.
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
-### Teacher Fine-Tuning
+## 📄 License
 
-Fine-tune the individual teachers before running the distillation stages.
-All fine-tuning options live in the teacher configs under `configs/model/teacher/`.
-The bundled `SwinTeacher` expects the Swin backbone to call
-`features`, `norm`, `permute`, `avgpool` and `flatten` in sequence when
-producing its feature map. This mirrors torchvision's official
-`SwinTransformer` forward path.
-Adjust the parameters in your chosen teacher YAML:
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-```bash
-# configs/model/teacher/resnet152.yaml
-finetune_epochs=100   # number of fine-tuning epochs
-finetune_lr=0.0005    # learning rate
-finetune_cutmix_alpha=0  # set to 0 to disable CutMix
-lr_schedule=step   # step or cosine
-```
+## 📖 Citation
 
-Alternatively edit the YAML file used by `scripts/fine_tuning.py`:
+If you use this framework in your research, please cite:
 
-```yaml
-# configs/model/teacher/resnet152.yaml
-finetune_epochs: 100
-finetune_lr: 0.0005
-finetune_use_cutmix: false
-efficientnet_dropout: 0.3  # dropout probability for EfficientNet teachers
-```
-
-Set `efficientnet_dropout` to control the dropout rate used in EfficientNet
-
-teachers. The default value is **0.3**.
-Set `use_checkpointing: true` in `configs/model/teacher/efficientnet_l2.yaml`
-to activate gradient checkpointing for the EfficientNet teacher. This reduces
-GPU memory usage at the cost of a slower runtime.
-
-#### EfficientNet-L2 Batch Size
-
-EfficientNet-L2 requires more memory than ResNet teachers. A 96-image batch from `configs/dataset/cifar100.yaml` can exhaust a 24 GB GPU. Begin fine-tuning with around **32** images per batch and increase only if your card allows.
-The sample configuration `configs/finetune/efficientnet_l2_cifar32.yaml` sets `batch_size: 32` and keeps AMP enabled with `use_amp: true`.
-
-#### Fine-tuning a Teacher
-
-Run the fine-tuning script directly to update a single teacher:
-
-```bash
-python scripts/fine_tuning.py --config-name base \
-  +teacher_type=resnet152 +finetune_epochs=100 +finetune_lr=0.0005 \
-  +dropout_p=0.5
-```
-
-The script uses **CIFAR-100** by default. Change `dataset.name` via a Hydra override
-or edit the dataset YAML (e.g., `dataset=imagenet32`) to switch datasets.
-
-For partial freezing with EfficientNet, a new freeze scope
-`features_classifier` unfreezes the feature extractor and classifier modules
-along with the MBM:
-
-```yaml
-# configs/model/teacher/resnet152.yaml
-teacher2_freeze_scope: "features_classifier"
-```
-
-After saving the changes, run `python main.py --config-name base` (or your batch
-script) to fine-tune the teacher and continue with distillation.
-
-Once the teacher checkpoints are in place you can disable the fine-tuning step
-in subsequent runs. Either set `finetune_epochs: 0` in the teacher YAML or
-point `finetune_ckpt1` and `finetune_ckpt2` to the existing `.pth` files so
-the script skips the fine-tuning loops.
-
-### Teacher Adapter & BN-Head-Only Options
-
-With partial freezing you can further restrict the teachers to small
-adapters or only update their batch-norm layers and classifier heads.
-Set the following flags in the teacher YAML or via CLI overrides:
-
-```yaml
-use_distillation_adapter: true
-teacher1_bn_head_only: 1
-teacher2_bn_head_only: 0
-```
-
-When `use_distillation_adapter` is enabled, each teacher routes its features
-through a small MLP adapter before computing synergy. The output dimension of
-these adapters is controlled by `distill_out_dim` (default `512`). All
-teachers must share the same value so their features can be stacked.
-
-`run_experiments.sh` exports these values so you can toggle them for
-sweeps or batch runs without editing every config file.
-
-### Freeze Levels
-* **-1 \u2192 no freeze** (new)  
-* 0 \u2192 head only  
-* 1 \u2192 last block train  
-* 2 \u2192 last two blocks train  
-  (architecture\u2011specific mapping\ub294 `modules/partial_freeze.py` \ucc38\uace0)
-
-The amount of each model that remains trainable is controlled by three keys in the model configs:
-
-```yaml
-teacher1_freeze_level: 0
-teacher2_freeze_level: 1
-student_freeze_level: 0
-```
-
-Lower numbers unfreeze fewer layers. In the example above, only teacher&nbsp;2's
-final block and the classifier heads remain trainable. After editing the YAML
-file, run `python main.py --config-name base` to apply the new freeze levels.
-
-
-
----
-```plaintext
-Folder Structure
-
-(Repo Root)
-├── main.py                 # Main training script
-├── eval.py                 # Evaluation script
-├── requirements.txt        # Python dependencies
-├── run.sh                  # Example run script
-├── run_finetune_clean.sh   # Finetuning helper
-├── pyproject.toml          # Build metadata
-├── setup.py                # Package setup
-├── README.md
-├── LICENSE
-├── environment.yml         # Conda environment
-
-├── analysis/
-│   ├── compare_ablation.py
-│   └── plot_results.py
-
-├── configs/
-│   ├── base.yaml
-│   ├── dataset/
-│   ├── experiment/
-│   ├── finetune/
-│   ├── method/
-│   ├── model/
-│   │   ├── teacher/
-│   │   └── student/
-│   └── schedule/
-
-├── data/
-│   ├── cifar100.py
-│   ├── cifar100_overlap.py
-│   ├── imagenet32.py
-│   └── __init__.py
-
-├── examples/
-│   └── run_cifar100_cl.sh
-
-├── methods/                # KD algorithms
-│   ├── asmb.py
-│   ├── fitnet.py
-│   ├── crd.py
-│   ├── dkd.py
-│   ├── at.py
-│   ├── vanilla_kd.py
-│   └── __init__.py
-
-├── models/
-│   ├── __init__.py
-│   ├── mbm.py
-│   ├── common/
-│   │   └── adapter.py
-│   ├── students/
-│   │   └── resnet101_student.py
-│   └── teachers/
-│       ├── resnet152_teacher.py
-│       └── efficientnet_l2_teacher.py
-
-├── modules/
-│   ├── trainer_student.py
-│   ├── trainer_teacher.py
-│   ├── cutmix_finetune_teacher.py
-│   ├── disagreement.py
-│   ├── partial_freeze.py
-│   ├── losses.py
-│   └── __init__.py
-
-├── scripts/
-│   ├── run_single_teacher.py
-│   ├── run_experiments.sh
-│   ├── run_overlap_experiments.sh
-│   ├── run_sweep.sh
-│   ├── fine_tuning.py
-│   ├── setup_tests.sh
-│   └── train_student_baseline.py
-
-├── sweeps/
-│   ├── asmb_grid.yaml
-│   ├── asmb_mixed.yaml
-│   └── overlap_grid.yaml
-
-├── tests/
-│   └── ...
-
-└── utils/
-    ├── logger.py
-    ├── misc.py
-    └── config_utils.py
-
-        • analysis/: Scripts or notebooks for experiment comparisons
-        • configs/: Hydra configuration groups
-        • data/: Dataset wrappers
-        • examples/: Example shell scripts
-        • methods/: KD implementations (ASMB, FitNet, etc.)
-        • models/: Student and teacher models
-        • modules/: Training utilities and losses
-        • scripts/: Helper entrypoints
-        • sweeps/: YAML sweep definitions
-        • tests/: Unit tests
-        • utils/: Misc utilities (logging, scheduling)
-
-```
----
-
-Results
-
-Experiment outputs (CSV, logs, etc.) reside in the results/ folder.
-You can run analysis/compare_ablation.py or analysis/plot_results.py to analyze or visualize them. These scripts require the pandas library, which is installed via `requirements.txt`.
-
----
-
-License
-
-This project is distributed under the MIT License.
-
-MIT License
-
-Copyright (c) 2024 Suyoung Yang
-
-Permission is hereby granted, free of charge, ...
-
-
----
-
-Citation
-
-If you use this framework, please cite:
-
-@misc{ASMB-KD,
-  title   = {ASMB Knowledge Distillation Framework},
-  author  = {Suyoung Yang},
-  year    = {2024},
-  howpublished = {\url{https://github.com/YourName/ASMB-KD}}
+```bibtex
+@misc{asib-kd,
+  title={ASIB: Adaptive Synergy Information-Bottleneck Knowledge Distillation},
+  author={Suyoung Yang},
+  year={2024},
+  howpublished={\url{https://github.com/YourName/ASIB-KD}}
 }
+```
 
+## 📞 Contact
+
+- **Email**: suyoung425@yonsei.ac.kr
+- **GitHub Issues**: [Create an issue](https://github.com/YourName/ASIB-KD/issues)
 
 ---
 
-Contact
+## 🔄 Recent Updates
 
-For questions or issues, please open a GitHub issue or email suyoung425@yonsei.ac.kr.
+### v2.0.0 (Latest)
+- ✅ **Code Refactoring**: Modular structure with `core/` package
+- ✅ **Utils Reorganization**: Functional subfolders in `utils/`
+- ✅ **ASMB → ASIB**: Renamed to reflect Information-Bottleneck approach
+- ✅ **CCCP Integration**: Added Concave-Convex Procedure for stability
+- ✅ **Main.py Simplification**: Reduced from 955 to 329 lines (66% reduction)
 
+### v1.0.0
+- 🎯 Initial release with ASMB framework
+- 🧊 Partial freezing mechanism
+- 📊 Multi-teacher distillation
+- 🎨 Multiple KD methods support

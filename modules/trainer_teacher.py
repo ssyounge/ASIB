@@ -3,7 +3,9 @@
 import torch
 import copy
 import logging
-from utils.progress import smart_tqdm
+from torch.nn import functional as F
+from utils.common import smart_tqdm, get_amp_components
+from utils.training import get_tau, get_beta
 from models.mbm import IB_MBM
 
 from modules.losses import (
@@ -13,8 +15,6 @@ from modules.losses import (
     certainty_weights,
     feat_mse_loss,
 )
-from utils.schedule import get_tau, get_beta
-from utils.misc import get_amp_components
 
 
 def _cpu_state_dict(module: torch.nn.Module):
@@ -117,6 +117,14 @@ def teacher_adaptive_update(
         "syn_head": _cpu_state_dict(synergy_head),
     }
 
+    # 추가 검증 로직: learning rate 조정
+    prev_obj = float("inf")
+    backup_state = {
+        "teacher_wraps": [_cpu_state_dict(tw) for tw in teacher_wrappers],
+        "mbm": _cpu_state_dict(mbm),
+        "syn_head": _cpu_state_dict(synergy_head),
+    }
+
     logger.info(f"[TeacherAdaptive] Using teacher_epochs={teacher_epochs}")
 
     autocast_ctx, scaler = get_amp_components(cfg)
@@ -212,6 +220,26 @@ def teacher_adaptive_update(
                 synergy_weight = cfg.get("synergy_ce_alpha", 0.6)
                 synergy_ce_loss = synergy_weight * loss_ce
 
+                # -----------------------------------------------
+                #  Concave‑Convex surrogate 추가
+                #   · 학생 로짓 z_S 는 gradient 를 막아 고정값으로 취급  (∇h(x^t))
+                #   · KL( z_syn || z_S_detached )  ← convex in θ_T
+                # -----------------------------------------------
+                kd_cccp = 0.0
+                if cfg.get("use_cccp", True):
+                    with torch.no_grad():
+                        s_out = student_model(x)[1] if isinstance(student_model(x), tuple) else student_model(x)
+                    tau  = float(cfg.get("tau", 4.0))
+                    kd_w = float(cfg.get("kd_alpha", 0.0))
+                    kd_cccp = (
+                        kd_w * tau * tau *
+                        F.kl_div(
+                            F.log_softmax(zsyn / tau, dim=1),
+                            F.softmax(s_out.detach() / tau, dim=1),
+                            reduction="batchmean",
+                        )
+                    )
+
                 feat_kd_loss = torch.tensor(0.0, device=cfg["device"])
                 if cfg.get("feat_kd_alpha", 0) > 0:
                     diff = (s_feat - mu).pow(2).sum(dim=1)
@@ -241,7 +269,11 @@ def teacher_adaptive_update(
                     + ib_loss_val
                     + float(cfg.get("reg_lambda", 0.0)) * reg_loss
                     + float(cfg.get("mbm_reg_lambda", 0.0)) * mbm_reg_loss
+                    + kd_cccp  # CCCP surrogate 추가
                 )
+                
+                # 추가 안전장치: loss가 너무 크면 clipping
+                total_loss_step = torch.clamp(total_loss_step, 0.0, 100.0)
 
             # ---- (2) per-batch Optim ----
             optimizer.zero_grad()
@@ -307,6 +339,25 @@ def teacher_adaptive_update(
         ]
         best_state["mbm"] = copy.deepcopy(mbm.state_dict())
         best_state["syn_head"] = copy.deepcopy(synergy_head.state_dict())
+
+    # 추가 검증 로직: loss가 증가하면 learning rate 조정 및 상태 복원
+    if ep_loss > prev_obj:
+        logger.warning(f"[TeacherAdaptive] Loss increased from {prev_obj:.4f} to {ep_loss:.4f}, reducing LR and restoring state")
+        for g in optimizer.param_groups:
+            g['lr'] *= 0.5
+        # 이전 상태로 복원
+        for i, tw in enumerate(teacher_wrappers):
+            tw.load_state_dict(backup_state["teacher_wraps"][i])
+        mbm.load_state_dict(backup_state["mbm"])
+        synergy_head.load_state_dict(backup_state["syn_head"])
+    else:
+        prev_obj = ep_loss
+        # 현재 상태를 backup으로 저장
+        backup_state["teacher_wraps"] = [
+            copy.deepcopy(tw.state_dict()) for tw in teacher_wrappers
+        ]
+        backup_state["mbm"] = copy.deepcopy(mbm.state_dict())
+        backup_state["syn_head"] = copy.deepcopy(synergy_head.state_dict())
 
     # restore best
     for i, tw in enumerate(teacher_wrappers):

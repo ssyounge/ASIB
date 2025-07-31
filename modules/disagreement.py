@@ -2,7 +2,7 @@
 
 import torch
 import logging  # DEBUG 로그용
-from utils.misc import get_amp_components
+from utils.common import get_amp_components
 
 @torch.no_grad()
 def compute_disagreement_rate(

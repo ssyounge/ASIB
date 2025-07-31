@@ -7,7 +7,7 @@ defaults:
   - _self_
 
 # ─── 경로 & 식별자 ────────────────────────────────────────────
-teacher1_ckpt: checkpoints/convnext_l_cifar32.pth   # ← fc 5504▶100 형상 맞춰 trim
+teacher1_ckpt: checkpoints/convnext_l_cifar32.pth   # ← fc 5504▶100 형상 맞춰 trim
 teacher2_ckpt: checkpoints/efficientnet_l2_cifar32.pth
 results_dir:   outputs/res152_convnext_effi
 exp_id:        res152_convnext_effi
@@ -16,15 +16,15 @@ exp_id:        res152_convnext_effi
 
 teacher_lr:            2.0e-4
 teacher_weight_decay:  1.0e-4
-student_lr:            1.0e-3
+student_lr:            5.0e-4  # ← 0.001에서 0.0005로 낮춤
 student_weight_decay:  3.0e-4
 
 # ─── Partial‑Freeze Stage 스케줄 ──────────────────────────────
 use_partial_freeze: true
-num_stages: 4
-teacher_adapt_epochs: 3          # ConvNeXt‑L 학습 속도 보정
+num_stages: 4 # 4
+teacher_adapt_epochs: 1 # 4          # ConvNeXt‑L 학습 속도 보정
 student_freeze_schedule:  [-1, 2, 1, 0]
-student_epochs_schedule:  [30, 15, 15, 15]
+student_epochs_schedule:  [1, 1, 1, 1] # [30, 15, 15, 15]
 teacher1_freeze_level: 1         # layer‑4 only
 teacher2_freeze_level: 1
 student_freeze_bn:     false
@@ -34,14 +34,14 @@ teacher2_freeze_bn:    true
 # ─── MBM / Adapter ───────────────────────────────────────────
 use_distillation_adapter: true
 distill_out_dim: 512        # Key 채널 수
-mbm_query_dim:   2048       # 학생 2‑D feature dim
-mbm_out_dim:     2048       # MBM 출력 / VIB 입력 dim
-mbm_n_head:      8          # (예시) 2048 ÷ 8 = 256 per head
+mbm_query_dim:   1024       # ← 2048에서 1024로 줄임
+mbm_out_dim:     1024       # ← 2048에서 1024로 줄임
+mbm_n_head:      8          # (예시) 1024 ÷ 8 = 128 per head
 use_ib:          true
-ib_beta:         0.01
+ib_beta:         0.001      # ← 0.01에서 0.001로 줄임
 ib_beta_warmup_epochs: 3
 
-# ─── KD 세부 옵션 (Ensemble + Disagree) ──────────────────────
+# ─── KD 세부 옵션 (Ensemble + Disagree) ──────────────────────
 kd_alpha:            0.1
 kd_ens_alpha:        0.7
 use_disagree_weight: true
@@ -49,7 +49,11 @@ disagree_mode:       both_wrong
 disagree_lambda_high: 1.5
 disagree_lambda_low:  1.0
 
-# ─── 데이터증강 / 기타 ───────────────────────────────────────
-batch_size: 64                  # VRAM 여유 확보
+# ─── CCCP (Concave-Convex Procedure) ─────────────────────────
+use_cccp:            true     # CCCP 사용 여부
+tau:                 4.0      # CCCP temperature
+
+# ─── 데이터증강 / 기타 ───────────────────────────────────────────
+batch_size: 64                  # VRAM 여유 확보
 cutmix_alpha_distill: 0.3
-grad_clip_norm: 5.0
+grad_clip_norm: 1.0             # ← 5.0에서 1.0으로 줄임

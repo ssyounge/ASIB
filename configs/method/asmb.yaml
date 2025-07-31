@@ -1,8 +1,0 @@
-# configs/method/asmb.yaml
-
-method:
-  name: asmb
-  ce_alpha: 0.3
-  kd_alpha: 0.0
-  kd_ens_alpha: 0.7
-  # IB (공통) ⇒ base.mbm 에서 설정

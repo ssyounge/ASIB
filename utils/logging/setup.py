@@ -17,9 +17,33 @@ try:
 except ImportError:
     _RICH_OK = False
 
-__all__ = ["setup_logging", "log_hparams", "get_logger", "setup_logger"]
+__all__ = ["setup_logging", "log_hparams", "get_logger", "setup_logger", "init_logger"]
 
 _LOGGERS = {}        # cache (exp-id → logger)
+
+
+def init_logger(level: str | int = "INFO"):
+    """Initialize basic logger with console output only.
+    
+    This is a safer alternative to logging.basicConfig that doesn't interfere
+    with file handlers that are added later.
+    """
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level)
+    
+    # 기존 핸들러 제거 (중복 방지)
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    
+    # 콘솔 핸들러만 추가
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(level)
+    formatter = logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+    console_handler.setFormatter(formatter)
+    root_logger.addHandler(console_handler)
 
 
 def _ensure_dir(path):
@@ -33,7 +57,14 @@ def setup_logging(cfg: dict):
 
     level_str = (cfg.get("log_level") or "INFO").upper()
     level = getattr(logging, level_str, logging.INFO)
-    log_file = os.path.join(cfg.get("results_dir", "."), cfg.get("log_filename", "train.log"))
+    
+    # 안전장치: results_dir이 "."이면 기본값으로 "logs" 사용
+    results_dir = cfg.get("results_dir", ".")
+    if results_dir == "." or results_dir == "":
+        results_dir = "logs"
+        print(f"[Warning] results_dir이 '.'으로 설정되어 있어서 'logs' 디렉토리로 변경합니다.")
+    
+    log_file = os.path.join(results_dir, cfg.get("log_filename", "train.log"))
     _ensure_dir(log_file)
 
     fh = logging.FileHandler(log_file, mode="a")
@@ -99,6 +130,11 @@ def get_logger(
     stream_level: str = "WARNING",
 ):
     """Return a logger that writes to file, console, and optionally W&B."""
+    # 안전장치: exp_dir이 "."이면 기본값으로 "logs" 사용
+    if exp_dir == "." or exp_dir == "":
+        exp_dir = "logs"
+        print(f"[Warning] exp_dir이 '.'으로 설정되어 있어서 'logs' 디렉토리로 변경합니다.")
+    
     gkey = os.path.abspath(os.path.join(exp_dir, log_file))
     if gkey in _LOGGERS:
         return _LOGGERS[gkey]
@@ -141,7 +177,13 @@ def get_logger(
 
 def setup_logger(cfg: dict):
     """Return a basic three-channel logger (train.log, run.log, console)."""
-    log_dir = Path(cfg.get("results_dir", "."))
+    # 안전장치: results_dir이 "."이면 기본값으로 "logs" 사용
+    results_dir = cfg.get("results_dir", ".")
+    if results_dir == "." or results_dir == "":
+        results_dir = "logs"
+        print(f"[Warning] results_dir이 '.'으로 설정되어 있어서 'logs' 디렉토리로 변경합니다.")
+    
+    log_dir = Path(results_dir)
     log_dir.mkdir(parents=True, exist_ok=True)
 
     fh_train = logging.FileHandler(log_dir / "train.log", mode="w")
