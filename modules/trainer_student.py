@@ -81,7 +81,20 @@ def student_distillation_update(
         p.requires_grad = False
     synergy_head.eval()
 
-    student_epochs = cfg.get("student_iters", cfg.get("student_epochs_per_stage", 15))
+    # ------------------------------------------------------------
+    # 학생 Epoch 결정 로직 – schedule 우선, 없으면 student_iters 만 사용
+    # ------------------------------------------------------------
+    if "student_epochs_schedule" in cfg:
+        cur_stage_idx = int(cfg.get("cur_stage", 1)) - 1   # 0-base
+        try:
+            student_epochs = int(cfg["student_epochs_schedule"][cur_stage_idx])
+        except (IndexError, ValueError, TypeError):
+            raise ValueError(
+                "[trainer_student] student_epochs_schedule가 "
+                f"stage {cur_stage_idx+1} 에 대해 정의돼 있지 않습니다."
+            )
+    else:
+        student_epochs = int(cfg.get("student_iters", 1))   # 최후 fallback
 
     # ──────────────────────────────────────────────────────────
     stage_meter = StageMeter(cfg.get("cur_stage", 1), logger, cfg, student_model)
