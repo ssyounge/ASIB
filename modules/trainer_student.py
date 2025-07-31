@@ -3,7 +3,8 @@
 import torch
 import copy
 import logging
-from utils.progress import smart_tqdm
+from utils.common import smart_tqdm, mixup_data, cutmix_data, mixup_criterion, get_amp_components
+from utils.training import get_tau, get_beta, StageMeter
 from models.mbm import IB_MBM
 
 from modules.loss_safe import ce_safe, kl_safe
@@ -11,9 +12,7 @@ from modules.losses import (
     ib_loss, certainty_weights, feat_mse_loss
 )
 from modules.disagreement import sample_weights_from_disagreement
-from utils.misc import mixup_data, cutmix_data, mixup_criterion, get_amp_components
-from utils.schedule import get_tau, get_beta
-from utils.metrics import StageMeter
+
 
 try:
     import wandb
@@ -228,6 +227,9 @@ def student_distillation_update(
                 + cfg.get("feat_kd_alpha", 0.0) * feat_kd_val
                 + ib_loss_val
             )
+            
+            # 추가 안전장치: loss가 너무 크면 clipping
+            loss = torch.clamp(loss, 0.0, 100.0)
 
             optimizer.zero_grad()
             if scaler is not None:

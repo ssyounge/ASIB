@@ -7,8 +7,8 @@ import logging
 from typing import Optional
 
 from modules.losses import kd_loss_fn, ce_loss_fn
-from utils.schedule import get_tau
-from utils.misc import get_amp_components
+from utils.training import get_tau
+from utils.common import get_amp_components
 
 class VanillaKDDistiller(nn.Module):
     """

@@ -2,7 +2,7 @@
 import time
 import torch
 
-from utils.params import count_trainable
+from utils.common import count_trainable_parameters
 
 
 class StageMeter:
@@ -38,7 +38,7 @@ class StageMeter:
         wall_min = (time.time() - self.t0) / 60.0
         gpu_h = wall_min / 60.0 * torch.cuda.device_count()
         gflops = self.macs / 1e9 * self.img_seen
-        param_M = count_trainable(self.student) / 1e6
+        param_M = count_trainable_parameters(self.student) / 1e6
 
         pfx = f"stage{self.stg}"
         self.logger.update_metric(f"{pfx}_acc", best_acc)

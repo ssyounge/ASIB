@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
-from utils.data_utils import ClassInfoMixin
+from utils.data import ClassInfoMixin
 
 class ImageNet32(ClassInfoMixin, Dataset):
     """

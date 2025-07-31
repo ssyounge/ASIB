@@ -3,7 +3,7 @@
 import torch.nn as nn
 import logging
 
-from utils.freeze import apply_bn_ln_policy, freeze_all, unfreeze_by_regex
+from utils.training import apply_bn_ln_policy, freeze_all, unfreeze_by_regex
 
 
 def apply_partial_freeze(model, level: int, freeze_bn: bool = False):

@@ -5,7 +5,7 @@
 # ─────────────────────────────────────────────────────────────
 defaults:
   - dataset: cifar100            # 32×32 입력 데이터셋
-  - method:  asmb                # 기본 KD 방법
+  - method:  asib                # 기본 KD 방법
   - schedule: cosine             # 기본 LR 스케줄
   - _self_
 
@@ -49,6 +49,10 @@ mbm_dropout:            0.0
 synergy_head_dropout:   0.0
 mbm_learnable_q:        false
 mbm_reg_lambda:         0.0
+
+# ───────── CCCP (Concave-Convex Procedure) ─────────
+use_cccp:               true     # CCCP 사용 여부 (teacher adaptive 단계 KL surrogate)
+tau:                    4.0      # CCCP temperature
 
 # ───────── Optim / Reg / AMP ─────────
 reg_lambda:       0.0

@@ -12,15 +12,13 @@ import torch.nn as nn
 import torch.optim as optim
 import hydra
 from omegaconf import DictConfig, OmegaConf
-from utils.logging_utils import init_logger
+from utils.logging import init_logger
+from utils.common import set_random_seed, check_label_range, smart_tqdm, get_amp_components
 
-from utils.misc import set_random_seed, check_label_range
 from data.cifar100 import get_cifar100_loaders
 from data.imagenet32 import get_imagenet32_loaders
 from main import create_student_by_name, apply_partial_freeze
 from modules.cutmix_finetune_teacher import eval_teacher
-from utils.progress import smart_tqdm
-from utils.misc import get_amp_components
 
 
 

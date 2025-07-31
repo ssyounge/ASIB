@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=asmb_exp_clean
-#SBATCH --partition=suma_a6000
+#SBATCH --partition=dell_rtx3090
 #SBATCH --qos=base_qos
 #SBATCH --gres=gpu:2
 #SBATCH --cpus-per-task=4

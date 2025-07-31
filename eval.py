@@ -10,13 +10,13 @@ import torch.nn as nn
 import hydra
 from omegaconf import DictConfig, OmegaConf
 import logging
-from utils.logging_utils import init_logger
+from utils.logging import init_logger, ExperimentLogger
+from utils.common import set_random_seed, get_amp_components
 
 from data.cifar100 import get_cifar100_loaders
 from data.imagenet32 import get_imagenet32_loaders
 from models.mbm import build_from_teachers
-from utils.logger import ExperimentLogger
-from utils.misc import set_random_seed, get_amp_components
+
 from main import create_student_by_name, build_model
 
 # Teacher Factory
