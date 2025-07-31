@@ -875,14 +875,17 @@ def main(cfg: DictConfig):
             teacher_epochs = cfg.get(
                 "teacher_iters", cfg.get("teacher_adapt_epochs", 5)
             )
-            # (NEW) stage‑별 epoch 배열이 있으면 사용, 아니면 기본값
+            # (NEW) Stage‑별 epoch 배열만 사용, 없으면 student_iters.
             if "student_epochs_schedule" in cfg:
-                student_epochs = int(cfg["student_epochs_schedule"][stage_id-1])
+                try:
+                    student_epochs = int(cfg["student_epochs_schedule"][stage_id-1])
+                except (IndexError, ValueError, TypeError):
+                    raise ValueError(
+                        f"[main] student_epochs_schedule 가 stage {stage_id} "
+                        "항목을 포함하지 않습니다."
+                    )
             else:
-                student_epochs = cfg.get(
-                    "student_iters",
-                    cfg.get("student_epochs_per_stage", 15),
-                )
+                student_epochs = int(cfg.get("student_iters", 1))
 
             # (A) Teacher adaptive update
             teacher_adaptive_update(
