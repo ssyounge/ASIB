@@ -71,18 +71,23 @@ def main(cfg: DictConfig):
         os.environ.setdefault("WANDB_API_KEY", str(cfg["wandb_api_key"]))
 
     # ────────────────── LOGGING & W&B ──────────────────
+    # results_dir이 제대로 설정되어 있는지 확인
     exp_dir = cfg.get("results_dir", ".")
-    lvl = cfg.get("log_level") or "INFO"
+    if exp_dir == "." and "experiment" in cfg:
+        # experiment 섹션에서 results_dir 확인
+        exp_dir = cfg["experiment"].get("results_dir", ".")
+    
+    lvl = cfg.get("log_level") or "WARNING"  # INFO → WARNING으로 변경
     logger = get_logger(
         exp_dir,
         level=lvl,
-        stream_level="INFO" if lvl.upper() == "DEBUG" else lvl,
+        stream_level="WARNING" if lvl.upper() == "DEBUG" else lvl,  # INFO → WARNING으로 변경
     )
 
     global _HP_LOGGED
     if not _HP_LOGGED:
         safe_cfg = {k: v for k, v in cfg.items() if not isinstance(v, logging.Logger)}
-        logger.info("HParams:\n%s", json.dumps(safe_cfg, indent=2))
+        logger.warning("HParams:\n%s", json.dumps(safe_cfg, indent=2))  # info → warning으로 변경
         if wandb is not None and wandb.run:
             wandb.config.update(cfg, allow_val_change=False)
         _HP_LOGGED = True
@@ -189,27 +194,29 @@ def main(cfg: DictConfig):
         small_input = dataset == "cifar100"
 
     # Teacher models
+    # Check if config is nested under 'experiment'
+    if 'experiment' in cfg:
+        cfg = cfg['experiment']
+    
+    # ────────────────── TEACHER MODELS ──────────────────
     teacher1_name = (
         cfg.get("teacher1", {})
         .get("model", {})
         .get("teacher", {})
         .get("name")
     )
-    teacher2_name = (
-        cfg.get("teacher2", {})
-        .get("model", {})
-        .get("teacher", {})
-        .get("name")
-    )
-    if not teacher1_name or not teacher2_name:
+    if not teacher1_name:
         raise ValueError(
-            "YAML 에 'model.teacher.name' 가 빠졌습니다 "
-            "(teacher1 / teacher2 모두 지정해야 함)."
+            "YAML 에 'teacher1.model.teacher.name' 가 없습니다 (teacher1 모델 미지정)."
         )
-
     teacher1_ckpt_path = cfg.get(
         "teacher1_ckpt", f"./checkpoints/{teacher1_name}_ft.pth"
     )
+    
+    # 모델 생성 시 INFO 메시지 억제
+    original_level = logging.getLogger().level
+    logging.getLogger().setLevel(logging.WARNING)
+    
     teacher1 = create_teacher_by_name(
         teacher_name=teacher1_name,
         num_classes=num_classes,
@@ -217,6 +224,10 @@ def main(cfg: DictConfig):
         small_input=small_input,
         cfg=cfg,
     ).to(device)
+    
+    # 로깅 레벨 복원
+    logging.getLogger().setLevel(original_level)
+    
     model_classes = get_model_num_classes(teacher1)
     if model_classes != num_classes:
         raise ValueError(
@@ -229,10 +240,42 @@ def main(cfg: DictConfig):
             strict=False,
         )
         logging.info("Loaded teacher1 from %s", teacher1_ckpt_path)
+        
+        # Teacher1 test accuracy
+        teacher1.eval()
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for data, target in test_loader:
+                data, target = data.to(device), target.to(device)
+                output = teacher1(data)
+                # tuple인 경우 처리
+                if isinstance(output, tuple):
+                    output = output[1]  # logits는 보통 두 번째 요소
+                pred = output.argmax(dim=1, keepdim=True)
+                correct += pred.eq(target.view_as(pred)).sum().item()
+                total += target.size(0)
+        teacher1_acc = 100.0 * correct / total
+        logging.info("Teacher1 (%s) testAcc=%.2f%%", teacher1_name, teacher1_acc)
 
+    teacher2_name = (
+        cfg.get("teacher2", {})
+        .get("model", {})
+        .get("teacher", {})
+        .get("name")
+    )
+    if not teacher2_name:
+        raise ValueError(
+            "YAML 에 'teacher2.model.teacher.name' 가 없습니다 (teacher2 모델 미지정)."
+        )
     teacher2_ckpt_path = cfg.get(
         "teacher2_ckpt", f"./checkpoints/{teacher2_name}_ft.pth"
     )
+    
+    # 모델 생성 시 INFO 메시지 억제
+    original_level = logging.getLogger().level
+    logging.getLogger().setLevel(logging.WARNING)
+    
     teacher2 = create_teacher_by_name(
         teacher_name=teacher2_name,
         num_classes=num_classes,
@@ -240,6 +283,10 @@ def main(cfg: DictConfig):
         small_input=small_input,
         cfg=cfg,
     ).to(device)
+    
+    # 로깅 레벨 복원
+    logging.getLogger().setLevel(original_level)
+    
     model_classes = get_model_num_classes(teacher2)
     if model_classes != num_classes:
         raise ValueError(
@@ -252,6 +299,23 @@ def main(cfg: DictConfig):
             strict=False,
         )
         logging.info("Loaded teacher2 from %s", teacher2_ckpt_path)
+        
+        # Teacher2 test accuracy
+        teacher2.eval()
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for data, target in test_loader:
+                data, target = data.to(device), target.to(device)
+                output = teacher2(data)
+                # tuple인 경우 처리
+                if isinstance(output, tuple):
+                    output = output[1]  # logits는 보통 두 번째 요소
+                pred = output.argmax(dim=1, keepdim=True)
+                correct += pred.eq(target.view_as(pred)).sum().item()
+                total += target.size(0)
+        teacher2_acc = 100.0 * correct / total
+        logging.info("Teacher2 (%s) testAcc=%.2f%%", teacher2_name, teacher2_acc)
 
     # Student model
     student_name = (
@@ -265,6 +329,11 @@ def main(cfg: DictConfig):
         raise ValueError(
             "YAML 에 'model.student.name' 가 없습니다 (student 모델 미지정)."
         )
+    
+    # 모델 생성 시 INFO 메시지 억제
+    original_level = logging.getLogger().level
+    logging.getLogger().setLevel(logging.WARNING)
+    
     student_model = create_student_by_name(
         student_name,
         pretrained=cfg.get("student_pretrained", True),
@@ -272,12 +341,19 @@ def main(cfg: DictConfig):
         num_classes=num_classes,
         cfg=cfg,
     ).to(device)
+    
+    # 로깅 레벨 복원
+    logging.getLogger().setLevel(original_level)
 
     # ────────────────── MBM & SYNERGY HEAD ──────────────────
     from models.mbm import build_from_teachers
     mbm, synergy_head = build_from_teachers(
-        teacher1, teacher2, cfg, device=device
+        [teacher1, teacher2], cfg
     )
+    
+    # Move MBM and synergy head to device
+    mbm = mbm.to(device)
+    synergy_head = synergy_head.to(device)
 
     # ────────────────── CONFIG SETUP ──────────────────
     num_stages = int(cfg.get("num_stages", 2))

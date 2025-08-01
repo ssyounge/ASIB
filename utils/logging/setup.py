@@ -1,12 +1,10 @@
 # utils/logging_setup.py
 """공통 로깅/모니터링 초기화."""
 
-import json
 import logging
 import os
-import pprint
 import sys
-from pathlib import Path
+from typing import Union, Optional, Dict, Any
 
 import wandb
 
@@ -22,7 +20,7 @@ __all__ = ["setup_logging", "log_hparams", "get_logger", "setup_logger", "init_l
 _LOGGERS = {}        # cache (exp-id → logger)
 
 
-def init_logger(level: str | int = "INFO"):
+def init_logger(level: Union[str, int] = "INFO"):
     """Initialize basic logger with console output only.
     
     This is a safer alternative to logging.basicConfig that doesn't interfere
@@ -46,68 +44,54 @@ def init_logger(level: str | int = "INFO"):
     root_logger.addHandler(console_handler)
 
 
-def _ensure_dir(path):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-
-
-def setup_logging(cfg: dict):
-    # ── 중복 로그 핸들러 방지 ─────────────────────────────
-    for h in logging.root.handlers[:]:
-        logging.root.removeHandler(h)
-
-    level_str = (cfg.get("log_level") or "INFO").upper()
-    level = getattr(logging, level_str, logging.INFO)
-    
-    # 안전장치: results_dir이 "."이면 기본값으로 "logs" 사용
+def setup_logging(cfg: Dict[str, Any]) -> logging.Logger:
+    """Setup logging for the experiment."""
     results_dir = cfg.get("results_dir", ".")
-    if results_dir == "." or results_dir == "":
+    
+    # results_dir이 실제로 "." 또는 ""인 경우에만 경고 출력
+    if results_dir == "." or results_dir == "" or results_dir is None:
         results_dir = "logs"
-        print(f"[Warning] results_dir이 '.'으로 설정되어 있어서 'logs' 디렉토리로 변경합니다.")
+        print(f"[Warning] results_dir이 '{cfg.get('results_dir', '.')}'으로 설정되어 있어서 'logs' 디렉토리로 변경합니다.")
     
     log_file = os.path.join(results_dir, cfg.get("log_filename", "train.log"))
-    _ensure_dir(log_file)
-
-    fh = logging.FileHandler(log_file, mode="a")
-    ch = logging.StreamHandler(sys.stdout)
-
+    
+    # Create directory if it doesn't exist
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+    
+    # Setup logger
     logger = logging.getLogger()
-    logger.setLevel(level)
+    logger.setLevel(logging.INFO)
+    
+    # Remove existing handlers
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+    
+    # File handler
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setLevel(logging.INFO)
+    file_formatter = logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+    file_handler.setFormatter(file_formatter)
+    logger.addHandler(file_handler)
+    
+    # Console handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.INFO)
+    console_formatter = logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+    console_handler.setFormatter(console_formatter)
+    logger.addHandler(console_handler)
+    
+    return logger
 
-    # ── 중복 추가 방지 ────────────────────────────────
-    if not any(isinstance(h, logging.FileHandler) and getattr(h, "baseFilename", None) == log_file for h in logger.handlers):
-        logger.addHandler(fh)
 
-    if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
-        logger.addHandler(ch)
-
-    # 다른 서브‑logger 로 메시지가 두 번 올라오지 않도록
-    logger.propagate = False
-
-    logging.getLogger("urllib3").setLevel(logging.WARNING)
-    logging.info("[logging_setup] log_file => %s   (level=%s)", log_file, logging.getLevelName(level))
-    return log_file
-
-
-def _to_plain_dict(cfg):
-    if hasattr(cfg, "__dict__"):
-        return vars(cfg)
-    return dict(cfg)
-
-
-def log_hparams(cfg):
-    cfg = _to_plain_dict(cfg)
-    if not cfg.get("log_all_hparams", True):
-        return
-    # 1) pretty-print to log
-    if _RICH_OK and sys.stdout.isatty():
-        table = Table(title="All Hyper-parameters", show_lines=False)
-        table.add_column("Key", style="cyan", no_wrap=True)
-        table.add_column("Value", style="magenta")
-        for k in sorted(cfg.keys()):
-            table.add_row(k, pprint.pformat(cfg[k], compact=True))
-        Console().print(table)
-    else:
-        logging.info("HParams:\n%s", json.dumps(cfg, indent=2, default=str))
+def log_hparams(logger: logging.Logger, cfg: Dict[str, Any]) -> None:
+    """Log hyperparameters."""
+    logger.info("HParams:\n%s", cfg)
 
     # 2) 별도 JSON 사본
     dst = os.path.join(cfg.get("results_dir", "."), "hparams_full.json")
@@ -125,85 +109,57 @@ def _wandb_log(text: str):
 
 def get_logger(
     exp_dir: str,
-    log_file: str = "train.log",
-    level: str = "INFO",
-    stream_level: str = "WARNING",
-):
-    """Return a logger that writes to file, console, and optionally W&B."""
-    # 안전장치: exp_dir이 "."이면 기본값으로 "logs" 사용
-    if exp_dir == "." or exp_dir == "":
-        exp_dir = "logs"
-        print(f"[Warning] exp_dir이 '.'으로 설정되어 있어서 'logs' 디렉토리로 변경합니다.")
+    level: Union[str, int] = "INFO",
+    stream_level: Union[str, int] = "INFO"
+) -> logging.Logger:
+    """Get or create a logger for the experiment."""
+    results_dir = exp_dir
     
-    gkey = os.path.abspath(os.path.join(exp_dir, log_file))
-    if gkey in _LOGGERS:
-        return _LOGGERS[gkey]
-
-    os.makedirs(exp_dir, exist_ok=True)
-    logger = logging.getLogger(gkey)
-    logger.setLevel(logging.DEBUG)
-
-    f_hdl = logging.FileHandler(gkey, mode="a", encoding="utf-8")
-    f_fmt = logging.Formatter(
-        "%(asctime)s | %(levelname)s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-    f_hdl.setFormatter(f_fmt)
-    f_level = getattr(logging, (level or "INFO").upper())
-    f_hdl.setLevel(f_level)
-    logger.addHandler(f_hdl)
-
-    s_hdl = logging.StreamHandler(sys.stdout)
-    s_fmt = logging.Formatter("%(levelname)s | %(message)s")
-    s_hdl.setFormatter(s_fmt)
-    s_level = getattr(logging, (stream_level or "WARNING").upper())
-    s_hdl.setLevel(s_level)
-    logger.addHandler(s_hdl)
-
-    class _WBHandler(logging.Handler):
-        def emit(self, record):
-            _wandb_log(self.format(record))
-
-    if wandb.run is not None:
-        wb_hdl = _WBHandler()
-        wb_hdl.setFormatter(f_fmt)
-        wb_hdl.setLevel(f_level)
-        logger.addHandler(wb_hdl)
-
-    _LOGGERS[gkey] = logger
-    logger.propagate = False
-    return logger
-
-
-def setup_logger(cfg: dict):
-    """Return a basic three-channel logger (train.log, run.log, console)."""
-    # 안전장치: results_dir이 "."이면 기본값으로 "logs" 사용
-    results_dir = cfg.get("results_dir", ".")
-    if results_dir == "." or results_dir == "":
+    # results_dir이 실제로 "." 또는 ""인 경우에만 경고 출력
+    if results_dir == "." or results_dir == "" or results_dir is None:
         results_dir = "logs"
-        print(f"[Warning] results_dir이 '.'으로 설정되어 있어서 'logs' 디렉토리로 변경합니다.")
+        print(f"[Warning] results_dir이 '{exp_dir}'으로 설정되어 있어서 'logs' 디렉토리로 변경합니다.")
     
-    log_dir = Path(results_dir)
-    log_dir.mkdir(parents=True, exist_ok=True)
-
-    fh_train = logging.FileHandler(log_dir / "train.log", mode="w")
-    fh_train.setLevel(logging.DEBUG)
-
-    fh_run = logging.FileHandler(log_dir / "run.log", mode="w")
-    fh_run.setLevel(logging.INFO)
-
-    ch = logging.StreamHandler(sys.stdout)
-    ch.setLevel(logging.INFO if cfg.get("disable_tqdm", False) else logging.WARNING)
-
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format="%(asctime)s │ %(levelname)-5s │ %(message)s",
-        handlers=[fh_train, fh_run, ch],
-        force=True,        # 중복 logger 초기화 방지
+    log_file = os.path.join(results_dir, "train.log")
+    
+    # Create directory if it doesn't exist
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+    
+    # Setup logger
+    logger = logging.getLogger()
+    logger.setLevel(getattr(logging, level.upper()))
+    
+    # Remove existing handlers
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+    
+    # File handler
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setLevel(getattr(logging, level.upper()))
+    file_formatter = logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
     )
-    logger = logging.getLogger("KD")
-
-    if cfg.get("log_all_hparams", False):
-        logger.info("HParams:")
-        logger.info(json.dumps(cfg, indent=2, default=str))
+    file_handler.setFormatter(file_formatter)
+    logger.addHandler(file_handler)
+    
+    # Console handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(getattr(logging, stream_level.upper()))
+    console_formatter = logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+    console_handler.setFormatter(console_formatter)
+    logger.addHandler(console_handler)
+    
     return logger
+
+
+def setup_logger(
+    exp_dir: str,
+    level: Union[str, int] = "INFO",
+    stream_level: Union[str, int] = "INFO"
+) -> logging.Logger:
+    """Setup logger for the experiment."""
+    return get_logger(exp_dir, level, stream_level)

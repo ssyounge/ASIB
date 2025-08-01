@@ -3,7 +3,15 @@
 from .config import load_config, save_config
 from .params import count_trainable_parameters
 from .progress import smart_tqdm
-from .misc import set_random_seed, check_label_range, get_model_num_classes, get_amp_components
+from .misc import (
+    set_random_seed, 
+    check_label_range, 
+    get_model_num_classes, 
+    get_amp_components,
+    mixup_data,
+    cutmix_data,
+    mixup_criterion
+)
 
 __all__ = [
     "load_config",
@@ -13,5 +21,8 @@ __all__ = [
     "set_random_seed",
     "check_label_range", 
     "get_model_num_classes",
-    "get_amp_components"
+    "get_amp_components",
+    "mixup_data",
+    "cutmix_data",
+    "mixup_criterion"
 ] 

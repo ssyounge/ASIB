@@ -101,6 +101,22 @@ class ExperimentLogger:
         """
         self.config[key] = value
 
+    def get_metric(self, key, default=None):
+        """
+        Get a metric value from self.config.
+        
+        :param key: metric key
+        :param default: default value if key doesn't exist
+        :return: metric value or default
+        """
+        return self.config.get(key, default)
+
+    def save_results(self):
+        """
+        Alias for finalize() method for backward compatibility.
+        """
+        self.finalize()
+
     # ------------------------------------------------------------------
     # 표준 logging.Logger 인터페이스와 동일한 시그니처를 제공하여
     # logger.info("… %d", val) 형태의 가변 인자 호출을 허용한다.

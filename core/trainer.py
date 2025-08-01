@@ -11,6 +11,7 @@ from modules.trainer_teacher import teacher_adaptive_update
 from modules.trainer_student import student_distillation_update
 from modules.disagreement import compute_disagreement_rate
 from utils.logging import ExperimentLogger
+from utils.training.metrics import ExperimentMeter
 
 
 def create_optimizers_and_schedulers(
@@ -126,6 +127,9 @@ def run_training_stages(
 ) -> float:
     """Run the main training stages."""
     
+    # Create experiment meter for total metrics (전체 실험 시작 시간 기록)
+    exp_meter = ExperimentMeter(exp_logger, cfg, student_model)
+    
     # Create optimizers and schedulers
     (
         teacher_optimizer,
@@ -139,7 +143,7 @@ def run_training_stages(
     # Training loop
     global_ep = 0
     for stage in range(1, num_stages + 1):
-        logging.info(f"\n=== Stage {stage}/{num_stages} ===")
+        logging.info(f"=== Stage {stage}/{num_stages} ===")
         
         # Teacher adaptive update
         if cfg.get("use_partial_freeze", False):
@@ -188,6 +192,18 @@ def run_training_stages(
         exp_logger.update_metric(f"stage{stage}_student_acc", student_acc)
         if cfg.get("use_partial_freeze", False):
             exp_logger.update_metric(f"stage{stage}_teacher_acc", te1_acc)
+        
+        # Get stage metrics from exp_logger (if available)
+        # For now, we'll use placeholder values and collect from logs later
+        stage_wall_min = exp_logger.get_metric(f"stage{stage}_wall_min", 0.0)
+        stage_gpu_h = exp_logger.get_metric(f"stage{stage}_gpu_h", 0.0)
+        stage_gflops = exp_logger.get_metric(f"stage{stage}_gflops", 0.0)
+        
+        # Add stage metrics to experiment meter
+        exp_meter.add_stage_metrics(stage_wall_min, stage_gpu_h, stage_gflops, student_acc)
+    
+    # Log total experiment summary
+    exp_meter.finish_experiment()
     
     return student_acc
 
@@ -226,8 +242,8 @@ def run_continual_learning(
     device = cfg["device"]
 
     global_ep = 0
-    for task_id, (tl, vl) in enumerate(task_loaders):
-        logging.info("\n=== Task %d/%d ===", task_id + 1, num_tasks)
+    for task_id in range(num_tasks):
+        logging.info("=== Task %d/%d ===", task_id + 1, num_tasks)
         student_model.train()
         epochs = cfg.get("epochs", 1)
         for ep in range(epochs):

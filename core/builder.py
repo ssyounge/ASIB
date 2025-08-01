@@ -19,9 +19,20 @@ def build_model(name: str, **kwargs: Any) -> nn.Module:
     # 요청 key 가 아직 없으면 그때 가서 import-scan
     if name not in MODEL_REGISTRY:
         _reg.ensure_scanned()
+    
+    # timm의 INFO 메시지 억제
+    import logging
+    original_level = logging.getLogger().level
+    logging.getLogger().setLevel(logging.WARNING)
+    
     try:
-        return MODEL_REGISTRY[name](**kwargs)
+        model = MODEL_REGISTRY[name](**kwargs)
+        # 로깅 레벨 복원
+        logging.getLogger().setLevel(original_level)
+        return model
     except KeyError as exc:
+        # 로깅 레벨 복원
+        logging.getLogger().setLevel(original_level)
         known = ", ".join(sorted(MODEL_REGISTRY.keys()))
         raise ValueError(
             f"[build_model] Unknown model key '{name}'. "
