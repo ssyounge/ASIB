@@ -1,6 +1,6 @@
 # ──────────────────────────────────────────────────────────────
 #  configs/experiment/_template.yaml
-#  “< >” 부분만 채우고 파일명을 바꾸면 새 실험이 완성됩니다!
+#  "< >" 부분만 채우고 파일명을 바꾸면 새 실험이 완성됩니다!
 # ──────────────────────────────────────────────────────────────
 defaults:
   - /base                        # [필수] 공통 설정
@@ -15,11 +15,12 @@ defaults:
   # ── Student ────────────────────────────────────────────────
   - /model/student:          <STUDENT_YAML>    # ex) resnet152_pretrain
 
-  # (선택) KD 방법 & LR 스케줄 교체
+  # (선택) KD 방법 & LR 스케줄 교체
   # - /method: dkd
   # - /schedule: step
 
   - _self_                    # [필수] 항상 마지막
+
 # ==================== 필수 하이퍼파라미터 =====================
 
 # --- 경로 & 식별자 ------------------------------------------
@@ -41,7 +42,8 @@ student_weight_decay: 8e-4
 # --- Freeze / Stage 스케줄 ---------------------------------
 use_partial_freeze: true
 num_stages: 4
-student_freeze_schedule:  [-1, 2, 1, 0]   # stage 0 ~ 3
+teacher_adapt_epochs: 1            # stage 당 teacher update 횟수
+student_freeze_schedule:  [-1, 2, 1, 0]   # stage 0 ~ 3
 student_epochs_schedule:  [30, 15, 15, 15]
 teacher1_freeze_level: 1
 teacher2_freeze_level: 1
@@ -49,8 +51,29 @@ student_freeze_bn:     false
 teacher1_freeze_bn:    true
 teacher2_freeze_bn:    true
 
-# --- (선택) ASMB / IB‑MBM 옵션 ------------------------------
-batch_size: 128
+# --- MBM / Adapter -----------------------------------------
 use_distillation_adapter: true
 distill_out_dim: 512
-mbm_query_dim: 5504          # ex) resnet152 feat_2d dim
+mbm_query_dim:   <fill>            # student feat_2d 크기에 맞춤
+mbm_out_dim:     1024              # MBM 출력 차원
+mbm_n_head:      8                 # attention head 수
+use_ib:          true              # Information Bottleneck 사용
+ib_beta:         0.001             # IB regularization strength
+ib_beta_warmup_epochs: 3
+
+# --- KD 세부 옵션 (Ensemble + Disagree) --------------------
+kd_alpha:            0.1
+kd_ens_alpha:        0.7
+use_disagree_weight: true
+disagree_mode:       both_wrong
+disagree_lambda_high: 1.5
+disagree_lambda_low:  1.0
+
+# --- CCCP (Concave-Convex Procedure) -----------------------
+use_cccp:            true          # CCCP 사용 여부
+tau:                 4.0           # CCCP temperature
+
+# --- 데이터증강 / 기타 --------------------------------------
+batch_size: 128
+cutmix_alpha_distill: 0.3
+grad_clip_norm: 1.0                # gradient clipping norm

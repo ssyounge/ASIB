@@ -23,13 +23,19 @@ pip install -r requirements.txt
 
 ```bash
 # Run default experiment
-python main.py
+sbatch run/run.sh
 
 # Run with custom config
-python main.py --config-name experiment/res152_convnext_effi
+python main.py experiment=res152_convnext_effi
 
-# Run continual learning
-python main.py cl_mode=true
+# Run sensitivity analysis
+sbatch run/run_sensitivity.sh
+
+# Run overlap analysis
+sbatch run/run_overlap.sh
+
+# Run teacher fine-tuning
+sbatch run/run_finetune_clean.sh
 ```
 
 ## 📁 Project Structure
@@ -55,7 +61,11 @@ ASIB-KD/
 ├── modules/             # Training modules
 ├── methods/            # Distillation methods
 ├── models/             # Model definitions
-└── scripts/            # Helper scripts
+├── scripts/            # Utility scripts (organized)
+│   ├── analysis/       # Analysis scripts
+│   ├── training/       # Training scripts
+│   └── setup/          # Setup scripts
+└── run/                # SLURM execution scripts
 ```
 
 ## 🔧 Key Features

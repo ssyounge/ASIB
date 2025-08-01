@@ -1,8 +1,0 @@
-# configs/experiment/kd_overlap/res152_asib_overlap.yaml
-defaults:
-  - kd_overlap/_base_overlap
-  - _self_
-
-kd_mode:         synergy
-kd_alpha:        0.1    # CE
-kd_ens_alpha:    0.7    # Synergy loss

@@ -59,6 +59,7 @@ reg_lambda:       0.0
 grad_clip_norm:   0.0
 adam_beta1:       0.9
 adam_beta2:       0.999
+disable_flops:    true     # FLOPs 계산 비활성화 (TorchDynamo 문제 방지)
 
 # ───────── Student 스케줄 디폴트 ─────────
 student_epochs_per_stage: 15

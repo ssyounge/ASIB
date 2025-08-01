@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=asmb_exp_clean
-#SBATCH --partition=dell_rtx3090
+#SBATCH --partition=suma_a6000
 #SBATCH --qos=base_qos
 #SBATCH --gres=gpu:2
 #SBATCH --cpus-per-task=4
@@ -17,4 +17,4 @@ export PYTHONPATH="$(pwd):$PYTHONPATH"
 : "${SLURM_JOB_ID:=manual}"
 mkdir -p "outputs/asmb_${SLURM_JOB_ID}"
 
-python main.py --config-name experiment/res152_effi_l2
+python main.py --config-name experiment/res152_convnext_effi
