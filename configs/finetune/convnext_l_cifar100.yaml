@@ -1,0 +1,45 @@
+# configs/finetune/convnext_l_cifar100.yaml
+# ConvNeXt‑L 파인튜닝 (CIFAR‑100, 32×32 입력)
+# @package _global_
+
+defaults:
+  - /dataset: cifar100
+  - _self_
+
+teacher_type:  convnext_l_teacher
+small_input:   true
+teacher_pretrained:  true
+teacher_ckpt_init:   null                 # 이어서 학습할 ckpt 경로가 있으면 지정
+
+# ─── 옵티마이저 & 학습 하이퍼파라미터 ──────────────────────────
+finetune_epochs: 60        # 큰 모델이므로 충분한 학습 시간
+finetune_lr: 8e-5         # 큰 모델이므로 더 낮은 학습률
+finetune_weight_decay: 8e-3  # 큰 모델이므로 강한 정규화
+warmup_epochs: 5          # 큰 모델이므로 충분한 warmup
+min_lr: 1e-6
+batch_size: 64            # ConvNeXt-L은 메모리 제약으로 작은 배치
+label_smoothing: 0.5      # 큰 모델이므로 강한 label smoothing
+finetune_use_cutmix: true
+finetune_cutmix_alpha: 1.0
+
+# ─── 고급 스케줄링 설정 ──────────────────────────────────────
+scheduler_type: onecycle  # 가장 효과적인 스케줄링
+early_stopping_patience: 15    # 큰 모델이므로 더 긴 patience
+early_stopping_min_delta: 0.05  # 더 작은 개선도 허용
+
+# ─── 출력 경로 ────────────────────────────────────────────────
+results_dir:        experiments/outputs/finetune/convnext_l_cifar100_ft
+exp_id:             convnext_l_cifar100
+# ─── 공통 옵션 (AMP 등) ───────────────────────────────────────
+use_amp:    true
+device:     cuda
+seed:       42
+log_level:  INFO
+deterministic: true
+
+# 추후 save 할 체크포인트 경로
+finetune_ckpt_path: experiments/checkpoints/convnext_l_cifar100.pth
+
+# Hydra 의 편의를 위해 명시(로더에서 사용)
+dataset_name: cifar100
+data_root:    ./data 

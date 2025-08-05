@@ -1,0 +1,49 @@
+# configs/finetune/efficientnet_l2_imagenet32.yaml
+# EfficientNet-L2 파인튜닝 (ImageNet‑32, 32×32 입력, 1000 클래스) - 성능 개선 버전
+# @package _global_
+
+defaults:
+  - /dataset: imagenet32
+  - _self_
+
+teacher_type: efficientnet_l2_teacher
+small_input: true
+teacher_pretrained: true
+teacher_ckpt_init: null
+teacher_use_checkpointing: true
+
+# ─── 성능 개선을 위한 하이퍼파라미터 ──────────────────────────
+finetune_epochs: 100        # 더 긴 학습 시간
+finetune_lr: 5e-5          # 더 낮은 학습률 (안정성)
+finetune_weight_decay: 8e-3  # 더 강한 정규화
+finetune_use_cutmix: true
+finetune_cutmix_alpha: 1.0
+label_smoothing: 0.7       # 더 강한 label smoothing
+
+warmup_epochs: 10          # 더 긴 warmup
+min_lr: 5e-7
+
+# ─── 고급 스케줄링 설정 ──────────────────────────────────────
+scheduler_type: multistep  # 1000 클래스에 적합한 단계적 감소
+lr_milestones: [40, 70, 90]  # 40, 70, 90 에포크에서 LR 감소
+lr_gamma: 0.3             # LR을 0.3배씩 감소
+early_stopping_patience: 15    # 더 긴 patience
+early_stopping_min_delta: 0.05  # 더 작은 개선도 요구
+
+seed: 42
+device: cuda
+log_level: INFO
+deterministic: true
+
+# ─── 출력 경로 ────────────────────────────────────────────────
+results_dir:        experiments/outputs/finetune/efficientnet_l2_imagenet32_ft_improved
+exp_id:             efficientnet_l2_imagenet32_improved
+
+# 추후 save 할 체크포인트 경로
+finetune_ckpt_path: experiments/checkpoints/efficientnet_l2_imagenet32_improved.pth
+
+# Hydra 의 편의를 위해 명시(로더에서 사용)
+dataset_name: imagenet32
+data_root: ./data
+batch_size: 32 # A6000 GPU에서 EfficientNet-L2용
+use_amp: true 

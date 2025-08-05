@@ -31,10 +31,8 @@ env/
 .venv/
 .ENV/
 .env/
-.venv/
 
 # PyInstaller
-# Usually these files are written by a python script from a template
 *.manifest
 *.spec
 
@@ -61,57 +59,68 @@ coverage.xml
 # pyenv
 .python-version
 
-# mypy
+# Type checkers
 .mypy_cache/
 .dmypy.json
 dmypy.json
-
-# Pyre type checker
 .pyre/
-
-# pytype
 .pytype/
 
 # Cython debug symbols
 cython_debug/
 
-# VSCode
+# IDEs
 .vscode/
+.idea/
 
-# Mac OS
+# OS
 .DS_Store
 
-# Logs
-# --- 수정된 부분 ---
-# 이제 .log 파일과 .err 파일 모두 git에서 무시됩니다.
+# Logs and errors
 *.log
 *.err
-# ------------------
 
-# dotenv
+# Environment variables
 *.env
 
 # Poetry
 poetry.lock
 __pypackages__/
 
-# Pycharm
-.idea/
-
-# --- 사용자 지정 예외 (중요한 파일은 추적되도록) ---
-# 아래 항목들은 이미 있지만, 명확성을 위해 다시 확인합니다.
-# .pth, .tar.gz와 같은 모델 체크포인트나 데이터셋은 추적하지 않습니다.
+# Model checkpoints and datasets
 *.pth
-wandb/
-__pycache__/
-*.log
-.pytest_cache/
 *.tar.gz
+*.zip
+*.npz
+*.pkl
+*.pickle
+
+# Data directories
 data/cifar-100-python/
+data/imagenet32/
+data/tiny-imagenet-200/
+wandb/
+runs/
+tensorboard_logs/
 
-# hparams.yaml은 실험 재현을 위해 git으로 관리하는 것이 좋습니다.
-# 만약 개인적인 설정값이라 숨기고 싶다면 #을 지워주세요.
-# configs/hparams.yaml
+# Experiment outputs
+outputs/
+experiments/outputs/
+experiments/checkpoints/
 
-*.yaml
-*.yml
+# Configuration files (설정 파일들은 추적)
+# *.yaml
+# *.yml
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Large files
+*.h5
+*.hdf5
+*.mat
+*.bin

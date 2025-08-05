@@ -1,0 +1,63 @@
+# configs/experiment/overlap_100.yaml
+# Phase 3: 100% Overlap (완전 중복)
+# T1과 T2 모두 0-99 클래스 전체를 학습
+
+defaults:
+  - /base
+  - /model/teacher@teacher1: resnet152_teacher
+  - /model/teacher@teacher2: resnet152_teacher
+  - /model/student: resnet50_scratch_student
+  - _self_
+
+# ─── 경로 & 식별자 ────────────────────────────────────────────
+teacher1_ckpt: checkpoints/resnet152_cifar32.pth
+teacher2_ckpt: checkpoints/resnet152_cifar32.pth  # 동일한 모델
+results_dir: outputs/overlap/overlap_100
+exp_id: overlap_100
+
+# ─── 모델 & Optim ────────────────────────────────────────────
+teacher_lr: 5.0e-5
+teacher_weight_decay: 1.0e-4
+student_lr: 2.0e-4
+student_weight_decay: 3.0e-4
+
+# ─── Partial‑Freeze Stage 스케줄 ──────────────────────────────
+use_partial_freeze: true
+num_stages: 4
+teacher_adapt_epochs: 1
+student_freeze_schedule: [-1, 2, 1, 0]
+student_epochs_schedule: [50, 50, 50, 50]
+teacher1_freeze_level: 1
+teacher2_freeze_level: 1
+student_freeze_bn: false
+teacher1_freeze_bn: true
+teacher2_freeze_bn: true
+
+# ─── MBM / Adapter ───────────────────────────────────────────
+use_distillation_adapter: true
+distill_out_dim: 512
+mbm_query_dim: 2048
+mbm_out_dim: 2048
+mbm_n_head: 8
+use_ib: true
+ib_beta: 0.001
+ib_beta_warmup_epochs: 5
+mbm_reg_lambda: 0.0
+
+# ─── KD 세부 옵션 ────────────────────────────────────────────
+kd_alpha: 0.3
+kd_ens_alpha: 0.7
+use_disagree_weight: true
+disagree_mode: both_wrong
+disagree_lambda_high: 1.2
+disagree_lambda_low: 0.8
+
+# ─── CCCP ─────────────────────────────────────────────────
+use_cccp: true
+tau: 4.0
+
+# ─── 데이터증강 / 기타 ───────────────────────────────────────────
+batch_size: 64
+cutmix_alpha_distill: 0.3
+mixup_alpha: 0.0
+grad_clip_norm: 1.0 

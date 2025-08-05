@@ -1,0 +1,7 @@
+# configs/model/student/mobilenet_v2.yaml
+
+model:
+  student:
+    name: mobilenet_v2_scratch_student
+    pretrained: false
+    use_adapter: true 

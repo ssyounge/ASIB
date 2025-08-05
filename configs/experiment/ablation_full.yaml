@@ -1,0 +1,63 @@
+# configs/experiment/ablation_full.yaml
+# Phase 1.1 (5) ASIB Full: Progressive Partial Freezing 효과 검증
+# 모든 ASIB 구성 요소를 포함한 완전한 프레임워크
+
+defaults:
+  - /base
+  - /model/teacher@teacher1: convnext_s_teacher
+  - /model/teacher@teacher2: resnet152_teacher
+  - /model/student: resnet50_scratch_student
+  - _self_
+
+# ─── 경로 & 식별자 ────────────────────────────────────────────
+teacher1_ckpt: checkpoints/convnext_s_cifar32.pth
+teacher2_ckpt: checkpoints/resnet152_cifar32.pth
+results_dir: outputs/ablation/full
+exp_id: ablation_full
+
+# ─── 모델 & Optim ────────────────────────────────────────────
+teacher_lr: 1.0e-5            # 교사 적응 학습률
+teacher_weight_decay: 1.0e-4
+student_lr: 2.0e-4
+student_weight_decay: 3.0e-4
+
+# ─── Partial‑Freeze Stage 스케줄 ──────────────────────────────
+use_partial_freeze: true     # Progressive Freezing 활성화
+num_stages: 4                # 4단계 Progressive Freezing
+teacher_adapt_epochs: 1      # A-Step에서 교사 적응 허용
+student_freeze_schedule: [0, 0, 0, 0] # 모든 스테이지에서 학생 학습
+student_epochs_schedule: [50, 50, 50, 50] # 각 스테이지 50 에포크씩
+teacher1_freeze_level: 3     # Progressive: 3→2→1→0 (점진적 해제)
+teacher2_freeze_level: 3     # Progressive: 3→2→1→0 (점진적 해제)
+student_freeze_bn: false
+teacher1_freeze_bn: false    # 교사 BN도 학습
+teacher2_freeze_bn: false
+
+# ─── MBM / Adapter ───────────────────────────────────────────
+use_distillation_adapter: true
+distill_out_dim: 512
+mbm_query_dim: 2048
+mbm_out_dim: 2048
+mbm_n_head: 8
+use_ib: true                 # IB 활성화
+ib_beta: 0.001               # 정보 압축 강도
+ib_beta_warmup_epochs: 5     # IB warmup
+mbm_reg_lambda: 0.01         # 교사 정규화
+
+# ─── KD 세부 옵션 ────────────────────────────────────────────
+kd_alpha: 0.3                # 기본 KD (PF에 맞춰 조정)
+kd_ens_alpha: 0.7            # 앙상블 KD (PF에 맞춰 조정)
+use_disagree_weight: true    # Disagreement 가중치 활성화
+disagree_mode: both_wrong
+disagree_lambda_high: 1.2
+disagree_lambda_low: 0.8
+
+# ─── CCCP (활성화) ─────────────────────────────────────────
+use_cccp: true               # A-Step/B-Step 교대 최적화
+tau: 4.0
+
+# ─── 데이터증강 / 기타 ───────────────────────────────────────────
+batch_size: 64
+cutmix_alpha_distill: 0.3    # CutMix 활성화
+mixup_alpha: 0.0
+grad_clip_norm: 1.0 

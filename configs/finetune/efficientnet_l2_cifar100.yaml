@@ -1,0 +1,48 @@
+# configs/finetune/efficientnet_l2_cifar100.yaml
+# @package _global_
+
+defaults:
+  - /dataset: cifar100
+  - _self_
+
+teacher_type: efficientnet_l2_teacher
+small_input: true
+# Recommended batch sizes for EfficientNet-L2 are noted in README.md
+teacher_pretrained: true
+teacher_ckpt_init: null
+teacher_use_checkpointing: true
+
+finetune_epochs: 65        # 효율적 모델이므로 적당한 학습 시간
+finetune_lr: 1.8e-4       # 효율적 모델이므로 약간 높은 학습률
+finetune_weight_decay: 3e-3  # 과적합 방지를 위해 증가
+finetune_use_cutmix: true
+finetune_cutmix_alpha: 1.0
+label_smoothing: 0.4      # 과적합 방지를 위해 증가
+
+warmup_epochs: 3
+min_lr: 1e-6
+
+# ─── 고급 스케줄링 설정 ──────────────────────────────────────
+scheduler_type: multistep  # 명시적이고 예측 가능한 스케줄링
+lr_milestones: [20, 40, 55]  # 20, 40, 55 epoch에서 LR 감소
+lr_gamma: 0.3  # LR을 0.3배씩 감소
+early_stopping_patience: 6     # 과적합 방지를 위해 감소
+early_stopping_min_delta: 0.15  # 과적합 방지를 위해 증가
+
+seed: 42
+device: cuda
+log_level: INFO
+deterministic: true
+
+# ─── 출력 경로 ────────────────────────────────────────────────
+results_dir:        experiments/outputs/finetune/efficientnet_l2_cifar100_ft
+exp_id:             efficientnet_l2_cifar100
+
+# 추후 save 할 체크포인트 경로
+finetune_ckpt_path: experiments/checkpoints/efficientnet_l2_cifar100.pth
+
+# Hydra 의 편의를 위해 명시(로더에서 사용)
+dataset_name: cifar100
+data_root: ./data
+batch_size: 32 # A6000 GPU에서 EfficientNet-L2용
+use_amp: true

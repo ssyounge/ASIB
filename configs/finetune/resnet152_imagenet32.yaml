@@ -1,0 +1,45 @@
+# configs/finetune/resnet152_imagenet32.yaml
+# ResNet152 파인튜닝 (ImageNet‑32, 32×32 입력, 1000 클래스)
+# @package _global_
+
+defaults:
+  - /dataset: imagenet32
+  - _self_
+
+teacher_type:  resnet152_teacher
+small_input:   true
+teacher_pretrained:  true
+teacher_ckpt_init:   null                 # 이어서 학습할 ckpt 경로가 있으면 지정
+
+# ─── 옵티마이저 & 학습 하이퍼파라미터 ──────────────────────────
+finetune_epochs: 80        # 1000 클래스이므로 충분한 학습 시간
+finetune_lr: 8e-5         # 1000 클래스이므로 낮은 학습률
+finetune_weight_decay: 8e-3  # 1000 클래스이므로 강한 정규화
+warmup_epochs: 6          # 1000 클래스이므로 긴 warmup
+min_lr: 8e-7
+batch_size: 128           # ResNet152는 메모리 효율적
+label_smoothing: 0.5      # 1000 클래스이므로 강한 label smoothing
+finetune_use_cutmix: true
+finetune_cutmix_alpha: 1.0
+
+# ─── 고급 스케줄링 설정 ──────────────────────────────────────
+scheduler_type: reduce_on_plateau  # 안정적인 스케줄러
+early_stopping_patience: 15    # 1000 클래스이므로 긴 patience
+early_stopping_min_delta: 0.08  # 1000 클래스이므로 작은 개선도 요구
+
+# ─── 출력 경로 ────────────────────────────────────────────────
+results_dir:        experiments/outputs/finetune/resnet152_imagenet32_ft
+exp_id:             resnet152_imagenet32
+# ─── 공통 옵션 (AMP 등) ───────────────────────────────────────
+use_amp:    true
+device:     cuda
+seed:       42
+log_level:  INFO
+deterministic: true
+
+# 추후 save 할 체크포인트 경로
+finetune_ckpt_path: experiments/checkpoints/resnet152_imagenet32.pth
+
+# Hydra 의 편의를 위해 명시(로더에서 사용)
+dataset_name: imagenet32
+data_root:    ./data 

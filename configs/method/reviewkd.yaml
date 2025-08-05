@@ -1,0 +1,10 @@
+# configs/method/reviewkd.yaml
+
+method:
+  name: reviewkd
+  ce_alpha: 0.3
+  kd_alpha: 0.7
+  tau_start: 4.0
+  tau_end: 1.5
+  feature_weight: 1.0
+  attention_weight: 0.5 

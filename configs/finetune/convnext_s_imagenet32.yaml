@@ -1,0 +1,47 @@
+# configs/finetune/convnext_s_imagenet32.yaml
+# ConvNeXt‑S 파인튜닝 (ImageNet‑32, 32×32 입력, 1000 클래스)
+# @package _global_
+
+defaults:
+  - /dataset: imagenet32
+  - _self_
+
+teacher_type:  convnext_s_teacher
+small_input:   true
+teacher_pretrained:  true
+teacher_ckpt_init:   null                 # 이어서 학습할 ckpt 경로가 있으면 지정
+
+# ─── 옵티마이저 & 학습 하이퍼파라미터 ──────────────────────────
+finetune_epochs: 120       # 작은 모델이 1000 클래스이므로 매우 긴 학습 시간
+finetune_lr: 3e-5         # 작은 모델이 1000 클래스이므로 매우 낮은 학습률
+finetune_weight_decay: 1.5e-2  # 작은 모델이 1000 클래스이므로 매우 강한 정규화
+warmup_epochs: 10         # 작은 모델이 1000 클래스이므로 매우 긴 warmup
+min_lr: 3e-7
+batch_size: 256           # 작은 모델이므로 큰 배치 가능
+label_smoothing: 0.7      # 작은 모델이 1000 클래스이므로 매우 강한 label smoothing
+finetune_use_cutmix: true
+finetune_cutmix_alpha: 1.0
+
+# ─── 고급 스케줄링 설정 ──────────────────────────────────────
+scheduler_type: multistep  # 작은 모델에 적합한 단계적 감소
+lr_milestones: [40, 80, 100]  # 40, 80, 100 에포크에서 LR 감소
+lr_gamma: 0.5             # LR을 절반씩 감소
+early_stopping_patience: 25    # 작은 모델이 1000 클래스이므로 매우 긴 patience
+early_stopping_min_delta: 0.03  # 작은 모델이 1000 클래스이므로 매우 작은 개선도 요구
+
+# ─── 출력 경로 ────────────────────────────────────────────────
+results_dir:        experiments/outputs/finetune/convnext_s_imagenet32_ft
+exp_id:             convnext_s_imagenet32
+# ─── 공통 옵션 (AMP 등) ───────────────────────────────────────
+use_amp:    true
+device:     cuda
+seed:       42
+log_level:  INFO
+deterministic: true
+
+# 추후 save 할 체크포인트 경로
+finetune_ckpt_path: experiments/checkpoints/convnext_s_imagenet32.pth
+
+# Hydra 의 편의를 위해 명시(로더에서 사용)
+dataset_name: imagenet32
+data_root:    ./data 

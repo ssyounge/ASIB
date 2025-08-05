@@ -1,0 +1,47 @@
+# configs/finetune/resnet152_cifar100.yaml
+# 32×32 CIFAR-100 – ResNet-152 fine-tune
+# @package _global_
+
+defaults:
+  - /dataset: cifar100      # 작은 입력용 dataloader
+  - _self_
+
+# ---------- 모델 ----------
+teacher_type: resnet152_teacher          # registry key
+small_input: true               # 3×3 conv , stride 1
+teacher_pretrained: true
+teacher_ckpt_init: null         # 이어서 학습할 ckpt 경로가 있으면 지정
+
+# ---------- 학습 ----------
+finetune_epochs: 70        # 전통적 모델이므로 충분한 학습 시간
+finetune_lr: 1.2e-4       # 전통적 모델이므로 적당한 학습률
+finetune_weight_decay: 2e-3  # 전통적 모델이므로 적당한 정규화
+warmup_epochs: 3
+min_lr: 1e-6
+batch_size: 64
+label_smoothing: 0.3      # 전통적 모델이므로 적당한 label smoothing
+finetune_use_cutmix: true
+finetune_cutmix_alpha: 1.0
+
+# ─── 고급 스케줄링 설정 ──────────────────────────────────────
+scheduler_type: cosine_warm_restarts  # 주기적 재시작으로 local minima 탈출
+restart_period: 20  # 20 epoch마다 재시작
+restart_multiplier: 2  # 재시작 주기 2배씩 증가
+early_stopping_patience: 10    # 전통적 모델이므로 적당한 patience
+early_stopping_min_delta: 0.1  # 적당한 개선도 요구
+
+# ---------- 출력 ----------
+results_dir: experiments/outputs/finetune/resnet152_cifar100_ft
+exp_id: resnet152_cifar100
+finetune_ckpt_path: experiments/checkpoints/resnet152_cifar100.pth
+
+# ---------- 기타 ----------
+use_amp: true
+device: cuda
+seed: 42
+log_level: INFO
+deterministic: true
+
+# dataloader 편의용 명시
+dataset_name: cifar100
+data_root: ./data

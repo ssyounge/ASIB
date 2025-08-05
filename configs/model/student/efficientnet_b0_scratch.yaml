@@ -1,0 +1,7 @@
+# configs/model/student/efficientnet_b0.yaml
+
+model:
+  student:
+    name: efficientnet_b0_scratch_student
+    pretrained: false
+    use_adapter: true 

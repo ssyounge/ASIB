@@ -1,0 +1,8 @@
+# configs/method/asib.yaml
+
+method:
+  name: asib
+  ce_alpha: 0.3
+  kd_alpha: 0.0
+  kd_ens_alpha: 0.7
+  # IB (공통) ⇒ base.mbm 에서 설정

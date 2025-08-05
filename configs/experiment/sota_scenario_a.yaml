@@ -1,0 +1,64 @@
+# configs/experiment/sota_scenario_a.yaml
+# Phase 2 시나리오 A: 이종 구조 및 큰 성능 격차 (Heavy to Light)
+# Teachers: ConvNeXt-L, EfficientNet-L2
+# Student: MobileNetV2, ShuffleNetV2
+
+defaults:
+  - /base
+  - /model/teacher@teacher1: convnext_l_teacher
+  - /model/teacher@teacher2: efficientnet_l2_teacher
+  - /model/student: mobilenet_v2_scratch_student
+  - _self_
+
+# ─── 경로 & 식별자 ────────────────────────────────────────────
+teacher1_ckpt: checkpoints/convnext_l_cifar100.pth
+teacher2_ckpt: checkpoints/efficientnet_l2_cifar32.pth
+results_dir: outputs/sota/scenario_a_mobilenet
+exp_id: sota_scenario_a_mobilenet
+
+# ─── 모델 & Optim ────────────────────────────────────────────
+teacher_lr: 5.0e-5
+teacher_weight_decay: 1.0e-4
+student_lr: 1.0e-3           # 작은 모델이므로 더 높은 학습률
+student_weight_decay: 1.0e-4
+
+# ─── Partial‑Freeze Stage 스케줄 ──────────────────────────────
+use_partial_freeze: true
+num_stages: 4
+teacher_adapt_epochs: 1
+student_freeze_schedule: [-1, 2, 1, 0]
+student_epochs_schedule: [60, 60, 60, 60] # 더 긴 학습
+teacher1_freeze_level: 1
+teacher2_freeze_level: 1
+student_freeze_bn: false
+teacher1_freeze_bn: true
+teacher2_freeze_bn: true
+
+# ─── MBM / Adapter ───────────────────────────────────────────
+use_distillation_adapter: true
+distill_out_dim: 256         # 작은 모델에 맞게 조정
+mbm_query_dim: 1280          # MobileNetV2 feature dimension
+mbm_out_dim: 1280
+mbm_n_head: 8
+use_ib: true
+ib_beta: 0.001
+ib_beta_warmup_epochs: 5
+mbm_reg_lambda: 0.0
+
+# ─── KD 세부 옵션 ────────────────────────────────────────────
+kd_alpha: 0.3
+kd_ens_alpha: 0.7
+use_disagree_weight: true
+disagree_mode: both_wrong
+disagree_lambda_high: 1.2
+disagree_lambda_low: 0.8
+
+# ─── CCCP ─────────────────────────────────────────────────
+use_cccp: true
+tau: 4.0
+
+# ─── 데이터증강 / 기타 ───────────────────────────────────────────
+batch_size: 64
+cutmix_alpha_distill: 0.3
+mixup_alpha: 0.0
+grad_clip_norm: 1.0 

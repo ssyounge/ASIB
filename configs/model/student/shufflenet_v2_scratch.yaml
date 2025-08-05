@@ -1,0 +1,7 @@
+# configs/model/student/shufflenet_v2.yaml
+
+model:
+  student:
+    name: shufflenet_v2_scratch_student
+    pretrained: false
+    use_adapter: true 
