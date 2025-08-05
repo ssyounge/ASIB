@@ -2,6 +2,7 @@
 
 import torch
 import torch.nn as nn
+from typing import Optional
 from models.common.base_wrapper import BaseKDModel, MODEL_REGISTRY
 
 import torchvision.models as tv
@@ -16,7 +17,7 @@ class ResNet152Teacher(BaseKDModel):
         pretrained: bool = True,
         num_classes: int = 100,
         small_input: bool = False,
-        cfg: dict | None = None,
+        cfg: Optional[dict] = None,
     ):
         weights = tv.ResNet152_Weights.IMAGENET1K_V2 if pretrained else None
         if weights is not None:
@@ -63,7 +64,7 @@ def create_resnet152(
     num_classes: int = 100,
     pretrained: bool = True,
     small_input: bool = False,
-    cfg: dict | None = None,
+    cfg: Optional[dict] = None,
 ):
     return ResNet152Teacher(
         pretrained=pretrained, num_classes=num_classes, small_input=small_input, cfg=cfg

@@ -6,7 +6,11 @@ import os
 import sys
 from typing import Union, Optional, Dict, Any
 
-import wandb
+try:
+    import wandb
+    _WANDB_OK = True
+except ImportError:
+    _WANDB_OK = False
 
 try:
     from rich.console import Console
@@ -103,7 +107,7 @@ def log_hparams(logger: logging.Logger, cfg: Dict[str, Any]) -> None:
 
 def _wandb_log(text: str):
     """stream train.log line ↔️ W&B console tab"""
-    if wandb.run is not None:
+    if _WANDB_OK and wandb.run is not None:
         wandb.log({"logs": text}, commit=False)
 
 

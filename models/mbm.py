@@ -34,14 +34,14 @@ class IB_MBM(nn.Module):
         self.min_std = float(min_std)
 
     def forward(self, q_feat: torch.Tensor, kv_feats: torch.Tensor):
-        q = self.q_proj(q_feat).unsqueeze(1)
-        kv = self.kv_proj(kv_feats)
+        q = self.q_proj(q_feat).unsqueeze(1)  # (batch_size, 1, d_emb)
+        kv = self.kv_proj(kv_feats).unsqueeze(1)  # (batch_size, 1, d_emb)
         syn, _ = self.attn(q, kv, kv)
         syn = syn.squeeze(1)
         mu, logvar = self.mu(syn), torch.clamp(
             self.logvar(syn), -self.logvar_clip, self.logvar_clip
         )
-        # AMP 환경 under‑flow 방지
+        # AMP 환경 under‑flow 방지
         std = torch.exp(0.5 * logvar).clamp_min(self.min_std)
         z = mu + std * torch.randn_like(std)
         return z, mu, logvar

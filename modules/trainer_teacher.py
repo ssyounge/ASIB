@@ -17,6 +17,111 @@ from modules.losses import (
 )
 
 
+class TeacherTrainer:
+    """Teacher trainer for knowledge distillation."""
+    
+    def __init__(self, teacher_models, device="cuda", config=None):
+        """
+        Initialize teacher trainer.
+        
+        Parameters:
+        -----------
+        teacher_models : list
+            List of teacher models
+        device : str
+            Device to train on
+        config : dict
+            Training configuration
+        """
+        self.teachers = teacher_models
+        self.device = device
+        self.config = config or {}
+        
+    def train_step(self, batch, optimizer):
+        """
+        Single training step.
+        
+        Parameters:
+        -----------
+        batch : tuple
+            (inputs, targets) batch
+        optimizer : torch.optim.Optimizer
+            Optimizer for teacher models
+            
+        Returns:
+        --------
+        dict
+            Training metrics
+        """
+        inputs, targets = batch
+        inputs, targets = inputs.to(self.device), targets.to(self.device)
+        
+        # Forward pass through teachers
+        teacher_outputs = []
+        for teacher in self.teachers:
+            outputs = teacher(inputs)
+            teacher_outputs.append(outputs)
+        
+        # Compute losses (simple cross-entropy for each teacher)
+        total_loss = 0.0
+        ce_losses = []
+        
+        for i, outputs in enumerate(teacher_outputs):
+            logits = outputs["logit"] if isinstance(outputs, dict) else outputs
+            ce_loss = F.cross_entropy(logits, targets)
+            ce_losses.append(ce_loss.item())
+            total_loss += ce_loss
+        
+        # Average loss over teachers
+        total_loss /= len(self.teachers)
+        
+        # Backward pass
+        optimizer.zero_grad()
+        total_loss.backward()
+        optimizer.step()
+        
+        return {
+            'total_loss': total_loss.item(),
+            'ce_losses': ce_losses,
+            'avg_ce_loss': sum(ce_losses) / len(ce_losses)
+        }
+    
+    def evaluate(self, dataloader):
+        """
+        Evaluate teacher models.
+        
+        Parameters:
+        -----------
+        dataloader : DataLoader
+            Evaluation dataloader
+            
+        Returns:
+        --------
+        list
+            List of accuracies for each teacher
+        """
+        accuracies = []
+        
+        for teacher in self.teachers:
+            teacher.eval()
+            correct = 0
+            total = 0
+            
+            with torch.no_grad():
+                for inputs, targets in dataloader:
+                    inputs, targets = inputs.to(self.device), targets.to(self.device)
+                    outputs = teacher(inputs)
+                    logits = outputs["logit"] if isinstance(outputs, dict) else outputs
+                    _, predicted = torch.max(logits.data, 1)
+                    total += targets.size(0)
+                    correct += (predicted == targets).sum().item()
+            
+            accuracy = 100.0 * correct / total
+            accuracies.append(accuracy)
+        
+        return accuracies
+
+
 def _cpu_state_dict(module: torch.nn.Module):
     """Return a copy of ``module.state_dict()`` on the CPU.
 

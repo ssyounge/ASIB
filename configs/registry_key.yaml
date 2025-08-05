@@ -4,8 +4,12 @@ student_keys:
   - resnet50_scratch_student
   - resnet101_pretrain_student
   - resnet152_pretrain_student
+  - shufflenet_v2_scratch_student
+  - mobilenet_v2_scratch_student
+  - efficientnet_b0_scratch_student
   
 teacher_keys:
+  - convnext_s_teacher
   - resnet152_teacher
   - efficientnet_l2_teacher
   - convnext_l_teacher

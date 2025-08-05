@@ -86,7 +86,9 @@ class ASIBDistiller(nn.Module):
             t2_out = self.teacher2(x)
             t1 = t1_out[0] if isinstance(t1_out, tuple) else t1_out
             t2 = t2_out[0] if isinstance(t2_out, tuple) else t2_out
+            # Stack and flatten to 2D for MBM
             feats_2d = torch.stack([t1["feat_2d"], t2["feat_2d"]], dim=1)
+            feats_2d = feats_2d.flatten(1)  # Flatten to (batch_size, 2 * feat_dim)
 
         # 3) student (query feature)
         feat_dict, s_logit, _ = self.student(x)
@@ -618,6 +620,7 @@ class ASIBDistiller(nn.Module):
                 best_acc = acc
                 best_state = copy.deepcopy(self.student.state_dict())
 
+            # Step scheduler after optimizer step
             scheduler.step()
 
         # restore

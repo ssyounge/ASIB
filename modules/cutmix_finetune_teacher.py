@@ -10,6 +10,84 @@ from typing import Optional
 from utils.common import smart_tqdm, cutmix_data, get_amp_components, check_label_range, get_model_num_classes
 
 
+class CutMixFinetuneTeacher:
+    """CutMix fine-tuning trainer for teacher models."""
+    
+    def __init__(self, teacher_model, device="cuda", config=None):
+        """
+        Initialize CutMix fine-tuning trainer.
+        
+        Parameters:
+        -----------
+        teacher_model : nn.Module
+            Teacher model to fine-tune
+        device : str
+            Device to train on
+        config : dict
+            Training configuration
+        """
+        self.teacher = teacher_model
+        self.device = device
+        self.config = config or {}
+        
+    def train_step(self, batch, optimizer):
+        """
+        Single training step with CutMix.
+        
+        Parameters:
+        -----------
+        batch : tuple
+            (inputs, targets) batch
+        optimizer : torch.optim.Optimizer
+            Optimizer for teacher model
+            
+        Returns:
+        --------
+        dict
+            Training metrics
+        """
+        inputs, targets = batch
+        inputs, targets = inputs.to(self.device), targets.to(self.device)
+        
+        # Apply CutMix
+        alpha = self.config.get('cutmix_alpha', 1.0)
+        x_cm, y_a, y_b, lam = cutmix_data(inputs, targets, alpha=alpha)
+        
+        # Forward pass
+        outputs = self.teacher(x_cm)
+        logits = outputs["logit"] if isinstance(outputs, dict) else outputs
+        
+        # CutMix loss
+        criterion = nn.CrossEntropyLoss(label_smoothing=self.config.get('label_smoothing', 0.0))
+        loss = cutmix_criterion(criterion, logits, y_a, y_b, lam)
+        
+        # Backward pass
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        
+        return {
+            'loss': loss.item(),
+            'lam': lam.item() if hasattr(lam, 'item') else lam
+        }
+    
+    def evaluate(self, dataloader):
+        """
+        Evaluate teacher model.
+        
+        Parameters:
+        -----------
+        dataloader : DataLoader
+            Evaluation dataloader
+            
+        Returns:
+        --------
+        float
+            Accuracy
+        """
+        return eval_teacher(self.teacher, dataloader, self.device, self.config)
+
+
 def cutmix_criterion(criterion, pred, y_a, y_b, lam):
     """CutMix-adjusted cross-entropy.
 

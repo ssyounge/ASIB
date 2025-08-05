@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+"""Test ASIB step forward/backward pass"""
+
 import torch
 from methods.asib import ASIBDistiller
 from models.mbm import IB_MBM, SynergyHead
@@ -13,11 +16,11 @@ class DummyStudent(torch.nn.Module):
         logit = self.cls(x)
         return {"feat_2d": feat}, logit, None
 
-def test_asmb_forward_backward(dummy_teachers):
+def test_asib_forward_backward(dummy_teachers):
     t1, t2 = dummy_teachers
     student = DummyStudent()
-    mbm = IB_MBM(q_dim=4, kv_dim=4, d_emb=4)
-    head = SynergyHead(4, num_classes=2)
+    mbm = IB_MBM(q_dim=4, kv_dim=4096, d_emb=8)  # kv_dim should match flattened teacher features (2 * 2048)
+    head = SynergyHead(8, num_classes=2)  # Match d_emb dimension
     distiller = ASIBDistiller(t1, t2, student, mbm, head, device="cpu")
     x = torch.randn(2, 3)
     y = torch.tensor([0, 1])

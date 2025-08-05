@@ -170,6 +170,7 @@ def main(cfg: DictConfig):
             root=data_root,
             batch_size=batch_size,
             num_workers=cfg.get("num_workers", 2),
+            augment=cfg.get("data_aug", True),
         )
     else:
         raise ValueError(f"Unknown dataset_name={dataset}")

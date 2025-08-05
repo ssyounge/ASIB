@@ -192,7 +192,7 @@ model:
         use_adapter: true
 
 # Checkpoints
-teacher1_ckpt: checkpoints/convnext_l_cifar32.pth
+teacher1_ckpt: checkpoints/convnext_l_cifar100.pth
 teacher2_ckpt: checkpoints/efficientnet_l2_cifar32.pth
 
 # Experiment settings

@@ -1,4 +1,4 @@
-name: ${CONDA_ENV:-asmb}          # 원하는 env 이름
+name: ${CONDA_ENV:-asib}          # 원하는 env 이름
 channels:
   - pytorch
   - nvidia            # CUDA 12.1 wheel을 conda로 받고 싶을 때만

@@ -5,7 +5,15 @@ import logging
 from typing import Dict, Any
 
 
-def _renorm_ce_kd(cfg: Dict[str, Any]):
+def _renorm_ce_kd(ce_loss, kd_loss, ce_alpha, kd_alpha):
+    """Renormalize ce_alpha and kd_alpha to sum to 1."""
+    total_alpha = ce_alpha + kd_alpha
+    if total_alpha > 0:
+        ce_alpha = ce_alpha / total_alpha
+        kd_alpha = kd_alpha / total_alpha
+    return ce_alpha * ce_loss + kd_alpha * kd_loss
+
+def renorm_ce_kd(cfg: Dict[str, Any]):
     """Renormalize ce_alpha and kd_alpha to sum to 1."""
     if "ce_alpha" in cfg and "kd_alpha" in cfg:
         ce, kd = float(cfg["ce_alpha"]), float(cfg["kd_alpha"])
@@ -20,7 +28,11 @@ def _renorm_ce_kd(cfg: Dict[str, Any]):
                 )
 
 
-def setup_partial_freeze_schedule(cfg: Dict[str, Any], num_stages: int):
+def setup_partial_freeze_schedule(num_stages: int):
+    """Setup partial freeze schedule."""
+    return [-1] * num_stages
+
+def setup_partial_freeze_schedule_with_cfg(cfg: Dict[str, Any], num_stages: int):
     """Setup partial freeze schedule."""
     fl = int(cfg.get("student_freeze_level", -1) or -1)
 
@@ -52,7 +64,11 @@ def setup_partial_freeze_schedule(cfg: Dict[str, Any], num_stages: int):
         )
 
 
-def setup_safety_switches(cfg: Dict[str, Any], num_stages: int):
+def setup_safety_switches(num_stages: int):
+    """Setup safety switches for partial freeze."""
+    return {"student_freeze_level": -1, "teacher1_freeze_level": -1, "teacher2_freeze_level": -1, "student_freeze_schedule": [-1] * num_stages}
+
+def setup_safety_switches_with_cfg(cfg: Dict[str, Any], num_stages: int):
     """Setup safety switches for partial freeze."""
     if not cfg.get("use_partial_freeze", False):
         cfg["student_freeze_level"] = -1
@@ -61,7 +77,13 @@ def setup_safety_switches(cfg: Dict[str, Any], num_stages: int):
         cfg["student_freeze_schedule"] = [-1] * num_stages
 
 
-def auto_set_mbm_query_dim(student_model, cfg: Dict[str, Any]):
+def auto_set_mbm_query_dim(cfg: Dict[str, Any]):
+    """Auto-set mbm_query_dim based on student model."""
+    if cfg.get("mbm_query_dim", 0) in (0, None):
+        cfg["mbm_query_dim"] = 512  # Default value
+    return cfg
+
+def auto_set_mbm_query_dim_with_model(student_model, cfg: Dict[str, Any]):
     """Auto-set mbm_query_dim based on student model."""
     if cfg.get("mbm_query_dim", 0) in (0, None):
         with torch.no_grad(), torch.autocast(device_type="cuda", enabled=False):
@@ -91,4 +113,5 @@ def cast_numeric_configs(cfg: Dict[str, Any]):
             try:
                 cfg[k] = float(cfg[k])
             except ValueError:
-                pass  # ignore 
+                pass  # ignore
+    return cfg 

@@ -36,6 +36,87 @@ def apply_bn_ln_policy(
                 p.requires_grad = train_ln
 
 
+def get_freeze_schedule(model_name: str, freeze_level: int = 1):
+    """
+    Get freeze schedule for a given model and freeze level.
+    
+    Parameters:
+    -----------
+    model_name : str
+        Name of the model (e.g., 'resnet', 'efficientnet', 'convnext')
+    freeze_level : int
+        Freeze level (0: head only, 1: last block, 2: last two blocks)
+        
+    Returns:
+    --------
+    dict
+        Freeze schedule configuration
+    """
+    if freeze_level < 0:
+        return {'freeze_all': False, 'patterns': []}
+    
+    if freeze_level == 0:
+        patterns = [
+            r"(?:^|\.)fc\.",
+            r"(?:^|\.)classifier\.",
+            r"(?:^|\.)head\.",
+        ]
+    elif freeze_level == 1:
+        patterns = [
+            r"\.layer4\.",
+            r"features\.7\.",
+            r"features\.8\.",
+            r"\.layers\.3\.",
+            r"(?:^|\.)fc\.",
+            r"(?:^|\.)classifier\.",
+            r"(?:^|\.)head\.",
+        ]
+    else:  # level >= 2
+        patterns = [
+            r"\.layer3\.",
+            r"\.layer4\.",
+            r"features\.6\.",
+            r"features\.7\.",
+            r"features\.8\.",
+            r"\.layers\.2\.",
+            r"\.layers\.3\.",
+            r"(?:^|\.)fc\.",
+            r"(?:^|\.)classifier\.",
+            r"(?:^|\.)head\.",
+        ]
+    
+    return {
+        'freeze_all': True,
+        'patterns': patterns,
+        'freeze_bn': True,
+        'freeze_ln': True
+    }
+
+
+def apply_freeze_schedule(model: nn.Module, schedule: dict):
+    """
+    Apply freeze schedule to a model.
+    
+    Parameters:
+    -----------
+    model : nn.Module
+        Model to apply freeze schedule to
+    schedule : dict
+        Freeze schedule from get_freeze_schedule
+    """
+    if schedule.get('freeze_all', False):
+        freeze_all(model)
+        
+        if schedule.get('patterns'):
+            unfreeze_by_regex(model, schedule['patterns'])
+    
+    apply_bn_ln_policy(
+        model,
+        train_bn=not schedule.get('freeze_bn', True),
+        train_ln=not schedule.get('freeze_ln', True)
+    )
+
+
 def apply_partial_freeze(model, level: int, freeze_bn: bool = False):
     """Apply a simple partial freeze scheme to a model.
 

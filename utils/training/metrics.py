@@ -3,7 +3,6 @@ import time
 import torch
 
 from utils.common import count_trainable_parameters
-from modules.disagreement import compute_disagreement_rate
 
 
 def compute_accuracy(outputs, targets):
@@ -12,6 +11,47 @@ def compute_accuracy(outputs, targets):
     total = targets.size(0)
     correct = (predicted == targets).sum().item()
     return 100.0 * correct / total
+
+
+def compute_disagreement_rate(teacher1, teacher2, loader, device="cuda", cfg=None, mode="both_wrong"):
+    """Compute disagreement rate between two teachers."""
+    # This is a simplified version to avoid circular import
+    # The full implementation is in modules/disagreement.py
+    import torch
+    
+    teacher1.eval()
+    teacher2.eval()
+    total_samples = 0
+    disagree_count = 0
+    
+    for x, y in loader:
+        x, y = x.to(device), y.to(device)
+        
+        with torch.no_grad():
+            out1 = teacher1(x)
+            out2 = teacher2(x)
+            t1 = out1[0] if isinstance(out1, tuple) else out1
+            t2 = out2[0] if isinstance(out2, tuple) else out2
+            logit1 = t1["logit"]
+            logit2 = t2["logit"]
+            
+            pred1 = logit1.argmax(dim=1)
+            pred2 = logit2.argmax(dim=1)
+            
+            if mode == "pred":
+                disagree_mask = pred1 != pred2
+            elif mode == "both_wrong":
+                correct1 = pred1.eq(y)
+                correct2 = pred2.eq(y)
+                disagree_mask = ~correct1 & ~correct2
+            else:
+                raise ValueError(f"Unknown mode: {mode}")
+            
+            disagree_count += disagree_mask.sum().item()
+            total_samples += y.size(0)
+    
+    dis_rate = 100.0 * disagree_count / total_samples if total_samples > 0 else 0.0
+    return dis_rate
 
 
 class StageMeter:
@@ -41,11 +81,17 @@ class StageMeter:
         param_M = count_trainable_parameters(self.student) / 1e6
 
         pfx = f"stage{self.stg}"
-        self.logger.update_metric(f"{pfx}_acc", best_acc)
-        self.logger.update_metric(f"{pfx}_wall_min", wall_min)
-        self.logger.update_metric(f"{pfx}_gpu_h", gpu_h)
-        self.logger.update_metric(f"{pfx}_gflops", gflops)
-        self.logger.update_metric(f"{pfx}_param_M", param_M)
+        
+        # update_metric 메서드가 있는지 확인하고 있으면 사용, 없으면 info로 대체
+        if hasattr(self.logger, 'update_metric'):
+            self.logger.update_metric(f"{pfx}_acc", best_acc)
+            self.logger.update_metric(f"{pfx}_wall_min", wall_min)
+            self.logger.update_metric(f"{pfx}_gpu_h", gpu_h)
+            self.logger.update_metric(f"{pfx}_gflops", gflops)
+            self.logger.update_metric(f"{pfx}_param_M", param_M)
+        else:
+            # 일반 logger의 경우 info로 로깅
+            self.logger.info(f"[{pfx}] acc={best_acc:.2f}% | wall_min={wall_min:.2f} | gpu_h={gpu_h:.2f} | gflops={gflops:.2f} | param_M={param_M:.2f}")
 
         # 간단한 정확도만 표시 (상세 metrics는 제거)
         self.logger.info("[%s] acc=%.2f%%", pfx, best_acc)

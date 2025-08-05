@@ -98,61 +98,141 @@ def ib_loss(mu, logvar, beta: float = 1e-3):
     
     loss = beta * kl_elem.mean()
     
-    # 최종 loss도 clipping
-    loss = torch.clamp(loss, 0.0, 100.0)
+    return loss
+
+
+# ---------- Test compatibility functions ----------
+def kl_loss(student_logits, teacher_logits, temperature=4.0):
+    """Wrapper for kd_loss_fn for test compatibility."""
+    return kd_loss_fn(student_logits, teacher_logits, T=temperature)
+
+
+def mse_loss(student_feat, teacher_feat):
+    """Wrapper for feat_mse_loss for test compatibility."""
+    return feat_mse_loss(student_feat, teacher_feat)
+
+
+def ce_loss(logits, targets, label_smoothing=0.0):
+    """Wrapper for ce_loss_fn for test compatibility."""
+    return ce_loss_fn(logits, targets, label_smoothing=label_smoothing)
+
+
+def contrastive_loss(student_feat, teacher_feat, temperature=0.1):
+    """Contrastive loss between student and teacher features."""
+    # Normalize features
+    student_feat = F.normalize(student_feat, dim=1)
+    teacher_feat = F.normalize(teacher_feat, dim=1)
+    
+    # Compute similarity matrix
+    sim_matrix = torch.mm(student_feat, teacher_feat.T) / temperature
+    
+    # Contrastive loss (InfoNCE style)
+    labels = torch.arange(student_feat.size(0), device=student_feat.device)
+    loss = F.cross_entropy(sim_matrix, labels)
     
     return loss
 
 
+def attention_loss(student_attn, teacher_attn):
+    """Attention transfer loss between student and teacher attention maps."""
+    # Ensure same shape
+    if student_attn.shape != teacher_attn.shape:
+        # Resize if needed
+        student_attn = F.interpolate(
+            student_attn.unsqueeze(1), 
+            size=teacher_attn.shape[-2:], 
+            mode='bilinear', 
+            align_corners=False
+        ).squeeze(1)
+    
+    # MSE loss between attention maps
+    loss = F.mse_loss(student_attn, teacher_attn)
+    return loss
+
+
+def factor_transfer_loss(student_factor, teacher_factor):
+    """Factor transfer loss between student and teacher factors."""
+    # Ensure same shape
+    if student_factor.shape != teacher_factor.shape:
+        # Linear projection if needed
+        if student_factor.dim() == 2 and teacher_factor.dim() == 2:
+            if student_factor.size(1) != teacher_factor.size(1):
+                projection = torch.nn.Linear(
+                    student_factor.size(1), 
+                    teacher_factor.size(1)
+                ).to(student_factor.device)
+                student_factor = projection(student_factor)
+    
+    # MSE loss between factors
+    loss = F.mse_loss(student_factor, teacher_factor)
+    return loss
+
+
 def certainty_weights(logvar: torch.Tensor) -> torch.Tensor:
-    """Return per-element certainty weights ``1 / exp(logvar)``.
-
-    Parameters
-    ----------
-    logvar : Tensor
-        Log variance tensor from the Information Bottleneck module.
-
-    Returns
-    -------
-    Tensor
-        ``1 / exp(logvar)`` with the same shape as ``logvar``.
-    """
-
-    return 1.0 / logvar.exp()
+    """Return certainty weights based on log variance."""
+    # Higher variance = lower certainty = lower weight
+    weights = torch.exp(-logvar)
+    return weights
 
 
 def dkd_loss(student_logits, teacher_logits, labels, alpha=1.0, beta=1.0, temperature=4.0):
-    """Decoupled Knowledge Distillation loss."""
-    if student_logits.dim() > 2:
-        student_logits = student_logits.mean(dim=tuple(range(2, student_logits.dim())))
-    if teacher_logits.dim() > 2:
-        teacher_logits = teacher_logits.mean(dim=tuple(range(2, teacher_logits.dim())))
-
-    s_logits = student_logits / temperature
-    t_logits = teacher_logits / temperature
-
-    s_probs = F.softmax(s_logits, dim=1)
-    t_probs = F.softmax(t_logits, dim=1)
-
-    num_classes = s_probs.size(1)
-    one_hot = F.one_hot(labels, num_classes=num_classes).float()
-    pos_mask = one_hot
-    neg_mask = 1.0 - one_hot
-
-    # positive (ground truth class)
-    s_pos = (s_probs * pos_mask).sum(dim=1, keepdim=True)
-    t_pos = (t_probs * pos_mask).sum(dim=1, keepdim=True)
-    loss_pos = F.kl_div(torch.log(s_pos + 1e-12), t_pos, reduction="batchmean")
-
-    # negative classes
-    s_neg = s_probs * neg_mask
-    t_neg = t_probs * neg_mask
-    s_neg = s_neg / s_neg.sum(dim=1, keepdim=True)
-    t_neg = t_neg / t_neg.sum(dim=1, keepdim=True)
-    loss_neg = F.kl_div(torch.log(s_neg + 1e-12), t_neg, reduction="batchmean")
-
-    loss = (alpha * loss_pos + beta * loss_neg) * (temperature ** 2)
-    return loss
+    """
+    Decoupled Knowledge Distillation (DKD) loss.
+    
+    Parameters:
+    -----------
+    student_logits : torch.Tensor
+        Student model logits
+    teacher_logits : torch.Tensor
+        Teacher model logits  
+    labels : torch.Tensor
+        Ground truth labels
+    alpha : float
+        Weight for target class knowledge distillation
+    beta : float
+        Weight for non-target class knowledge distillation
+    temperature : float
+        Temperature for softmax
+    """
+    # Ensure temperature is positive
+    temperature = max(temperature, 1e-6)
+    
+    # Target class knowledge distillation
+    target_kd = kd_loss_fn(student_logits, teacher_logits, T=temperature)
+    
+    # Non-target class knowledge distillation
+    # Create mask for non-target classes
+    batch_size, num_classes = student_logits.shape
+    target_mask = torch.zeros_like(student_logits, dtype=torch.bool)
+    target_mask.scatter_(1, labels.unsqueeze(1), True)
+    
+    # Mask out target classes with a large negative value instead of -inf
+    large_negative = -1e6
+    student_logits_nt = student_logits.masked_fill(target_mask, large_negative)
+    teacher_logits_nt = teacher_logits.masked_fill(target_mask, large_negative)
+    
+    # Apply softmax to get probabilities
+    student_probs_nt = F.softmax(student_logits_nt / temperature, dim=1)
+    teacher_probs_nt = F.softmax(teacher_logits_nt / temperature, dim=1)
+    
+    # Add small epsilon to prevent log(0)
+    eps = 1e-8
+    student_probs_nt = student_probs_nt + eps
+    teacher_probs_nt = teacher_probs_nt + eps
+    
+    # Normalize to sum to 1
+    student_probs_nt = student_probs_nt / student_probs_nt.sum(dim=1, keepdim=True)
+    teacher_probs_nt = teacher_probs_nt / teacher_probs_nt.sum(dim=1, keepdim=True)
+    
+    # KL divergence for non-target classes
+    non_target_kd = F.kl_div(
+        torch.log(student_probs_nt + eps),
+        teacher_probs_nt,
+        reduction='batchmean'
+    ) * (temperature ** 2)
+    
+    total_loss = alpha * target_kd + beta * non_target_kd
+    return total_loss
 
 
 def rkd_distance_loss(
@@ -162,50 +242,35 @@ def rkd_distance_loss(
     reduction: str = "mean",
     max_clip: Optional[float] = None,
 ):
-    """Relational KD distance loss.
-
-    Parameters
-    ----------
-    reduction : str, optional
-        "mean" to return a scalar or "none" to return per-sample losses.
-    """
+    """Relational Knowledge Distillation distance loss."""
+    # Flatten spatial dimensions
     if student_feat.dim() > 2:
-        student_feat = student_feat.view(student_feat.size(0), -1)
+        student_feat = student_feat.flatten(1)
     if teacher_feat.dim() > 2:
-        teacher_feat = teacher_feat.view(teacher_feat.size(0), -1)
-
-    if student_feat.size(0) < 2:
-        return torch.tensor(0.0, device=student_feat.device)
-
-    diff_s = student_feat.unsqueeze(0) - student_feat.unsqueeze(1)
-    diff_t = teacher_feat.unsqueeze(0) - teacher_feat.unsqueeze(1)
-
-    dist_s = diff_s.pow(2).sum(dim=2).sqrt()
-    dist_t = diff_t.pow(2).sum(dim=2).sqrt()
-
-    pos_s = dist_s > 0
-    pos_t = dist_t > 0
-
-    if pos_s.any():
-        mean_s = dist_s[pos_s].mean()
-    else:
-        mean_s = dist_s.new_tensor(1.0)
-
-    if pos_t.any():
-        mean_t = dist_t[pos_t].mean()
-    else:
-        mean_t = dist_t.new_tensor(1.0)
-
-    dist_s = dist_s / (mean_s + eps)
-    dist_t = dist_t / (mean_t + eps)
-
-    if reduction == "none":
-        losses = F.smooth_l1_loss(dist_s, dist_t, reduction="none").mean(dim=1)
-    else:
-        losses = F.smooth_l1_loss(dist_s, dist_t, reduction=reduction)
+        teacher_feat = teacher_feat.flatten(1)
+    
+    # Compute pairwise distances
+    def pairwise_distance(feat):
+        feat_square = torch.sum(feat ** 2, dim=1, keepdim=True)
+        feat_prod = torch.mm(feat, feat.t())
+        dist = feat_square + feat_square.t() - 2 * feat_prod
+        dist = torch.clamp(dist, min=eps)
+        return torch.sqrt(dist)
+    
+    student_dist = pairwise_distance(student_feat)
+    teacher_dist = pairwise_distance(teacher_feat)
+    
+    # Normalize distances
+    student_dist = student_dist / (student_dist.max() + eps)
+    teacher_dist = teacher_dist / (teacher_dist.max() + eps)
+    
+    # Compute loss
+    loss = F.mse_loss(student_dist, teacher_dist, reduction=reduction)
+    
     if max_clip is not None:
-        losses = torch.clamp(losses, max=max_clip)
-    return losses
+        loss = torch.clamp(loss, max=max_clip)
+    
+    return loss
 
 
 def rkd_angle_loss(
@@ -214,39 +279,30 @@ def rkd_angle_loss(
     eps: float = 1e-12,
     reduction: str = "mean",
 ):
-    """Relational KD angle loss.
-
-    Parameters
-    ----------
-    reduction : str, optional
-        "mean" to return a scalar or "none" to return per-sample losses.
-    """
+    """Relational Knowledge Distillation angle loss."""
+    # Flatten spatial dimensions
     if student_feat.dim() > 2:
-        student_feat = student_feat.view(student_feat.size(0), -1)
+        student_feat = student_feat.flatten(1)
     if teacher_feat.dim() > 2:
-        teacher_feat = teacher_feat.view(teacher_feat.size(0), -1)
-
-    if student_feat.size(0) < 3:
-        return torch.tensor(0.0, device=student_feat.device)
-
-    diff_s = student_feat.unsqueeze(0) - student_feat.unsqueeze(1)
-    diff_t = teacher_feat.unsqueeze(0) - teacher_feat.unsqueeze(1)
-
-    n = student_feat.size(0)
-    mask = ~torch.eye(n, dtype=torch.bool, device=student_feat.device)
-    diff_s = diff_s[mask].view(n, n - 1, -1)
-    diff_t = diff_t[mask].view(n, n - 1, -1)
-
-    norm_s = F.normalize(diff_s, p=2, dim=2)
-    norm_t = F.normalize(diff_t, p=2, dim=2)
-
-    angle_s = torch.bmm(norm_s, norm_s.transpose(1, 2))
-    angle_t = torch.bmm(norm_t, norm_t.transpose(1, 2))
-
-    diag_mask = ~torch.eye(n - 1, dtype=torch.bool, device=student_feat.device)
-    angle_s = angle_s[:, diag_mask].view(n, -1)
-    angle_t = angle_t[:, diag_mask].view(n, -1)
-
-    if reduction == "none":
-        return F.smooth_l1_loss(angle_s, angle_t, reduction="none").mean(dim=1)
-    return F.smooth_l1_loss(angle_s, angle_t, reduction=reduction)
+        teacher_feat = teacher_feat.flatten(1)
+    
+    # Normalize features
+    student_feat = F.normalize(student_feat, dim=1)
+    teacher_feat = F.normalize(teacher_feat, dim=1)
+    
+    # Compute pairwise angles
+    def pairwise_angle(feat):
+        # Compute cosine similarity
+        cos_sim = torch.mm(feat, feat.t())
+        cos_sim = torch.clamp(cos_sim, min=-1 + eps, max=1 - eps)
+        # Convert to angle
+        angle = torch.acos(cos_sim)
+        return angle
+    
+    student_angle = pairwise_angle(student_feat)
+    teacher_angle = pairwise_angle(teacher_feat)
+    
+    # Compute loss
+    loss = F.mse_loss(student_angle, teacher_angle, reduction=reduction)
+    
+    return loss

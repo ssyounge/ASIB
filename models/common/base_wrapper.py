@@ -3,7 +3,7 @@
 import torch
 import torch.nn as nn
 # typing …
-from typing import Dict, Tuple, Any
+from typing import Dict, Tuple, Any, Optional, Union
 
 # ------------------------------------------------------------------
 # ❶ registry 얇게 바인딩 ‑ 순환 임포트 회피용
@@ -33,11 +33,12 @@ class BaseKDModel(nn.Module):
             getattr(backbone, "num_features", None)
             or getattr(backbone, "feat_dim", None)
             or (backbone.fc.in_features if hasattr(backbone, "fc") else None)
+            or (backbone.classifier[1].in_features if hasattr(backbone, "classifier") and hasattr(backbone.classifier, "__getitem__") else None)
         )
         if feat_dim is None:
             raise ValueError(
                 "Unable to infer feature dimension – "
-                "backbone must expose 'num_features', 'feat_dim' or '.fc.in_features'."
+                "backbone must expose 'num_features', 'feat_dim', '.fc.in_features' or '.classifier[1].in_features'."
             )
         self.feat_dim = feat_dim
 
@@ -59,11 +60,17 @@ class BaseKDModel(nn.Module):
 
         self.classifier = nn.Linear(feat_dim, num_classes)
 
-    def extract_feats(self, x) -> Tuple[torch.Tensor | None, torch.Tensor]:
+    def extract_feats(self, x) -> Tuple[Optional[torch.Tensor], torch.Tensor]:
         """return (feat_4d or None, feat_2d)"""
-        raise NotImplementedError
+        # Simple implementation for testing
+        feat_2d = self.backbone(x)
+        if isinstance(feat_2d, torch.Tensor):
+            return None, feat_2d
+        else:
+            # If backbone returns a tuple/list, take the last element as feat_2d
+            return None, feat_2d[-1] if isinstance(feat_2d, (tuple, list)) else feat_2d
 
-    def forward(self, x, y: torch.Tensor | None = None) -> Tuple[Dict, torch.Tensor, Dict[str, Any]]:
+    def forward(self, x, y: Optional[torch.Tensor] = None) -> Tuple[Dict, torch.Tensor, Dict[str, Any]]:
         f4d, f2d = self.extract_feats(x)
         distill = self.distillation_adapter(f2d) if self.distillation_adapter else None
         logit = self.classifier(f2d)

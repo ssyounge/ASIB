@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from torch.cuda.amp import autocast
+from torch.amp import autocast
 
 EPS = 1e-6  # log(0) 방지용 최소값
 
@@ -19,7 +19,7 @@ def ce_safe(logits, target, ls_eps: float = 0.0):
     * softmax-clamp 로 log(0) → nan 차단
     * 필요하면 label-smoothing 바로 사용
     """
-    with autocast(False):
+    with autocast('cuda', enabled=False):
         logits = logits.float()
         if ls_eps > 0:
             tgt_prob = _smooth_one_hot(target, logits.size(1), ls_eps)
@@ -31,7 +31,20 @@ def ce_safe(logits, target, ls_eps: float = 0.0):
 
 
 def kl_safe(p_logits, q_logits, tau: float = 1.0):
-    with autocast(False):
+    with autocast('cuda', enabled=False):
         p = torch.softmax(p_logits.float() / tau, dim=1).clamp(EPS, 1.0)
         q = torch.softmax(q_logits.float() / tau, dim=1).clamp(EPS, 1.0)
         return F.kl_div(p.log(), q, reduction="batchmean") * (tau ** 2)
+
+
+def safe_kl_loss(student_logits, teacher_logits, temperature=4.0):
+    """Safe KL divergence loss wrapper."""
+    return kl_safe(teacher_logits, student_logits, tau=temperature)
+
+
+def safe_mse_loss(student_feat, teacher_feat):
+    """Safe MSE loss between features."""
+    with autocast('cuda', enabled=False):
+        student_feat = student_feat.float()
+        teacher_feat = teacher_feat.float()
+        return F.mse_loss(student_feat, teacher_feat, reduction="mean")

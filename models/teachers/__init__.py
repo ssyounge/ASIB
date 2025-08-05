@@ -5,9 +5,11 @@
 
 from .resnet152_teacher import ResNet152Teacher  # noqa: F401
 from .efficientnet_l2_teacher import EfficientNetL2Teacher  # noqa: F401
+from .convnext_s_teacher import ConvNeXtSTeacher  # noqa: F401
 
 __all__ = [
     "ResNet152Teacher",
     "EfficientNetL2Teacher",
+    "ConvNeXtSTeacher",
 ]
 

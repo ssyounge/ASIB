@@ -184,7 +184,7 @@ class CustomDataset(ClassInfoMixin, Dataset):
 mkdir -p checkpoints
 
 # Download teacher checkpoints
-wget -O checkpoints/convnext_l_cifar32.pth <URL>
+wget -O checkpoints/convnext_l_cifar100.pth <URL>
 wget -O checkpoints/efficientnet_l2_cifar32.pth <URL>
 
 # Or use your own fine-tuned models

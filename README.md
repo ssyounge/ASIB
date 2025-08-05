@@ -22,50 +22,74 @@ pip install -r requirements.txt
 ### Basic Usage
 
 ```bash
-# Run default experiment
-sbatch run/run.sh
-
-# Run with custom config
-python main.py experiment=res152_convnext_effi
-
-# Run sensitivity analysis
-sbatch run/run_sensitivity.sh
-
-# Run overlap analysis
-sbatch run/run_overlap.sh
+# Run complete ablation study
+sbatch run/run_ablation_study.sh
 
 # Run teacher fine-tuning
-sbatch run/run_finetune_clean.sh
+sbatch run/run_finetune_single.sh convnext_s_cifar32
+
+# Run beta sensitivity analysis
+python scripts/analysis/beta_sensitivity.py
+
+# Run comprehensive analysis
+python scripts/analysis/comprehensive_analysis.py
 ```
 
 ## 📁 Project Structure
 
 ```
 ASIB-KD/
-├── main.py                 # Main training script (simplified)
+├── main.py                 # Main training script
 ├── eval.py                 # Model evaluation
-├── core/                   # Core functionality
-│   ├── builder.py         # Model creation utilities
-│   ├── trainer.py         # Training logic
-│   └── utils.py           # Configuration utilities
-├── configs/               # Configuration files
-│   ├── base.yaml         # Base configuration
-│   ├── method/asib.yaml  # ASIB method config
-│   ├── experiment/       # Experiment configs
-│   └── model/           # Model configs
-├── utils/                # Utilities (reorganized)
-│   ├── logging/         # Logging utilities
-│   ├── data/           # Data utilities
-│   ├── training/       # Training utilities
-│   └── common/         # Common utilities
-├── modules/             # Training modules
-├── methods/            # Distillation methods
-├── models/             # Model definitions
-├── scripts/            # Utility scripts (organized)
+├── README.md              # This file
+├── requirements.txt       # Python dependencies
+├── environment.yml        # Conda environment
+├── setup.py              # Package setup
+├── pytest.ini           # Test configuration
+├── .gitignore           # Git ignore rules
+├── LICENSE              # License file
+├── docs/                # Documentation
+│   ├── API.md          # API documentation
+│   ├── CONFIGURATION.md # Configuration guide
+│   ├── INSTALLATION.md  # Installation guide
+│   └── reports/        # Experiment reports
+│       ├── EXPERIMENT_PLAN.md
+│       ├── IMPROVED_ABLATION_STUDY_REPORT.md
+│       └── ABLATION_STUDY_REPORT.md
+├── configs/             # Configuration files
+│   ├── base.yaml       # Base configuration
+│   ├── experiment/     # Experiment configs
+│   │   ├── ablation_*.yaml  # Ablation study configs
+│   │   ├── sota_*.yaml      # SOTA comparison configs
+│   │   └── overlap_*.yaml   # Overlap analysis configs
+│   ├── finetune/       # Fine-tuning configs
+│   └── model/          # Model configs
+├── scripts/            # Utility scripts
 │   ├── analysis/       # Analysis scripts
+│   │   ├── beta_sensitivity.py
+│   │   ├── information_plane_analysis.py
+│   │   ├── cccp_stability_analysis.py
+│   │   ├── teacher_adaptation_analysis.py
+│   │   ├── pf_efficiency_analysis.py
+│   │   └── comprehensive_analysis.py
 │   ├── training/       # Training scripts
+│   │   └── fine_tuning.py
 │   └── setup/          # Setup scripts
-└── run/                # SLURM execution scripts
+├── run/                # SLURM execution scripts
+│   ├── run_ablation_study.sh
+│   ├── run_finetune_single.sh
+│   └── run_finetune_all_teachers.sh
+├── models/             # Model definitions
+├── data/               # Data loading utilities
+├── utils/              # Utility modules
+├── core/               # Core functionality
+├── methods/            # Distillation methods
+├── modules/            # Training modules
+├── tests/              # Test files
+├── outputs/            # Experiment outputs
+├── checkpoints/        # Model checkpoints
+├── experiments/        # Experiment results
+└── .github/            # GitHub workflows
 ```
 
 ## 🔧 Key Features
@@ -98,240 +122,108 @@ ASIB-KD/
 ### Basic Configuration
 
 ```yaml
-# configs/base.yaml
-method: asib
-num_stages: 4
-teacher_lr: 0.0002
-student_lr: 0.001
-use_ib: true
-ib_beta: 0.001
-use_cccp: true  # Concave-Convex Procedure
+# configs/experiment/ablation_baseline.yaml
+defaults:
+  - /base
+  - /model/teacher@teacher1: convnext_s_teacher
+  - /model/teacher@teacher2: resnet152_teacher
+  - /model/student: resnet50_scratch_student
+  - _self_
+
+# Model settings
+teacher1_ckpt: checkpoints/convnext_s_cifar32.pth
+teacher2_ckpt: checkpoints/resnet152_cifar32.pth
+
+# Training settings
+student_lr: 0.1
+batch_size: 64
+num_epochs: 200
+
+# ASIB settings
+use_ib: false
+use_cccp: false
+use_partial_freeze: false
 ```
 
-### Model Configuration
+## 🧪 Experiment Plan
 
-```yaml
-# configs/experiment/res152_convnext_effi.yaml
-teacher1:
-  model:
-    teacher:
-      name: convnext_l_teacher
-teacher2:
-  model:
-    teacher:
-      name: efficientnet_l2_teacher
-model:
-  student:
-    model:
-      student:
-        name: resnet152_pretrain_student
-```
-
-### Training Configuration
-
-```yaml
-# Partial freezing
-use_partial_freeze: true
-student_freeze_schedule: [-1, 2, 1, 0]  # Stage-wise freeze levels
-
-# MBM settings
-mbm_query_dim: 1024
-mbm_out_dim: 1024
-mbm_n_head: 8
-
-# Loss weights
-ce_alpha: 0.3
-kd_alpha: 0.7
-ib_beta: 0.001
-```
-
-## 🚀 Usage Examples
-
-### 1. Standard Training
-
+### Phase 1: Ablation Study
 ```bash
-# Run with default settings
-python main.py
-
-# Run with custom experiment
-python main.py --config-name experiment/res152_convnext_effi
-
-# Override parameters
-python main.py student_lr=0.0005 ib_beta=0.01
+# Run complete ablation study (5 experiments)
+sbatch run/run_ablation_study.sh
 ```
 
-### 2. Teacher Fine-tuning
+**Experiments:**
+1. **Baseline**: MBM + E2E + Fixed Teachers
+2. **+IB**: Information Bottleneck
+3. **+CCCP**: Stage-wise learning
+4. **+T-Adapt**: Teacher Adaptation
+5. **ASIB Full**: Progressive Partial Freezing
 
+### Phase 2: SOTA Comparison
 ```bash
-# Fine-tune teachers before distillation
-python scripts/fine_tuning.py --config-name base \
-  +teacher_type=resnet152 +finetune_epochs=100
+# Run SOTA comparison experiments
+python main.py --config-name experiment/sota_scenario_a
 ```
 
-### 3. Student Baseline
-
+### Phase 3: Overlap Analysis
 ```bash
-# Train student alone for baseline
-python scripts/train_student_baseline.py --config-name base
+# Run overlap analysis experiments
+python main.py --config-name experiment/overlap_100
 ```
 
-### 4. Evaluation
+## 📊 Analysis Tools
 
+### Beta Sensitivity Analysis
 ```bash
-# Evaluate single model
-python eval.py +eval_mode=single +ckpt_path=./results/student_final.pth
-
-# Evaluate synergy model
-python eval.py +eval_mode=synergy
+python scripts/analysis/beta_sensitivity.py
 ```
 
-## 🔬 Advanced Features
-
-### CCCP (Concave-Convex Procedure)
-
-Enable CCCP for stable teacher updates:
-
-```yaml
-use_cccp: true
-tau: 4.0  # Temperature for CCCP
-```
-
-### Continual Learning
-
+### Comprehensive Analysis
 ```bash
-# Enable continual learning mode
-python main.py cl_mode=true num_tasks=5
+python scripts/analysis/comprehensive_analysis.py
 ```
 
-### Data Augmentation
-
-```bash
-# Enable/disable augmentation
-python main.py data_aug=true
-python main.py data_aug=false
-
-# MixUp and CutMix
-python main.py mixup_alpha=0.2 cutmix_alpha_distill=0.3
-```
-
-### Automatic Mixed Precision
-
-```yaml
-use_amp: true
-amp_dtype: float16  # or bfloat16
-```
-
-## 📈 Results
-
-Results are saved in the `outputs/` directory:
-
-```
-outputs/
-├── experiment_name/
-│   ├── train.log          # Training logs
-│   ├── metrics.csv        # Performance metrics
-│   ├── config.yaml        # Final configuration
-│   └── checkpoints/       # Model checkpoints
-```
+**Analysis Components:**
+- Information Plane Analysis (IB Theory Connection)
+- CCCP Stability Analysis (Learning Curve Comparison)
+- Teacher Adaptation Analysis (Performance Preservation)
+- PF Efficiency Analysis (Memory & Time Optimization)
 
 ## 🧪 Testing
 
 ```bash
 # Run all tests
-pytest
+python -m pytest tests/
 
 # Run specific test
-pytest tests/test_asib_step.py
+python -m pytest tests/test_integration.py
+
+# Run with coverage
+python -m pytest tests/ --cov=.
 ```
 
-## 📚 API Reference
+## 📚 Documentation
 
-### Core Functions
-
-```python
-from core import (
-    create_student_by_name,
-    create_teacher_by_name,
-    run_training_stages,
-    run_continual_learning
-)
-
-# Create models
-student = create_student_by_name("resnet152_pretrain_student")
-teacher1 = create_teacher_by_name("convnext_l_teacher")
-
-# Run training
-final_acc = run_training_stages(
-    teacher_wrappers=[teacher1, teacher2],
-    mbm=mbm,
-    synergy_head=synergy_head,
-    student_model=student,
-    train_loader=train_loader,
-    test_loader=test_loader,
-    cfg=cfg,
-    exp_logger=exp_logger,
-    num_stages=4
-)
-```
-
-### Configuration Utilities
-
-```python
-from core.utils import (
-    setup_partial_freeze_schedule,
-    auto_set_mbm_query_dim,
-    cast_numeric_configs
-)
-
-# Setup training configuration
-setup_partial_freeze_schedule(cfg, num_stages)
-auto_set_mbm_query_dim(student_model, cfg)
-cast_numeric_configs(cfg)
-```
+- **API Documentation**: `docs/API.md`
+- **Configuration Guide**: `docs/CONFIGURATION.md`
+- **Installation Guide**: `docs/INSTALLATION.md`
+- **Experiment Reports**: `docs/reports/`
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests if applicable
+4. Add tests
 5. Submit a pull request
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 📖 Citation
+## 🙏 Acknowledgments
 
-If you use this framework in your research, please cite:
-
-```bibtex
-@misc{asib-kd,
-  title={ASIB: Adaptive Synergy Information-Bottleneck Knowledge Distillation},
-  author={Suyoung Yang},
-  year={2024},
-  howpublished={\url{https://github.com/YourName/ASIB-KD}}
-}
-```
-
-## 📞 Contact
-
-- **Email**: suyoung425@yonsei.ac.kr
-- **GitHub Issues**: [Create an issue](https://github.com/YourName/ASIB-KD/issues)
-
----
-
-## 🔄 Recent Updates
-
-### v2.0.0 (Latest)
-- ✅ **Code Refactoring**: Modular structure with `core/` package
-- ✅ **Utils Reorganization**: Functional subfolders in `utils/`
-- ✅ **ASMB → ASIB**: Renamed to reflect Information-Bottleneck approach
-- ✅ **CCCP Integration**: Added Concave-Convex Procedure for stability
-- ✅ **Main.py Simplification**: Reduced from 955 to 329 lines (66% reduction)
-
-### v1.0.0
-- 🎯 Initial release with ASMB framework
-- 🧊 Partial freezing mechanism
-- 📊 Multi-teacher distillation
-- 🎨 Multiple KD methods support
+- Information Bottleneck theory
+- Multi-teacher knowledge distillation
+- Progressive partial freezing techniques

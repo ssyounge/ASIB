@@ -10,6 +10,7 @@ import torch.nn as nn
 import hydra
 from omegaconf import DictConfig, OmegaConf
 import logging
+from typing import Optional
 from utils.logging import init_logger, ExperimentLogger
 from utils.common import set_random_seed, get_amp_components
 
@@ -26,7 +27,7 @@ def create_teacher_by_name(
     num_classes: int = 100,
     pretrained: bool = False,
     small_input: bool = False,
-    cfg: dict | None = None,
+    cfg: Optional[dict] = None,
 ):
     """Create teacher from :data:`MODEL_REGISTRY`."""
 

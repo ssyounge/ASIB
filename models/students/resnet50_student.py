@@ -2,6 +2,7 @@
 
 import torch
 import torch.nn as nn
+from typing import Optional
 from torchvision.models import resnet50, ResNet50_Weights
 
 from models.common.base_wrapper import BaseKDModel, register
@@ -17,7 +18,7 @@ class ResNet50Student(BaseKDModel):
         num_classes: int = 100,
         pretrained: bool = True,
         small_input: bool = False,
-        cfg: dict | None = None,
+        cfg: Optional[dict] = None,
     ) -> None:
         backbone = resnet50(
             weights=ResNet50_Weights.IMAGENET1K_V2 if pretrained else None
@@ -48,7 +49,7 @@ def create_resnet50_student(
     pretrained: bool = True,
     num_classes: int = 100,
     small_input: bool = False,
-    cfg: dict | None = None,
+    cfg: Optional[dict] = None,
 ) -> ResNet50Student:
     """Build :class:`ResNet50Student`."""
     return ResNet50Student(

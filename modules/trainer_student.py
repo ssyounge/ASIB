@@ -20,6 +20,118 @@ except ModuleNotFoundError:
     wandb = None
 
 
+class StudentTrainer:
+    """Student trainer for knowledge distillation."""
+    
+    def __init__(self, student_model, teacher_models, device="cuda", config=None):
+        """
+        Initialize student trainer.
+        
+        Parameters:
+        -----------
+        student_model : nn.Module
+            Student model to train
+        teacher_models : list
+            List of teacher models
+        device : str
+            Device to train on
+        config : dict
+            Training configuration
+        """
+        self.student = student_model
+        self.teachers = teacher_models
+        self.device = device
+        self.config = config or {}
+        
+    def train_step(self, batch, optimizer):
+        """
+        Single training step.
+        
+        Parameters:
+        -----------
+        batch : tuple
+            (inputs, targets) batch
+        optimizer : torch.optim.Optimizer
+            Optimizer for student model
+            
+        Returns:
+        --------
+        dict
+            Training metrics
+        """
+        inputs, targets = batch
+        inputs, targets = inputs.to(self.device), targets.to(self.device)
+        
+        # Forward pass through student
+        student_outputs = self.student(inputs)
+        student_logits = student_outputs["logit"] if isinstance(student_outputs, dict) else student_outputs
+        
+        # Forward pass through teachers (no grad)
+        teacher_logits = []
+        with torch.no_grad():
+            for teacher in self.teachers:
+                teacher.eval()
+                teacher_outputs = teacher(inputs)
+                teacher_logit = teacher_outputs["logit"] if isinstance(teacher_outputs, dict) else teacher_outputs
+                teacher_logits.append(teacher_logit)
+        
+        # Compute losses
+        ce_loss = torch.nn.functional.cross_entropy(student_logits, targets)
+        
+        # Knowledge distillation loss (average over teachers)
+        kd_loss = 0.0
+        temperature = self.config.get('temperature', 4.0)
+        alpha = self.config.get('alpha', 0.5)
+        
+        for teacher_logit in teacher_logits:
+            kd_loss += kl_safe(student_logits, teacher_logit, tau=temperature)
+        kd_loss /= len(teacher_logits)
+        
+        # Total loss
+        total_loss = alpha * ce_loss + (1 - alpha) * kd_loss
+        
+        # Backward pass
+        optimizer.zero_grad()
+        total_loss.backward()
+        optimizer.step()
+        
+        return {
+            'total_loss': total_loss.item(),
+            'ce_loss': ce_loss.item(),
+            'kd_loss': kd_loss.item()
+        }
+    
+    def evaluate(self, dataloader):
+        """
+        Evaluate student model.
+        
+        Parameters:
+        -----------
+        dataloader : DataLoader
+            Evaluation dataloader
+            
+        Returns:
+        --------
+        float
+            Accuracy
+        """
+        self.student.eval()
+        correct = 0
+        total = 0
+        
+        with torch.no_grad():
+            for inputs, targets in dataloader:
+                inputs, targets = inputs.to(self.device), targets.to(self.device)
+                outputs = self.student(inputs)
+                logits = outputs["logit"] if isinstance(outputs, dict) else outputs
+                _, predicted = torch.max(logits.data, 1)
+                total += targets.size(0)
+                correct += (predicted == targets).sum().item()
+        
+        accuracy = 100.0 * correct / total
+        return accuracy
+
+
 def _get_cfg_val(cfg: dict, key: str, default):
     """cfg 또는 cfg["method"]·cfg["method"]["method"]에서 키를 순차 검색."""
     if key in cfg:

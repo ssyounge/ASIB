@@ -3,6 +3,7 @@
 
 import torch
 import torch.nn as nn
+from typing import Optional
 from torchvision.models import resnet101, ResNet101_Weights
 
 from models.common.base_wrapper import BaseKDModel, register
@@ -12,7 +13,7 @@ from models.common.adapter import ChannelAdapter2D
 @register("resnet101_scratch_student")
 class ResNetStudent(BaseKDModel):
     def __init__(self, *, pretrained: bool = True, num_classes: int = 100,
-                 small_input: bool = False, cfg: dict | None = None):
+                 small_input: bool = False, cfg: Optional[dict] = None):
         backbone = resnet101(
             weights=ResNet101_Weights.IMAGENET1K_V2 if pretrained else None
         )
@@ -42,7 +43,7 @@ def create_resnet101_student(
     pretrained: bool = True,
     num_classes: int = 100,
     small_input: bool = False,
-    cfg: dict | None = None,
+    cfg: Optional[dict] = None,
 ) -> ResNetStudent:
     """Build :class:`ResNetStudent`."""
     return ResNetStudent(

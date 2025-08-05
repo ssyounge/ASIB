@@ -3,6 +3,7 @@
 
 import torch
 import torch.nn as nn
+from typing import Optional
 from torchvision.models import resnet152, ResNet152_Weights
 
 from models.common.base_wrapper import BaseKDModel, register
@@ -19,7 +20,7 @@ class ResNet152Student(BaseKDModel):
         num_classes: int = 100,
         pretrained: bool = True,
         small_input: bool = False,
-        cfg: dict | None = None,
+        cfg: Optional[dict] = None,
     ):
         backbone = resnet152(
             weights=ResNet152_Weights.IMAGENET1K_V2 if pretrained else None
@@ -52,7 +53,7 @@ def create_resnet152_student(
     num_classes: int = 100,
     pretrained: bool = True,
     small_input: bool = False,
-    cfg: dict | None = None,
+    cfg: Optional[dict] = None,
 ) -> ResNet152Student:
     """Build :class:`ResNet152Student`."""
     return ResNet152Student(

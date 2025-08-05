@@ -1,6 +1,7 @@
 # models/common/adapter.py
 
 import torch.nn as nn
+from typing import Union, Optional
 
 
 class BottleneckAdapter(nn.Module):
@@ -38,7 +39,7 @@ class BottleneckAdapter(nn.Module):
 class ChannelAdapter2D(nn.Module):
     """1×1 Conv – GN/ReLU – 1×1 Conv with residual."""
 
-    def __init__(self, in_ch: int, out_ch: int | None = None, groups: int = 32):
+    def __init__(self, in_ch: int, out_ch: Optional[int] = None, groups: int = 32):
         super().__init__()
         out_ch = in_ch if out_ch is None else out_ch
         gn = min(groups, out_ch)  # groups ≤ channels
@@ -79,7 +80,7 @@ class BottleneckMLP(nn.Module):
 class TokenAdapter1D(nn.Module):
     """Simple 2-layer MLP for transformer tokens."""
 
-    def __init__(self, dim: int, hidden: int | None = None):
+    def __init__(self, dim: int, hidden: Optional[int] = None):
         super().__init__()
         hidden = dim if hidden is None else hidden
         self.proj = nn.Sequential(

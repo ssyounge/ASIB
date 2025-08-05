@@ -20,7 +20,7 @@ class ConvNeXtLTeacher(BaseKDModel):
         cfg: Optional[dict] = None,
     ) -> None:
         backbone = timm.create_model(
-            "convnext_large_in22k",
+            "convnext_large.fb_in22k",  # Updated model name
             pretrained=pretrained,
             num_classes=num_classes,
         )

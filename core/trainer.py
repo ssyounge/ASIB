@@ -268,4 +268,38 @@ def run_continual_learning(
         acc = eval_student(student_model, vl, device, cfg)
         exp_logger.update_metric(f"task{task_id+1}_acc", acc)
     
-    return acc 
+    return acc
+
+def create_optimizers_and_schedulers_legacy(
+    teacher: torch.nn.Module,
+    student_model: torch.nn.Module,
+    cfg: Dict[str, Any],
+) -> Tuple[optim.Optimizer, optim.lr_scheduler._LRScheduler, 
+           optim.Optimizer, optim.lr_scheduler._LRScheduler]:
+    """Create optimizers and schedulers for training (legacy version)."""
+    
+    # Teacher optimizer
+    teacher_optimizer = optim.Adam(
+        filter(lambda p: p.requires_grad, teacher.parameters()),
+        lr=cfg.get("teacher_lr", 0.001),
+        weight_decay=cfg.get("teacher_weight_decay", 0.0001),
+    )
+
+    # Teacher scheduler
+    teacher_scheduler = CosineAnnealingLR(
+        teacher_optimizer, T_max=cfg.get("teacher_epochs", 10)
+    )
+
+    # Student optimizer
+    student_optimizer = optim.AdamW(
+        filter(lambda p: p.requires_grad, student_model.parameters()),
+        lr=cfg.get("student_lr", 0.001),
+        weight_decay=cfg.get("student_weight_decay", 0.0001),
+    )
+
+    # Student scheduler
+    student_scheduler = CosineAnnealingLR(
+        student_optimizer, T_max=cfg.get("student_epochs", 10)
+    )
+
+    return teacher_optimizer, teacher_scheduler, student_optimizer, student_scheduler 
