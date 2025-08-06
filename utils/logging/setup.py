@@ -121,8 +121,8 @@ def get_logger(
     
     # results_dir이 실제로 "." 또는 ""인 경우에만 경고 출력
     if results_dir == "." or results_dir == "" or results_dir is None:
-        results_dir = "logs"
-        print(f"[Warning] results_dir이 '{exp_dir}'으로 설정되어 있어서 'logs' 디렉토리로 변경합니다.")
+        results_dir = "experiments/logs"
+        print(f"[Warning] results_dir이 '{exp_dir}'으로 설정되어 있어서 'experiments/logs' 디렉토리로 변경합니다.")
     
     log_file = os.path.join(results_dir, "train.log")
     

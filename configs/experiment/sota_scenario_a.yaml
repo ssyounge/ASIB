@@ -7,7 +7,7 @@ defaults:
   - /base
   - /model/teacher@teacher1: convnext_l_teacher
   - /model/teacher@teacher2: efficientnet_l2_teacher
-  - /model/student: mobilenet_v2_scratch_student
+  - /model/student: mobilenet_v2_scratch
   - _self_
 
 # ─── 경로 & 식별자 ────────────────────────────────────────────

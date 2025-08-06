@@ -6,7 +6,7 @@ defaults:
   - /base
   - /model/teacher@teacher1: convnext_s_teacher
   - /model/teacher@teacher2: resnet152_teacher
-  - /model/student: resnet50_scratch_student
+  - /model/student: resnet50_scratch
   - _self_
 
 # ─── 경로 & 식별자 ────────────────────────────────────────────

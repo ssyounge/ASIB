@@ -1,12 +1,12 @@
 # configs/registry_key.yaml
 
 student_keys:
-  - resnet50_scratch_student
-  - resnet101_pretrain_student
-  - resnet152_pretrain_student
-  - shufflenet_v2_scratch_student
-  - mobilenet_v2_scratch_student
-  - efficientnet_b0_scratch_student
+  - resnet50_scratch
+  - resnet101_pretrain
+  - resnet152_pretrain
+  - shufflenet_v2_scratch
+  - mobilenet_v2_scratch
+  - efficientnet_b0_scratch
   
 teacher_keys:
   - convnext_s_teacher

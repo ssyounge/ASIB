@@ -2,6 +2,26 @@
 """Test disagreement computation"""
 
 import torch
+import pytest
+
+
+@pytest.fixture
+def dummy_teachers():
+    """Create dummy teacher models for testing"""
+    class DummyTeacher(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.feature_dim = 2048
+            
+        def forward(self, x):
+            return torch.randn(x.shape[0], self.feature_dim)
+            
+        def extract_vector(self, x):
+            return torch.randn(x.shape[0], self.feature_dim)
+    
+    t1 = DummyTeacher()
+    t2 = DummyTeacher()
+    return t1, t2
 
 
 def test_disagreement_rate_range(dummy_teachers):

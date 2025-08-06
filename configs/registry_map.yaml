@@ -7,9 +7,9 @@ teachers:
   resnet152_teacher:       models.teachers.resnet152_teacher.create_resnet152
 
 students:
-  resnet152_pretrain_student: models.students.resnet152_student.create_resnet152_student
-  resnet101_pretrain_student: models.students.resnet101_student.create_resnet101_student
-  resnet50_scratch_student:   models.students.resnet50_student.create_resnet50_student
-  shufflenet_v2_scratch_student: models.students.shufflenet_v2_student.create_shufflenet_v2_scratch_student
-  mobilenet_v2_scratch_student:  models.students.mobilenet_v2_student.create_mobilenet_v2_scratch_student
-  efficientnet_b0_scratch_student: models.students.efficientnet_b0_student.create_efficientnet_b0_scratch_student
+  resnet152_pretrain: models.students.resnet152_student.create_resnet152_student
+  resnet101_pretrain: models.students.resnet101_student.create_resnet101_student
+  resnet50_scratch:   models.students.resnet50_student.create_resnet50_student
+  shufflenet_v2_scratch: models.students.shufflenet_v2_student.create_shufflenet_v2_scratch_student
+  mobilenet_v2_scratch:  models.students.mobilenet_v2_student.create_mobilenet_v2_scratch_student
+  efficientnet_b0_scratch: models.students.efficientnet_b0_student.create_efficientnet_b0_scratch_student

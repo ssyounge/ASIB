@@ -17,7 +17,7 @@ class CustomToTensor:
         if hasattr(pic, 'convert'):
             # PIL Image인 경우
             pic = pic.convert('RGB')
-            # PIL을 직접 torch tensor로 변환 (deprecated 경고 제거)
+            # PIL을 직접 torch tensor로 변환
             img = torch.tensor(np.array(pic), dtype=torch.uint8).permute((2, 0, 1)).contiguous()
             return img.float().div(255)
         else:
@@ -99,6 +99,8 @@ class CIFAR100NPZ(Dataset):
         target = self.targets[index]
         
         # numpy array를 PIL Image로 변환
+        if img.dtype != np.uint8:
+            img = img.astype(np.uint8)
         img = Image.fromarray(img)
         
         if self.transform is not None:

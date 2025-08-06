@@ -26,14 +26,14 @@ class TestCoreBuilder:
     def test_build_model(self):
         """Test build_model function"""
         # Test with a simple model
-        model = build_model("resnet152_pretrain_student", num_classes=100)
+        model = build_model("resnet152_pretrain", num_classes=100)
         assert model is not None
         assert hasattr(model, 'forward')
     
     def test_create_student_by_name(self):
         """Test create_student_by_name function"""
         model = create_student_by_name(
-            student_name="resnet152_pretrain_student",
+            student_name="resnet152_pretrain",
             num_classes=100,
             pretrained=False,
             small_input=True
@@ -96,7 +96,7 @@ class TestCoreBuilder:
         # Test partial freeze
         partial_freeze_student_auto(
             model=model,
-            student_name="resnet152_pretrain_student",
+            student_name="resnet152_pretrain",
             freeze_bn=True,
             freeze_ln=True,
             freeze_level=1
@@ -234,7 +234,7 @@ class TestModelRegistry:
         # Check for specific model keys
         expected_keys = [
             "resnet152_teacher",
-            "resnet152_pretrain_student",
+            "resnet152_pretrain",
             "convnext_l_teacher",
             "efficientnet_l2_teacher"
         ]
@@ -293,7 +293,7 @@ class TestIntegration:
         
         # Create student
         student = create_student_by_name(
-            student_name="resnet152_pretrain_student",
+            student_name="resnet152_pretrain",
             num_classes=100,
             pretrained=False,
             small_input=True

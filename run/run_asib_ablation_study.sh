@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=ablation_study
+#SBATCH --job-name=asib_ablation_study
 #SBATCH --partition=suma_a6000
 #SBATCH --qos=base_qos
 #SBATCH --gres=gpu:2
@@ -9,7 +9,7 @@
 #SBATCH --output=experiments/logs/ablation_%j.log
 #SBATCH --error=experiments/logs/ablation_%j.err
 # ---------------------------------------------------------
-# Phase 1: Complete Ablation Study 실행
+# ASIB Complete Ablation Study 실행
 # ASIB 구성 요소들의 점진적 추가 실험 (5단계)
 # ---------------------------------------------------------
 set -euo pipefail
@@ -21,7 +21,7 @@ cd "$ROOT"
 # 2) PYTHONPATH 추가
 export PYTHONPATH="${ROOT}:${PYTHONPATH:-}"
 
-# 3) Complete Ablation Study 실험들
+# 3) ASIB Complete Ablation Study 실험들
 EXPERIMENTS=(
     "ablation_baseline"      # (1) Baseline: MBM + E2E + Fixed Teachers
     "ablation_ib"           # (2) +IB: Information Bottleneck
@@ -32,10 +32,11 @@ EXPERIMENTS=(
 
 # 4) 각 실험 순차적으로 실행
 for exp in "${EXPERIMENTS[@]}"; do
-    echo "🚀 Starting ablation experiment: $exp"
+    echo "🚀 Starting ASIB ablation experiment: $exp"
     echo "=================================================="
     echo "Time: $(date)"
     echo "Experiment: $exp"
+    echo "ASIB Ablation Study"
     echo "=================================================="
     
     # 실험 실행
@@ -43,13 +44,13 @@ for exp in "${EXPERIMENTS[@]}"; do
         --config-name "experiment/$exp" \
         "$@"
     
-    echo "✅ Finished ablation experiment: $exp"
+    echo "✅ Finished ASIB ablation experiment: $exp"
     echo "=================================================="
     echo "Time: $(date)"
     echo ""
 done
 
-echo "🎉 All ablation experiments completed!"
+echo "🎉 ASIB ablation experiments completed!"
 echo "📁 Results saved in: outputs/ablation/"
-echo "📊 Next step: Run beta sensitivity analysis"
-echo "   python scripts/analysis/beta_sensitivity.py" 
+echo "📊 Next step: Run ASIB SOTA comparison"
+echo "   bash run/run_asib_sota_comparison.sh" 

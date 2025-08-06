@@ -1,89 +1,172 @@
 #!/usr/bin/env python3
 """Common fixtures for all tests"""
 
-import sys
-import os
-import tempfile
-import shutil
-from pathlib import Path
-
-# Add project root to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 import pytest
 import torch
-import torch.nn as nn
-from omegaconf import OmegaConf
+import numpy as np
+import sys
+import os
+import json
 
-# pytest 설정
-def pytest_configure(config):
-    """pytest 설정"""
-    # test_model_names.py는 pytest로 실행하지 않음 (main 함수만 있음)
-    config.addinivalue_line(
-        "markers", "manual: marks tests as manual (deselect with '-m \"not manual\"')"
-    )
+# PyCIL 경로 추가
+sys.path.append('./PyCIL')
 
-def pytest_collection_modifyitems(config, items):
-    """테스트 수집 시 수정"""
-    for item in items:
-        if "test_model_names" in item.nodeid:
-            item.add_marker(pytest.mark.manual)
+@pytest.fixture(scope="session")
+def device():
+    """테스트용 디바이스 설정"""
+    if torch.cuda.is_available():
+        return torch.device("cuda:0")
+    else:
+        return torch.device("cpu")
 
-@pytest.fixture
-def temp_dir():
-    """Create a temporary directory for testing"""
-    temp_dir = tempfile.mkdtemp()
-    yield temp_dir
-    shutil.rmtree(temp_dir)
+@pytest.fixture(scope="session")
+def sample_args():
+    """테스트용 기본 설정"""
+    return {
+        "prefix": "test",
+        "dataset": "cifar100",
+        "memory_size": 100,
+        "memory_per_class": 10,
+        "fixed_memory": False,
+        "shuffle": True,
+        "init_cls": 5,
+        "increment": 5,
+        "model_name": "asib_cl",
+        "convnet_type": "resnet32",
+        "device": ["0"],
+        "seed": [1993],
+        "ib_beta": 0.1,
+        "lambda_D": 1.0,
+        "lambda_IB": 1.0
+    }
 
-@pytest.fixture
-def config_name():
-    """Sample config name for testing"""
-    return "test_config"
+@pytest.fixture(scope="session")
+def small_dataset():
+    """작은 테스트 데이터셋"""
+    # 실제 데이터 대신 더미 데이터 사용
+    return torch.randn(100, 3, 32, 32), torch.randint(0, 10, (100,))
 
-@pytest.fixture
-def method_class():
-    """Sample method class for testing"""
-    class DummyMethod:
-        def __init__(self):
-            self.name = "dummy_method"
-    return DummyMethod
+@pytest.fixture(scope="session")
+def test_config():
+    """테스트용 설정 파일"""
+    return {
+        "prefix": "test",
+        "dataset": "cifar100",
+        "memory_size": 50,
+        "memory_per_class": 5,
+        "fixed_memory": False,
+        "shuffle": True,
+        "init_cls": 3,
+        "increment": 3,
+        "model_name": "asib_cl",
+        "convnet_type": "resnet32",
+        "device": ["0"],
+        "seed": [1993],
+        "ib_beta": 0.1,
+        "lambda_D": 1.0,
+        "lambda_IB": 1.0
+    }
 
-@pytest.fixture
-def method_name():
-    """Sample method name for testing"""
-    return "dummy_method"
-
-@pytest.fixture
-def config():
-    """Sample config for testing"""
-    return OmegaConf.create({
-        "method": "asib",
-        "batch_size": 32,
-        "learning_rate": 0.001,
-        "epochs": 10
-    })
-
-@pytest.fixture
-def model_name():
-    """Sample model name for testing"""
-    return "resnet50"
-
-@pytest.fixture
-def dummy_teachers():
-    """Create dummy teacher models for testing"""
-    class DummyTeacher(nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.feature_dim = 2048
-            self.classifier = nn.Linear(self.feature_dim, 100)
+@pytest.fixture(scope="session")
+def dummy_network():
+    """더미 네트워크 클래스"""
+    class DummyNetwork:
+        def __init__(self, feature_dim=512):
+            self.feature_dim = feature_dim
             
-        def forward(self, x):
-            # Return features and logits
-            feat = torch.randn(x.shape[0], self.feature_dim)
-            logit = self.classifier(feat)
-            return {"feat_2d": feat, "logit": logit}
+        def __call__(self, x):
+            # 딕셔너리 형태로 반환 (PyCIL 형식)
+            return {"logits": torch.randn(x.shape[0], 10)}
+            
+        def extract_vector(self, x):
+            return torch.randn(x.shape[0], self.feature_dim)
+            
+        def update_fc(self, num_classes):
+            pass
+            
+        def to(self, device):
+            return self
     
-    t1 = DummyTeacher()
-    t2 = DummyTeacher()
-    return t1, t2
+    return DummyNetwork
+
+@pytest.fixture(scope="session")
+def temp_config_file(tmp_path_factory):
+    """임시 설정 파일 생성"""
+    tmp_path = tmp_path_factory.mktemp("config")
+    config_file = tmp_path / "test_config.json"
+    
+    config = {
+        "prefix": "test",
+        "dataset": "cifar100",
+        "memory_size": 50,
+        "memory_per_class": 5,
+        "fixed_memory": False,
+        "shuffle": True,
+        "init_cls": 3,
+        "increment": 3,
+        "model_name": "asib_cl",
+        "convnet_type": "resnet32",
+        "device": ["0"],
+        "seed": [1993],
+        "ib_beta": 0.1,
+        "lambda_D": 1.0,
+        "lambda_IB": 1.0
+    }
+    
+    with open(config_file, 'w') as f:
+        json.dump(config, f)
+    
+    return str(config_file)
+
+@pytest.fixture(scope="session")
+def registry_configs():
+    """Registry 관련 설정 fixture"""
+    return {
+        "registry_key_path": "configs/registry_key.yaml",
+        "registry_map_path": "configs/registry_map.yaml",
+        "experiment_configs_dir": "configs/experiment",
+        "finetune_configs_dir": "configs/finetune",
+        "models_dir": "models"
+    }
+
+@pytest.fixture(scope="session")
+def registry_validation():
+    """Registry 검증을 위한 fixture"""
+    def validate_registry():
+        """Registry 일관성 검증"""
+        import yaml
+        from pathlib import Path
+        
+        # Registry 파일들 로드
+        key_path = Path("configs/registry_key.yaml")
+        map_path = Path("configs/registry_map.yaml")
+        
+        if not key_path.exists() or not map_path.exists():
+            return False, "Registry files not found"
+        
+        with open(key_path, 'r') as f:
+            key_config = yaml.safe_load(f)
+        with open(map_path, 'r') as f:
+            map_config = yaml.safe_load(f)
+        
+        # 일관성 검사
+        key_teachers = set(key_config.get('teacher_keys', []))
+        map_teachers = set(map_config.get('teachers', {}).keys())
+        
+        key_students = set(key_config.get('student_keys', []))
+        map_students = set(map_config.get('students', {}).keys())
+        
+        if key_teachers != map_teachers:
+            return False, f"Teacher mismatch: key={key_teachers}, map={map_teachers}"
+        
+        if key_students != map_students:
+            return False, f"Student mismatch: key={key_students}, map={map_students}"
+        
+        # _student 접미사 검사
+        for student_key in key_students:
+            if student_key.endswith('_student'):
+                return False, f"Student key '{student_key}' should not end with '_student'"
+        
+        return True, "Registry validation passed"
+    
+    return validate_registry

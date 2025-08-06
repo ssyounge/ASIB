@@ -15,7 +15,7 @@ from modules.losses import (
 )
 from utils.training import get_tau
 from utils.common import get_amp_components
-# LightweightAttnMBM is deprecated and ignored
+# LightweightAttnMBM is ignored
 
 class ASIBDistiller(nn.Module):
     """

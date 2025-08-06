@@ -18,11 +18,11 @@ from data.cifar100 import get_cifar100_loaders
 from data.imagenet32 import get_imagenet32_loaders
 from models.mbm import build_from_teachers
 
-from main import create_student_by_name, build_model
+from core import create_student_by_name, create_teacher_by_name
 
 # Teacher Factory
 
-def create_teacher_by_name(
+def create_teacher_by_name_eval(
     teacher_name: str,
     num_classes: int = 100,
     pretrained: bool = False,
@@ -32,7 +32,7 @@ def create_teacher_by_name(
     """Create teacher from :data:`MODEL_REGISTRY`."""
 
     try:
-        return build_model(
+        return create_teacher_by_name(
             teacher_name,
             num_classes=num_classes,
             pretrained=pretrained,
@@ -187,14 +187,14 @@ def main(cfg: DictConfig):
             )
 
         # 2) create teachers
-        teacher1 = create_teacher_by_name(
+        teacher1 = create_teacher_by_name_eval(
             teacher1_type,
             num_classes=n_classes,
             pretrained=False,
             small_input=small_input,
             cfg=cfg,
         ).to(device)
-        teacher2 = create_teacher_by_name(
+        teacher2 = create_teacher_by_name_eval(
             teacher2_type,
             num_classes=n_classes,
             pretrained=False,

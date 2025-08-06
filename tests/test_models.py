@@ -78,12 +78,12 @@ class TestStudentModels:
     """Test all student models"""
     
     @pytest.mark.parametrize("student_name", [
-        "resnet152_pretrain_student",
-        "resnet101_pretrain_student", 
-        "resnet50_scratch_student",
-        "shufflenet_v2_scratch_student",
-        "mobilenet_v2_scratch_student",
-        "efficientnet_b0_scratch_student"
+        "resnet152_pretrain",
+        "resnet101_pretrain", 
+        "resnet50_scratch",
+        "shufflenet_v2_scratch",
+        "mobilenet_v2_scratch",
+        "efficientnet_b0_scratch"
     ])
     def test_student_creation(self, student_name):
         """Test student model creation"""
@@ -98,12 +98,12 @@ class TestStudentModels:
         assert hasattr(model, 'extract_feats')
     
     @pytest.mark.parametrize("student_name", [
-        "resnet152_pretrain_student",
-        "resnet101_pretrain_student", 
-        "resnet50_scratch_student",
-        "shufflenet_v2_scratch_student",
-        "mobilenet_v2_scratch_student",
-        "efficientnet_b0_scratch_student"
+        "resnet152_pretrain",
+        "resnet101_pretrain", 
+        "resnet50_scratch",
+        "shufflenet_v2_scratch",
+        "mobilenet_v2_scratch",
+        "efficientnet_b0_scratch"
     ])
     def test_student_forward(self, student_name):
         """Test student forward pass"""
@@ -153,12 +153,12 @@ class TestModelRegistry:
         registry.ensure_scanned()
         
         student_keys = [
-            "resnet152_pretrain_student",
-            "resnet101_pretrain_student", 
-            "resnet50_scratch_student",
-            "shufflenet_v2_scratch_student",
-            "mobilenet_v2_scratch_student",
-            "efficientnet_b0_scratch_student"
+            "resnet152_pretrain",
+            "resnet101_pretrain", 
+            "resnet50_scratch",
+            "shufflenet_v2_scratch",
+            "mobilenet_v2_scratch",
+            "efficientnet_b0_scratch"
         ]
         
         for key in student_keys:
@@ -190,12 +190,12 @@ class TestModelParameters:
     def test_student_parameters(self):
         """Test student model parameter counts"""
         students = [
-            ("resnet152_pretrain_student", 60_000_000),  # ~60M
-            ("resnet101_pretrain_student", 45_000_000),  # ~45M
-            ("resnet50_scratch_student", 25_000_000),    # ~25M
-            ("shufflenet_v2_scratch_student", 4_000_000), # ~4M
-            ("mobilenet_v2_scratch_student", 6_000_000),  # ~6M
-            ("efficientnet_b0_scratch_student", 8_000_000), # ~8M
+            ("resnet152_pretrain", 60_000_000),  # ~60M
+            ("resnet101_pretrain", 45_000_000),  # ~45M
+            ("resnet50_scratch", 25_000_000),    # ~25M
+            ("shufflenet_v2_scratch", 4_000_000), # ~4M
+            ("mobilenet_v2_scratch", 6_000_000),  # ~6M
+            ("efficientnet_b0_scratch", 8_000_000), # ~8M
         ]
         
         for student_name, expected_min in students:

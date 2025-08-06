@@ -32,12 +32,12 @@ except ImportError:
         return DummyStudent(num_classes)
 
 @pytest.mark.parametrize("model_name", [
-    "resnet152_pretrain_student",
-    "resnet101_pretrain_student", 
-    "resnet50_scratch_student",
-    "shufflenet_v2_scratch_student",
-    "mobilenet_v2_scratch_student",
-    "efficientnet_b0_scratch_student"
+    "resnet152_pretrain",
+    "resnet101_pretrain", 
+    "resnet50_scratch",
+    "shufflenet_v2_scratch",
+    "mobilenet_v2_scratch",
+    "efficientnet_b0_scratch"
 ])
 def test_student_model(model_name):
     """Test a specific student model."""

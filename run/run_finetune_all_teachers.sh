@@ -29,9 +29,9 @@ TEACHERS=(
     #"convnext_l_cifar100"     # ConvNeXt-Large (CIFAR-100)
     #"convnext_l_imagenet32"   # ConvNeXt-Large (ImageNet-32)
     #"efficientnet_l2_cifar100" # EfficientNet-L2 (CIFAR-100)
-    #"efficientnet_l2_imagenet32" # EfficientNet-L2 (ImageNet-32)
+    "efficientnet_l2_imagenet32" # EfficientNet-L2 (ImageNet-32)
     #"resnet152_cifar100"       # ResNet152 (CIFAR-100)
-    "resnet152_imagenet32"     # ResNet152 (ImageNet-32)
+    #"resnet152_imagenet32"     # ResNet152 (ImageNet-32)
 )
 
 # 4) 각 teacher 순차적으로 finetune
