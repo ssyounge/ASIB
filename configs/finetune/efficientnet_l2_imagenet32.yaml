@@ -6,7 +6,7 @@ defaults:
   - /dataset: imagenet32
   - _self_
 
-teacher_type: efficientnet_l2_teacher
+teacher_type: efficientnet_l2
 small_input: true
 teacher_pretrained: true
 teacher_ckpt_init: null
@@ -40,7 +40,7 @@ results_dir:        experiments/outputs/finetune/efficientnet_l2_imagenet32_ft_i
 exp_id:             efficientnet_l2_imagenet32_improved
 
 # 추후 save 할 체크포인트 경로
-finetune_ckpt_path: experiments/checkpoints/efficientnet_l2_imagenet32_improved.pth
+finetune_ckpt_path: checkpoints/teachers/efficientnet_l2_imagenet32_improved.pth
 
 # Hydra 의 편의를 위해 명시(로더에서 사용)
 dataset_name: imagenet32

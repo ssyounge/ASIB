@@ -34,8 +34,26 @@ class IB_MBM(nn.Module):
         self.min_std = float(min_std)
 
     def forward(self, q_feat: torch.Tensor, kv_feats: torch.Tensor):
-        q = self.q_proj(q_feat).unsqueeze(1)  # (batch_size, 1, d_emb)
-        kv = self.kv_proj(kv_feats).unsqueeze(1)  # (batch_size, 1, d_emb)
+        # Handle different input shapes
+        if q_feat.dim() == 2:
+            q = self.q_proj(q_feat).unsqueeze(1)  # (batch_size, 1, d_emb)
+        else:
+            q = self.q_proj(q_feat)  # Already in correct shape
+        
+        # Handle kv_feats shape - flatten if 4D, reshape if 3D
+        if kv_feats.dim() == 4:
+            # 4D tensor: (batch_size, channels, height, width) -> (batch_size, channels*height*width)
+            batch_size = kv_feats.shape[0]
+            kv_feats = kv_feats.view(batch_size, -1)
+            kv = self.kv_proj(kv_feats).unsqueeze(1)  # (batch_size, 1, d_emb)
+        elif kv_feats.dim() == 3:
+            # 3D tensor: (batch_size, seq_len, features) -> (batch_size, seq_len, d_emb)
+            # This is the case from torch.stack([f1_2d, f2_2d], dim=1)
+            kv = self.kv_proj(kv_feats)  # (batch_size, seq_len, d_emb)
+        else:
+            # 2D tensor: (batch_size, features) -> (batch_size, 1, d_emb)
+            kv = self.kv_proj(kv_feats).unsqueeze(1)
+        
         syn, _ = self.attn(q, kv, kv)
         syn = syn.squeeze(1)
         mu, logvar = self.mu(syn), torch.clamp(

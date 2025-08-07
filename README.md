@@ -2,6 +2,22 @@
 
 **ASIB** (Adaptive Synergy Information-Bottleneck) is a multi-stage knowledge distillation framework that uses Information-Bottleneck Manifold Bridging Module (IB-MBM) to create synergistic knowledge from multiple teachers.
 
+## 🎯 **Latest Updates**
+
+### ✅ **Project Cleanup & Organization**
+- **Test Files**: All test files moved to `tests/` folder and organized
+- **Checkpoints**: Model checkpoints now saved in `checkpoints/` folder
+- **Path Standardization**: All absolute paths converted to relative paths for portability
+- **Comprehensive Testing**: All 40+ test files now covered in automated test suite
+
+### 🧪 **Complete Test Coverage**
+- **42 Test Files**: Comprehensive test suite covering all components
+- **Automated Testing**: `run/run_test.sh` runs all tests in parallel
+- **Test Categories**: 
+  - Core ASIB tests, PyCIL integration, Data & Utils
+  - Model tests, Config & Experiment tests, Script & Integration
+  - KD & Special tests, Framework robustness, Main integration
+
 ## 🚀 Quick Start
 
 ### Installation
@@ -10,6 +26,8 @@
 # Clone repository
 git clone https://github.com/YourName/ASIB-KD.git
 cd ASIB-KD
+
+# Note: All paths are relative - no absolute path dependencies!
 
 # Create conda environment
 conda env create -f environment.yml
@@ -22,11 +40,14 @@ pip install -r requirements.txt
 ### Basic Usage
 
 ```bash
+# Run all tests (comprehensive test suite)
+sbatch run/run_test.sh
+
 # Run complete ablation study
 sbatch run/run_ablation_study.sh
 
 # Run teacher fine-tuning
-sbatch run/run_finetune_single.sh convnext_s_cifar32
+sbatch run/run_finetune_single.sh convnext_s_cifar100
 
 # Run beta sensitivity analysis
 python scripts/analysis/beta_sensitivity.py
@@ -38,7 +59,7 @@ python scripts/analysis/comprehensive_analysis.py
 ## 📁 Project Structure
 
 ```
-ASIB-KD/
+ASMB_KD/
 ├── main.py                 # Main training script
 ├── eval.py                 # Model evaluation
 ├── README.md              # This file
@@ -76,7 +97,9 @@ ASIB-KD/
 │   │   └── fine_tuning.py
 │   └── setup/          # Setup scripts
 ├── run/                # SLURM execution scripts
-│   ├── run_ablation_study.sh
+│   ├── run_test.sh              # Comprehensive test suite
+│   ├── run_asib_ablation_study.sh
+│   ├── run_asib_sota_comparison.sh
 │   ├── run_finetune_single.sh
 │   └── run_finetune_all_teachers.sh
 ├── models/             # Model definitions
@@ -85,11 +108,123 @@ ASIB-KD/
 ├── core/               # Core functionality
 ├── methods/            # Distillation methods
 ├── modules/            # Training modules
-├── tests/              # Test files
-├── outputs/            # Experiment outputs
-├── checkpoints/        # Model checkpoints
-├── experiments/        # Experiment results
+├── tests/              # Comprehensive test suite (42 files)
+│   ├── conftest.py     # Common test fixtures
+│   ├── test_asib_*.py  # Core ASIB tests
+│   ├── test_pycil_*.py # PyCIL integration tests
+│   ├── test_*.py       # All other test files
+│   └── README.md       # Test documentation
+├── experiments/        # 🧪 All experiments (logs + results integrated)
+│   ├── test/           # Test experiments
+│   │   ├── logs/       # Test logs
+│   │   └── results/    # Test results
+│   ├── ablation/       # Ablation study experiments
+│   │   ├── baseline/   # Baseline experiments
+│   │   ├── cccp/       # CCCP experiments
+│   │   ├── ib/         # Information Bottleneck experiments
+│   │   ├── tadapt/     # Teacher adaptation experiments
+│   │   └── full/       # Full ASIB experiments
+│   ├── overlap/        # Class overlap experiments
+│   │   ├── logs/       # Overlap logs
+│   │   └── results/    # Overlap results
+│   ├── sota/           # SOTA comparison experiments
+│   │   ├── asib_cl/    # ASIB-CL experiments
+│   │   ├── finetune/   # Fine-tuning experiments
+│   │   ├── ewc/        # EWC experiments
+│   │   ├── lwf/        # LwF experiments
+│   │   ├── icarl/      # iCaRL experiments
+│   │   └── der/        # DER experiments
+│   └── finetune/       # Fine-tuning experiments
+│       ├── {model_name}/
+│       │   ├── logs/   # Training logs
+│       │   └── results/ # Training results
+├── checkpoints/        # 💾 Model checkpoints
+│   ├── teachers/       # Teacher model checkpoints
+│   ├── students/       # Student model checkpoints
+│   └── finetuned/      # Fine-tuned model checkpoints
+├── analysis/           # 📊 Analysis and visualization results
+│   ├── plots/          # Graphs and charts
+│   ├── reports/        # Analysis reports
+│   ├── sensitivity_analysis/     # Sensitivity analysis
+│   ├── overlap_analysis/         # Overlap analysis
+│   ├── teacher_adaptation/       # Teacher adaptation analysis
+│   ├── cccp_stability/           # CCCP stability analysis
+│   ├── information_plane/        # Information plane analysis
+│   ├── pf_efficiency/            # Partial freezing efficiency
+│   └── beta_sensitivity/         # Beta sensitivity analysis
+├── PyCIL/              # PyCIL framework integration
 └── .github/            # GitHub workflows
+```
+
+## 📋 **Directory Structure Overview**
+
+### 🧪 **`experiments/` - All Experiments (Integrated)**
+- **Unified Structure**: Each experiment has both `logs/` and `results/` in one place
+- **Easy Navigation**: Find all experiment data in one location
+- **Consistent Organization**: All experiments follow the same structure
+
+**Example Structure:**
+```
+experiments/
+├── test/                    # Test experiments
+│   ├── logs/               # Test execution logs
+│   └── results/            # Test results and summaries
+├── ablation/baseline/       # Baseline ablation study
+│   ├── logs/               # Training logs
+│   └── results/            # Performance results
+├── sota/asib_cl/           # ASIB-CL SOTA comparison
+│   ├── logs/               # Training logs
+│   └── results/            # Comparison results
+└── finetune/convnext_s_cifar100/  # Fine-tuning experiment
+    ├── logs/               # Training logs
+    └── results/            # Fine-tuning results
+```
+
+### 💾 **`checkpoints/` - Model Storage**
+- **teachers/**: Pre-trained teacher model checkpoints
+- **students/**: Student model checkpoints during training
+- **finetuned/**: Fine-tuned model checkpoints
+
+### 📊 **`analysis/` - Analysis & Visualization**
+- **plots/**: Graphs, charts, and visualizations
+- **reports/**: Analysis reports and summaries
+- **{analysis_type}/**: Specific analysis results (sensitivity, overlap, etc.)
+
+## 🚀 **Usage Examples**
+
+### Running Experiments
+```bash
+# Run comprehensive test suite
+sbatch run/run_test.sh
+# Results: experiments/test/logs/ + experiments/test/results/
+
+# Run ablation study
+sbatch run/run_asib_ablation_study.sh
+# Results: experiments/ablation/baseline/logs/ + experiments/ablation/baseline/results/
+
+# Run SOTA comparison
+sbatch run/run_asib_sota_comparison.sh
+# Results: experiments/sota/asib_cl/logs/ + experiments/sota/asib_cl/results/
+
+# Run fine-tuning
+sbatch run/run_finetune_single.sh convnext_s_cifar100
+# Results: experiments/finetune/convnext_s_cifar100/logs/ + experiments/finetune/convnext_s_cifar100/results/
+```
+
+### Checking Results
+```bash
+# View test results
+cat experiments/test/results/summary.log
+
+# Check ablation study logs
+ls experiments/ablation/baseline/logs/
+
+# View SOTA comparison results
+ls experiments/sota/asib_cl/results/
+
+# Access analysis results
+ls analysis/plots/
+ls analysis/reports/
 ```
 
 ## 🔧 Key Features
@@ -192,16 +327,38 @@ python scripts/analysis/comprehensive_analysis.py
 
 ## 🧪 Testing
 
+### **Comprehensive Test Suite**
 ```bash
-# Run all tests
-python -m pytest tests/
+# Run all tests (recommended - parallel execution)
+sbatch run/run_test.sh
 
-# Run specific test
-python -m pytest tests/test_integration.py
+# Run all tests directly
+python -m pytest tests/ -v
+
+# Run specific test category
+python -m pytest tests/test_asib_*.py -v  # Core ASIB tests
+python -m pytest tests/test_pycil_*.py -v # PyCIL integration tests
+
+# Run specific test file
+python -m pytest tests/test_integration.py -v
 
 # Run with coverage
-python -m pytest tests/ --cov=.
+python -m pytest tests/ --cov=. --cov-report=html
 ```
+
+### **Test Categories**
+- **Core ASIB Tests**: `test_asib_cl.py`, `test_asib_step.py`
+- **PyCIL Integration**: `test_pycil_integration.py`, `test_pycil_models.py`
+- **Data & Utils**: `test_data.py`, `test_utils.py`, `test_core.py`
+- **Models**: `test_models.py`, `test_models_advanced.py`
+- **Configs & Experiments**: `test_configs.py`, `test_experiment_*.py`
+- **Framework Robustness**: `test_framework_robustness.py`, `test_error_prevention.py`
+- **Main Integration**: `test_main.py`, `test_main_training.py`, `test_training_simple.py`
+
+### **Test Results**
+- **Summary**: `experiments/test_results/summary.log`
+- **Individual Logs**: `experiments/test_results/*.log`
+- **Coverage Report**: `htmlcov/index.html`
 
 ## 📚 Documentation
 

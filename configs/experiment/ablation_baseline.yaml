@@ -4,14 +4,14 @@
 
 defaults:
   - /base
-  - /model/teacher@teacher1: convnext_s_teacher
-  - /model/teacher@teacher2: resnet152_teacher
+  - /model/teacher@teacher1: convnext_s
+  - /model/teacher@teacher2: resnet152
   - /model/student: resnet50_scratch
   - _self_
 
 # ─── 경로 & 식별자 ────────────────────────────────────────────
-teacher1_ckpt: checkpoints/convnext_s_cifar32.pth
-teacher2_ckpt: checkpoints/resnet152_cifar32.pth
+teacher1_ckpt: checkpoints/teachers/convnext_s_cifar32.pth
+teacher2_ckpt: checkpoints/teachers/resnet152_cifar32.pth
 results_dir: outputs/ablation/baseline
 exp_id: ablation_baseline
 

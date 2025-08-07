@@ -44,7 +44,7 @@ class TestCoreBuilder:
     def test_create_teacher_by_name(self):
         """Test create_teacher_by_name function"""
         model = create_teacher_by_name(
-            teacher_name="resnet152_teacher",
+            teacher_name="resnet152",
             num_classes=100,
             pretrained=False,
             small_input=True
@@ -69,7 +69,7 @@ class TestCoreBuilder:
         # Test partial freeze
         partial_freeze_teacher_auto(
             model=model,
-            teacher_name="resnet152_teacher",
+            teacher_name="resnet152",
             freeze_bn=True,
             freeze_ln=True,
             freeze_level=1
@@ -233,10 +233,10 @@ class TestModelRegistry:
         
         # Check for specific model keys
         expected_keys = [
-            "resnet152_teacher",
+            "resnet152",
             "resnet152_pretrain",
-            "convnext_l_teacher",
-            "efficientnet_l2_teacher"
+            "convnext_l",
+            "efficientnet_l2"
         ]
         
         for key in expected_keys:
@@ -285,7 +285,7 @@ class TestIntegration:
         """Test complete model creation pipeline"""
         # Create teacher
         teacher = create_teacher_by_name(
-            teacher_name="resnet152_teacher",
+            teacher_name="resnet152",
             num_classes=100,
             pretrained=False,
             small_input=True

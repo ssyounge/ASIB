@@ -241,7 +241,7 @@ class TestBaseKDModelAdvanced:
         backbone = SimpleBackbone()
         
         # Create BaseKDModel
-        cfg = {"device": "cpu"}
+        cfg = {"device": "cuda"}
         model = BaseKDModel(backbone, num_classes=100, role="student", cfg=cfg)
         
         # Test feature extraction
@@ -277,7 +277,7 @@ class TestBaseKDModelAdvanced:
         backbone = SimpleBackbone()
         
         # Create BaseKDModel
-        cfg = {"device": "cpu"}
+        cfg = {"device": "cuda"}
         model = BaseKDModel(backbone, num_classes=100, role="student", cfg=cfg)
         
         # Test forward pass
@@ -358,7 +358,7 @@ class TestBaseKDModelAdvanced:
         backbone = SimpleBackbone()
         
         # Create BaseKDModel
-        cfg = {"device": "cpu"}
+        cfg = {"device": "cuda"}
         model = BaseKDModel(backbone, num_classes=100, role="student", cfg=cfg)
         
         # Get state dict
@@ -460,7 +460,7 @@ class TestModelIntegration:
         backbone = SimpleBackbone()
         
         # Create model
-        cfg = {"device": "cpu"}
+        cfg = {"device": "cuda"}
         model = BaseKDModel(backbone, num_classes=100, role="student", cfg=cfg)
         
         # Test complete pipeline

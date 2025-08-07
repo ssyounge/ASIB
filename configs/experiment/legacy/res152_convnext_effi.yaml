@@ -1,14 +1,14 @@
 # configs/experiment/res152_convnext_effi.yaml
 defaults:
   - /base
-  - /model/teacher@teacher1: convnext_l_teacher        # Teacher‑1 → ConvNeXt‑L
-  - /model/teacher@teacher2: efficientnet_l2_teacher   # Teacher‑2 → EffNet‑L2
+  - /model/teacher@teacher1: convnext_l        # Teacher‑1 → ConvNeXt‑L
+  - /model/teacher@teacher2: efficientnet_l2   # Teacher‑2 → EffNet‑L2
   - /model/student:          resnet152_pretrain
   - _self_
 
 # ─── 경로 & 식별자 ────────────────────────────────────────────
-teacher1_ckpt: checkpoints/convnext_l_cifar100.pth   # ← fc 5504▶100 형상 맞춰 trim
-teacher2_ckpt: checkpoints/efficientnet_l2_cifar32.pth
+teacher1_ckpt: checkpoints/teachers/convnext_l_cifar100.pth   # ← fc 5504▶100 형상 맞춰 trim
+teacher2_ckpt: checkpoints/teachers/efficientnet_l2_cifar32.pth
 results_dir:   outputs/res152_convnext_effi
 exp_id:        res152_convnext_effi
 

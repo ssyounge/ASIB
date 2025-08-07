@@ -132,7 +132,7 @@ class TestFinetuneConfigs:
         """Test specific resnet152 finetune config"""
         config = OmegaConf.load("configs/finetune/resnet152_cifar100.yaml")
         
-        assert config.teacher_type == "resnet152_teacher"
+        assert config.teacher_type == "resnet152"
         assert config.finetune_epochs == 70  # 전통적 모델이므로 충분한 학습 시간
         assert config.finetune_lr == 1.2e-4  # 전통적 모델이므로 적당한 학습률
         assert config.batch_size == 64
@@ -146,7 +146,7 @@ class TestFinetuneConfigs:
         """Test specific convnext_s finetune config"""
         config = OmegaConf.load("configs/finetune/convnext_s_cifar100.yaml")
         
-        assert config.teacher_type == "convnext_s_teacher"
+        assert config.teacher_type == "convnext_s"
         assert config.finetune_epochs == 80  # 중간 모델이므로 충분한 학습 시간
         assert config.finetune_lr == 1.5e-4  # 중간 모델이므로 적당한 학습률
         assert config.batch_size == 128
@@ -160,7 +160,7 @@ class TestFinetuneConfigs:
         """Test specific convnext_l finetune config"""
         config = OmegaConf.load("configs/finetune/convnext_l_cifar100.yaml")
         
-        assert config.teacher_type == "convnext_l_teacher"
+        assert config.teacher_type == "convnext_l"
         assert config.finetune_epochs == 60  # 큰 모델이므로 충분한 학습 시간
         assert config.finetune_lr == 8e-5  # 큰 모델이므로 더 낮은 학습률
         assert config.batch_size == 64  # ConvNeXt-L은 메모리 제약으로 작은 배치
@@ -174,7 +174,7 @@ class TestFinetuneConfigs:
         """Test specific efficientnet_l2 finetune config"""
         config = OmegaConf.load("configs/finetune/efficientnet_l2_cifar100.yaml")
         
-        assert config.teacher_type == "efficientnet_l2_teacher"
+        assert config.teacher_type == "efficientnet_l2"
         assert config.finetune_epochs == 65  # 효율적 모델이므로 적당한 학습 시간
         assert config.finetune_lr == 1.8e-4  # 효율적 모델이므로 약간 높은 학습률
         assert config.batch_size == 32  # A6000 GPU에서 EfficientNet-L2용

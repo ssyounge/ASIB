@@ -141,7 +141,7 @@ def train_specialized_teacher(teacher_name: str, class_range: Tuple[int, int],
     # 학습
     num_epochs = 50
     best_acc = 0.0
-    ckpt_path = f"experiments/checkpoints/{teacher_name}_classes_{start_class}-{end_class}.pth"
+    ckpt_path = f"checkpoints/teachers/{teacher_name}_classes_{start_class}-{end_class}.pth"
     
     for epoch in range(num_epochs):
         # Training
@@ -210,8 +210,8 @@ def run_overlap_experiment(config: OverlapConfig, method: str = "asib") -> Dict[
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     # 교사 모델들 로드
-    teacher1_ckpt = f"experiments/checkpoints/resnet152_teacher_classes_{config.teacher1_classes[0]}-{config.teacher1_classes[1]}.pth"
-    teacher2_ckpt = f"experiments/checkpoints/resnet152_teacher_classes_{config.teacher2_classes[0]}-{config.teacher2_classes[1]}.pth"
+    teacher1_ckpt = f"checkpoints/teachers/resnet152_teacher_classes_{config.teacher1_classes[0]}-{config.teacher1_classes[1]}.pth"
+    teacher2_ckpt = f"checkpoints/teachers/resnet152_teacher_classes_{config.teacher2_classes[0]}-{config.teacher2_classes[1]}.pth"
     
     teacher1 = create_teacher_by_name("resnet152_teacher", pretrained=False)
     teacher2 = create_teacher_by_name("resnet152_teacher", pretrained=False)
@@ -321,7 +321,7 @@ def run_overlap_experiment(config: OverlapConfig, method: str = "asib") -> Dict[
 def run_overlap_analysis():
     """Class Overlap 실험 메인 함수"""
     logger = setup_logging({
-        "results_dir": "experiments/outputs/overlap_analysis",
+        "results_dir": "outputs/analysis/overlap_analysis",
         "exp_id": "overlap_analysis",
         "log_level": "INFO"
     })
@@ -344,8 +344,8 @@ def run_overlap_analysis():
         logger.info(f"  Overlap classes: {config.overlap_classes}")
         
         # 교사 모델들 전문화 학습 (필요시)
-        teacher1_ckpt = f"experiments/checkpoints/resnet152_teacher_classes_{config.teacher1_classes[0]}-{config.teacher1_classes[1]}.pth"
-        teacher2_ckpt = f"experiments/checkpoints/resnet152_teacher_classes_{config.teacher2_classes[0]}-{config.teacher2_classes[1]}.pth"
+        teacher1_ckpt = f"checkpoints/teachers/resnet152_teacher_classes_{config.teacher1_classes[0]}-{config.teacher1_classes[1]}.pth"
+        teacher2_ckpt = f"checkpoints/teachers/resnet152_teacher_classes_{config.teacher2_classes[0]}-{config.teacher2_classes[1]}.pth"
         
         if not os.path.exists(teacher1_ckpt):
             logger.info(f"Training specialized teacher1 for classes {config.teacher1_classes}")
@@ -430,7 +430,7 @@ def plot_overlap_results(results: List[Dict[str, float]]):
     plt.grid(True, alpha=0.3)
     
     plt.tight_layout()
-    plt.savefig('experiments/outputs/overlap_analysis/overlap_results.png', dpi=300, bbox_inches='tight')
+    plt.savefig('outputs/analysis/overlap_analysis/overlap_results.png', dpi=300, bbox_inches='tight')
     plt.show()
 
 
@@ -438,7 +438,7 @@ def save_results(results: List[Dict[str, float]]):
     """결과를 JSON 파일로 저장"""
     import json
     
-    output_file = 'experiments/outputs/overlap_analysis/overlap_results.json'
+    output_file = 'outputs/analysis/overlap_analysis/overlap_results.json'
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     
     with open(output_file, 'w') as f:

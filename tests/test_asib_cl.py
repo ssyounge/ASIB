@@ -22,7 +22,7 @@ def test_asib_cl_initialization():
     args = {
         "convnet_type": "resnet32",
         "dataset": "cifar100",
-        "device": ["cpu"],
+        "device": ["cuda"],
         "memory_size": 2000,
         "ib_beta": 0.1,
         "lambda_D": 1.0,
@@ -45,7 +45,7 @@ def test_ib_modules_initialization():
     args = {
         "convnet_type": "resnet32",
         "dataset": "cifar100",
-        "device": ["cpu"],
+        "device": ["cuda"],
         "memory_size": 2000,
         "ib_beta": 0.1,
         "lambda_D": 1.0,
@@ -70,7 +70,7 @@ def test_reparameterize_trick():
     args = {
         "convnet_type": "resnet32",
         "dataset": "cifar100",
-        "device": ["cpu"],
+        "device": ["cuda"],
         "memory_size": 2000,
         "ib_beta": 0.1,
         "lambda_D": 1.0,
@@ -96,7 +96,7 @@ def test_kl_loss_normalization():
     args = {
         "convnet_type": "resnet32",
         "dataset": "cifar100",
-        "device": ["cpu"],
+        "device": ["cuda"],
         "memory_size": 2000,
         "ib_beta": 0.1,
         "lambda_D": 1.0,
@@ -122,7 +122,7 @@ def test_separated_losses_computation():
     args = {
         "convnet_type": "resnet32",
         "dataset": "cifar100",
-        "device": ["cpu"],
+        "device": ["cuda"],
         "memory_size": 2000,
         "ib_beta": 0.1,
         "lambda_D": 1.0,
@@ -159,7 +159,7 @@ def test_model_mode_settings():
     args = {
         "convnet_type": "resnet32",
         "dataset": "cifar100",
-        "device": ["cpu"],
+        "device": ["cuda"],
         "memory_size": 2000,
         "ib_beta": 0.1,
         "lambda_D": 1.0,
@@ -184,7 +184,7 @@ def test_differential_learning_rates():
     args = {
         "convnet_type": "resnet32",
         "dataset": "cifar100",
-        "device": ["cpu"],
+        "device": ["cuda"],
         "memory_size": 2000,
         "ib_beta": 0.1,
         "lambda_D": 1.0,
@@ -214,7 +214,7 @@ def test_incremental_train():
     args = {
         "convnet_type": "resnet32",
         "dataset": "cifar100",
-        "device": ["cpu"],
+        "device": ["cuda"],
         "memory_size": 2000,
         "ib_beta": 0.1,
         "lambda_D": 1.0,
@@ -255,7 +255,7 @@ def test_memory_management():
     args = {
         "convnet_type": "resnet32",
         "dataset": "cifar100",
-        "device": ["cpu"],
+        "device": ["cuda"],
         "memory_size": 2000,
         "ib_beta": 0.1,
         "lambda_D": 1.0,
@@ -283,7 +283,7 @@ def test_accuracy_computation():
     args = {
         "convnet_type": "resnet32",
         "dataset": "cifar100",
-        "device": ["cpu"],
+        "device": ["cuda"],
         "memory_size": 2000,
         "ib_beta": 0.1,
         "lambda_D": 1.0,
@@ -316,7 +316,7 @@ def test_exemplar_construction():
     args = {
         "convnet_type": "resnet32",
         "dataset": "cifar100",
-        "device": ["cpu"],
+        "device": ["cuda"],
         "memory_size": 2000,
         "ib_beta": 0.1,
         "lambda_D": 1.0,
@@ -353,7 +353,7 @@ def test_parameters_and_to_methods():
     args = {
         "convnet_type": "resnet32",
         "dataset": "cifar100",
-        "device": ["cpu"],
+        "device": ["cuda"],
         "memory_size": 2000,
         "ib_beta": 0.1,
         "lambda_D": 1.0,
@@ -369,14 +369,24 @@ def test_parameters_and_to_methods():
     
     # to() 메소드 테스트
     model.to("cpu")  # 이미 CPU에 있지만 메소드 호출은 성공해야 함
-    assert next(iter(model.parameters())).device.type == "cpu"
+    
+    # GPU가 사용 가능한 경우 GPU로 이동 테스트
+    if torch.cuda.is_available():
+        model.to("cuda")
+        # 첫 번째 파라미터의 디바이스 확인
+        first_param = model.parameters()[0]
+        assert first_param.device.type == "cuda"
+    else:
+        # CPU에서 테스트
+        first_param = model.parameters()[0]
+        assert first_param.device.type == "cpu"
 
 def test_after_task():
     """after_task 메소드가 올바르게 작동하는지 테스트"""
     args = {
         "convnet_type": "resnet32",
         "dataset": "cifar100",
-        "device": ["cpu"],
+        "device": ["cuda"],
         "memory_size": 2000,
         "ib_beta": 0.1,
         "lambda_D": 1.0,

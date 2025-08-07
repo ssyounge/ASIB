@@ -6,7 +6,7 @@ defaults:
   - /dataset: cifar100
   - _self_
 
-teacher_type:  convnext_l_teacher
+teacher_type:  convnext_l
 small_input:   true
 teacher_pretrained:  true
 teacher_ckpt_init:   null                 # 이어서 학습할 ckpt 경로가 있으면 지정
@@ -38,7 +38,7 @@ log_level:  INFO
 deterministic: true
 
 # 추후 save 할 체크포인트 경로
-finetune_ckpt_path: experiments/checkpoints/convnext_l_cifar100.pth
+finetune_ckpt_path: checkpoints/teachers/convnext_l_cifar100.pth
 
 # Hydra 의 편의를 위해 명시(로더에서 사용)
 dataset_name: cifar100

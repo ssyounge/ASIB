@@ -1,10 +1,10 @@
 # configs/registry_map.yaml
 
 teachers:
-  convnext_s_teacher:      models.teachers.convnext_s_teacher.create_convnext_s
-  convnext_l_teacher:      models.teachers.convnext_l_teacher.create_convnext_l
-  efficientnet_l2_teacher: models.teachers.efficientnet_l2_teacher.create_efficientnet_l2
-  resnet152_teacher:       models.teachers.resnet152_teacher.create_resnet152
+  convnext_s:      models.teachers.convnext_s_teacher.create_convnext_s
+  convnext_l:      models.teachers.convnext_l_teacher.create_convnext_l
+  efficientnet_l2: models.teachers.efficientnet_l2_teacher.create_efficientnet_l2
+  resnet152:       models.teachers.resnet152_teacher.create_resnet152
 
 students:
   resnet152_pretrain: models.students.resnet152_student.create_resnet152_student

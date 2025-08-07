@@ -1,14 +1,14 @@
 # configs/experiment/res152_effi_l2.yaml
 defaults:
   - /base
-  - /model/teacher@teacher1: resnet152_teacher
-  - /model/teacher@teacher2: efficientnet_l2_teacher
+  - /model/teacher@teacher1: resnet152
+  - /model/teacher@teacher2: efficientnet_l2
   - /model/student:          resnet152_pretrain
   - _self_
 
 # ─── 경로 & 식별자 ────────────────────────────────────────────
-teacher1_ckpt: checkpoints/resnet152_cifar32.pth
-teacher2_ckpt: checkpoints/efficientnet_l2_cifar32.pth
+teacher1_ckpt: checkpoints/teachers/resnet152_cifar32.pth
+teacher2_ckpt: checkpoints/teachers/efficientnet_l2_cifar32.pth
 results_dir:   outputs/res152_effi_l2
 exp_id:        res152_effi_l2
 

@@ -24,8 +24,8 @@ defaults:
 # ==================== 필수 하이퍼파라미터 =====================
 
 # --- 경로 & 식별자 ------------------------------------------
-teacher1_ckpt: checkpoints/<teacher1_ckpt>.pth
-teacher2_ckpt: checkpoints/<teacher2_ckpt>.pth
+teacher1_ckpt: checkpoints/teachers/<teacher1_ckpt>.pth
+teacher2_ckpt: checkpoints/teachers/<teacher2_ckpt>.pth
 results_dir:   outputs/<exp_id>
 exp_id:        <exp_id>                # (로그·출력 폴더 이름)
 

@@ -71,6 +71,13 @@ class TestComprehensiveRegistryMapping:
         
         for student_key in map_students:
             assert not student_key.endswith('_student'), f"Student key '{student_key}' should not end with '_student'"
+        
+        # CRITICAL: Check for _teacher suffix in registry keys
+        for teacher_key in key_teachers:
+            assert not teacher_key.endswith('_teacher'), f"Teacher key '{teacher_key}' should not end with '_teacher'"
+        
+        for teacher_key in map_teachers:
+            assert not teacher_key.endswith('_teacher'), f"Teacher key '{teacher_key}' should not end with '_teacher'"
     
     def test_all_experiment_configs_use_valid_registry_keys(self):
         """Test all experiment configs use valid registry keys"""
@@ -115,6 +122,14 @@ class TestComprehensiveRegistryMapping:
                             # CRITICAL: Check for _student suffix in config files
                             if student_name.endswith('_student'):
                                 errors.append(f"{config_file}: student '{student_name}' should not end with '_student'")
+                
+                # Check for _teacher suffix in config files
+                if "defaults" in config:
+                    for default in config.defaults:
+                        if isinstance(default, str) and ("teacher@teacher1" in default or "teacher@teacher2" in default):
+                            teacher_name = default.split(":")[-1].strip()
+                            if teacher_name.endswith('_teacher'):
+                                errors.append(f"{config_file}: teacher '{teacher_name}' should not end with '_teacher'")
                                 
             except Exception as e:
                 errors.append(f"{config_file}: Error loading config - {e}")
@@ -161,9 +176,9 @@ class TestComprehensiveRegistryMapping:
         for teacher_name, teacher_path in map_config.teachers.items():
             # Extract module path from registry entry
             module_path = teacher_path.split(".")[:-1]  # Remove function name
-            # Convert models.teachers.convnext_s_teacher to models/teachers/convnext_s_teacher.py
-            # module_path = ['models', 'teachers', 'convnext_s_teacher']
-            # We want: models/teachers/convnext_s_teacher.py
+            # Convert models.teachers.convnext_s to models/teachers/convnext_s.py
+            # module_path = ['models', 'teachers', 'convnext_s']
+            # We want: models/teachers/convnext_s.py
             file_path = Path("models") / "/".join(module_path[1:-1]) / f"{module_path[-1]}.py"
             
             print(f"Checking teacher: {teacher_name} -> {file_path}")
@@ -290,7 +305,14 @@ class TestComprehensiveRegistryMapping:
         for student_key in map_config.students.keys():
             assert not student_key.endswith('_student'), f"CRITICAL: Student key '{student_key}' ends with '_student'"
         
-        # 2. Check for _student suffix in config files
+        # 2. Check for _teacher suffix in registry keys
+        for teacher_key in key_config.teacher_keys:
+            assert not teacher_key.endswith('_teacher'), f"CRITICAL: Teacher key '{teacher_key}' ends with '_teacher'"
+        
+        for teacher_key in map_config.teachers.keys():
+            assert not teacher_key.endswith('_teacher'), f"CRITICAL: Teacher key '{teacher_key}' ends with '_teacher'"
+        
+        # 3. Check for _student and _teacher suffix in config files
         config_dirs = ["configs/experiment", "configs/finetune"]
         for config_dir in config_dirs:
             dir_path = Path(config_dir)
@@ -300,8 +322,10 @@ class TestComprehensiveRegistryMapping:
                         content = f.read()
                         if "_student" in content:
                             pytest.fail(f"CRITICAL: {config_file} contains '_student' suffix")
+                        if "_teacher" in content:
+                            pytest.fail(f"CRITICAL: {config_file} contains '_teacher' suffix")
         
-        # 3. Check registry consistency
+        # 4. Check registry consistency
         key_teachers = set(key_config.teacher_keys)
         map_teachers = set(map_config.teachers.keys())
         assert key_teachers == map_teachers, "CRITICAL: Teacher registry mismatch"

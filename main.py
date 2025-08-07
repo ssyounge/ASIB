@@ -26,10 +26,10 @@ from core import (
     partial_freeze_student_auto,
     run_training_stages,
     run_continual_learning,
-    _renorm_ce_kd,
-    setup_partial_freeze_schedule,
-    setup_safety_switches,
-    auto_set_mbm_query_dim,
+    renorm_ce_kd,
+    setup_partial_freeze_schedule_with_cfg,
+    setup_safety_switches_with_cfg,
+    auto_set_mbm_query_dim_with_model,
     cast_numeric_configs,
 )
 
@@ -77,17 +77,17 @@ def main(cfg: DictConfig):
         # experiment 섹션에서 results_dir 확인
         exp_dir = cfg["experiment"].get("results_dir", ".")
     
-    lvl = cfg.get("log_level") or "WARNING"  # INFO → WARNING으로 변경
+    lvl = cfg.get("log_level") or "INFO"  # WARNING → INFO로 변경
     logger = get_logger(
         exp_dir,
         level=lvl,
-        stream_level="WARNING" if lvl.upper() == "DEBUG" else lvl,  # INFO → WARNING으로 변경
+        stream_level="INFO" if lvl.upper() == "DEBUG" else lvl,  # WARNING → INFO로 변경
     )
 
     global _HP_LOGGED
     if not _HP_LOGGED:
         safe_cfg = {k: v for k, v in cfg.items() if not isinstance(v, logging.Logger)}
-        logger.warning("HParams:\n%s", json.dumps(safe_cfg, indent=2))  # info → warning으로 변경
+        logger.info("HParams:\n%s", json.dumps(safe_cfg, indent=2))  # warning → info로 변경
         if wandb is not None and wandb.run:
             wandb.config.update(cfg, allow_val_change=False)
         _HP_LOGGED = True
@@ -120,7 +120,7 @@ def main(cfg: DictConfig):
             )
         else:
             logging.warning("No CUDA => Using CPU")
-            device = "cpu"
+            device = "cuda"
 
     # fix seed
     seed = cfg.get("seed", 42)
@@ -142,17 +142,34 @@ def main(cfg: DictConfig):
             seed=seed,
         )
         # 학생은 **두 교사 클래스의 합집합**을 모두 보게 해야 함
-        train_loader = torch.utils.data.ConcatDataset([A_tr.dataset, B_tr.dataset])
-        test_loader = torch.utils.data.ConcatDataset([A_te.dataset, B_te.dataset])
+        # Get the union of all classes from both teachers
+        all_classes = list(set(A_tr.dataset.class_indices + B_tr.dataset.class_indices))
+        all_classes.sort()
+        
+        # Create combined datasets
+        from data.cifar100_overlap import CIFAR100OverlapDataset
+        
+        # Get base CIFAR-100 datasets
+        base_train_loader, base_test_loader = get_cifar100_loaders(
+            root=data_root,
+            batch_size=batch_size,
+            num_workers=cfg.get("num_workers", 2),
+            augment=cfg.get("data_aug", True),
+        )
+        
+        # Create combined datasets with all classes
+        combined_train_dataset = CIFAR100OverlapDataset(base_train_loader.dataset, all_classes)
+        combined_test_dataset = CIFAR100OverlapDataset(base_test_loader.dataset, all_classes)
+        
         train_loader = torch.utils.data.DataLoader(
-            train_loader,
+            combined_train_dataset,
             batch_size=batch_size,
             shuffle=True,
             num_workers=cfg.get("num_workers", 2),
             pin_memory=True,
         )
         test_loader = torch.utils.data.DataLoader(
-            test_loader,
+            combined_test_dataset,
             batch_size=batch_size,
             shuffle=False,
             num_workers=cfg.get("num_workers", 2),
@@ -211,7 +228,7 @@ def main(cfg: DictConfig):
             "YAML 에 'teacher1.model.teacher.name' 가 없습니다 (teacher1 모델 미지정)."
         )
     teacher1_ckpt_path = cfg.get(
-        "teacher1_ckpt", f"./checkpoints/{teacher1_name}_ft.pth"
+        "teacher1_ckpt", f"./checkpoints/teachers/{teacher1_name}_ft.pth"
     )
     
     # 모델 생성 시 INFO 메시지 억제
@@ -270,7 +287,7 @@ def main(cfg: DictConfig):
             "YAML 에 'teacher2.model.teacher.name' 가 없습니다 (teacher2 모델 미지정)."
         )
     teacher2_ckpt_path = cfg.get(
-        "teacher2_ckpt", f"./checkpoints/{teacher2_name}_ft.pth"
+        "teacher2_ckpt", f"./checkpoints/teachers/{teacher2_name}_ft.pth"
     )
     
     # 모델 생성 시 INFO 메시지 억제
@@ -360,18 +377,29 @@ def main(cfg: DictConfig):
     num_stages = int(cfg.get("num_stages", 2))
     
     # Setup partial freeze schedule
-    setup_partial_freeze_schedule(cfg, num_stages)
-    setup_safety_switches(cfg, num_stages)
+    setup_partial_freeze_schedule_with_cfg(cfg, num_stages)
+    setup_safety_switches_with_cfg(cfg, num_stages)
     
     # Auto-set mbm_query_dim
-    auto_set_mbm_query_dim(student_model, cfg)
+    auto_set_mbm_query_dim_with_model(student_model, cfg)
     
     # Renormalize ce_alpha and kd_alpha
-    _renorm_ce_kd(cfg)
+    renorm_ce_kd(cfg)
 
     # ────────────────── TRAINING ──────────────────
+    logging.info("🚀 Starting training process...")
+    logging.info(f"CL mode: {cfg.get('cl_mode', False)}")
+    logging.info(f"Number of stages: {num_stages}")
+    logging.info(f"Student epochs per stage: {cfg.get('student_epochs_schedule', [])}")
+    logging.info(f"Batch size: {cfg.get('batch_size', 'N/A')}")
+    logging.info(f"Device: {cfg.get('device', 'N/A')}")
+    logging.info(f"Train loader size: {len(train_loader)} batches")
+    logging.info(f"Test loader size: {len(test_loader)} batches")
+    logging.info(f"Dataset classes: {num_classes}")
+    
     if cfg.get("cl_mode", False):
         # Continual Learning mode
+        logging.info("📚 Running in Continual Learning mode...")
         final_acc = run_continual_learning(
             [teacher1, teacher2],
             mbm,
@@ -382,23 +410,38 @@ def main(cfg: DictConfig):
         )
     else:
         # Standard training mode
-        final_acc = run_training_stages(
-            [teacher1, teacher2],
-            mbm,
-            synergy_head,
-            student_model,
-            train_loader,
-            test_loader,
-            cfg,
-            exp_logger,
-            num_stages,
-        )
+        logging.info("🎯 Running in Standard training mode...")
+        logging.info(f"Training stages: {num_stages}")
+        logging.info(f"Student epochs per stage: {cfg.get('student_epochs_schedule', [])}")
+        logging.info(f"Use partial freeze: {cfg.get('use_partial_freeze', False)}")
+        logging.info(f"Teacher adaptive epochs: {cfg.get('teacher_adapt_epochs', 1)}")
+        
+        try:
+            logging.info("🚀 Calling run_training_stages...")
+            logging.info("📊 Training will start now - you should see epoch progress logs...")
+            final_acc = run_training_stages(
+                [teacher1, teacher2],
+                mbm,
+                synergy_head,
+                student_model,
+                train_loader,
+                test_loader,
+                cfg,
+                exp_logger,
+                num_stages,
+            )
+            logging.info(f"✅ run_training_stages completed with accuracy: {final_acc:.2f}%")
+        except Exception as e:
+            logging.error(f"❌ run_training_stages failed: {e}")
+            import traceback
+            traceback.print_exc()
+            final_acc = 0.0
+    
+    logging.info(f"✅ Training completed. Final student accuracy: {final_acc:.2f}%")
 
     # ────────────────── FINAL LOGGING ──────────────────
     exp_logger.update_metric("final_student_acc", final_acc)
     exp_logger.save_results()
-    
-    logging.info(f"Training completed. Final student accuracy: {final_acc:.2f}%")
     
     return final_acc
 

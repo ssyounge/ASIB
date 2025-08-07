@@ -275,24 +275,41 @@ def test_device_handling():
     assert 'device' in model.args
     assert isinstance(model.args['device'], list)
 
-    # 모델을 CPU로 이동
-    model.to('cpu')
+    # GPU가 사용 가능한지 확인
+    if torch.cuda.is_available():
+        # GPU에서 추론 테스트
+        model.to('cuda')
+        batch_size = 4
+        input_tensor = torch.randn(batch_size, 3, 32, 32).to('cuda')
 
-    # CPU에서 추론 테스트
-    batch_size = 4
-    input_tensor = torch.randn(batch_size, 3, 32, 32)
+        with torch.no_grad():
+            output = model._network(input_tensor)
+            # 출력이 딕셔너리인 경우를 고려
+            if isinstance(output, dict):
+                # 딕셔너리의 값들 중 하나에서 device 확인
+                for key, value in output.items():
+                    if isinstance(value, torch.Tensor):
+                        assert value.device.type == 'cuda'
+                        break
+            else:
+                assert output.device.type == 'cuda'
+    else:
+        # CPU에서 추론 테스트
+        model.to('cpu')
+        batch_size = 4
+        input_tensor = torch.randn(batch_size, 3, 32, 32)
 
-    with torch.no_grad():
-        output = model._network(input_tensor)
-        # 출력이 딕셔너리인 경우를 고려
-        if isinstance(output, dict):
-            # 딕셔너리의 값들 중 하나에서 device 확인
-            for key, value in output.items():
-                if isinstance(value, torch.Tensor):
-                    assert value.device.type == 'cpu'
-                    break
-        else:
-            assert output.device.type == 'cpu'
+        with torch.no_grad():
+            output = model._network(input_tensor)
+            # 출력이 딕셔너리인 경우를 고려
+            if isinstance(output, dict):
+                # 딕셔너리의 값들 중 하나에서 device 확인
+                for key, value in output.items():
+                    if isinstance(value, torch.Tensor):
+                        assert value.device.type == 'cpu'
+                        break
+            else:
+                assert output.device.type == 'cpu'
 
 def test_gradient_flow():
     """그래디언트 흐름이 정상적으로 작동하는지 확인"""

@@ -4,14 +4,14 @@
 
 defaults:
   - /base
-  - /model/teacher@teacher1: resnet152_teacher
-  - /model/teacher@teacher2: resnet152_teacher
+  - /model/teacher@teacher1: resnet152
+  - /model/teacher@teacher2: resnet152
   - /model/student: resnet50_scratch
   - _self_
 
 # ─── 경로 & 식별자 ────────────────────────────────────────────
-teacher1_ckpt: checkpoints/resnet152_cifar32.pth
-teacher2_ckpt: checkpoints/resnet152_cifar32.pth  # 동일한 모델
+teacher1_ckpt: checkpoints/teachers/resnet152_cifar32.pth
+teacher2_ckpt: checkpoints/teachers/resnet152_cifar32.pth  # 동일한 모델
 results_dir: outputs/overlap/overlap_100
 exp_id: overlap_100
 

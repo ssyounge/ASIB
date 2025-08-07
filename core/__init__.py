@@ -14,9 +14,12 @@ from .trainer import (
 )
 from .utils import (
     _renorm_ce_kd,
+    renorm_ce_kd,
     setup_partial_freeze_schedule,
+    setup_partial_freeze_schedule_with_cfg,
     setup_safety_switches,
-    auto_set_mbm_query_dim,
+    setup_safety_switches_with_cfg,
+    auto_set_mbm_query_dim_with_model,
     cast_numeric_configs,
 )
 
@@ -34,9 +37,11 @@ __all__ = [
     "run_continual_learning",
     
     # Utility functions
-    "_renorm_ce_kd",
+    "renorm_ce_kd",
     "setup_partial_freeze_schedule",
+    "setup_partial_freeze_schedule_with_cfg",
     "setup_safety_switches",
-    "auto_set_mbm_query_dim",
+    "setup_safety_switches_with_cfg",
+    "auto_set_mbm_query_dim_with_model",
     "cast_numeric_configs",
 ] 

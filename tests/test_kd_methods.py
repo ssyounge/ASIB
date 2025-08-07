@@ -87,7 +87,7 @@ class TestKDDistillers:
         synergy_head = SynergyHead(128, num_classes=100)
     
         distiller = ASIBDistiller(
-            teacher1, teacher2, student, mbm, synergy_head, device="cpu"
+            teacher1, teacher2, student, mbm, synergy_head, device="cuda"
         )
     
         x = torch.randn(4, 3)

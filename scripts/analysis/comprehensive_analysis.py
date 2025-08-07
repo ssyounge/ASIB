@@ -60,10 +60,10 @@ Analysis Components:
 4. PF Efficiency Analysis (Memory & Time Optimization)
 
 Results are saved in the following directories:
-- outputs/information_plane/
-- outputs/cccp_stability/
-- outputs/teacher_adaptation/
-- outputs/pf_efficiency/
+- outputs/analysis/information_plane/
+- outputs/analysis/cccp_stability/
+- outputs/analysis/teacher_adaptation/
+- outputs/analysis/pf_efficiency/
 
 For detailed results, please refer to the individual analysis reports
 in each directory.
@@ -78,7 +78,7 @@ This comprehensive analysis demonstrates the theoretical soundness and
 practical effectiveness of the ASIB framework.
 """
     
-    report_path = "outputs/comprehensive_analysis_report.txt"
+    report_path = "outputs/reports/comprehensive_analysis_report.txt"
     os.makedirs(os.path.dirname(report_path), exist_ok=True)
     
     with open(report_path, 'w') as f:
@@ -132,7 +132,7 @@ def run_comprehensive_analysis():
         print(report)
     
     print("\n🎉 Comprehensive analysis completed!")
-    print("📁 All results saved in outputs/ directory")
+    print("📁 All results saved in outputs/analysis/ and outputs/reports/ directories")
 
 if __name__ == "__main__":
     run_comprehensive_analysis() 

@@ -16,8 +16,8 @@ from scipy import stats
 import seaborn as sns
 
 class CCCPStabilityAnalyzer:
-    def __init__(self, e2e_results_dir: str = "outputs/ablation/ib", 
-                 cccp_results_dir: str = "outputs/ablation/cccp"):
+    def __init__(self, e2e_results_dir: str = "experiments/ablation/ib/results",
+                 cccp_results_dir: str = "experiments/ablation/cccp/results"):
         self.e2e_results_dir = e2e_results_dir
         self.cccp_results_dir = cccp_results_dir
         self.e2e_data = self.load_learning_curves(e2e_results_dir)
@@ -262,15 +262,15 @@ def run_cccp_stability_analysis():
     
     # 학습 곡선 비교 시각화
     print("📊 Generating learning curves comparison...")
-    analyzer.plot_learning_curves_comparison("outputs/cccp_stability")
+    analyzer.plot_learning_curves_comparison("outputs/analysis/cccp_stability")
     
     # 안정성 분석 보고서
     print("📈 Analyzing stability metrics...")
-    report = analyzer.generate_stability_report("outputs/cccp_stability")
+    report = analyzer.generate_stability_report("outputs/analysis/cccp_stability")
     print(report)
     
     print("✅ CCCP stability analysis completed!")
-    print("📁 Results saved in: outputs/cccp_stability/")
+    print("📁 Results saved in: outputs/analysis/cccp_stability/")
 
 if __name__ == "__main__":
     run_cccp_stability_analysis() 

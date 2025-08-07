@@ -16,8 +16,8 @@ from scipy import stats
 import seaborn as sns
 
 class PFEfficiencyAnalyzer:
-    def __init__(self, no_pf_results_dir: str = "outputs/ablation/tadapt",
-                 pf_results_dir: str = "outputs/ablation/full"):
+    def __init__(self, no_pf_results_dir: str = "experiments/ablation/tadapt/results",
+                 pf_results_dir: str = "experiments/ablation/full/results"):
         self.no_pf_results_dir = no_pf_results_dir
         self.pf_results_dir = pf_results_dir
         self.no_pf_data = self.load_efficiency_data(no_pf_results_dir)
@@ -318,15 +318,15 @@ def run_pf_efficiency_analysis():
     
     # PF 효율성 분석 시각화
     print("📊 Generating PF efficiency analysis...")
-    analyzer.plot_efficiency_analysis("outputs/pf_efficiency")
+    analyzer.plot_efficiency_analysis("outputs/analysis/pf_efficiency")
     
     # 효율성 분석 보고서
     print("📈 Analyzing PF efficiency effects...")
-    report = analyzer.generate_efficiency_report("outputs/pf_efficiency")
+    report = analyzer.generate_efficiency_report("outputs/analysis/pf_efficiency")
     print(report)
     
     print("✅ PF efficiency analysis completed!")
-    print("📁 Results saved in: outputs/pf_efficiency/")
+    print("📁 Results saved in: outputs/analysis/pf_efficiency/")
 
 if __name__ == "__main__":
     run_pf_efficiency_analysis() 

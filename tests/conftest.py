@@ -17,7 +17,7 @@ def device():
     if torch.cuda.is_available():
         return torch.device("cuda:0")
     else:
-        return torch.device("cpu")
+        return torch.device("cuda")
 
 @pytest.fixture(scope="session")
 def sample_args():
@@ -170,3 +170,162 @@ def registry_validation():
         return True, "Registry validation passed"
     
     return validate_registry
+
+@pytest.fixture(scope="session")
+def main_config():
+    """main.py 테스트용 설정"""
+    return {
+        "experiment": {
+            "dataset": {
+                "dataset": {
+                    "name": "cifar100",
+                    "root": "./data",
+                    "small_input": True,
+                    "data_aug": 1
+                },
+                "batch_size": 4,
+                "num_workers": 0
+            },
+            "method": {
+                "method": {
+                    "name": "asib",
+                    "ce_alpha": 0.3,
+                    "kd_alpha": 0.0,
+                    "kd_ens_alpha": 0.7
+                }
+            },
+            "schedule": {
+                "type": "cosine",
+                "lr_warmup_epochs": 5,
+                "min_lr": 1e-05
+            },
+            "device": "cuda",
+            "seed": 42,
+            "small_input": True,
+            "batch_size": 4,
+            "use_partial_freeze": False,
+            "use_amp": True,
+            "amp_dtype": "float16",
+            "kd_ens_alpha": 0.5,
+            "hybrid_beta": 0.05,
+            "mixup_alpha": 0.0,
+            "cutmix_alpha_distill": 0.0,
+            "use_disagree_weight": False,
+            "disagree_mode": "both_wrong",
+            "disagree_lambda_high": 1.0,
+            "disagree_lambda_low": 1.0,
+            "feat_kd_alpha": 0.0,
+            "feat_kd_key": "feat_2d",
+            "feat_kd_norm": "none",
+            "rkd_loss_weight": 0.0,
+            "rkd_gamma": 2.0,
+            "use_ib": False,
+            "ib_beta": 0.0,
+            "ib_beta_warmup_epochs": 0,
+            "mbm_out_dim": 2048,
+            "mbm_n_head": 8,
+            "mbm_dropout": 0.0,
+            "synergy_head_dropout": 0.0,
+            "mbm_learnable_q": False,
+            "mbm_reg_lambda": 0.0,
+            "use_cccp": False,
+            "tau": 4.0,
+            "reg_lambda": 0.0,
+            "grad_clip_norm": 1.0,
+            "adam_beta1": 0.9,
+            "adam_beta2": 0.999,
+            "disable_flops": True,
+            "student_epochs_per_stage": 15,
+            "teacher1": {
+                "model": {
+                    "teacher": {
+                        "name": "convnext_s",
+                        "pretrained": True
+                    }
+                }
+            },
+            "teacher2": {
+                "model": {
+                    "teacher": {
+                        "name": "resnet152",
+                        "pretrained": True
+                    }
+                }
+            },
+            "model": {
+                "student": {
+                    "model": {
+                        "student": {
+                            "name": "resnet50_scratch",
+                            "pretrained": False
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+@pytest.fixture(scope="session")
+def training_config():
+    """훈련 테스트용 설정"""
+    return {
+        "experiment": {
+            "dataset": {
+                "dataset": {
+                    "name": "cifar100",
+                    "root": "./data",
+                    "small_input": True,
+                    "data_aug": 1
+                },
+                "batch_size": 4,
+                "num_workers": 0
+            },
+            "method": {
+                "method": {
+                    "name": "asib",
+                    "ce_alpha": 0.3,
+                    "kd_alpha": 0.0,
+                    "kd_ens_alpha": 0.7
+                }
+            },
+            "schedule": {
+                "type": "cosine",
+                "lr_warmup_epochs": 5,
+                "min_lr": 1e-05
+            },
+            "device": "cuda",
+            "seed": 42,
+            "small_input": True,
+            "batch_size": 4,
+            "use_partial_freeze": False,
+            "use_amp": True,
+            "amp_dtype": "float16",
+            "student_epochs_per_stage": 15,
+            "teacher1": {
+                "model": {
+                    "teacher": {
+                        "name": "convnext_s",
+                        "pretrained": True
+                    }
+                }
+            },
+            "teacher2": {
+                "model": {
+                    "teacher": {
+                        "name": "resnet152",
+                        "pretrained": True
+                    }
+                }
+            },
+            "model": {
+                "student": {
+                    "model": {
+                        "student": {
+                            "name": "resnet50_scratch",
+                            "pretrained": False
+                        }
+                    }
+                }
+            }
+        }
+    }

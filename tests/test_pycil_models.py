@@ -59,7 +59,7 @@ def base_args():
     return {
         "convnet_type": "resnet32",
         "dataset": "cifar100",
-        "device": ["cpu"],
+        "device": ["cuda"],
         "memory_size": 2000,
         "init_cls": 10,
         "increment": 10,
@@ -117,7 +117,7 @@ def exemplar_free_args():
     return {
         "convnet_type": "resnet32",
         "dataset": "cifar100",
-        "device": ["cpu"],
+        "device": ["cuda"],
         "memory_size": 0,  # exemplar-free methods는 memory_size가 0이어야 함
         "init_cls": 10,
         "increment": 10,

@@ -108,6 +108,9 @@ outputs/
 experiments/outputs/
 experiments/checkpoints/
 
+# Checkpoints directory
+checkpoints/
+
 # Configuration files (설정 파일들은 추적)
 # *.yaml
 # *.yml

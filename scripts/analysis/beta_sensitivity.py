@@ -30,7 +30,7 @@ def run_beta_experiment(beta_value: float, run_id: int) -> Dict[str, Any]:
     
     # 고유한 결과 디렉토리 설정
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    results_dir = f"outputs/beta_sensitivity/beta_{beta_value:.1e}_run_{run_id}_{timestamp}"
+    results_dir = f"outputs/analysis/beta_sensitivity/beta_{beta_value:.1e}_run_{run_id}_{timestamp}"
     exp_id = f"beta_sensitivity_{beta_value:.1e}_run_{run_id}"
     
     # Hydra 명령어 구성
@@ -129,7 +129,7 @@ def analyze_beta_results(all_results: List[Dict[str, Any]]) -> Dict[str, Any]:
     
     return analysis
 
-def plot_beta_analysis(analysis: Dict[str, Any], save_path: str = "outputs/beta_sensitivity"):
+def plot_beta_analysis(analysis: Dict[str, Any], save_path: str = "outputs/analysis/beta_sensitivity"):
     """β 분석 결과를 시각화합니다."""
     os.makedirs(save_path, exist_ok=True)
     
@@ -263,7 +263,7 @@ def run_beta_sensitivity_analysis():
         return
     
     # 시각화 및 저장
-    save_path = "outputs/beta_sensitivity"
+    save_path = "outputs/analysis/beta_sensitivity"
     best_beta = plot_beta_analysis(analysis, save_path)
     save_analysis_results(analysis, best_beta, save_path)
     

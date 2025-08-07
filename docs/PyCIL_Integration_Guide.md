@@ -76,7 +76,7 @@ PyCIL/exps/
 
 ```bash
 # 프로젝트 루트에서 실행
-cd /home/suyoung425/ASMB_KD
+cd $(git rev-parse --show-toplevel)
 git clone https://github.com/G-U-N/PyCIL.git
 ```
 
@@ -96,10 +96,10 @@ pip install tensorboard
 
 ```bash
 # PYTHONPATH에 PyCIL 추가
-export PYTHONPATH="${PYTHONPATH}:/home/suyoung425/ASMB_KD/PyCIL"
+export PYTHONPATH="${PYTHONPATH}:$(pwd)/PyCIL"
 
 # 또는 ~/.bashrc에 추가
-echo 'export PYTHONPATH="${PYTHONPATH}:/home/suyoung425/ASMB_KD/PyCIL"' >> ~/.bashrc
+echo 'export PYTHONPATH="${PYTHONPATH}:$(pwd)/PyCIL"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
@@ -411,11 +411,11 @@ open htmlcov/index.html
 #### 문제: `ModuleNotFoundError: No module named 'utils.toolkit'`
 ```bash
 # 해결 방법: PYTHONPATH 설정
-export PYTHONPATH="${PYTHONPATH}:/home/suyoung425/ASMB_KD/PyCIL"
+export PYTHONPATH="${PYTHONPATH}:$(pwd)/PyCIL"
 
 # 또는 sys.path 수정
 import sys
-sys.path.insert(0, '/home/suyoung425/ASMB_KD/PyCIL')
+sys.path.insert(0, '$(pwd)/PyCIL')
 ```
 
 #### 문제: `KeyError: 'memory_size'`

@@ -69,6 +69,10 @@ class CIFAR100NPZ(Dataset):
         self.train = train
         self.transform = transform
         
+        # Add required attributes for main.py compatibility
+        self.classes = list(range(100))  # CIFAR-100 has 100 classes
+        self.num_classes = 100
+        
         # NPZ 파일 로드 (ImageNet-32와 동일한 형식)
         if self.train:
             # 훈련 데이터: 10개 배치 파일 로드

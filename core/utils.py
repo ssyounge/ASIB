@@ -19,7 +19,11 @@ def renorm_ce_kd(cfg: Dict[str, Any]):
         ce, kd = float(cfg["ce_alpha"]), float(cfg["kd_alpha"])
         if abs(ce + kd - 1) > 1e-5:
             tot = ce + kd
-            cfg["ce_alpha"], cfg["kd_alpha"] = ce / tot, kd / tot
+            # Handle zero division case
+            if tot == 0:
+                cfg["ce_alpha"], cfg["kd_alpha"] = 0.5, 0.5
+            else:
+                cfg["ce_alpha"], cfg["kd_alpha"] = ce / tot, kd / tot
             if cfg.get("debug_verbose"):
                 logging.debug(
                     "[Auto-cfg] ce_alpha+kd_alpha !=1 → 재정규화 (ce=%.3f, kd=%.3f)",
@@ -96,8 +100,8 @@ def auto_set_mbm_query_dim_with_model(student_model, cfg: Dict[str, Any]):
 
 
 def cast_numeric_configs(cfg: Dict[str, Any]):
-    """Cast string numeric values to float/int."""
-    _num_keys = [
+    """Cast string numeric values to float/int/bool."""
+    _float_keys = [
         "teacher_lr",
         "student_lr",
         "teacher_weight_decay",
@@ -107,11 +111,36 @@ def cast_numeric_configs(cfg: Dict[str, Any]):
         "kd_alpha",
         "ce_alpha",
         "ib_beta",
+        "momentum",
     ]
-    for k in _num_keys:
+    _int_keys = [
+        "num_stages",
+        "student_epochs_per_stage",
+        "teacher_adapt_epochs",
+    ]
+    _bool_keys = [
+        "nesterov",
+    ]
+    
+    for k in _float_keys:
         if k in cfg and isinstance(cfg[k], str):
             try:
                 cfg[k] = float(cfg[k])
             except ValueError:
                 pass  # ignore
+    
+    for k in _int_keys:
+        if k in cfg and isinstance(cfg[k], str):
+            try:
+                cfg[k] = int(cfg[k])
+            except ValueError:
+                pass  # ignore
+    
+    for k in _bool_keys:
+        if k in cfg and isinstance(cfg[k], str):
+            try:
+                cfg[k] = cfg[k].lower() in ('true', '1', 'yes', 'on')
+            except (ValueError, AttributeError):
+                pass  # ignore
+    
     return cfg 

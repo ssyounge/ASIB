@@ -1,22 +1,41 @@
-name: ${CONDA_ENV:-asib}          # 원하는 env 이름
+name: tlqkf          # 원하는 env 이름
 channels:
   - pytorch
-  - nvidia            # CUDA 12.1 wheel을 conda로 받고 싶을 때만
+  - nvidia            # CUDA 12.4 wheel을 conda로 받기
   - conda-forge
+  - defaults
 dependencies:
   - python=3.12
   - pip
-  - cudatoolkit=12.1          # (CUDA 11.x 사용 시 버전 맞춰 조정)
+  - pytorch::pytorch=2.5.1
+  - pytorch::torchvision=0.20.1
+  - pytorch::torchaudio=2.5.1
+  - pytorch::pytorch-cuda=12.4
   - numpy<2.0
-  - pytorch::torch==2.2.0
-  - pytorch::torchvision==0.17.0
-  - pip:
-      - -r requirements.txt   # 위에서 정리한 파일
+  - hydra-core>=1.3.0
+  - omegaconf>=2.3.0
+  - timm>=0.9.0
+  - pandas>=1.5.0
+  - Pillow>=9.0.0
+  - POT>=0.9.0
+  - matplotlib>=3.6.0
+  - seaborn>=0.12.0
+  - wandb>=0.15.0
+  - pytest-cov>=4.0.0
+  - black>=23.0.0
+  - isort>=5.12.0
+  - flake8>=6.0.0
+  - mypy>=1.0.0
+  - psutil>=5.9.0
+  - jupyter>=1.0.0
+  - ipython>=8.0.0
+  - tensorboard>=2.12.0
+  - tqdm>=4.64.0
+  - scikit-learn>=1.2.0
 
   # development tools
   - pytest
   - ruff
   - pre-commit
 
-# conda + pip 혼합 방식입니다. cudatoolkit 만 conda 로 받고,
-# PyTorch wheel은 GPU, CUDA 버전에 맞춰 pip로 수동 설치(주석 참고).
+# conda 전용 방식입니다. CUDA 12.4를 conda로 설치합니다.

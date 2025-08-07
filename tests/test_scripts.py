@@ -35,8 +35,8 @@ class TestSensitivityAnalysis:
             'method': 'asib',
             'dataset': 'cifar100',
             'model': 'efficientnet_b0_scratch_student',
-            'teacher1': 'resnet152_teacher',
-            'teacher2': 'convnext_l_teacher'
+            'teacher1': 'resnet152',
+            'teacher2': 'convnext_l'
         }
         
         # Test sensitivity analysis setup
@@ -91,8 +91,8 @@ class TestOverlapAnalysis:
         base_config = {
             'dataset': 'cifar100',
             'model': 'efficientnet_b0_scratch_student',
-            'teacher1': 'resnet152_teacher',
-            'teacher2': 'convnext_l_teacher'
+            'teacher1': 'resnet152',
+            'teacher2': 'convnext_l'
         }
         
         # Test overlap analysis setup
@@ -736,8 +736,8 @@ class TestScriptUtilities:
             'method': 'asib',
             'dataset': 'cifar100',
             'model': 'efficientnet_b0_scratch_student',
-            'teacher1': 'resnet152_teacher',
-            'teacher2': 'convnext_l_teacher',
+            'teacher1': 'resnet152',
+            'teacher2': 'convnext_l',
             'epochs': 100,
             'lr': 0.001,
             'batch_size': 64
@@ -755,8 +755,8 @@ class TestScriptUtilities:
         config = {
             'method': 'asib',
             'model': 'efficientnet_b0_scratch_student',
-            'teacher1': 'resnet152_teacher',
-            'teacher2': 'convnext_l_teacher'
+            'teacher1': 'resnet152',
+            'teacher2': 'convnext_l'
         }
         
         # Generate experiment name
@@ -811,10 +811,10 @@ class TestScriptValidation:
         """Test model validation"""
         # Test model validation
         valid_models = [
-            'resnet152_teacher',
-            'convnext_l_teacher',
-            'efficientnet_l2_teacher',
-            'convnext_s_teacher',
+            'resnet152',
+            'convnext_l',
+            'efficientnet_l2',
+            'convnext_s',
             'efficientnet_b0_scratch_student',
             'shufflenet_v2_scratch_student',
             'mobilenet_v2_scratch_student'
@@ -823,7 +823,8 @@ class TestScriptValidation:
         for model in valid_models:
             assert isinstance(model, str)
             assert len(model) > 0
-            assert '_' in model  # Should have underscore
+            # Check if model name is valid (should have at least one underscore or be a valid model name)
+            assert '_' in model or model in ['resnet152', 'convnext_l', 'convnext_s', 'efficientnet_l2']
     
     def test_dataset_validation(self):
         """Test dataset validation"""

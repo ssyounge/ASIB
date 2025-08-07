@@ -46,6 +46,9 @@ class ImageNet32(ClassInfoMixin, Dataset):
         self.data   = np.vstack(self.data).reshape(-1, 3, 32, 32)
         self.labels = (np.array(self.labels, dtype=np.int64) - 1)
         # ClassInfoMixin에서 이미 classes 속성을 관리하므로 직접 설정하지 않음
+        
+        # Add num_classes for ClassInfoMixin compatibility
+        self.num_classes = 1000  # ImageNet has 1000 classes
 
     def __len__(self):
         return self.data.shape[0]

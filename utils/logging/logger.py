@@ -70,7 +70,7 @@ class ExperimentLogger:
         self.config["exp_id"] = self.exp_id
 
         # Where to save results
-        self.results_dir = self.config.get("results_dir", "results")
+        self.results_dir = self.config.get("results_dir", "experiments/test/results")
         # ensure results_dir is recorded in config for downstream users
         self.config.setdefault("results_dir", self.results_dir)
 

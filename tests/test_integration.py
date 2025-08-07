@@ -32,14 +32,14 @@ class TestCompletePipeline:
         """Test complete model creation pipeline"""
         # Create teachers
         teacher1 = create_teacher_by_name(
-            teacher_name="resnet152_teacher",
+            teacher_name="resnet152",
             num_classes=100,
             pretrained=False,
             small_input=True
         )
         
         teacher2 = create_teacher_by_name(
-            teacher_name="resnet152_teacher",  # Use same teacher type to avoid dimension mismatch
+            teacher_name="resnet152",  # Use same teacher type to avoid dimension mismatch
             num_classes=100,
             pretrained=False,
             small_input=True
@@ -59,7 +59,7 @@ class TestCompletePipeline:
         
         # Create distiller
         distiller = ASIBDistiller(
-            teacher1, teacher2, student, mbm, synergy_head, device="cpu"
+            teacher1, teacher2, student, mbm, synergy_head, device="cuda"
         )
         
         # Test forward pass
@@ -165,14 +165,14 @@ class TestEndToEndTraining:
         """Test single epoch training"""
         # Create models with same feature dimensions
         teacher1 = create_teacher_by_name(
-            teacher_name="resnet152_teacher",
+            teacher_name="resnet152",
             num_classes=10,  # Small for testing
             pretrained=False,
             small_input=True
         )
         
         teacher2 = create_teacher_by_name(
-            teacher_name="resnet152_teacher",  # Use same teacher type to avoid dimension mismatch
+            teacher_name="resnet152",  # Use same teacher type to avoid dimension mismatch
             num_classes=10,
             pretrained=False,
             small_input=True
@@ -191,7 +191,7 @@ class TestEndToEndTraining:
         
         # Create distiller
         distiller = ASIBDistiller(
-            teacher1, teacher2, student, mbm, synergy_head, device="cpu"
+            teacher1, teacher2, student, mbm, synergy_head, device="cuda"
         )
         
         # Create optimizers
@@ -306,14 +306,14 @@ class TestErrorHandling:
         """Test handling of mismatched dimensions"""
         # Create models with mismatched dimensions
         teacher1 = create_teacher_by_name(
-            teacher_name="resnet152_teacher",
+            teacher_name="resnet152",
             num_classes=100,
             pretrained=False,
             small_input=True
         )
         
         teacher2 = create_teacher_by_name(
-            teacher_name="resnet152_teacher",  # Use same teacher type to avoid dimension mismatch
+            teacher_name="resnet152",  # Use same teacher type to avoid dimension mismatch
             num_classes=100,
             pretrained=False,
             small_input=True
@@ -333,7 +333,7 @@ class TestErrorHandling:
             synergy_head = SynergyHead(2048, num_classes=100)
             
             distiller = ASIBDistiller(
-                teacher1, teacher2, student, mbm, synergy_head, device="cpu"
+                teacher1, teacher2, student, mbm, synergy_head, device="cuda"
             )
             
             # Test forward pass
@@ -361,14 +361,14 @@ class TestPerformance:
         
         # Create models
         teacher1 = create_teacher_by_name(
-            teacher_name="resnet152_teacher",
+            teacher_name="resnet152",
             num_classes=100,
             pretrained=False,
             small_input=True
         )
         
         teacher2 = create_teacher_by_name(
-            teacher_name="resnet152_teacher",  # Use same teacher type to avoid dimension mismatch
+            teacher_name="resnet152",  # Use same teacher type to avoid dimension mismatch
             num_classes=100,
             pretrained=False,
             small_input=True
@@ -387,7 +387,7 @@ class TestPerformance:
         
         # Create distiller
         distiller = ASIBDistiller(
-            teacher1, teacher2, student, mbm, synergy_head, device="cpu"
+            teacher1, teacher2, student, mbm, synergy_head, device="cuda"
         )
         
         # Test forward pass
@@ -408,14 +408,14 @@ class TestPerformance:
         
         # Create models
         teacher1 = create_teacher_by_name(
-            teacher_name="resnet152_teacher",
+            teacher_name="resnet152",
             num_classes=100,
             pretrained=False,
             small_input=True
         )
         
         teacher2 = create_teacher_by_name(
-            teacher_name="resnet152_teacher",  # Use same teacher type to avoid dimension mismatch
+            teacher_name="resnet152",  # Use same teacher type to avoid dimension mismatch
             num_classes=100,
             pretrained=False,
             small_input=True
@@ -434,7 +434,7 @@ class TestPerformance:
         
         # Create distiller
         distiller = ASIBDistiller(
-            teacher1, teacher2, student, mbm, synergy_head, device="cpu"
+            teacher1, teacher2, student, mbm, synergy_head, device="cuda"
         )
         
         # Warm up
@@ -472,14 +472,14 @@ class TestReproducibility:
         
         # Create models with same feature dimensions
         teacher1 = create_teacher_by_name(
-            teacher_name="resnet152_teacher",
+            teacher_name="resnet152",
             num_classes=10,
             pretrained=False,
             small_input=True
         )
         
         teacher2 = create_teacher_by_name(
-            teacher_name="resnet152_teacher",  # Use same teacher type to avoid dimension mismatch
+            teacher_name="resnet152",  # Use same teacher type to avoid dimension mismatch
             num_classes=10,
             pretrained=False,
             small_input=True
@@ -498,7 +498,7 @@ class TestReproducibility:
         
         # Create distiller
         distiller = ASIBDistiller(
-            teacher1, teacher2, student, mbm, synergy_head, device="cpu"
+            teacher1, teacher2, student, mbm, synergy_head, device="cuda"
         )
         
         # Create optimizers
@@ -520,7 +520,7 @@ class TestReproducibility:
         # Train for a few steps
         losses = []
         for _ in range(5):
-            x = torch.randn(2, 3, 32, 32)
+            x = torch.randn(2, 3, 32, 32)  # Batch size 2 for BatchNorm compatibility
             y = torch.randint(0, 10, (2,))
             
             loss, _ = distiller.forward(x, y)
@@ -535,14 +535,14 @@ class TestReproducibility:
         
         # Create new models
         teacher1_new = create_teacher_by_name(
-            teacher_name="resnet152_teacher",
+            teacher_name="resnet152",
             num_classes=10,
             pretrained=False,
             small_input=True
         )
         
         teacher2_new = create_teacher_by_name(
-            teacher_name="resnet152_teacher",  # Use same teacher type to avoid dimension mismatch
+            teacher_name="resnet152",  # Use same teacher type to avoid dimension mismatch
             num_classes=10,
             pretrained=False,
             small_input=True
@@ -561,7 +561,7 @@ class TestReproducibility:
         
         # Create new distiller
         distiller_new = ASIBDistiller(
-            teacher1_new, teacher2_new, student_new, mbm_new, synergy_head_new, device="cpu"
+            teacher1_new, teacher2_new, student_new, mbm_new, synergy_head_new, device="cuda"
         )
         
         # Create new optimizers
@@ -583,7 +583,7 @@ class TestReproducibility:
         # Train again
         losses_new = []
         for _ in range(5):
-            x = torch.randn(2, 3, 32, 32)
+            x = torch.randn(2, 3, 32, 32)  # Batch size 2 for BatchNorm compatibility
             y = torch.randint(0, 10, (2,))
             
             loss, _ = distiller_new.forward(x, y)

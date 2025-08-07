@@ -1,36 +1,22 @@
 #!/usr/bin/env python3
 """Test all teacher and student models"""
 
-import torch
 import pytest
-from pathlib import Path
+import torch
+import torch.nn as nn
+from unittest.mock import MagicMock, patch
 
-# Import all teacher models
-from models.teachers.resnet152_teacher import ResNet152Teacher
-from models.teachers.convnext_l_teacher import ConvNeXtLTeacher
-from models.teachers.convnext_s_teacher import ConvNeXtSTeacher
-from models.teachers.efficientnet_l2_teacher import EfficientNetL2Teacher
-
-# Import all student models
-from models.students.resnet152_student import ResNet152Student
-from models.students.resnet101_student import ResNetStudent as ResNet101Student
-from models.students.resnet50_student import ResNet50Student
-from models.students.shufflenet_v2_student import ShuffleNetV2Student
-from models.students.mobilenet_v2_student import MobileNetV2Student
-from models.students.efficientnet_b0_student import EfficientNetB0Student
-
-# Import core builder
-from core.builder import create_teacher_by_name, create_student_by_name
+from core import create_student_by_name, create_teacher_by_name
 
 
 class TestTeacherModels:
     """Test all teacher models"""
     
     @pytest.mark.parametrize("teacher_name", [
-        "resnet152_teacher",
-        "convnext_l_teacher", 
-        "convnext_s_teacher",
-        "efficientnet_l2_teacher"
+        "resnet152",
+        "convnext_l", 
+        "convnext_s",
+        "efficientnet_l2"
     ])
     def test_teacher_creation(self, teacher_name):
         """Test teacher model creation"""
@@ -45,10 +31,10 @@ class TestTeacherModels:
         assert hasattr(model, 'extract_feats')
     
     @pytest.mark.parametrize("teacher_name", [
-        "resnet152_teacher",
-        "convnext_l_teacher", 
-        "convnext_s_teacher",
-        "efficientnet_l2_teacher"
+        "resnet152",
+        "convnext_l", 
+        "convnext_s",
+        "efficientnet_l2"
     ])
     def test_teacher_forward(self, teacher_name):
         """Test teacher forward pass"""
@@ -138,10 +124,10 @@ class TestModelRegistry:
         registry.ensure_scanned()
         
         teacher_keys = [
-            "resnet152_teacher",
-            "convnext_l_teacher", 
-            "convnext_s_teacher",
-            "efficientnet_l2_teacher"
+            "resnet152",
+            "convnext_l",
+            "convnext_s",
+            "efficientnet_l2"
         ]
         
         for key in teacher_keys:
@@ -171,10 +157,10 @@ class TestModelParameters:
     def test_teacher_parameters(self):
         """Test teacher model parameter counts"""
         teachers = [
-            ("resnet152_teacher", 60_000_000),  # ~60M
-            ("convnext_s_teacher", 50_000_000),  # ~50M
-            ("convnext_l_teacher", 200_000_000), # ~200M
-            ("efficientnet_l2_teacher", 480_000_000), # ~480M
+            ("resnet152", 60_000_000),  # ~60M
+            ("convnext_s", 50_000_000),  # ~50M
+            ("convnext_l", 200_000_000), # ~200M
+            ("efficientnet_l2", 480_000_000), # ~480M
         ]
         
         for teacher_name, expected_min in teachers:

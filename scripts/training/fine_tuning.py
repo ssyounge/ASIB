@@ -139,7 +139,7 @@ def run_fine_tuning(config):
     logging.info(f"Training for {epochs} epochs with lr={lr}")
     
     # 체크포인트 경로 설정
-    ckpt_path = finetune_config.get('finetune_ckpt_path', f'checkpoints/{teacher_type}_{dataset_name}.pth')
+    ckpt_path = finetune_config.get('finetune_ckpt_path', f'checkpoints/teachers/{teacher_type}_{dataset_name}.pth')
     
     # 실제 훈련 실행
     training_results = standard_ce_finetune(

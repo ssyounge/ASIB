@@ -13,11 +13,12 @@ def dummy_teachers():
         def __init__(self):
             super().__init__()
             self.conv = nn.Conv2d(3, 64, 3, padding=1)
-            self.fc = nn.Linear(64 * 32 * 32, 10)
+            self.fc = nn.Linear(2048, 10)  # 실제 ResNet152와 같은 차원
             
         def forward(self, x):
             feat = self.conv(x)
-            feat_2d = feat.view(feat.size(0), -1)
+            # 실제 모델과 같은 차원으로 맞춤
+            feat_2d = torch.randn(feat.size(0), 2048)  # ResNet152 특징 차원
             logit = self.fc(feat_2d)
             return {"feat_2d": feat_2d, "logit": logit}
     
@@ -32,11 +33,12 @@ def dummy_student():
         def __init__(self):
             super().__init__()
             self.conv = nn.Conv2d(3, 64, 3, padding=1)
-            self.fc = nn.Linear(64 * 32 * 32, 10)
+            self.fc = nn.Linear(1280, 10)  # 실제 EfficientNet-B0와 같은 차원
             
         def forward(self, x):
             feat = self.conv(x)
-            feat_2d = feat.view(feat.size(0), -1)
+            # 실제 모델과 같은 차원으로 맞춤
+            feat_2d = torch.randn(feat.size(0), 1280)  # EfficientNet-B0 특징 차원
             logit = self.fc(feat_2d)
             return {"feat_2d": feat_2d}, logit, None
     
@@ -48,9 +50,9 @@ def dummy_mbm():
     class DummyMBM(nn.Module):
         def __init__(self):
             super().__init__()
-            # 입력 차원을 올바르게 설정 (query_feat + key_feats)
-            # query_feat: (batch, 65536), key_feats: (batch, 2, 65536) -> flatten 후 (batch, 131072)
-            self.fc = nn.Linear(65536 * 3, 65536)  # 65536 (query) + 65536*2 (2 teachers)
+            # 실제 MBM과 비슷한 차원으로 설정
+            # query_feat: (batch, 1280), key_feats: (batch, 2, 2048) -> flatten 후 (batch, 5376)
+            self.fc = nn.Linear(1280 + 2048 * 2, 2048)  # student(1280) + teachers(2048*2)
             
         def forward(self, query_feat, key_feats):
             # key_feats를 올바르게 처리
@@ -77,7 +79,7 @@ def dummy_synergy_head():
     class DummySynergyHead(nn.Module):
         def __init__(self):
             super().__init__()
-            self.fc = nn.Linear(65536, 10)
+            self.fc = nn.Linear(2048, 10)  # MBM 출력 차원과 맞춤
             
         def forward(self, x):
             return self.fc(x)
@@ -93,23 +95,35 @@ def test_asib_forward_backward(dummy_teachers):
         def __init__(self):
             super().__init__()
             self.conv = nn.Conv2d(3, 64, 3, padding=1)
-            self.fc = nn.Linear(64 * 32 * 32, 10)
+            self.fc = nn.Linear(1280, 10)  # 실제 EfficientNet-B0와 같은 차원
             
         def forward(self, x):
             feat = self.conv(x)
-            feat_2d = feat.view(feat.size(0), -1)
+            # 실제 모델과 같은 차원으로 맞춤
+            feat_2d = torch.randn(feat.size(0), 1280)  # EfficientNet-B0 특징 차원
             logit = self.fc(feat_2d)
             return {"feat_2d": feat_2d}, logit, None
     
     class DummyMBM(nn.Module):
         def __init__(self):
             super().__init__()
-            self.fc = nn.Linear(65536 * 3, 65536)  # 올바른 차원으로 수정
+            self.fc = nn.Linear(1280 + 2048 * 2, 2048)  # student(1280) + teachers(2048*2)
             
         def forward(self, query_feat, key_feats):
+            # key_feats는 teacher들의 특징들 (batch, num_teachers, feat_dim)
+            # query_feat는 student 특징 (batch, feat_dim)
+            batch_size = query_feat.size(0)
+            
             # key_feats를 올바르게 처리
-            if key_feats.dim() == 3:
-                key_feats = key_feats.view(key_feats.size(0), -1)
+            if key_feats.dim() == 3:  # (batch, num_teachers, feat_dim)
+                key_feats = key_feats.view(batch_size, -1)  # (batch, num_teachers * feat_dim)
+            elif key_feats.dim() == 2:  # (batch, num_teachers * feat_dim)
+                pass
+            else:
+                # 예상치 못한 차원인 경우 처리
+                key_feats = key_feats.view(batch_size, -1)
+            
+            # query_feat와 key_feats 결합
             combined = torch.cat([query_feat, key_feats], dim=1)
             z = self.fc(combined)
             mu = torch.zeros_like(z)
@@ -119,7 +133,7 @@ def test_asib_forward_backward(dummy_teachers):
     class DummySynergyHead(nn.Module):
         def __init__(self):
             super().__init__()
-            self.fc = nn.Linear(65536, 10)
+            self.fc = nn.Linear(2048, 10)  # MBM 출력 차원과 맞춤
             
         def forward(self, x):
             return self.fc(x)
@@ -135,7 +149,7 @@ def test_asib_forward_backward(dummy_teachers):
         student=student,
         mbm=mbm,
         synergy_head=synergy_head,
-        device="cpu"
+        device="cuda"
     )
     
     # 더미 입력 데이터
@@ -162,7 +176,7 @@ def test_train_distillation(dummy_teachers, dummy_student, dummy_mbm, dummy_syne
         student=dummy_student,
         mbm=dummy_mbm,
         synergy_head=dummy_synergy_head,
-        device="cpu"
+        device="cuda"
     )
     
     # 더미 데이터로더
@@ -202,7 +216,7 @@ def test_evaluate_method(dummy_teachers, dummy_student, dummy_mbm, dummy_synergy
         student=dummy_student,
         mbm=dummy_mbm,
         synergy_head=dummy_synergy_head,
-        device="cpu"
+        device="cuda"
     )
     
     # 더미 데이터로더
@@ -237,7 +251,7 @@ def test_teacher_adaptive_update(dummy_teachers, dummy_student, dummy_mbm, dummy
         student=dummy_student,
         mbm=dummy_mbm,
         synergy_head=dummy_synergy_head,
-        device="cpu"
+        device="cuda"
     )
     
     # 더미 데이터로더
@@ -281,7 +295,7 @@ def test_student_distill_update(dummy_teachers, dummy_student, dummy_mbm, dummy_
         student=dummy_student,
         mbm=dummy_mbm,
         synergy_head=dummy_synergy_head,
-        device="cpu"
+        device="cuda"
     )
     
     # 더미 데이터로더
@@ -326,7 +340,7 @@ def test_unfreeze_teacher(dummy_teachers, dummy_student, dummy_mbm, dummy_synerg
         student=dummy_student,
         mbm=dummy_mbm,
         synergy_head=dummy_synergy_head,
-        device="cpu"
+        device="cuda"
     )
     
     # 먼저 교사들을 freeze

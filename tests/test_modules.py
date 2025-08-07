@@ -128,17 +128,17 @@ class TestDisagreement:
             def forward(self, x):
                 return {"logit": self.classifier(x)}
         
-        model1 = DummyModel()
-        model2 = DummyModel()
+        model1 = DummyModel().cuda()
+        model2 = DummyModel().cuda()
         
         # Create dummy data loader
         data_loader = [
-            (torch.randn(2, 128), torch.randint(0, 100, (2,)))
+            (torch.randn(2, 128).cuda(), torch.randint(0, 100, (2,)).cuda())
             for _ in range(5)
         ]
         
         # Test disagreement computation
-        rate = compute_disagreement_rate(model1, model2, data_loader, device="cpu")
+        rate = compute_disagreement_rate(model1, model2, data_loader, device="cuda")
         assert isinstance(rate, float)
         assert 0 <= rate <= 100
 
@@ -252,14 +252,14 @@ class TestStudentTrainer:
             def forward(self, x):
                 return {"logit": self.classifier(x)}
         
-        student = DummyStudent()
-        teacher = DummyTeacher()
+        student = DummyStudent().cuda()
+        teacher = DummyTeacher().cuda()
         
         # Create trainer
         trainer = StudentTrainer(
             student_model=student,
             teacher_models=[teacher],
-            device="cpu"
+            device="cuda"
         )
         
         assert trainer is not None
@@ -284,19 +284,19 @@ class TestStudentTrainer:
             def forward(self, x):
                 return {"logit": self.classifier(x)}
         
-        student = DummyStudent()
-        teacher = DummyTeacher()
+        student = DummyStudent().cuda()
+        teacher = DummyTeacher().cuda()
         
         # Create trainer
         trainer = StudentTrainer(
             student_model=student,
             teacher_models=[teacher],
-            device="cpu"
+            device="cuda"
         )
         
         # Test training step
-        x = torch.randn(4, 128)
-        y = torch.randint(0, 100, (4,))
+        x = torch.randn(4, 128).cuda()
+        y = torch.randint(0, 100, (4,)).cuda()
         batch = (x, y)
         optimizer = torch.optim.Adam(student.parameters())
         
@@ -319,12 +319,12 @@ class TestTeacherTrainer:
             def forward(self, x):
                 return {"logit": self.classifier(x)}
         
-        teacher = DummyTeacher()
+        teacher = DummyTeacher().cuda()
         
         # Create trainer
         trainer = TeacherTrainer(
             teacher_models=[teacher],
-            device="cpu"
+            device="cuda"
         )
         
         assert trainer is not None
@@ -341,17 +341,17 @@ class TestTeacherTrainer:
             def forward(self, x):
                 return {"logit": self.classifier(x)}
         
-        teacher = DummyTeacher()
+        teacher = DummyTeacher().cuda()
         
         # Create trainer
         trainer = TeacherTrainer(
             teacher_models=[teacher],
-            device="cpu"
+            device="cuda"
         )
         
         # Test training step
-        x = torch.randn(4, 128)
-        y = torch.randint(0, 100, (4,))
+        x = torch.randn(4, 128).cuda()
+        y = torch.randint(0, 100, (4,)).cuda()
         batch = (x, y)
         optimizer = torch.optim.Adam(teacher.parameters())
         
@@ -374,12 +374,12 @@ class TestCutMixFinetuneTeacher:
             def forward(self, x):
                 return {"logit": self.classifier(x)}
         
-        teacher = DummyTeacher()
+        teacher = DummyTeacher().cuda()
         
         # Create trainer
         trainer = CutMixFinetuneTeacher(
             teacher_model=teacher,
-            device="cpu"
+            device="cuda"
         )
         
         assert trainer is not None
@@ -398,17 +398,17 @@ class TestCutMixFinetuneTeacher:
                 x_flat = x.view(x.size(0), -1)
                 return {"logit": self.classifier(x_flat)}
         
-        teacher = DummyTeacher()
+        teacher = DummyTeacher().cuda()
         
         # Create trainer
         trainer = CutMixFinetuneTeacher(
             teacher_model=teacher,
-            device="cpu"
+            device="cuda"
         )
         
         # Test training step with 4D tensor (NCHW format)
-        x = torch.randn(4, 3, 32, 32)  # 4D tensor for CutMix
-        y = torch.randint(0, 100, (4,))
+        x = torch.randn(4, 3, 32, 32).cuda()  # 4D tensor for CutMix
+        y = torch.randint(0, 100, (4,)).cuda()
         batch = (x, y)
         optimizer = torch.optim.Adam(teacher.parameters())
         
@@ -435,11 +435,11 @@ def test_cutmix_finetune_teacher_class():
             logit = self.fc(feat_2d)
             return {"logit": logit}
     
-    teacher = DummyTeacher()
-    trainer = CutMixFinetuneTeacher(teacher, device="cpu")
+    teacher = DummyTeacher().cuda()
+    trainer = CutMixFinetuneTeacher(teacher, device="cuda")
     
     # 더미 배치 데이터
-    batch = (torch.randn(2, 3, 32, 32), torch.tensor([0, 1]))
+    batch = (torch.randn(2, 3, 32, 32).cuda(), torch.tensor([0, 1]).cuda())
     optimizer = torch.optim.Adam(teacher.parameters(), lr=1e-3)
     
     # train_step 메소드 테스트
@@ -495,13 +495,13 @@ def test_train_one_epoch_cutmix():
             logit = self.fc(feat_2d)
             return {"logit": logit}
     
-    teacher = DummyTeacher()
+    teacher = DummyTeacher().cuda()
     
     # 더미 데이터로더
     class MockDataLoader:
         def __init__(self):
-            self.data = torch.randn(4, 3, 32, 32)
-            self.targets = torch.tensor([0, 1, 2, 3])
+            self.data = torch.randn(4, 3, 32, 32).cuda()
+            self.targets = torch.tensor([0, 1, 2, 3]).cuda()
             
         def __iter__(self):
             for i in range(0, len(self.data), 2):
@@ -517,7 +517,7 @@ def test_train_one_epoch_cutmix():
             loader=loader,
             optimizer=optimizer,
             alpha=1.0,
-            device="cpu"
+            device="cuda"
         )
         # 반환값이 튜플일 수도 있으므로 유연하게 처리
         if isinstance(metrics, tuple):
@@ -551,13 +551,13 @@ def test_eval_teacher():
             logit = self.fc(feat_2d)
             return {"logit": logit}
     
-    teacher = DummyTeacher()
+    teacher = DummyTeacher().cuda()
     
     # 더미 데이터로더
     class MockDataLoader:
         def __init__(self):
-            self.data = torch.randn(4, 3, 32, 32)
-            self.targets = torch.tensor([0, 1, 2, 3])
+            self.data = torch.randn(4, 3, 32, 32).cuda()
+            self.targets = torch.tensor([0, 1, 2, 3]).cuda()
             
         def __iter__(self):
             for i in range(0, len(self.data), 2):
@@ -567,7 +567,7 @@ def test_eval_teacher():
     
     # eval_teacher 테스트
     try:
-        accuracy = eval_teacher(teacher, loader, device="cpu")
+        accuracy = eval_teacher(teacher, loader, device="cuda")
         assert isinstance(accuracy, float)
         assert 0.0 <= accuracy <= 100.0
     except Exception as e:
@@ -622,7 +622,7 @@ def test_finetune_teacher_cutmix():
             epochs=1,
             lr=1e-3,
             alpha=1.0,
-            device="cpu"
+            device="cuda"
         )
         assert isinstance(best_acc, float)
         assert 0.0 <= best_acc <= 100.0
@@ -684,7 +684,7 @@ def test_standard_ce_finetune():
             epochs=1,
             lr=1e-3,
             cfg=cfg,
-            device="cpu",
+            device="cuda",
             ckpt_path=ckpt_path
         )
         # 함수는 (teacher_model, best_acc) 튜플을 반환
@@ -760,7 +760,7 @@ def test_checkpoint_functionality():
                 epochs=1,
                 lr=1e-3,
                 cfg=cfg,
-                device="cpu",
+                device="cuda",
                 ckpt_path=ckpt_path
             )
             # 함수는 (teacher_model, best_acc) 튜플을 반환

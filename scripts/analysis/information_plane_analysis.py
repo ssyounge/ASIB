@@ -16,7 +16,7 @@ from scipy import stats
 import seaborn as sns
 
 class InformationPlaneAnalyzer:
-    def __init__(self, results_dir: str = "outputs/beta_sensitivity"):
+    def __init__(self, results_dir: str = "outputs/analysis/beta_sensitivity"):
         self.results_dir = results_dir
         self.data = self.load_beta_results()
         
@@ -228,15 +228,15 @@ def run_information_plane_analysis():
     
     # Information Plane 시각화
     print("📊 Generating Information Plane visualization...")
-    best_compression, best_prediction = analyzer.plot_information_plane("outputs/information_plane")
+    best_compression, best_prediction = analyzer.plot_information_plane("outputs/analysis/information_plane")
     
     # 이론 연결성 분석
     print("📈 Analyzing IB theory connection...")
-    report = analyzer.generate_theory_report("outputs/information_plane")
+    report = analyzer.generate_theory_report("outputs/analysis/information_plane")
     print(report)
     
     print("✅ Information Plane analysis completed!")
-    print("📁 Results saved in: outputs/information_plane/")
+    print("📁 Results saved in: outputs/analysis/information_plane/")
 
 if __name__ == "__main__":
     run_information_plane_analysis() 

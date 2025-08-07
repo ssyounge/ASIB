@@ -17,8 +17,8 @@ sys.path.append('./PyCIL')
 
 def setup_logging():
     """로깅 설정"""
-    # experiments/logs 디렉토리 생성
-    log_dir = Path('experiments/logs')
+    # experiments/sota/logs 디렉토리 생성
+log_dir = Path('experiments/sota/logs')
     log_dir.mkdir(parents=True, exist_ok=True)
     
     logging.basicConfig(
@@ -79,17 +79,17 @@ def create_comparison_configs():
         "ib_beta": 0.1,
         "lambda_D": 1.0,
         "lambda_IB": 1.0,
-        "logdir": "./logs/asib_cl",
+        "logdir": "./experiments/sota/results/asib_cl",
         "model_name": "asib_cl"
     })
     
     # 다른 방법들과 비교
     comparison_methods = {
-        "finetune": {"model_name": "finetune", "logdir": "./logs/finetune"},
-        "ewc": {"model_name": "ewc", "logdir": "./logs/ewc"},
-        "lwf": {"model_name": "lwf", "logdir": "./logs/lwf"},
-        "icarl": {"model_name": "icarl", "logdir": "./logs/icarl"},
-        "der": {"model_name": "der", "logdir": "./logs/der"}
+        "finetune": {"model_name": "finetune", "logdir": "./experiments/sota/results/finetune"},
+"ewc": {"model_name": "ewc", "logdir": "./experiments/sota/results/ewc"},
+"lwf": {"model_name": "lwf", "logdir": "./experiments/sota/results/lwf"},
+"icarl": {"model_name": "icarl", "logdir": "./experiments/sota/results/icarl"},
+"der": {"model_name": "der", "logdir": "./experiments/sota/results/der"}
     }
     
     # 설정 파일들 생성
@@ -158,14 +158,14 @@ def analyze_results():
     logging.info("📊 실험 결과 분석 시작")
     
     # 로그 파일들에서 성능 지표 추출
-    log_dirs = [
-        "./logs/asib_cl",
-        "./logs/finetune", 
-        "./logs/ewc",
-        "./logs/lwf",
-        "./logs/icarl",
-        "./logs/der"
-    ]
+log_dirs = [
+"./logs/sota/asib_cl",
+"./logs/sota/finetune", 
+"./logs/sota/ewc",
+"./logs/sota/lwf",
+"./logs/sota/icarl",
+"./logs/sota/der"
+]
     
     results = {}
     

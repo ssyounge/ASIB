@@ -5,14 +5,14 @@
 
 defaults:
   - /base
-  - /model/teacher@teacher1: convnext_l_teacher
-  - /model/teacher@teacher2: efficientnet_l2_teacher
+  - /model/teacher@teacher1: convnext_l
+  - /model/teacher@teacher2: efficientnet_l2
   - /model/student: mobilenet_v2_scratch
   - _self_
 
 # ─── 경로 & 식별자 ────────────────────────────────────────────
-teacher1_ckpt: checkpoints/convnext_l_cifar100.pth
-teacher2_ckpt: checkpoints/efficientnet_l2_cifar32.pth
+teacher1_ckpt: checkpoints/teachers/convnext_l_cifar100.pth
+teacher2_ckpt: checkpoints/teachers/efficientnet_l2_cifar32.pth
 results_dir: outputs/sota/scenario_a_mobilenet
 exp_id: sota_scenario_a_mobilenet
 

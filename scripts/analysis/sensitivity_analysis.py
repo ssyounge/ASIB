@@ -280,7 +280,7 @@ def run_ablation_experiment(config: AblationConfig, seed: int = 42) -> Dict[str,
 def run_sensitivity_analysis():
     """Sensitivity Analysis 메인 함수"""
     logger = setup_logging({
-        "results_dir": "experiments/outputs/sensitivity_analysis",
+        "results_dir": "outputs/analysis/sensitivity_analysis",
         "exp_id": "sensitivity_analysis",
         "log_level": "INFO"
     })
@@ -438,13 +438,13 @@ def plot_sensitivity_results(results: List[Dict[str, float]]):
     plt.grid(True, alpha=0.3)
     
     plt.tight_layout()
-    plt.savefig('experiments/outputs/sensitivity_analysis/sensitivity_results.png', dpi=300, bbox_inches='tight')
+    plt.savefig('outputs/analysis/sensitivity_analysis/sensitivity_results.png', dpi=300, bbox_inches='tight')
     plt.show()
 
 
 def save_sensitivity_results(results: List[Dict[str, float]]):
     """결과를 JSON 파일로 저장"""
-    output_file = 'experiments/outputs/sensitivity_analysis/sensitivity_results.json'
+    output_file = 'outputs/analysis/sensitivity_analysis/sensitivity_results.json'
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     
     with open(output_file, 'w') as f:

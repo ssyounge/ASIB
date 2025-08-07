@@ -7,7 +7,7 @@ defaults:
   - _self_
 
 # ---------- 모델 ----------
-teacher_type: resnet152_teacher          # registry key
+teacher_type: resnet152          # registry key
 small_input: true               # 3×3 conv , stride 1
 teacher_pretrained: true
 teacher_ckpt_init: null         # 이어서 학습할 ckpt 경로가 있으면 지정
@@ -33,7 +33,7 @@ early_stopping_min_delta: 0.1  # 적당한 개선도 요구
 # ---------- 출력 ----------
 results_dir: experiments/outputs/finetune/resnet152_cifar100_ft
 exp_id: resnet152_cifar100
-finetune_ckpt_path: experiments/checkpoints/resnet152_cifar100.pth
+finetune_ckpt_path: checkpoints/teachers/resnet152_cifar100.pth
 
 # ---------- 기타 ----------
 use_amp: true

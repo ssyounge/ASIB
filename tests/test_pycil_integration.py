@@ -111,7 +111,7 @@ def test_factory_get_model():
         args = {
             'convnet_type': 'resnet32',
             'dataset': 'cifar100',
-            'device': ['cpu'],
+            'device': ['cuda'],
             'memory_size': 2000
         }
         model = get_model("finetune", args)  # 기본 방법 사용
@@ -220,7 +220,7 @@ def sample_args():
     return {
         'convnet_type': 'resnet32',
         'dataset': 'cifar100',
-        'device': ['cpu'],
+        'device': ['cuda'],
         'memory_size': 2000,
         'fixed_memory': False,
         'shuffle': True,

@@ -2,6 +2,6 @@
 
 model:
   student:
-    name: efficientnet_b0_scratch_student
+    name: efficientnet_b0_scratch
     pretrained: false
     use_adapter: true 

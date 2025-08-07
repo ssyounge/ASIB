@@ -2,6 +2,6 @@
 
 model:
   student:
-    name: shufflenet_v2_scratch_student
+    name: shufflenet_v2_scratch
     pretrained: false
     use_adapter: true 

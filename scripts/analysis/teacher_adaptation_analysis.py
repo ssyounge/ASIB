@@ -16,8 +16,8 @@ from scipy import stats
 import seaborn as sns
 
 class TeacherAdaptationAnalyzer:
-    def __init__(self, no_adapt_results_dir: str = "outputs/ablation/cccp",
-                 adapt_results_dir: str = "outputs/ablation/tadapt"):
+    def __init__(self, no_adapt_results_dir: str = "experiments/ablation/cccp/results",
+                 adapt_results_dir: str = "experiments/ablation/tadapt/results"):
         self.no_adapt_results_dir = no_adapt_results_dir
         self.adapt_results_dir = adapt_results_dir
         self.no_adapt_data = self.load_results(no_adapt_results_dir)
@@ -282,15 +282,15 @@ def run_teacher_adaptation_analysis():
     
     # Teacher Adaptation 분석 시각화
     print("📊 Generating teacher adaptation analysis...")
-    analyzer.plot_teacher_adaptation_analysis("outputs/teacher_adaptation")
+    analyzer.plot_teacher_adaptation_analysis("outputs/analysis/teacher_adaptation")
     
     # 분석 보고서
     print("📈 Analyzing teacher adaptation effects...")
-    report = analyzer.generate_adaptation_report("outputs/teacher_adaptation")
+    report = analyzer.generate_adaptation_report("outputs/analysis/teacher_adaptation")
     print(report)
     
     print("✅ Teacher adaptation analysis completed!")
-    print("📁 Results saved in: outputs/teacher_adaptation/")
+    print("📁 Results saved in: outputs/analysis/teacher_adaptation/")
 
 if __name__ == "__main__":
     run_teacher_adaptation_analysis() 

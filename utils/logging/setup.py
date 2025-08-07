@@ -52,15 +52,9 @@ def setup_logging(cfg: Dict[str, Any]) -> logging.Logger:
     """Setup logging for the experiment."""
     results_dir = cfg.get("results_dir", ".")
     
-    # results_dir이 실제로 "." 또는 ""인 경우에만 경고 출력
+    # results_dir이 실제로 "." 또는 ""인 경우에는 파일 로그를 생성하지 않음
     if results_dir == "." or results_dir == "" or results_dir is None:
-        results_dir = "logs"
-        print(f"[Warning] results_dir이 '{cfg.get('results_dir', '.')}'으로 설정되어 있어서 'logs' 디렉토리로 변경합니다.")
-    
-    log_file = os.path.join(results_dir, cfg.get("log_filename", "train.log"))
-    
-    # Create directory if it doesn't exist
-    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+        print(f"[Warning] results_dir이 '{cfg.get('results_dir', '.')}'으로 설정되어 있어서 파일 로그를 생성하지 않습니다.")
     
     # Setup logger
     logger = logging.getLogger()
@@ -70,17 +64,7 @@ def setup_logging(cfg: Dict[str, Any]) -> logging.Logger:
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
     
-    # File handler
-    file_handler = logging.FileHandler(log_file)
-    file_handler.setLevel(logging.INFO)
-    file_formatter = logging.Formatter(
-        "%(asctime)s | %(levelname)s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
-    )
-    file_handler.setFormatter(file_formatter)
-    logger.addHandler(file_handler)
-    
-    # Console handler
+    # Console handler (항상 추가)
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)
     console_formatter = logging.Formatter(
@@ -89,6 +73,23 @@ def setup_logging(cfg: Dict[str, Any]) -> logging.Logger:
     )
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
+    
+    # File handler (results_dir이 "."이 아닌 경우에만 추가)
+    if results_dir != "." and results_dir != "" and results_dir is not None:
+        log_file = os.path.join(results_dir, cfg.get("log_filename", "train.log"))
+        
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+        
+        # File handler
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(logging.INFO)
+        file_formatter = logging.Formatter(
+            "%(asctime)s | %(levelname)s | %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S"
+        )
+        file_handler.setFormatter(file_formatter)
+        logger.addHandler(file_handler)
     
     return logger
 
@@ -119,11 +120,31 @@ def get_logger(
     """Get or create a logger for the experiment."""
     results_dir = exp_dir
     
-    # results_dir이 실제로 "." 또는 ""인 경우에만 경고 출력
+    # results_dir이 실제로 "." 또는 ""인 경우에는 파일 로그를 생성하지 않음
     if results_dir == "." or results_dir == "" or results_dir is None:
-        results_dir = "experiments/logs"
-        print(f"[Warning] results_dir이 '{exp_dir}'으로 설정되어 있어서 'experiments/logs' 디렉토리로 변경합니다.")
+        print(f"[Warning] results_dir이 '{exp_dir}'으로 설정되어 있어서 파일 로그를 생성하지 않습니다.")
+        
+        # Setup logger (console only)
+        logger = logging.getLogger()
+        logger.setLevel(getattr(logging, level.upper()))
+        
+        # Remove existing handlers
+        for handler in logger.handlers[:]:
+            logger.removeHandler(handler)
+        
+        # Console handler only
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(getattr(logging, level.upper()))
+        console_formatter = logging.Formatter(
+            "%(asctime)s | %(levelname)s | %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S"
+        )
+        console_handler.setFormatter(console_formatter)
+        logger.addHandler(console_handler)
+        
+        return logger
     
+    # results_dir이 유효한 경우에만 파일 로그 생성
     log_file = os.path.join(results_dir, "train.log")
     
     # Create directory if it doesn't exist

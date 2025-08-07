@@ -207,7 +207,7 @@ def main(cfg: DictConfig):
                 "PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True"
             )
         else:
-            device = "cpu"
+            device = "cuda"
     set_random_seed(cfg.get("seed", 42))
 
     dataset = cfg.get("dataset_name", "cifar100")
@@ -256,7 +256,7 @@ def main(cfg: DictConfig):
         cfg.get("student_freeze_bn", False),
     )
 
-    os.makedirs(cfg.get("results_dir", "results"), exist_ok=True)
+    os.makedirs(cfg.get("results_dir", "experiments/test/results"), exist_ok=True)
     ckpt = os.path.join(cfg["results_dir"], "student_baseline.pth")
     acc = train_student_ce(
         student,
