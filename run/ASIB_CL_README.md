@@ -80,7 +80,7 @@ grep "asib_cl" PyCIL/utils/factory.py
     "ib_beta": 0.1,
     "topk": 5,
     "seed": 1993,
-    "logdir": "./logs/asib_cl",
+    "logdir": "./experiments/sota/logs/asib_cl",
     "model_name": "asib_cl"
 }
 ```
@@ -137,7 +137,7 @@ python PyCIL/main.py --config=PyCIL/exps/der.json
 ### 결과 확인
 ```bash
 # 로그 파일 확인
-tail -f logs/asib_cl/*.log
+tail -f experiments/sota/logs/asib_cl/*.log
 
 # 결과 리포트 생성
 python run_asib_cl_experiment.py

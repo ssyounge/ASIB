@@ -30,7 +30,7 @@ early_stopping_patience: 25    # 작은 모델이 1000 클래스이므로 매우
 early_stopping_min_delta: 0.03  # 작은 모델이 1000 클래스이므로 매우 작은 개선도 요구
 
 # ─── 출력 경로 ────────────────────────────────────────────────
-results_dir:        experiments/outputs/finetune/convnext_s_imagenet32_ft
+results_dir:        experiments/finetune/convnext_s_imagenet32_ft/results
 exp_id:             convnext_s_imagenet32
 # ─── 공통 옵션 (AMP 등) ───────────────────────────────────────
 use_amp:    true

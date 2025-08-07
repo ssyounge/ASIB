@@ -9,7 +9,7 @@ defaults:
 # ─── 경로 & 식별자 ────────────────────────────────────────────
 teacher1_ckpt: checkpoints/teachers/convnext_l_cifar100.pth   # ← fc 5504▶100 형상 맞춰 trim
 teacher2_ckpt: checkpoints/teachers/efficientnet_l2_cifar32.pth
-results_dir:   outputs/res152_convnext_effi
+results_dir:   experiments/legacy/res152_convnext_effi/results
 exp_id:        res152_convnext_effi
 
 # ─── 모델 & Optim ────────────────────────────────────────────

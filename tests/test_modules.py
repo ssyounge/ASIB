@@ -673,7 +673,7 @@ def test_standard_ce_finetune():
     }
     
     # 체크포인트 경로를 명시적으로 설정
-    ckpt_path = "test_teacher_finetuned_ce.pth"
+    ckpt_path = "checkpoints/finetuned/test_teacher_finetuned_ce.pth"
     
     # standard_ce_finetune 테스트
     try:
@@ -747,7 +747,7 @@ def test_checkpoint_functionality():
     }
     
     # 체크포인트 경로를 명시적으로 설정 (디렉토리 포함)
-    ckpt_path = "test_checkpoint_dir/test_checkpoint.pth"
+    ckpt_path = "checkpoints/students/test_checkpoint.pth"
     
     # 체크포인트 기능 테스트
     try:
@@ -777,9 +777,6 @@ def test_checkpoint_functionality():
         # Training 관련 오류는 예상됨
         assert "training" in str(e).lower() or "loss" in str(e).lower() or "file" in str(e).lower()
     finally:
-        # 테스트 후 체크포인트 파일과 디렉토리 정리
+        # 테스트 후 체크포인트 파일 정리
         if os.path.exists(ckpt_path):
-            os.remove(ckpt_path)
-        checkpoint_dir = os.path.dirname(ckpt_path)
-        if os.path.exists(checkpoint_dir) and not os.listdir(checkpoint_dir):
-            os.rmdir(checkpoint_dir) 
+            os.remove(ckpt_path) 

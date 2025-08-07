@@ -26,7 +26,7 @@ defaults:
 # --- 경로 & 식별자 ------------------------------------------
 teacher1_ckpt: checkpoints/teachers/<teacher1_ckpt>.pth
 teacher2_ckpt: checkpoints/teachers/<teacher2_ckpt>.pth
-results_dir:   outputs/<exp_id>
+results_dir:   experiments/legacy/<exp_id>/results
 exp_id:        <exp_id>                # (로그·출력 폴더 이름)
 
 # --- 모델 & Optim ------------------------------------------

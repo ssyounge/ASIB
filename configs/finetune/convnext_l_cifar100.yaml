@@ -28,7 +28,7 @@ early_stopping_patience: 15    # 큰 모델이므로 더 긴 patience
 early_stopping_min_delta: 0.05  # 더 작은 개선도 허용
 
 # ─── 출력 경로 ────────────────────────────────────────────────
-results_dir:        experiments/outputs/finetune/convnext_l_cifar100_ft
+results_dir:        experiments/finetune/convnext_l_cifar100_ft/results
 exp_id:             convnext_l_cifar100
 # ─── 공통 옵션 (AMP 등) ───────────────────────────────────────
 use_amp:    true

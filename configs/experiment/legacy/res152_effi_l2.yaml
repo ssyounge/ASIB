@@ -9,7 +9,7 @@ defaults:
 # ─── 경로 & 식별자 ────────────────────────────────────────────
 teacher1_ckpt: checkpoints/teachers/resnet152_cifar32.pth
 teacher2_ckpt: checkpoints/teachers/efficientnet_l2_cifar32.pth
-results_dir:   outputs/res152_effi_l2
+results_dir:   experiments/legacy/res152_effi_l2/results
 exp_id:        res152_effi_l2
 
 # ─── 모델 & Optim ────────────────────────────────────────────

@@ -36,7 +36,7 @@ log_level: INFO
 deterministic: true
 
 # ─── 출력 경로 ────────────────────────────────────────────────
-results_dir:        experiments/outputs/finetune/efficientnet_l2_imagenet32_ft_improved
+results_dir:        experiments/finetune/efficientnet_l2_imagenet32_ft_improved/results
 exp_id:             efficientnet_l2_imagenet32_improved
 
 # 추후 save 할 체크포인트 경로

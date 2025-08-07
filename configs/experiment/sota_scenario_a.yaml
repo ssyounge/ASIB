@@ -13,7 +13,7 @@ defaults:
 # ─── 경로 & 식별자 ────────────────────────────────────────────
 teacher1_ckpt: checkpoints/teachers/convnext_l_cifar100.pth
 teacher2_ckpt: checkpoints/teachers/efficientnet_l2_cifar32.pth
-results_dir: outputs/sota/scenario_a_mobilenet
+results_dir: experiments/sota/scenario_a_mobilenet/results
 exp_id: sota_scenario_a_mobilenet
 
 # ─── 모델 & Optim ────────────────────────────────────────────

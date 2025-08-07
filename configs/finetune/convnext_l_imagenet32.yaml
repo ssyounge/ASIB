@@ -35,7 +35,7 @@ log_level: INFO
 deterministic: true
 
 # ─── 출력 경로 ────────────────────────────────────────────────
-results_dir:        experiments/outputs/finetune/convnext_l_imagenet32_ft_improved
+results_dir:        experiments/finetune/convnext_l_imagenet32_ft_improved/results
 exp_id:             convnext_l_imagenet32_improved
 
 # 추후 save 할 체크포인트 경로

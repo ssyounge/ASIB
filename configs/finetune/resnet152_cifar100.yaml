@@ -31,7 +31,7 @@ early_stopping_patience: 10    # 전통적 모델이므로 적당한 patience
 early_stopping_min_delta: 0.1  # 적당한 개선도 요구
 
 # ---------- 출력 ----------
-results_dir: experiments/outputs/finetune/resnet152_cifar100_ft
+results_dir: experiments/finetune/resnet152_cifar100_ft/results
 exp_id: resnet152_cifar100
 finetune_ckpt_path: checkpoints/teachers/resnet152_cifar100.pth
 

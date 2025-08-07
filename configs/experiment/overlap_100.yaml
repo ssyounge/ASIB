@@ -12,7 +12,7 @@ defaults:
 # ─── 경로 & 식별자 ────────────────────────────────────────────
 teacher1_ckpt: checkpoints/teachers/resnet152_cifar32.pth
 teacher2_ckpt: checkpoints/teachers/resnet152_cifar32.pth  # 동일한 모델
-results_dir: outputs/overlap/overlap_100
+results_dir: experiments/overlap/overlap_100/results
 exp_id: overlap_100
 
 # ─── 모델 & Optim ────────────────────────────────────────────

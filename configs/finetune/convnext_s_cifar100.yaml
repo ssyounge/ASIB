@@ -28,7 +28,7 @@ early_stopping_patience: 10    # 과적합 방지를 위해 약간 감소
 early_stopping_min_delta: 0.1  # 더 명확한 개선도 요구
 
 # ─── 출력 경로 ────────────────────────────────────────────────
-results_dir:        experiments/outputs/finetune/convnext_s_cifar100_ft
+results_dir:        experiments/finetune/convnext_s_cifar100_ft/results
 exp_id:             convnext_s_cifar100
 # ─── 공통 옵션 (AMP 등) ───────────────────────────────────────
 use_amp:    true

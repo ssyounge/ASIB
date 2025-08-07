@@ -56,10 +56,15 @@ def set_random_seed(seed: int = 42, deterministic: bool = True) -> None:
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
 
-def save_checkpoint(model, optimizer, epoch, save_path="checkpoint.pth"):
+def save_checkpoint(model, optimizer, epoch, save_path="checkpoints/students/checkpoint.pth"):
     """
     Save model & optimizer state_dict, plus metadata (epoch).
     """
+    # Ensure directory exists (only if save_path has a directory component)
+    save_dir = os.path.dirname(save_path)
+    if save_dir:  # Only create directory if save_path has a directory component
+        os.makedirs(save_dir, exist_ok=True)
+    
     ckpt = {
         "epoch": epoch,
         "model_state": model.state_dict(),

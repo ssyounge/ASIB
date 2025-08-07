@@ -12,7 +12,7 @@ defaults:
 # ─── 경로 & 식별자 ────────────────────────────────────────────
 teacher1_ckpt: checkpoints/teachers/convnext_s_cifar32.pth
 teacher2_ckpt: checkpoints/teachers/resnet152_cifar32.pth
-results_dir: outputs/ablation/full
+results_dir: experiments/ablation/full/results
 exp_id: ablation_full
 
 # ─── 모델 & Optim ────────────────────────────────────────────

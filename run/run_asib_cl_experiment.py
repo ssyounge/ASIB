@@ -159,12 +159,12 @@ def analyze_results():
     
     # 로그 파일들에서 성능 지표 추출
 log_dirs = [
-"./logs/sota/asib_cl",
-"./logs/sota/finetune", 
-"./logs/sota/ewc",
-"./logs/sota/lwf",
-"./logs/sota/icarl",
-"./logs/sota/der"
+"./experiments/sota/logs/asib_cl",
+"./experiments/sota/logs/finetune", 
+"./experiments/sota/logs/ewc",
+"./experiments/sota/logs/lwf",
+"./experiments/sota/logs/icarl",
+"./experiments/sota/logs/der"
 ]
     
     results = {}

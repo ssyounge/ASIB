@@ -25,11 +25,13 @@ cd "$ROOT"
 
 # 2) PYTHONPATH 추가 및 환경 설정
 export PYTHONPATH="${ROOT}:${PYTHONPATH:-}"
-export PATH="$CONDA_PREFIX/bin:$PATH"
+if [ -n "${CONDA_PREFIX:-}" ]; then
+    export PATH="$CONDA_PREFIX/bin:$PATH"
+fi
 
 # GPU 할당 확인 및 설정
 echo "🔍 Checking GPU allocation..."
-if [ -n "$SLURM_GPUS_ON_NODE" ]; then
+if [ -n "${SLURM_GPUS_ON_NODE:-}" ]; then
     # GPU 인덱스를 0부터 시작하도록 조정
     if [ "$SLURM_GPUS_ON_NODE" = "1" ]; then
         export CUDA_VISIBLE_DEVICES=0
@@ -125,62 +127,50 @@ echo "" | tee -a experiments/test/results/summary.log
 # 8) 테스트 그룹별로 병렬 실행
 echo "📋 Starting test groups at $(timestamp)..." | tee -a experiments/test/results/summary.log
 
-# 핵심 ASIB 테스트 (가장 중요)
-echo "   🔄 Running core ASIB tests..." | tee -a experiments/test/results/summary.log
-python -m pytest tests/test_asib_cl.py tests/test_asib_step.py -v --tb=short -W ignore > experiments/test/logs/core_asib_test.log 2>&1 &
-CORE_ASIB_PID=$!
+# 🔧 Core Functionality Tests (3개)
+echo "   🔄 Running core functionality tests..." | tee -a experiments/test/results/summary.log
+python -m pytest tests/test_core.py tests/test_core_utils.py tests/test_utils_common.py -v --tb=short -W ignore > experiments/test/logs/core_functionality_test.log 2>&1 &
+CORE_FUNCTIONALITY_PID=$!
 
-# PyCIL 통합 테스트
-echo "   🔄 Running PyCIL integration tests..." | tee -a experiments/test/results/summary.log
-python -m pytest tests/test_pycil_integration.py tests/test_pycil_models.py -v --tb=short -W ignore > experiments/test/logs/pycil_test.log 2>&1 &
-PYCIL_PID=$!
+# 🧠 Model & Module Tests (4개)
+echo "   🔄 Running model and module tests..." | tee -a experiments/test/results/summary.log
+python -m pytest tests/test_models.py tests/test_models_advanced.py tests/test_modules.py tests/test_modules_partial_freeze.py -v --tb=short -W ignore > experiments/test/logs/model_module_test.log 2>&1 &
+MODEL_MODULE_PID=$!
 
-# 데이터 및 유틸리티 테스트
-echo "   🔄 Running data and utils tests..." | tee -a experiments/test/results/summary.log
-python -m pytest tests/test_data.py tests/test_utils.py tests/test_core.py tests/test_dataset_attributes.py tests/test_dataset_fix.py tests/test_overlap_dataset.py tests/test_main_dataset_loading.py -v --tb=short -W ignore > experiments/test/logs/data_utils_test.log 2>&1 &
-DATA_UTILS_PID=$!
+# 📊 Data & Configuration Tests (4개)
+echo "   🔄 Running data and configuration tests..." | tee -a experiments/test/results/summary.log
+python -m pytest tests/test_data.py tests/test_configs.py tests/test_finetune_configs.py tests/test_experiment_configs.py -v --tb=short -W ignore > experiments/test/logs/data_config_test.log 2>&1 &
+DATA_CONFIG_PID=$!
 
+# 🔄 Training & Experiment Tests (7개)
+echo "   🔄 Running training and experiment tests..." | tee -a experiments/test/results/summary.log
+python -m pytest tests/test_main.py tests/test_main_training.py tests/test_main_step_by_step.py tests/test_asib_step.py tests/test_asib_cl.py tests/test_cl_experiments.py tests/test_training_pipeline.py -v --tb=short -W ignore > experiments/test/logs/training_experiment_test.log 2>&1 &
+TRAINING_EXPERIMENT_PID=$!
 
-# 모델 테스트
-echo "   🔄 Running model tests..." | tee -a experiments/test/results/summary.log
-python -m pytest tests/test_models.py tests/test_models_advanced.py tests/test_new_methods.py tests/test_new_students.py -v --tb=short -W ignore > experiments/test/logs/models_test.log 2>&1 &
-MODELS_PID=$!
+# 🧪 Integration & Validation Tests (4개)
+echo "   🔄 Running integration and validation tests..." | tee -a experiments/test/results/summary.log
+python -m pytest tests/test_integration.py tests/test_final_validation.py tests/test_experiment_execution.py tests/test_framework_robustness.py -v --tb=short -W ignore > experiments/test/logs/integration_validation_test.log 2>&1 &
+INTEGRATION_VALIDATION_PID=$!
 
-# 설정 및 실험 테스트
-echo "   🔄 Running config and experiment tests..." | tee -a experiments/test/results/summary.log
-python -m pytest tests/test_configs.py tests/test_finetune_configs.py tests/test_cl_experiments.py tests/test_registry_comprehensive.py tests/test_experiment_configs.py -v --tb=short -W ignore > experiments/test/logs/configs_test.log 2>&1 &
-CONFIGS_PID=$!
+# 🔍 Analysis & Script Tests (3개)
+echo "   🔄 Running analysis and script tests..." | tee -a experiments/test/results/summary.log
+python -m pytest tests/test_scripts.py tests/test_pycil_integration.py tests/test_pycil_models.py -v --tb=short -W ignore > experiments/test/logs/analysis_script_test.log 2>&1 &
+ANALYSIS_SCRIPT_PID=$!
 
-# 스크립트 및 기타 테스트
-echo "   🔄 Running script and misc tests..." | tee -a experiments/test/results/summary.log
-python -m pytest tests/test_scripts.py tests/test_integration.py tests/test_modules.py -v --tb=short -W ignore > experiments/test/logs/scripts_test.log 2>&1 &
-SCRIPTS_PID=$!
+# 🛡️ Error Prevention & Edge Cases (2개)
+echo "   🔄 Running error prevention and edge case tests..." | tee -a experiments/test/results/summary.log
+python -m pytest tests/test_error_prevention.py tests/test_overlap_dataset.py -v --tb=short -W ignore > experiments/test/logs/error_prevention_test.log 2>&1 &
+ERROR_PREVENTION_PID=$!
 
-# KD 및 특수 테스트
-echo "   🔄 Running KD and special tests..." | tee -a experiments/test/results/summary.log
-python -m pytest tests/test_kd_methods.py tests/test_disagreement.py tests/test_ib_mbm_shapes.py tests/test_partial_freeze.py tests/test_mbm_tensor_shapes.py -v --tb=short -W ignore > experiments/test/logs/kd_test.log 2>&1 &
-KD_PID=$!
+# 📐 Specialized Component Tests (4개)
+echo "   🔄 Running specialized component tests..." | tee -a experiments/test/results/summary.log
+python -m pytest tests/test_mbm_tensor_shapes.py tests/test_ib_mbm_shapes.py tests/test_kd_methods.py tests/test_registry_comprehensive.py -v --tb=short -W ignore > experiments/test/logs/specialized_component_test.log 2>&1 &
+SPECIALIZED_COMPONENT_PID=$!
 
-# 새로운 테스트 그룹들
-echo "   🔄 Running framework robustness tests..." | tee -a experiments/test/results/summary.log
-python -m pytest tests/test_framework_robustness.py tests/test_error_prevention.py tests/test_final_validation.py -v --tb=short -W ignore > experiments/test/logs/robustness_test.log 2>&1 &
-ROBUSTNESS_PID=$!
-
-echo "   🔄 Running experiment execution tests..." | tee -a experiments/test/results/summary.log
-python -m pytest tests/test_experiment_execution.py tests/test_training_pipeline.py tests/test_main_py_integration.py -v --tb=short -W ignore > experiments/test/logs/execution_test.log 2>&1 &
-EXECUTION_PID=$!
-
-echo "   🔄 Running utility function tests..." | tee -a experiments/test/results/summary.log
-python -m pytest tests/test_auto_set_mbm_query_dim.py tests/test_renorm_ce_kd.py tests/test_setup_partial_freeze_schedule.py -v --tb=short -W ignore > experiments/test/logs/utility_test.log 2>&1 &
+# 🧩 Utility Tests (2개)
+echo "   🔄 Running utility tests..." | tee -a experiments/test/results/summary.log
+python -m pytest tests/test_utils.py tests/test_disagreement.py -v --tb=short -W ignore > experiments/test/logs/utility_test.log 2>&1 &
 UTILITY_PID=$!
-
-echo "   🔄 Running main integration tests..." | tee -a experiments/test/results/summary.log
-python -m pytest tests/test_main.py tests/test_main_step_by_step.py tests/test_main_training.py tests/test_training_simple.py -v --tb=short -W ignore > experiments/test/logs/main_integration_test.log 2>&1 &
-MAIN_INTEGRATION_PID=$!
-
-echo "   🔄 Running actual dataset problem tests..." | tee -a experiments/test/results/summary.log
-python -m pytest tests/test_actual_dataset_problem.py -v --tb=short -W ignore > experiments/test/logs/dataset_problem_test.log 2>&1 &
-DATASET_PROBLEM_PID=$!
 
 # 9) 실시간 진행 상황 모니터링
 echo "" | tee -a experiments/test/results/summary.log
@@ -201,29 +191,26 @@ wait_and_check() {
 # 모든 테스트 완료 대기
 FAILED_COUNT=0
 
-wait_and_check $CORE_ASIB_PID "Core ASIB Tests" "experiments/test/logs/core_asib_test.log" || ((FAILED_COUNT++))
-wait_and_check $PYCIL_PID "PyCIL Tests" "experiments/test/logs/pycil_test.log" || ((FAILED_COUNT++))
-wait_and_check $DATA_UTILS_PID "Data & Utils Tests" "experiments/test/logs/data_utils_test.log" || ((FAILED_COUNT++))
-wait_and_check $MODELS_PID "Model Tests" "experiments/test/logs/models_test.log" || ((FAILED_COUNT++))
-wait_and_check $CONFIGS_PID "Config & Experiment Tests" "experiments/test/logs/configs_test.log" || ((FAILED_COUNT++))
-wait_and_check $SCRIPTS_PID "Script & Integration Tests" "experiments/test/logs/scripts_test.log" || ((FAILED_COUNT++))
-wait_and_check $KD_PID "KD & Special Tests" "experiments/test/logs/kd_test.log" || ((FAILED_COUNT++))
-wait_and_check $ROBUSTNESS_PID "Framework Robustness Tests" "experiments/test/logs/robustness_test.log" || ((FAILED_COUNT++))
-wait_and_check $EXECUTION_PID "Experiment Execution Tests" "experiments/test/logs/execution_test.log" || ((FAILED_COUNT++))
-wait_and_check $UTILITY_PID "Utility Function Tests" "experiments/test/logs/utility_test.log" || ((FAILED_COUNT++))
-wait_and_check $MAIN_INTEGRATION_PID "Main Integration Tests" "experiments/test/logs/main_integration_test.log" || ((FAILED_COUNT++))
-wait_and_check $DATASET_PROBLEM_PID "Dataset Problem Tests" "experiments/test/logs/dataset_problem_test.log" || ((FAILED_COUNT++))
+wait_and_check $CORE_FUNCTIONALITY_PID "Core Functionality Tests" "experiments/test/logs/core_functionality_test.log" || ((FAILED_COUNT++))
+wait_and_check $MODEL_MODULE_PID "Model & Module Tests" "experiments/test/logs/model_module_test.log" || ((FAILED_COUNT++))
+wait_and_check $DATA_CONFIG_PID "Data & Configuration Tests" "experiments/test/logs/data_config_test.log" || ((FAILED_COUNT++))
+wait_and_check $TRAINING_EXPERIMENT_PID "Training & Experiment Tests" "experiments/test/logs/training_experiment_test.log" || ((FAILED_COUNT++))
+wait_and_check $INTEGRATION_VALIDATION_PID "Integration & Validation Tests" "experiments/test/logs/integration_validation_test.log" || ((FAILED_COUNT++))
+wait_and_check $ANALYSIS_SCRIPT_PID "Analysis & Script Tests" "experiments/test/logs/analysis_script_test.log" || ((FAILED_COUNT++))
+wait_and_check $ERROR_PREVENTION_PID "Error Prevention & Edge Cases" "experiments/test/logs/error_prevention_test.log" || ((FAILED_COUNT++))
+wait_and_check $SPECIALIZED_COMPONENT_PID "Specialized Component Tests" "experiments/test/logs/specialized_component_test.log" || ((FAILED_COUNT++))
+wait_and_check $UTILITY_PID "Utility Tests" "experiments/test/logs/utility_test.log" || ((FAILED_COUNT++))
 
 # 10) 전체 결과 요약
 echo "==================================================" | tee -a experiments/test/results/summary.log
 echo "📊 FINAL TEST SUMMARY at $(timestamp)" | tee -a experiments/test/results/summary.log
 echo "==================================================" | tee -a experiments/test/results/summary.log
 
-# 전체 통계 계산
-TOTAL_PASSED=$(grep "PASSED:" experiments/test/results/summary.log | awk '{sum += $2} END {print sum}')
-TOTAL_FAILED=$(grep "FAILED:" experiments/test/results/summary.log | awk '{sum += $2} END {print sum}')
-TOTAL_SKIPPED=$(grep "SKIPPED:" experiments/test/results/summary.log | awk '{sum += $2} END {print sum}')
-TOTAL_WARNINGS=$(grep "WARNINGS:" experiments/test/results/summary.log | awk '{sum += $2} END {print sum}')
+# 전체 통계 계산 (더 정확한 방법)
+TOTAL_PASSED=$(grep "✅ PASSED:" experiments/test/results/summary.log | awk '{sum += $3} END {print sum+0}')
+TOTAL_FAILED=$(grep "❌ FAILED:" experiments/test/results/summary.log | awk '{sum += $3} END {print sum+0}')
+TOTAL_SKIPPED=$(grep "⏭️  SKIPPED:" experiments/test/results/summary.log | awk '{sum += $3} END {print sum+0}')
+TOTAL_WARNINGS=$(grep "⚠️  WARNINGS:" experiments/test/results/summary.log | awk '{sum += $3} END {print sum+0}')
 
 echo "🎯 Overall Statistics:" | tee -a experiments/test/results/summary.log
 echo "   ✅ Total PASSED: $TOTAL_PASSED" | tee -a experiments/test/results/summary.log

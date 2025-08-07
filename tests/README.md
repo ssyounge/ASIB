@@ -1,200 +1,215 @@
 # Tests Directory
 
-이 폴더는 ASMB_KD 프로젝트의 모든 테스트 파일들을 포함합니다.
+This directory contains comprehensive tests for the ASMB-KD project, ensuring all components work correctly and reliably.
 
-## 📊 **Test Suite Overview**
+## 📁 Test Structure
 
-- **Total Test Files**: 42 files
-- **Test Categories**: 12 categories
-- **Coverage**: All major components
-- **Execution**: Parallel GPU-accelerated testing
+### 🔧 Core Functionality Tests
+- **`test_core.py`** - Core builder, trainer, and utility functions
+- **`test_core_utils.py`** - Core utility functions (renorm_ce_kd, setup_partial_freeze_schedule, etc.)
+- **`test_utils_common.py`** - Common utility functions (set_random_seed, check_label_range, etc.)
 
-## 테스트 실행 방법
+### 🧠 Model & Module Tests
+- **`test_models.py`** - Basic model creation and functionality
+- **`test_models_advanced.py`** - Advanced model features and integration
+- **`test_modules.py`** - Module functionality (trainers, losses, disagreement)
+- **`test_modules_partial_freeze.py`** - Partial freeze functionality
 
-### 1. GPU 가속 테스트 (권장)
+### 📊 Data & Configuration Tests
+- **`test_data.py`** - Dataset loading and data processing
+- **`test_configs.py`** - Configuration file validation
+- **`test_finetune_configs.py`** - Fine-tuning configuration tests
+- **`test_experiment_configs.py`** - Experiment configuration tests
+
+### 🔄 Training & Experiment Tests
+- **`test_main.py`** - Main entry point functionality
+- **`test_main_training.py`** - Main training pipeline
+- **`test_asib_step.py`** - ASIB step-by-step functionality
+- **`test_asib_cl.py`** - ASIB continual learning
+- **`test_cl_experiments.py`** - Continual learning experiments
+- **`test_training_pipeline.py`** - Training pipeline components
+
+### 🧪 Integration & Validation Tests
+- **`test_integration.py`** - End-to-end integration tests
+- **`test_final_validation.py`** - Final validation scenarios
+- **`test_experiment_execution.py`** - Experiment execution validation
+- **`test_framework_robustness.py`** - Framework robustness and edge cases
+
+### 🔍 Analysis & Script Tests
+- **`test_scripts.py`** - Analysis and utility scripts
+- **`test_pycil_integration.py`** - PyCIL framework integration
+- **`test_pycil_models.py`** - PyCIL model functionality
+
+### 🛡️ Error Prevention & Edge Cases
+- **`test_error_prevention.py`** - Error handling and prevention
+- **`test_overlap_dataset.py`** - Class overlap dataset functionality
+
+### 📐 Specialized Component Tests
+- **`test_mbm_tensor_shapes.py`** - MBM tensor shape validation
+- **`test_ib_mbm_shapes.py`** - IB-MBM specific shape tests
+- **`test_kd_methods.py`** - Knowledge distillation methods
+- **`test_registry_comprehensive.py`** - Model registry functionality
+
+### 🧩 Utility Tests
+- **`test_utils.py`** - General utility functions
+- **`test_disagreement.py`** - Disagreement computation
+
+## 🚀 Running Tests
+
+### Run All Tests
 ```bash
-# 모든 테스트를 GPU에서 병렬로 실행
-sbatch run/run_test.sh
+./run/run_test.sh
 ```
 
-### 2. 로컬 테스트
+### Run Specific Test Categories
 ```bash
-# 모든 테스트 실행
-python -m pytest tests/ -v
+# Core functionality
+pytest tests/test_core.py tests/test_core_utils.py tests/test_utils_common.py -v
 
-# 특정 테스트 파일 실행
-python -m pytest tests/test_asib_cl.py -v
+# Model tests
+pytest tests/test_models*.py tests/test_modules*.py -v
 
-# 특정 테스트 함수 실행
-python -m pytest tests/test_asib_cl.py::test_asib_cl_initialization -v
+# Data and config tests
+pytest tests/test_data.py tests/test_configs.py -v
+
+# Training tests
+pytest tests/test_main*.py tests/test_asib*.py tests/test_training*.py -v
+
+# Integration tests
+pytest tests/test_integration.py tests/test_final_validation.py -v
 ```
 
-### 3. Python 스크립트로 실행
+### Run Tests with Coverage
 ```bash
-# run/run_test.sh 사용 (권장 - GPU 가속, 병렬 실행)
-bash run/run_test.sh
+pytest --cov=. --cov-report=html tests/
 ```
 
-## 테스트 파일 구조
+## 📋 Test Coverage
 
-### 🔥 **Core ASIB Tests** (2 files)
-- `test_asib_cl.py` - ASIB-CL 모델 테스트
-- `test_asib_step.py` - ASIB Step 기능 테스트
+### ✅ Main.py Functions Covered
+- `create_student_by_name()` - ✅ `test_core.py`, `test_models.py`
+- `create_teacher_by_name()` - ✅ `test_core.py`, `test_models.py`
+- `run_training_stages()` - ✅ `test_core.py`, `test_training_pipeline.py`
+- `run_continual_learning()` - ✅ `test_core.py`, `test_cl_experiments.py`
+- `renorm_ce_kd()` - ✅ `test_core_utils.py`
+- `setup_partial_freeze_schedule_with_cfg()` - ✅ `test_core_utils.py`
+- `setup_safety_switches_with_cfg()` - ✅ `test_core_utils.py`
+- `auto_set_mbm_query_dim_with_model()` - ✅ `test_core_utils.py`
+- `cast_numeric_configs()` - ✅ `test_core_utils.py`
 
-### 🔗 **PyCIL Integration Tests** (2 files)
-- `test_pycil_integration.py` - PyCIL 통합 테스트
-- `test_pycil_models.py` - PyCIL 모델들 테스트
+### ✅ Utils Functions Covered
+- `set_random_seed()` - ✅ `test_utils_common.py`
+- `check_label_range()` - ✅ `test_utils_common.py`
+- `get_model_num_classes()` - ✅ `test_utils_common.py`
+- `count_trainable_parameters()` - ✅ `test_utils_common.py`
+- `get_amp_components()` - ✅ `test_utils_common.py`
+- `mixup_data()`, `cutmix_data()` - ✅ `test_utils_common.py`
 
-### 📊 **Data & Utils Tests** (7 files)
-- `test_data.py` - 데이터 로더 및 변환 테스트
-- `test_utils.py` - 유틸리티 함수 테스트
-- `test_core.py` - 핵심 기능 테스트
-- `test_dataset_attributes.py` - 데이터셋 속성 테스트
-- `test_dataset_fix.py` - 데이터셋 수정 테스트
-- `test_overlap_dataset.py` - 오버랩 데이터셋 테스트
-- `test_main_dataset_loading.py` - 메인 데이터 로딩 테스트
+### ✅ Partial Freeze Functions Covered
+- `apply_partial_freeze()` - ✅ `test_modules_partial_freeze.py`
+- `partial_freeze_teacher_resnet()` - ✅ `test_modules_partial_freeze.py`
+- `partial_freeze_teacher_efficientnet()` - ✅ `test_modules_partial_freeze.py`
+- `partial_freeze_student_resnet()` - ✅ `test_modules_partial_freeze.py`
 
-### 🤖 **Model Tests** (4 files)
-- `test_models.py` - 기본 모델 테스트
-- `test_models_advanced.py` - 고급 모델 테스트
-- `test_new_methods.py` - 새로운 방법들 테스트
-- `test_new_students.py` - 새로운 학생 모델 테스트
+### ✅ Data Loading Functions Covered
+- `get_cifar100_loaders()` - ✅ `test_data.py`
+- `get_imagenet32_loaders()` - ✅ `test_data.py`
+- Overlap dataset functionality - ✅ `test_overlap_dataset.py`
 
-### ⚙️ **Config & Experiment Tests** (5 files)
-- `test_configs.py` - 설정 파일 테스트
-- `test_finetune_configs.py` - 파인튜닝 설정 테스트
-- `test_cl_experiments.py` - CL 실험 테스트
-- `test_experiment_configs.py` - 실험 설정 테스트
-- `test_registry_comprehensive.py` - 레지스트리 종합 테스트
+### ✅ Model Registry & Creation Covered
+- Model registry functionality - ✅ `test_registry_comprehensive.py`
+- Teacher/Student model creation - ✅ `test_models.py`, `test_models_advanced.py`
+- MBM and synergy head creation - ✅ `test_mbm_tensor_shapes.py`
 
-### 🔧 **Script & Integration Tests** (3 files)
-- `test_scripts.py` - 스크립트 테스트
-- `test_integration.py` - 통합 테스트
-- `test_modules.py` - 모듈 테스트
+## 🎯 Test Quality Standards
 
-### 🧠 **KD & Special Tests** (5 files)
-- `test_kd_methods.py` - 지식 증류 방법 테스트
-- `test_disagreement.py` - 불일치 계산 테스트
-- `test_ib_mbm_shapes.py` - IB MBM 형태 테스트
-- `test_partial_freeze.py` - 부분 고정 테스트
-- `test_mbm_tensor_shapes.py` - MBM 텐서 형태 테스트
+### ✅ All Tests Must:
+- **Be Independent**: Each test should run independently
+- **Be Deterministic**: Same input should produce same output
+- **Have Clear Assertions**: Explicit checks for expected behavior
+- **Handle Edge Cases**: Test boundary conditions and error scenarios
+- **Use Mock Data**: Avoid real data loading when possible
+- **Be Fast**: Complete in reasonable time (< 1 second per test)
 
-### 🛡️ **Framework Robustness Tests** (3 files)
-- `test_framework_robustness.py` - 프레임워크 견고성 테스트
-- `test_error_prevention.py` - 오류 방지 테스트
-- `test_final_validation.py` - 최종 검증 테스트
+### ✅ Integration Tests Must:
+- **Test Real Workflows**: End-to-end functionality
+- **Validate Configurations**: Ensure configs work correctly
+- **Check Error Handling**: Verify graceful failure modes
+- **Test Performance**: Ensure reasonable memory/time usage
 
-### 🚀 **Experiment Execution Tests** (3 files)
-- `test_experiment_execution.py` - 실험 실행 테스트
-- `test_training_pipeline.py` - 훈련 파이프라인 테스트
-- `test_main_py_integration.py` - 메인 파이썬 통합 테스트
+## 🔧 Test Utilities
 
-### 🛠️ **Utility Function Tests** (3 files)
-- `test_auto_set_mbm_query_dim.py` - MBM 쿼리 차원 자동 설정 테스트
-- `test_renorm_ce_kd.py` - 재정규화 CE KD 테스트
-- `test_setup_partial_freeze_schedule.py` - 부분 고정 스케줄 설정 테스트
+### Fixtures (conftest.py)
+- **`temp_config_file`** - Temporary configuration files
+- **`dummy_teachers`** - Mock teacher models
+- **`dummy_student`** - Mock student model
+- **`dummy_mbm`** - Mock MBM component
+- **`dummy_synergy_head`** - Mock synergy head
 
-### 🎯 **Main Integration Tests** (4 files)
-- `test_main.py` - 메인 모듈 테스트
-- `test_main_step_by_step.py` - 단계별 메인 테스트
-- `test_main_training.py` - 메인 훈련 테스트
-- `test_training_simple.py` - 간단한 훈련 테스트
+### Mock Classes
+- **`MockDataset`** - Dataset simulation
+- **`MockDataLoader`** - DataLoader simulation
+- **`MockModel`** - Model simulation for testing
 
-### 🔍 **Dataset Problem Tests** (1 file)
-- `test_actual_dataset_problem.py` - 실제 데이터셋 문제 테스트
+## 📊 Test Statistics
 
-### 📋 **Configuration Files**
-- `conftest.py` - pytest 공통 설정 및 fixtures (42개 fixture 제공)
+- **Total Test Files**: 25
+- **Total Test Functions**: ~200+
+- **Coverage**: Core functionality, models, data, training, integration
+- **Execution Time**: ~30-60 seconds for full suite
 
-## 테스트 결과 확인
+## 🐛 Debugging Tests
 
-### GPU 테스트 결과
+### Common Issues
+1. **CUDA Device Errors**: Tests use `.cuda()` - ensure CUDA available
+2. **Import Errors**: Check PYTHONPATH includes project root
+3. **Memory Issues**: Tests use small batch sizes and models
+4. **Path Issues**: All paths use relative paths from project root
+
+### Debug Commands
 ```bash
-# 실시간 로그 확인
-tail -f experiments/logs/test_<JOBID>.log
+# Run single test with verbose output
+pytest tests/test_core.py::TestCoreBuilder::test_create_student_by_name -v -s
 
-# 요약 결과 확인
-cat experiments/test_results/summary.log
+# Run with print statements
+pytest tests/test_core.py -v -s
 
-# 개별 테스트 결과 확인
-ls experiments/test_results/*.log
-
-# 테스트 그룹별 결과
-cat experiments/test_results/core_asib_test.log      # Core ASIB Tests
-cat experiments/test_results/pycil_test.log          # PyCIL Tests
-cat experiments/test_results/data_utils_test.log     # Data & Utils Tests
-cat experiments/test_results/models_test.log         # Model Tests
-cat experiments/test_results/configs_test.log        # Config & Experiment Tests
-cat experiments/test_results/scripts_test.log        # Script & Integration Tests
-cat experiments/test_results/kd_test.log             # KD & Special Tests
-cat experiments/test_results/robustness_test.log     # Framework Robustness Tests
-cat experiments/test_results/execution_test.log      # Experiment Execution Tests
-cat experiments/test_results/utility_test.log        # Utility Function Tests
-cat experiments/test_results/main_integration_test.log # Main Integration Tests
-cat experiments/test_results/dataset_problem_test.log # Dataset Problem Tests
+# Run with debugger
+pytest tests/test_core.py --pdb
 ```
 
-### 로컬 테스트 결과
-```bash
-# 상세 결과 확인
-python -m pytest tests/ -v --tb=long
+## 📝 Adding New Tests
 
-# HTML 리포트 생성
-python -m pytest tests/ --html=test_report.html
-```
+### Guidelines
+1. **Follow Naming Convention**: `test_*.py` for files, `test_*` for functions
+2. **Use Descriptive Names**: Clear test function names
+3. **Add Documentation**: Docstrings for test classes and functions
+4. **Use Appropriate Fixtures**: Leverage existing fixtures when possible
+5. **Test Edge Cases**: Include boundary conditions and error scenarios
+6. **Keep Tests Fast**: Use small models and datasets
 
-## 테스트 작성 가이드
-
-### 새로운 테스트 추가
-1. `test_<module_name>.py` 형식으로 파일명 지정
-2. `conftest.py`의 fixtures 활용
-3. GPU/CPU 호환성 고려
-4. 적절한 assertion 사용
-
-### Fixtures 활용
+### Example Test Structure
 ```python
-def test_example(device, sample_args, dummy_network):
-    # conftest.py에서 제공하는 fixtures 사용
-    pass
-
-def test_main_integration(main_config, training_config):
-    # main.py 테스트용 설정 사용
-    pass
+def test_function_name():
+    """Test description of what this test validates"""
+    # Setup
+    input_data = create_test_data()
+    
+    # Execute
+    result = function_under_test(input_data)
+    
+    # Assert
+    assert result is not None
+    assert result.shape == expected_shape
+    assert result.dtype == expected_dtype
 ```
 
-### Available Fixtures
-- `device`: 테스트용 디바이스 (CUDA/CPU)
-- `sample_args`: 기본 테스트 설정
-- `test_config`: 테스트용 설정
-- `dummy_network`: 더미 네트워크 클래스
-- `temp_config_file`: 임시 설정 파일
-- `registry_configs`: 레지스트리 설정
-- `registry_validation`: 레지스트리 검증 함수
-- `main_config`: main.py 테스트용 설정
-- `training_config`: 훈련 테스트용 설정
+## 🎉 Test Results
 
-## 주의사항
-
-- `conftest.py`는 pytest 설정 파일이므로 직접 실행하지 마세요
-- GPU 테스트는 `run/run_test.sh`를 사용하는 것이 가장 효율적입니다
-- 로컬 테스트는 개발 중 빠른 피드백용으로 사용하세요
-- 모든 42개 테스트 파일이 `run/run_test.sh`에서 병렬로 실행됩니다
-- 테스트 결과는 `experiments/test_results/` 폴더에 저장됩니다
-
-## 🎯 **Test Coverage Summary**
-
-| Category | Files | Description |
-|----------|-------|-------------|
-| 🔥 Core ASIB | 2 | 핵심 ASIB 기능 테스트 |
-| 🔗 PyCIL Integration | 2 | PyCIL 통합 테스트 |
-| 📊 Data & Utils | 7 | 데이터 및 유틸리티 테스트 |
-| 🤖 Models | 4 | 모델 관련 테스트 |
-| ⚙️ Config & Experiments | 5 | 설정 및 실험 테스트 |
-| 🔧 Script & Integration | 3 | 스크립트 및 통합 테스트 |
-| 🧠 KD & Special | 5 | 지식 증류 및 특수 테스트 |
-| 🛡️ Framework Robustness | 3 | 프레임워크 견고성 테스트 |
-| 🚀 Experiment Execution | 3 | 실험 실행 테스트 |
-| 🛠️ Utility Functions | 3 | 유틸리티 함수 테스트 |
-| 🎯 Main Integration | 4 | 메인 통합 테스트 |
-| 🔍 Dataset Problems | 1 | 데이터셋 문제 테스트 |
-| **Total** | **42** | **모든 컴포넌트 커버** | 
+All tests should pass before merging any changes. The test suite ensures:
+- ✅ All core functions work correctly
+- ✅ Model creation and training pipelines function properly
+- ✅ Data loading and processing work as expected
+- ✅ Configuration handling is robust
+- ✅ Error handling is graceful
+- ✅ Integration workflows function end-to-end 

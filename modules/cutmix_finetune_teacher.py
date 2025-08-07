@@ -231,7 +231,7 @@ def finetune_teacher_cutmix(
     weight_decay=1e-4,
     epochs=10,
     device="cuda",
-    ckpt_path="teacher_finetuned_cutmix.pth",
+    ckpt_path="checkpoints/finetuned/teacher_finetuned_cutmix.pth",
     label_smoothing: float = 0.0,
     cfg=None,
 ):
@@ -350,7 +350,7 @@ def standard_ce_finetune(
     weight_decay=1e-4,
     epochs=10,
     device="cuda",
-    ckpt_path="teacher_finetuned_ce.pth",
+    ckpt_path="checkpoints/finetuned/teacher_finetuned_ce.pth",
     label_smoothing: float = 0.0,
     cfg=None,
 ):
