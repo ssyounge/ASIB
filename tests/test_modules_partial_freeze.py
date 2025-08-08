@@ -27,7 +27,7 @@ class TestApplyPartialFreeze:
         )
         
         # Apply partial freeze
-        apply_partial_freeze(model, freeze_ratio=0.5)
+        apply_partial_freeze(model, level=1)
         
         # Check that some parameters are frozen
         frozen_count = sum(1 for p in model.parameters() if not p.requires_grad)
@@ -44,7 +44,7 @@ class TestApplyPartialFreeze:
             torch.nn.Linear(20, 5)
         )
         
-        apply_partial_freeze(model, freeze_ratio=0.0)
+        apply_partial_freeze(model, level=0)
         
         # All parameters should be trainable
         frozen_count = sum(1 for p in model.parameters() if not p.requires_grad)
@@ -58,7 +58,7 @@ class TestApplyPartialFreeze:
             torch.nn.Linear(20, 5)
         )
         
-        apply_partial_freeze(model, freeze_ratio=1.0)
+        apply_partial_freeze(model, level=2)
         
         # All parameters should be frozen
         frozen_count = sum(1 for p in model.parameters() if not p.requires_grad)
@@ -73,18 +73,14 @@ class TestApplyPartialFreeze:
             torch.nn.Linear(20, 5, name="layer2")
         )
         
-        # Freeze only layers with "layer1" in name
-        apply_partial_freeze(model, freeze_ratio=0.5, freeze_regex=".*layer1.*")
+        # Apply partial freeze
+        apply_partial_freeze(model, level=1)
         
-        # Check that specific layers are frozen
-        layer1_params = [p for name, p in model.named_parameters() if "layer1" in name]
-        layer2_params = [p for name, p in model.named_parameters() if "layer2" in name]
-        
-        # All layer1 parameters should be frozen
-        assert all(not p.requires_grad for p in layer1_params)
-        # Some layer2 parameters might be frozen due to ratio
-        frozen_layer2 = sum(1 for p in layer2_params if not p.requires_grad)
-        assert frozen_layer2 >= 0
+        # Check that some parameters are frozen
+        frozen_count = sum(1 for p in model.parameters() if not p.requires_grad)
+        total_count = sum(1 for p in model.parameters())
+        assert frozen_count > 0
+        assert frozen_count <= total_count
 
 
 class TestPartialFreezeTeacherResnet:
@@ -118,7 +114,7 @@ class TestPartialFreezeTeacherResnet:
         model = MockResNet()
         
         # Apply partial freeze
-        partial_freeze_teacher_resnet(model, freeze_ratio=0.5)
+        partial_freeze_teacher_resnet(model, freeze_level=1)
         
         # Check that some parameters are frozen
         frozen_count = sum(1 for p in model.parameters() if not p.requires_grad)
@@ -143,7 +139,7 @@ class TestPartialFreezeTeacherResnet:
         
         model = MockResNet()
         
-        partial_freeze_teacher_resnet(model, freeze_ratio=0.0)
+        partial_freeze_teacher_resnet(model, freeze_level=0)
         
         # All parameters should be trainable
         frozen_count = sum(1 for p in model.parameters() if not p.requires_grad)
@@ -180,7 +176,7 @@ class TestPartialFreezeTeacherEfficientnet:
         model = MockEfficientNet()
         
         # Apply partial freeze
-        partial_freeze_teacher_efficientnet(model, freeze_ratio=0.5)
+        partial_freeze_teacher_efficientnet(model, freeze_level=1)
         
         # Check that some parameters are frozen
         frozen_count = sum(1 for p in model.parameters() if not p.requires_grad)
@@ -210,7 +206,7 @@ class TestPartialFreezeTeacherEfficientnet:
         
         model = MockEfficientNet()
         
-        partial_freeze_teacher_efficientnet(model, freeze_ratio=1.0)
+        partial_freeze_teacher_efficientnet(model, freeze_level=2)
         
         # All parameters should be frozen
         frozen_count = sum(1 for p in model.parameters() if not p.requires_grad)
@@ -249,7 +245,7 @@ class TestPartialFreezeStudentResnet:
         model = MockStudentResNet()
         
         # Apply partial freeze
-        partial_freeze_student_resnet(model, freeze_ratio=0.5)
+        partial_freeze_student_resnet(model, freeze_level=1)
         
         # Check that some parameters are frozen
         frozen_count = sum(1 for p in model.parameters() if not p.requires_grad)
@@ -284,7 +280,7 @@ class TestPartialFreezeStudentResnet:
         model = MockStudentResNetWithAdapter()
         
         # Apply partial freeze
-        partial_freeze_student_resnet(model, freeze_ratio=0.5)
+        partial_freeze_student_resnet(model, freeze_level=1)
         
         # Check that some parameters are frozen
         frozen_count = sum(1 for p in model.parameters() if not p.requires_grad)
@@ -334,10 +330,10 @@ class TestIntegration:
         student = MockStudent()
         
         # Apply partial freeze to teacher
-        partial_freeze_teacher_resnet(teacher, freeze_ratio=0.3)
+        partial_freeze_teacher_resnet(teacher, freeze_level=1)
         
         # Apply partial freeze to student
-        partial_freeze_student_resnet(student, freeze_ratio=0.2)
+        partial_freeze_student_resnet(student, freeze_level=1)
         
         # Verify that parameters are frozen
         teacher_frozen = sum(1 for p in teacher.parameters() if not p.requires_grad)
@@ -369,11 +365,11 @@ class TestIntegration:
         empty_model = EmptyModel()
         
         # Should handle gracefully
-        apply_partial_freeze(empty_model, freeze_ratio=0.5)
+        apply_partial_freeze(empty_model, level=1)
         
         # Test with very small model
         small_model = torch.nn.Linear(1, 1)
-        apply_partial_freeze(small_model, freeze_ratio=0.5)
+        apply_partial_freeze(small_model, level=1)
         
         # Test with invalid freeze ratio
         model = torch.nn.Linear(10, 5)

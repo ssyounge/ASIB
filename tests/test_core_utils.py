@@ -81,39 +81,36 @@ class TestSetupPartialFreezeSchedule:
     
     def test_setup_partial_freeze_schedule_basic(self):
         """Test basic setup_partial_freeze_schedule"""
-        cfg = {}
-        num_stages = 3
+        result = setup_partial_freeze_schedule(3)
         
-        setup_partial_freeze_schedule(cfg, num_stages)
-        
-        # Should set default values
-        assert "partial_freeze_schedule" in cfg
-        assert len(cfg["partial_freeze_schedule"]) == num_stages
+        # Should return list of -1s
+        assert isinstance(result, list)
+        assert len(result) == 3
+        assert all(x == -1 for x in result)
     
     def test_setup_partial_freeze_schedule_with_cfg(self):
         """Test setup_partial_freeze_schedule_with_cfg"""
         cfg = {
             "experiment": {
-                "num_stages": 3
+                "num_stages": 3,
+                "student_freeze_level": -1
             }
         }
         
         setup_partial_freeze_schedule_with_cfg(cfg, 3)
         
         # Should set schedule in experiment section
-        assert "partial_freeze_schedule" in cfg["experiment"]
+        assert "student_freeze_schedule" in cfg["experiment"]
+        assert len(cfg["experiment"]["student_freeze_schedule"]) == 3
     
     def test_setup_partial_freeze_schedule_custom(self):
         """Test with custom schedule"""
-        cfg = {
-            "partial_freeze_schedule": [0.5, 0.7, 0.9]
-        }
-        num_stages = 3
+        result = setup_partial_freeze_schedule(5)
         
-        setup_partial_freeze_schedule(cfg, num_stages)
-        
-        # Should use custom schedule
-        assert cfg["partial_freeze_schedule"] == [0.5, 0.7, 0.9]
+        # Should return list of -1s with correct length
+        assert isinstance(result, list)
+        assert len(result) == 5
+        assert all(x == -1 for x in result)
 
 
 class TestSetupSafetySwitches:
@@ -121,39 +118,42 @@ class TestSetupSafetySwitches:
     
     def test_setup_safety_switches_basic(self):
         """Test basic setup_safety_switches"""
-        cfg = {}
-        num_stages = 3
+        result = setup_safety_switches(3)
         
-        setup_safety_switches(cfg, num_stages)
-        
-        # Should set default safety switches
-        assert "safety_switches" in cfg
-        assert len(cfg["safety_switches"]) == num_stages
+        # Should return dict with safety switches
+        assert isinstance(result, dict)
+        assert "student_freeze_level" in result
+        assert "teacher1_freeze_level" in result
+        assert "teacher2_freeze_level" in result
+        assert "student_freeze_schedule" in result
+        assert len(result["student_freeze_schedule"]) == 3
     
     def test_setup_safety_switches_with_cfg(self):
         """Test setup_safety_switches_with_cfg"""
         cfg = {
             "experiment": {
-                "num_stages": 3
+                "num_stages": 3,
+                "use_partial_freeze": False
             }
         }
         
         setup_safety_switches_with_cfg(cfg, 3)
         
-        # Should set switches in experiment section
-        assert "safety_switches" in cfg["experiment"]
+        # Should set safety switches in experiment section when use_partial_freeze is False
+        assert "student_freeze_level" in cfg["experiment"]
+        assert "teacher1_freeze_level" in cfg["experiment"]
+        assert "teacher2_freeze_level" in cfg["experiment"]
+        assert "student_freeze_schedule" in cfg["experiment"]
+        assert cfg["experiment"]["student_freeze_level"] == -1
     
     def test_setup_safety_switches_custom(self):
         """Test with custom safety switches"""
-        cfg = {
-            "safety_switches": [True, False, True]
-        }
-        num_stages = 3
+        result = setup_safety_switches(4)
         
-        setup_safety_switches(cfg, num_stages)
-        
-        # Should use custom switches
-        assert cfg["safety_switches"] == [True, False, True]
+        # Should return dict with correct number of stages
+        assert isinstance(result, dict)
+        assert len(result["student_freeze_schedule"]) == 4
+        assert all(x == -1 for x in result["student_freeze_schedule"])
 
 
 class TestAutoSetMbmQueryDim:
@@ -165,16 +165,9 @@ class TestAutoSetMbmQueryDim:
             "mbm_query_dim": None
         }
         
-        # Mock model with feature dimension
-        class MockModel:
-            def __init__(self):
-                self.feature_dim = 512
+        auto_set_mbm_query_dim(cfg)
         
-        model = MockModel()
-        
-        auto_set_mbm_query_dim(model, cfg)
-        
-        # Should set query_dim based on model feature dimension
+        # Should set default query_dim
         assert cfg["mbm_query_dim"] == 512
     
     def test_auto_set_mbm_query_dim_with_model(self):
@@ -182,13 +175,20 @@ class TestAutoSetMbmQueryDim:
         cfg = {
             "experiment": {
                 "mbm_query_dim": None
-            }
+            },
+            "device": "cuda"
         }
         
         # Mock model with feature dimension
         class MockModel:
             def __init__(self):
                 self.feature_dim = 1024
+            
+            def __call__(self, x):
+                return {
+                    "distill_feat": torch.randn(1, 1024),
+                    "feat_2d": torch.randn(1, 1024)
+                }, None, None
         
         model = MockModel()
         
@@ -203,13 +203,7 @@ class TestAutoSetMbmQueryDim:
             "mbm_query_dim": 256
         }
         
-        class MockModel:
-            def __init__(self):
-                self.feature_dim = 512
-        
-        model = MockModel()
-        
-        auto_set_mbm_query_dim(model, cfg)
+        auto_set_mbm_query_dim(cfg)
         
         # Should not change existing value
         assert cfg["mbm_query_dim"] == 256
@@ -220,15 +214,11 @@ class TestAutoSetMbmQueryDim:
             "mbm_query_dim": None
         }
         
-        class MockModel:
-            pass
-        
-        model = MockModel()
-        
         # Should handle gracefully
-        auto_set_mbm_query_dim(model, cfg)
+        auto_set_mbm_query_dim(cfg)
         
-        # Should remain None or set default
+        # Should set default value
+        assert cfg["mbm_query_dim"] == 512
         assert cfg["mbm_query_dim"] is None or cfg["mbm_query_dim"] > 0
 
 
@@ -355,16 +345,23 @@ class TestIntegration:
         class MockModel:
             def __init__(self):
                 self.feature_dim = 512
+            
+            def __call__(self, x):
+                return {
+                    "distill_feat": torch.randn(1, 512),
+                    "feat_2d": torch.randn(1, 512)
+                }, None, None
         
         model = MockModel()
+        cfg["device"] = "cuda"
         auto_set_mbm_query_dim_with_model(model, cfg)
         
         # Verify all functions worked correctly
         assert isinstance(cfg["experiment"]["student_lr"], float)
         assert isinstance(cfg["experiment"]["teacher_lr"], float)
         assert isinstance(cfg["experiment"]["num_stages"], int)
-        assert "partial_freeze_schedule" in cfg["experiment"]
-        assert "safety_switches" in cfg["experiment"]
+        assert "student_freeze_schedule" in cfg["experiment"]
+        assert "student_freeze_level" in cfg["experiment"]
         assert abs(cfg["experiment"]["ce_alpha"] + cfg["experiment"]["kd_alpha"] - 1.0) < 1e-5
         assert cfg["experiment"]["mbm_query_dim"] == 512
     
@@ -373,8 +370,10 @@ class TestIntegration:
         # Test with empty config
         cfg = {}
         cast_numeric_configs(cfg)
-        setup_partial_freeze_schedule(cfg, 1)
-        setup_safety_switches(cfg, 1)
+        result1 = setup_partial_freeze_schedule(1)
+        result2 = setup_safety_switches(1)
+        assert isinstance(result1, list)
+        assert isinstance(result2, dict)
         
         # Test with None values
         cfg = {
