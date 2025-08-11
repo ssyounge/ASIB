@@ -5,22 +5,28 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
 #SBATCH --time=2:00:00
-# NOTE: We do not use SBATCH --output/--error to keep paths relative. We redirect inside the script.
+# Suppress SLURM's default slurm-%j.{out,err} files entirely
+# (we manage our own grouped logs below).
+# It is acceptable to use /dev/null here to avoid stray files.
+#SBATCH --output=/dev/null
+#SBATCH --error=/dev/null
 # Simple unified test runner on Linux/SLURM
 set -euo pipefail
 
-# Move to repo root relative to this script (no absolute paths)
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR/.."
-ROOT="$(pwd)"
+# Determine repo root (prefer SLURM submission directory)
+if [[ -n "${SLURM_SUBMIT_DIR:-}" ]]; then
+  cd "$SLURM_SUBMIT_DIR"
+  ROOT="$(pwd)"
+else
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  cd "$SCRIPT_DIR/.."
+  ROOT="$(pwd)"
+fi
 
 # Ensure logs directory exists
 mkdir -p "$ROOT/experiments/test/logs"
 
-# Redirect stdout/stderr to logs under ROOT (works for both sbatch and local)
-JOB_ID="${SLURM_JOB_ID:-local}"
-exec > >(tee -a "$ROOT/experiments/test/logs/slurm-${JOB_ID}.out")
-exec 2> >(tee -a "$ROOT/experiments/test/logs/slurm-${JOB_ID}.err" >&2)
+
 
 # Python/conda environment
 export PATH="$HOME/anaconda3/envs/tlqkf/bin:$PATH"
