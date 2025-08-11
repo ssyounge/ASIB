@@ -1,26 +1,54 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=run_tests
+#SBATCH --partition=base_suma_rtx3090
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
 #SBATCH --time=2:00:00
 #SBATCH --chdir=/home/suyoung425/ASIB
 #SBATCH --output=/home/suyoung425/ASIB/experiments/test/logs/slurm-%j.out
+#SBATCH --error=/home/suyoung425/ASIB/experiments/test/logs/slurm-%j.err
 # Simple unified test runner on Linux/SLURM
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 # Ensure logs directory exists
 mkdir -p "$ROOT/experiments/test/logs"
 
+# Python/conda environment
+export PATH="$HOME/anaconda3/envs/tlqkf/bin:$PATH"
 export PYTHONPATH="${ROOT}:${PYTHONPATH:-}"
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-# If running under SLURM and CUDA_VISIBLE_DEVICES not set, default to first GPU
-if [[ -n "${SLURM_JOB_ID:-}" && -z "${CUDA_VISIBLE_DEVICES:-}" ]]; then
+# CUDA & PyTorch runtime settings
+export CUDA_LAUNCH_BLOCKING=1
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export LD_LIBRARY_PATH="$HOME/anaconda3/envs/tlqkf/lib/python3.12/site-packages/torch/lib:$LD_LIBRARY_PATH"
+export CUDA_HOME="$HOME/anaconda3/envs/tlqkf/lib/python3.12/site-packages/torch/lib"
+export CUDA_PATH="$HOME/anaconda3/envs/tlqkf/lib/python3.12/site-packages/torch/lib"
+export CUDA_ROOT="$HOME/anaconda3/envs/tlqkf/lib/python3.12/site-packages/torch/lib"
+export TORCH_CUDA_ARCH_LIST="8.6"
+
+# GPU allocation mapping (prefer SLURM_GPUS_ON_NODE)
+echo "🔍 Checking GPU allocation..."
+if [[ -n "${SLURM_GPUS_ON_NODE:-}" ]]; then
+  if [[ "${SLURM_GPUS_ON_NODE}" == "1" ]]; then
+    export CUDA_VISIBLE_DEVICES=0
+    echo "✅ CUDA_VISIBLE_DEVICES set to: 0 (mapped from SLURM_GPUS_ON_NODE=1)"
+  else
+    export CUDA_VISIBLE_DEVICES=0
+    echo "✅ CUDA_VISIBLE_DEVICES set to: 0 (default for any GPU allocation)"
+  fi
+else
+  echo "⚠️  SLURM_GPUS_ON_NODE not set, using default GPU 0"
   export CUDA_VISIBLE_DEVICES=0
+fi
+
+# GPU info
+if command -v nvidia-smi >/dev/null 2>&1; then
+  echo "🔍 GPU Information:"
+  nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv,noheader,nounits || true
 fi
 
 # Helper to run a group and tee to a named log
