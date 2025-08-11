@@ -36,7 +36,7 @@ _MAP_PATH = Path(__file__).parent.parent.parent / "configs" / "registry_map.yaml
 if not _MAP_PATH.is_file():
     raise FileNotFoundError(f"[registry] manual map file missing → {_MAP_PATH}")
 
-with open(_MAP_PATH, "r") as f:
+with open(_MAP_PATH, "r", encoding="utf-8") as f:
     _MAP = yaml.safe_load(f)
 
 def _make_lazy_builder(mod_path: str, attr: str):

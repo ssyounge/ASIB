@@ -40,7 +40,7 @@ class CCCPStabilityAnalyzer:
             metrics_file = os.path.join(run_path, 'metrics', 'learning_curves.json')
             
             if os.path.exists(metrics_file):
-                with open(metrics_file, 'r') as f:
+                with open(metrics_file, 'r', encoding='utf-8') as f:
                     metrics = json.load(f)
                 
                 # 각 메트릭 추가
@@ -248,7 +248,7 @@ CCCP Stability Analysis Report
         
         if save_path:
             os.makedirs(save_path, exist_ok=True)
-            with open(os.path.join(save_path, 'cccp_stability_report.txt'), 'w') as f:
+            with open(os.path.join(save_path, 'cccp_stability_report.txt'), 'w', encoding='utf-8') as f:
                 f.write(report)
         
         return report

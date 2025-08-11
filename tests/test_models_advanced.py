@@ -6,7 +6,7 @@ import pytest
 import torch.nn.functional as F
 
 # Import models
-from models.mbm import IB_MBM, SynergyHead
+from models import IB_MBM, SynergyHead
 from models.common.adapter import ChannelAdapter2D
 from models.common.base_wrapper import BaseKDModel
 

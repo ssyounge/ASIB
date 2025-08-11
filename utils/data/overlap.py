@@ -29,7 +29,7 @@ def main():
 
     pairs = make_pairs(args.overlap, seed=args.seed)
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    with args.out.open("w") as f:
+    with args.out.open("w", encoding="utf-8") as f:
         json.dump(pairs, f)
     print(f"Saved {args.out} (overlap {args.overlap} %)")
 

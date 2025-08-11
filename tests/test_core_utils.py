@@ -162,21 +162,19 @@ class TestAutoSetMbmQueryDim:
     def test_auto_set_mbm_query_dim_basic(self):
         """Test basic auto_set_mbm_query_dim"""
         cfg = {
-            "mbm_query_dim": None
+            "ib_mbm_query_dim": None
         }
         
         auto_set_mbm_query_dim(cfg)
         
         # Should set default query_dim
-        assert cfg["mbm_query_dim"] == 512
+        assert cfg.get("ib_mbm_query_dim") == 512
     
     def test_auto_set_mbm_query_dim_with_model(self):
         """Test auto_set_mbm_query_dim_with_model"""
         cfg = {
-            "experiment": {
-                "mbm_query_dim": None
-            },
-            "device": "cuda"
+            "device": "cuda",
+            "ib_mbm_query_dim": None,
         }
         
         # Mock model with feature dimension
@@ -194,32 +192,32 @@ class TestAutoSetMbmQueryDim:
         
         auto_set_mbm_query_dim_with_model(model, cfg)
         
-        # Should set query_dim in experiment section
-        assert cfg["experiment"]["mbm_query_dim"] == 1024
+        # Should set top-level ib_mbm_query_dim
+        assert cfg["ib_mbm_query_dim"] == 1024
     
     def test_auto_set_mbm_query_dim_already_set(self):
         """Test when query_dim is already set"""
         cfg = {
-            "mbm_query_dim": 256
+            "ib_mbm_query_dim": 256
         }
         
         auto_set_mbm_query_dim(cfg)
         
         # Should not change existing value
-        assert cfg["mbm_query_dim"] == 256
+        assert cfg.get("ib_mbm_query_dim") == 256
     
     def test_auto_set_mbm_query_dim_no_feature_dim(self):
         """Test with model that has no feature_dim"""
         cfg = {
-            "mbm_query_dim": None
+            "ib_mbm_query_dim": None
         }
         
         # Should handle gracefully
         auto_set_mbm_query_dim(cfg)
         
         # Should set default value
-        assert cfg["mbm_query_dim"] == 512
-        assert cfg["mbm_query_dim"] is None or cfg["mbm_query_dim"] > 0
+        assert cfg.get("ib_mbm_query_dim") == 512
+        assert (cfg.get("ib_mbm_query_dim")) is None or (cfg.get("ib_mbm_query_dim")) > 0
 
 
 class TestCastNumericConfigs:
@@ -325,7 +323,7 @@ class TestIntegration:
                 "num_stages": "3",
                 "ce_alpha": "0.7",
                 "kd_alpha": "0.3",
-                "mbm_query_dim": None,
+                "ib_mbm_query_dim": None,
             }
         }
         
@@ -341,7 +339,7 @@ class TestIntegration:
         # Renorm ce_kd
         renorm_ce_kd(cfg["experiment"])
         
-        # Auto-set mbm query dim
+        # Auto-set ib_mbm query dim (fallback from absence of legacy key)
         class MockModel:
             def __init__(self):
                 self.feature_dim = 512
@@ -363,7 +361,7 @@ class TestIntegration:
         assert "student_freeze_schedule" in cfg["experiment"]
         assert "student_freeze_level" in cfg["experiment"]
         assert abs(cfg["experiment"]["ce_alpha"] + cfg["experiment"]["kd_alpha"] - 1.0) < 1e-5
-        assert cfg["experiment"]["mbm_query_dim"] == 512
+        assert cfg["ib_mbm_query_dim"] == 512
     
     def test_edge_cases(self):
         """Test edge cases and error handling"""

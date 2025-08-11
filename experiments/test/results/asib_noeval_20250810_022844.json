@@ -1,0 +1,171 @@
+{
+    "experiment": {
+        "dataset": {
+            "dataset": {
+                "name": "cifar100",
+                "root": "./data",
+                "small_input": true,
+                "data_aug": 1
+            },
+            "batch_size": 16,
+            "num_workers": 2
+        },
+        "method": {
+            "method": {
+                "name": "asib",
+                "ce_alpha": 0.3,
+                "kd_alpha": 0.0,
+                "kd_ens_alpha": 0.7
+            }
+        },
+        "schedule": {
+            "type": "cosine",
+            "lr_warmup_epochs": 5,
+            "min_lr": 1e-05
+        },
+        "device": "cuda",
+        "seed": 42,
+        "small_input": true,
+        "batch_size": 16,
+        "use_partial_freeze": false,
+        "use_amp": true,
+        "amp_dtype": "float16",
+        "kd_ens_alpha": 0.5,
+        "hybrid_beta": 0.05,
+        "mixup_alpha": 0.0,
+        "cutmix_alpha_distill": 0.0,
+        "use_disagree_weight": false,
+        "disagree_mode": "both_wrong",
+        "disagree_lambda_high": 1.0,
+        "disagree_lambda_low": 1.0,
+        "feat_kd_alpha": 0.0,
+        "feat_kd_key": "feat_2d",
+        "feat_kd_norm": "none",
+        "rkd_loss_weight": 0.0,
+        "rkd_gamma": 2.0,
+        "use_ib": false,
+        "ib_beta": 0.0,
+        "ib_beta_warmup_epochs": 0,
+        "ib_mbm_out_dim": 2048,
+        "ib_mbm_n_head": 8,
+        "ib_mbm_dropout": 0.0,
+        "synergy_head_dropout": 0.0,
+        "ib_mbm_learnable_q": false,
+        "ib_mbm_reg_lambda": 0.0,
+        "ib_mbm_feature_norm": "l2",
+        "use_vib_synergy_head": false,
+        "vib_kl_weight": 1.0,
+        "vib_head_hidden_dim": null,
+        "vib_head_logvar_clip": 10.0,
+        "vib_head_min_std": 0.0001,
+        "lambda_tk_align": 0.0,
+        "a_step_align_target": "teacher",
+        "use_cccp": false,
+        "tau": 4.0,
+        "reg_lambda": 0.0,
+        "grad_clip_norm": 1.0,
+        "adam_beta1": 0.9,
+        "adam_beta2": 0.999,
+        "disable_flops": true,
+        "student_epochs_per_stage": 15,
+        "a_step_lr": 0.0001,
+        "a_step_weight_decay": 0.0001,
+        "ib_epochs_per_stage": 5,
+        "b_step_lr": 0.1,
+        "b_step_weight_decay": 0.0003,
+        "b_step_momentum": 0.9,
+        "b_step_nesterov": true,
+        "teacher1": {
+            "model": {
+                "teacher": {
+                    "name": "convnext_s",
+                    "pretrained": true
+                }
+            }
+        },
+        "teacher2": {
+            "model": {
+                "teacher": {
+                    "name": "resnet152",
+                    "pretrained": true
+                }
+            }
+        },
+        "model": {
+            "student": {
+                "model": {
+                    "student": {
+                        "name": "resnet50_scratch",
+                        "pretrained": false,
+                        "use_adapter": true
+                    }
+                }
+            }
+        },
+        "teacher1_ckpt": "checkpoints/teachers/convnext_s_cifar32.pth",
+        "teacher2_ckpt": "checkpoints/teachers/resnet152_cifar32.pth",
+        "results_dir": "experiments/ablation/baseline/results",
+        "exp_id": "ablation_baseline",
+        "optimizer": "sgd",
+        "teacher_lr": 0.0,
+        "teacher_weight_decay": 0.0,
+        "student_lr": 0.1,
+        "student_weight_decay": 0.0003,
+        "momentum": 0.9,
+        "nesterov": true,
+        "num_stages": 1,
+        "teacher_adapt_epochs": 0,
+        "student_freeze_schedule": [
+            -1
+        ],
+        "student_epochs_schedule": [
+            5
+        ],
+        "teacher1_freeze_level": -1,
+        "teacher2_freeze_level": -1,
+        "student_freeze_bn": false,
+        "teacher1_freeze_bn": true,
+        "teacher2_freeze_bn": true,
+        "use_distillation_adapter": true,
+        "distill_out_dim": 512,
+        "ib_mbm_query_dim": 2048,
+        "kd_alpha": 0.5,
+        "cccp_nt": 1,
+        "cccp_ns": 1,
+        "student_pretrained": true,
+        "student_freeze_level": -1
+    },
+    "device": "cuda",
+    "exp_id": "asib_noeval_20250810_022844",
+    "results_dir": "experiments/test/results",
+    "num_classes": 100,
+    "student_ep1_acc": 1.0,
+    "student_ep1_loss": NaN,
+    "ep1_mix_mode": "none",
+    "epoch1_tau": 4.0,
+    "student_ep2_acc": 1.0,
+    "student_ep2_loss": NaN,
+    "ep2_mix_mode": "none",
+    "epoch2_tau": 4.0,
+    "student_ep3_acc": 1.0,
+    "student_ep3_loss": NaN,
+    "ep3_mix_mode": "none",
+    "epoch3_tau": 4.0,
+    "student_ep4_acc": 1.0,
+    "student_ep4_loss": NaN,
+    "ep4_mix_mode": "none",
+    "epoch4_tau": 4.0,
+    "student_ep5_acc": 1.0,
+    "student_ep5_loss": NaN,
+    "ep5_mix_mode": "none",
+    "epoch5_tau": 4.0,
+    "stage1_acc": 1.0,
+    "stage1_wall_min": 4.2628061731656395,
+    "stage1_gpu_h": 0.07104676955276065,
+    "stage1_gflops": 0.0,
+    "stage1_param_M": 30.478476,
+    "stage1_student_acc": 1.0,
+    "final_student_acc": 1.0,
+    "total_time_sec": 258.4028491973877,
+    "csv_filename": "summary.csv"
+}

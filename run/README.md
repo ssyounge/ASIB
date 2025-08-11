@@ -1,6 +1,6 @@
 # Run Scripts
 
-이 폴더는 SLURM 클러스터에서 실행할 수 있는 배치 스크립트들을 포함합니다.
+이 폴더는 Windows(로컬)와 Linux(데이터 서버/SLURM) 모두에서 실행 가능한 스크립트를 제공합니다.
 
 ## 📁 스크립트 목록
 
@@ -12,7 +12,40 @@
 
 ## 🚀 사용법
 
-### 체계적 실험 실행
+### Windows (PowerShell)
+```powershell
+# 테스트 (빠른 모드; 일부 외부/느린 테스트 제외)
+./run/run_test.ps1
+
+# 전체 테스트
+./run/run_test.ps1 -Full
+
+# 파인튜닝 (단일)
+./run/run_finetune_single.ps1 -Name convnext_s_cifar100
+# 또는 YAML 경로 사용(레거시)
+./run/run_finetune_single.ps1 -Config configs/finetune/convnext_s_cifar100.yaml
+
+# 파인튜닝 (여러 개)
+./run/run_finetune_all_teachers.ps1 -Names convnext_s_cifar100,convnext_l_cifar100
+
+# 실험: SOTA 비교
+./run/run_asib_sota_comparison.ps1 -Experiments sota_scenario_a
+
+# 실험: Class Overlap
+./run/run_asib_class_overlap.ps1 -Experiments overlap_100
+
+# GPU 확인
+./run/test_gpu_allocation.ps1
+```
+
+실행 정책 차단 시:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run\run_test.ps1
+```
+
+환경/GPU 지정은 모든 스크립트에 `-Env asib -GPU 0` 형태로 공통 지원합니다.
+
+### Linux (SLURM)
 ```bash
 # Phase 1: Ablation Study (모든 단계)
 sbatch run/run_ablation_study.sh

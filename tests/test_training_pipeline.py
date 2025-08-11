@@ -25,9 +25,9 @@ class TestTrainingPipeline:
             "batch_size": 16,
             "use_amp": False,
             "use_partial_freeze": False,
-            "mbm_query_dim": 2048,
-            "mbm_out_dim": 512,
-            "mbm_n_head": 8,
+            "ib_mbm_query_dim": 2048,
+            "ib_mbm_out_dim": 512,
+            "ib_mbm_n_head": 8,
             "ib_beta": 1e-2,
             "ce_alpha": 0.5,
             "kd_alpha": 0.5,
@@ -44,12 +44,12 @@ class TestTrainingPipeline:
             "feat_kd_norm": "none",
             "rkd_loss_weight": 0.0,
             "rkd_gamma": 2.0,
-            "mbm_dropout": 0.0,
+            "ib_mbm_dropout": 0.0,
             "synergy_head_dropout": 0.0,
-            "mbm_learnable_q": False,
-            "mbm_reg_lambda": 0.0,
-            "mbm_logvar_clip": 10.0,
-            "mbm_min_std": 1e-4,
+            "ib_mbm_learnable_q": False,
+            "ib_mbm_reg_lambda": 0.0,
+            "ib_mbm_logvar_clip": 10.0,
+            "ib_mbm_min_std": 1e-4,
             "debug_verbose": False,
         }
     
@@ -126,7 +126,7 @@ class TestTrainingPipeline:
     
     def test_mbm_creation(self, mock_config, mock_models):
         """Test MBM creation"""
-        from models.mbm import build_from_teachers
+        from models import build_ib_mbm_from_teachers as build_from_teachers
         
         student_model, teachers = mock_models
         
@@ -136,8 +136,8 @@ class TestTrainingPipeline:
             teacher.get_feat_dim.return_value = 2048
             teacher.distill_dim = 2048
         
-        # Add mbm_query_dim to config
-        mock_config['mbm_query_dim'] = 2048
+        # Add ib_mbm_query_dim to config (legacy key also supported via normalize)
+        mock_config['ib_mbm_query_dim'] = 2048
         
         mbm, synergy_head = build_from_teachers(teachers, mock_config)
         assert mbm is not None

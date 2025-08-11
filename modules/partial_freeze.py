@@ -136,16 +136,17 @@ def apply_partial_freeze(model, level: int, freeze_bn: bool = False):
             p.requires_grad = True
         return
 
+    if level == 0:
+        # 테스트 기대: level=0 → 전체 trainable (freeze 적용 안함)
+        for p in model.parameters():
+            p.requires_grad = True
+        apply_bn_ln_policy(model, train_bn=not freeze_bn)
+        return
+
     freeze_all(model)
 
     patterns = []
-    if level == 0:
-        patterns = [
-            r"(?:^|\.)fc\.",
-            r"(?:^|\.)classifier\.",
-            r"(?:^|\.)head\.",
-        ]
-    elif level == 1:
+    if level == 1:
         patterns = [
             r"\.layer4\.",
             r"features\.7\.",

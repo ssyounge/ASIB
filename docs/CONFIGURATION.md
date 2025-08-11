@@ -61,12 +61,12 @@ student_freeze_schedule: [-1, 2, 1, 0]
 teacher1_freeze_level: 1
 teacher2_freeze_level: 1
 
-# MBM settings
-mbm_query_dim: 1024
-mbm_out_dim: 1024
-mbm_n_head: 8
-mbm_dropout: 0.0
-mbm_learnable_q: false
+# IB‑MBM settings
+ib_mbm_query_dim: 1024
+ib_mbm_out_dim: 1024
+ib_mbm_n_head: 8
+ib_mbm_dropout: 0.0
+ib_mbm_learnable_q: false
 
 # Loss weights
 ce_alpha: 0.3
@@ -202,8 +202,8 @@ exp_id: res152_convnext_effi
 # Hyperparameters
 student_lr: 0.0005
 ib_beta: 0.001
-mbm_query_dim: 1024
-mbm_out_dim: 1024
+ib_mbm_query_dim: 1024
+ib_mbm_out_dim: 1024
 grad_clip_norm: 1.0
 ```
 
@@ -267,7 +267,7 @@ python main.py \
 python main.py \
   student_lr=0.0005 \
   ib_beta=0.001 \
-  mbm_query_dim=1024 \
+  ib_mbm_query_dim=1024 \
   grad_clip_norm=1.0 \
   use_amp=true
 ```

@@ -6,7 +6,7 @@ import logging
 from torch.nn import functional as F
 from utils.common import smart_tqdm, get_amp_components
 from utils.training import get_tau, get_beta
-from models.mbm import IB_MBM
+from models import IB_MBM
 
 from modules.losses import (
     kd_loss_fn,

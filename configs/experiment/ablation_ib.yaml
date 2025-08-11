@@ -4,65 +4,48 @@
 
 defaults:
   - /base
-  - /model/teacher@teacher1: convnext_s
-  - /model/teacher@teacher2: resnet152
-  - /model/student: resnet50_scratch
+  - /model/teacher@experiment.teacher1: convnext_s
+  - /model/teacher@experiment.teacher2: resnet152
+  - /model/student@experiment.model.student: resnet50_scratch
   - _self_
 
-# ─── 경로 & 식별자 ────────────────────────────────────────────
-teacher1_ckpt: checkpoints/teachers/convnext_s_cifar32.pth
-teacher2_ckpt: checkpoints/teachers/resnet152_cifar32.pth
-results_dir: experiments/ablation/ib/results
-exp_id: ablation_ib
+experiment:
+  results_dir: experiments/ablation/ib/results
+  exp_id: ablation_ib
+  teacher1_ckpt: checkpoints/teachers/convnext_s_cifar100.pth
+  teacher2_ckpt: checkpoints/teachers/resnet152_cifar100.pth
 
-# ─── 모델 & Optim ────────────────────────────────────────────
-optimizer: sgd                # SGD optimizer 사용
-teacher_lr: 0.0              # 교사 고정 (lr=0)
-teacher_weight_decay: 0.0
-student_lr: 0.1              # CIFAR-100 ResNet50에 적합한 학습률
-student_weight_decay: 3.0e-4
-momentum: 0.9                # SGD momentum
-nesterov: true               # Nesterov momentum
+  dataset:
+    batch_size: 128
+    num_workers: 4
 
-# ─── Partial‑Freeze Stage 스케줄 ──────────────────────────────
-use_partial_freeze: false    # 교사 완전 고정
-num_stages: 1                # 단일 스테이지
-teacher_adapt_epochs: 0      # 교사 적응 없음
-student_freeze_schedule: [0] # 학생만 학습
-student_epochs_schedule: [200] # 200 에포크
-teacher1_freeze_level: -1    # 교사 완전 고정
-teacher2_freeze_level: -1
-student_freeze_bn: false
-teacher1_freeze_bn: true
-teacher2_freeze_bn: true
+  num_stages: 2
+  student_epochs_per_stage: [15, 15]
+  teacher_adapt_epochs: 0
+  use_partial_freeze: false
 
-# ─── MBM / Adapter ───────────────────────────────────────────
-use_distillation_adapter: true
-distill_out_dim: 512
-mbm_query_dim: 2048
-mbm_out_dim: 2048
-mbm_n_head: 8
-use_ib: true                 # IB 활성화
-ib_beta: 0.001               # 정보 압축 강도
-ib_beta_warmup_epochs: 5     # IB warmup
-mbm_reg_lambda: 0.0
+  use_amp: true
+  amp_dtype: bfloat16
 
-# ─── KD 세부 옵션 ────────────────────────────────────────────
-kd_alpha: 0.5                # 기본 KD
-kd_ens_alpha: 0.5            # 앙상블 KD
-use_disagree_weight: false   # Disagreement 가중치 없음
-disagree_mode: both_wrong
-disagree_lambda_high: 1.0
-disagree_lambda_low: 1.0
+  use_ib: true
+  ib_epochs_per_stage: 10
+  ib_beta: 0.01
+  ib_beta_warmup_epochs: 5
+  use_vib_synergy_head: false
 
-# ─── CCCP (비활성화) ─────────────────────────────────────────
-use_cccp: false              # E2E 학습
-tau: 4.0
-cccp_nt: 1                   # A-Step 반복 횟수 (1 iteration)
-cccp_ns: 1                   # B-Step 반복 횟수 (1 iteration)
+  ib_mbm_query_dim: 2048
+  ib_mbm_out_dim: 512
+  ib_mbm_n_head: 4
+  ib_mbm_feature_norm: l2
 
-# ─── 데이터증강 / 기타 ───────────────────────────────────────────
-batch_size: 64
-cutmix_alpha_distill: 0.0
-mixup_alpha: 0.0
-grad_clip_norm: 1.0 
+  a_step_lr: 0.001
+  a_step_weight_decay: 0.0001
+  b_step_lr: 0.05
+  b_step_weight_decay: 0.0003
+  b_step_momentum: 0.9
+  b_step_nesterov: true
+  grad_clip_norm: 1.0
+
+  ce_alpha: 0.3
+  kd_ens_alpha: 0.0
+  hybrid_beta: 0.0 

@@ -3,43 +3,25 @@
 # @package _global_
 
 defaults:
-  - /dataset: cifar100
+  - /base
+  - /dataset@experiment.dataset: cifar100
+  - /schedule@experiment.schedule: cosine
   - _self_
 
-teacher_type:  convnext_s
-small_input:   true
-teacher_pretrained:  true
-teacher_ckpt_init:   null                 # 이어서 학습할 ckpt 경로가 있으면 지정
-
-# ─── 옵티마이저 & 학습 하이퍼파라미터 ──────────────────────────
-finetune_epochs: 80        # 중간 모델이므로 충분한 학습 시간
-finetune_lr: 1.5e-4       # 중간 모델이므로 적당한 학습률
-finetune_weight_decay: 6e-3  # 과적합 방지를 위해 약간 증가
-warmup_epochs: 4          # 중간 모델이므로 적당한 warmup
-min_lr: 1e-6
-batch_size: 128           # 더 큰 배치 사이즈
-label_smoothing: 0.5      # 과적합 방지를 위해 약간 증가
-finetune_use_cutmix: true
-finetune_cutmix_alpha: 1.0
-
-# ─── 고급 스케줄링 설정 ──────────────────────────────────────
-scheduler_type: reduce_on_plateau  # 검증 성능 기반 적응적 스케줄링
-early_stopping_patience: 10    # 과적합 방지를 위해 약간 감소
-early_stopping_min_delta: 0.1  # 더 명확한 개선도 요구
-
-# ─── 출력 경로 ────────────────────────────────────────────────
-results_dir:        experiments/finetune/convnext_s_cifar100_ft/results
-exp_id:             convnext_s_cifar100
-# ─── 공통 옵션 (AMP 등) ───────────────────────────────────────
-use_amp:    true
-device:     cuda
-seed:       42
-log_level:  INFO
-deterministic: true
-
-# 추후 save 할 체크포인트 경로
-finetune_ckpt_path: checkpoints/teachers/convnext_s_cifar100.pth
-
-# Hydra 의 편의를 위해 명시(로더에서 사용)
-dataset_name: cifar100
-data_root:    ./data 
+experiment:
+  results_dir: experiments/finetune/convnext_s_cifar100/results
+  exp_id: finetune_convnext_s_cifar100
+  
+  # Model settings
+  model:
+    student: convnext_s
+  
+  # Fine-tuning specific settings
+  use_pretrained: true
+  freeze_backbone: false
+  learning_rate: 0.001
+  epochs: 100
+  
+  dataset:
+    batch_size: 128
+    num_workers: 4 

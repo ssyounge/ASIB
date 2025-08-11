@@ -105,7 +105,7 @@ Create optimizers and schedulers for training.
 
 **Parameters:**
 - `teacher_wrappers` (List[torch.nn.Module]): List of teacher models
-- `mbm` (torch.nn.Module): Manifold Bridging Module
+- `mbm` (torch.nn.Module): IB‑MBM (Information‑Bottleneck Manifold Bridging Module)
 - `synergy_head` (torch.nn.Module): Synergy head
 - `student_model` (torch.nn.Module): Student model
 - `cfg` (Dict[str, Any]): Configuration dictionary
@@ -149,7 +149,7 @@ Run the main training stages.
 
 **Parameters:**
 - `teacher_wrappers` (List[torch.nn.Module]): List of teacher models
-- `mbm` (torch.nn.Module): Manifold Bridging Module
+- `mbm` (torch.nn.Module): IB‑MBM
 - `synergy_head` (torch.nn.Module): Synergy head
 - `student_model` (torch.nn.Module): Student model
 - `train_loader` (DataLoader): Training data loader
@@ -667,10 +667,10 @@ tau: 4.0
 use_partial_freeze: true
 student_freeze_schedule: [-1, 2, 1, 0]
 
-# MBM settings
-mbm_query_dim: 1024
-mbm_out_dim: 1024
-mbm_n_head: 8
+# IB‑MBM settings
+ib_mbm_query_dim: 1024
+ib_mbm_out_dim: 1024
+ib_mbm_n_head: 8
 ```
 
 ### Method Configuration
@@ -719,9 +719,9 @@ def main(cfg: DictConfig):
     teacher1 = create_teacher_by_name("convnext_l_teacher")
     teacher2 = create_teacher_by_name("efficientnet_l2_teacher")
     
-    # Create MBM and synergy head
-    from models.mbm import build_from_teachers
-    mbm, synergy_head = build_from_teachers(teacher1, teacher2, cfg)
+# Create IB‑MBM and synergy head
+from models import build_ib_mbm_from_teachers as build_from_teachers
+mbm, synergy_head = build_from_teachers([teacher1, teacher2], cfg)
     
     # Run training
     final_acc = run_training_stages(

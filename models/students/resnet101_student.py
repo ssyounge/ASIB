@@ -53,16 +53,5 @@ def create_resnet101_student(
         cfg=cfg,
     )
 
-# legacy registry key for backward compatibility
-from models.common.base_wrapper import MODEL_REGISTRY
-MODEL_REGISTRY["resnet101_adapter_student"] = ResNetStudent
-
-
-# ── 역호환 alias (기존 import 유지) ────────────────────────────
-def create_resnet101_with_extended_adapter(*a, **kw):
-    import warnings
-    warnings.warn(
-        "renamed → models.students.resnet101_student.ResNetStudent",
-        DeprecationWarning, stacklevel=2,
-    )
-    return ResNetStudent(*a, **kw)
+# legacy registry key kept minimal without warnings
+from models.common.base_wrapper import MODEL_REGISTRY  # keep registry import for other keys if any

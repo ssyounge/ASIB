@@ -1,5 +1,3 @@
 # configs/model/teacher/convnext_s.yaml
-model:
-  teacher:
-    name: convnext_s
-    pretrained: true 
+name: convnext_s
+pretrained: true 

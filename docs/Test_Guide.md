@@ -132,7 +132,7 @@ def test_config_file_valid():
     import json
     config_path = "PyCIL/exps/asib_cl.json"
     
-    with open(config_path, 'r') as f:
+    with open(config_path, 'r', encoding='utf-8') as f:
         config = json.load(f)
     
     required_keys = ["model_name", "convnet_type", "dataset", "ib_beta"]
@@ -281,7 +281,7 @@ def test_experiment_configs():
     config_files = glob.glob("PyCIL/exps/*.json")
     
     for config_file in config_files:
-        with open(config_file, 'r') as f:
+    with open(config_file, 'r', encoding='utf-8') as f:
             try:
                 config = json.load(f)
                 # 기본 필수 키 확인
@@ -295,7 +295,7 @@ def test_asib_cl_config_specific():
     """ASIB-CL 설정의 특정 값들이 올바른지 확인"""
     import json
     
-    with open("PyCIL/exps/asib_cl.json", 'r') as f:
+    with open("PyCIL/exps/asib_cl.json", 'r', encoding='utf-8') as f:
         config = json.load(f)
     
     # ASIB-CL 특화 설정 확인

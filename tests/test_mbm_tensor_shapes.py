@@ -1,7 +1,7 @@
 import pytest
 import torch
 import torch.nn as nn
-from models.mbm import IB_MBM, SynergyHead, build_from_teachers
+from models import IB_MBM, SynergyHead, build_ib_mbm_from_teachers as build_from_teachers
 
 class TestMBMTensorShapes:
     """Test MBM tensor shape issues"""
@@ -108,10 +108,10 @@ class TestMBMTensorShapes:
         
         teachers = [MockTeacher(512), MockTeacher(512)]
         cfg = {
-            "mbm_query_dim": 512,
-            "mbm_out_dim": 512,
+            "ib_mbm_query_dim": 512,
+            "ib_mbm_out_dim": 512,
             "ib_beta": 1e-2,
-            "mbm_n_head": 8,
+            "ib_mbm_n_head": 8,
             "num_classes": 100,
             "synergy_head_dropout": 0.1
         }

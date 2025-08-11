@@ -82,7 +82,7 @@ def setup_logging(cfg: Dict[str, Any]) -> logging.Logger:
         os.makedirs(os.path.dirname(log_file), exist_ok=True)
         
         # File handler
-        file_handler = logging.FileHandler(log_file)
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
         file_handler.setLevel(logging.INFO)
         file_formatter = logging.Formatter(
             "%(asctime)s | %(levelname)s | %(message)s",
@@ -101,7 +101,7 @@ def log_hparams(logger: logging.Logger, cfg: Dict[str, Any]) -> None:
     # 2) 별도 JSON 사본
     dst = os.path.join(cfg.get("results_dir", "."), "hparams_full.json")
     _ensure_dir(dst)
-    with open(dst, "w") as f:
+    with open(dst, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=2, default=str)
     logging.info("[logging_setup] hparams saved => %s", dst)
 
@@ -159,7 +159,7 @@ def get_logger(
         logger.removeHandler(handler)
     
     # File handler
-    file_handler = logging.FileHandler(log_file)
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
     file_handler.setLevel(getattr(logging, level.upper()))
     file_formatter = logging.Formatter(
         "%(asctime)s | %(levelname)s | %(message)s",

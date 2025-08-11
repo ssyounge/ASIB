@@ -16,7 +16,7 @@ from utils.common import set_random_seed, get_amp_components
 
 from data.cifar100 import get_cifar100_loaders
 from data.imagenet32 import get_imagenet32_loaders
-from models.mbm import build_from_teachers
+from models import build_ib_mbm_from_teachers as build_from_teachers
 
 from core import create_student_by_name, create_teacher_by_name
 
@@ -99,8 +99,11 @@ class SynergyEnsemble(nn.Module):
         else:
             fsyn = self.mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
 
-        zsyn = self.synergy_head(fsyn)
-        return zsyn
+        out = self.synergy_head(fsyn)
+        if isinstance(out, tuple):
+            logits, kl = out
+            return logits
+        return out
 
 @hydra.main(config_path="configs", config_name="base", version_base="1.3")
 def main(cfg: DictConfig):
@@ -117,8 +120,8 @@ def main(cfg: DictConfig):
     logger.update_metric("amp_dtype", cfg.get("amp_dtype", "float16"))
     logger.update_metric("mbm_type", "ib_mbm")
     logger.update_metric("mbm_r", cfg.get("mbm_r"))
-    logger.update_metric("mbm_n_head", cfg.get("mbm_n_head"))
-    logger.update_metric("mbm_learnable_q", cfg.get("mbm_learnable_q"))
+    logger.update_metric("ib_mbm_n_head", cfg.get("ib_mbm_n_head"))
+    logger.update_metric("ib_mbm_learnable_q", cfg.get("ib_mbm_learnable_q"))
 
     # 4) Data (CIFAR-100 or ImageNet-32)
     dataset_name = cfg.get("dataset_name", "cifar100")
@@ -215,7 +218,7 @@ def main(cfg: DictConfig):
             teacher2.load_state_dict(t2_ck, strict=False)
 
         # 4) MBM and synergy head
-        mbm_query_dim = cfg.get("mbm_query_dim")
+        mbm_query_dim = cfg.get("ib_mbm_query_dim")
         mbm, synergy_head = build_from_teachers(
             [teacher1, teacher2], cfg, query_dim=mbm_query_dim
         )
@@ -223,12 +226,12 @@ def main(cfg: DictConfig):
         synergy_head = synergy_head.to(device)
 
         # load MBM, synergy head
-        if cfg["mbm_ckpt"]:
+        if cfg.get("mbm_ckpt"):
             mbm_ck = torch.load(
                 cfg["mbm_ckpt"], map_location=device, weights_only=True
             )
             mbm.load_state_dict(mbm_ck, strict=False)
-        if cfg["head_ckpt"]:
+        if cfg.get("head_ckpt"):
             head_ck = torch.load(
                 cfg["head_ckpt"], map_location=device, weights_only=True
             )

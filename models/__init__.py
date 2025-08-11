@@ -1,8 +1,10 @@
-from .mbm import (
+from .ib_mbm import (
     SynergyHead,
     IB_MBM,
-    build_from_teachers,
+    build_ib_mbm_from_teachers,
 )
+
+build_from_teachers = build_ib_mbm_from_teachers
 
 __all__ = [
     "SynergyHead",

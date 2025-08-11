@@ -14,7 +14,7 @@ def _json_default(obj):
 
 def save_json(exp_dict, save_path):
     """Save ``exp_dict`` (configs + results) as a JSON file."""
-    with open(save_path, "w") as f:
+    with open(save_path, "w", encoding="utf-8") as f:
         json.dump(exp_dict, f, indent=4, default=_json_default)
 
 def save_csv_row(exp_dict, csv_path, fieldnames, write_header_if_new=True):
@@ -24,7 +24,7 @@ def save_csv_row(exp_dict, csv_path, fieldnames, write_header_if_new=True):
     """
     file_exists = os.path.exists(csv_path)
 
-    with open(csv_path, 'a', newline='') as f:
+    with open(csv_path, 'a', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         if write_header_if_new and not file_exists:
             writer.writeheader()
@@ -190,8 +190,8 @@ class ExperimentLogger:
             "total_time_sec",
             "mbm_type",
             "mbm_r",
-            "mbm_n_head",
-            "mbm_learnable_q",
+            "ib_mbm_n_head",
+            "ib_mbm_learnable_q",
         ]
 
         epoch_cols = [

@@ -13,7 +13,7 @@ def load_config(config_path: str) -> Dict[str, Any]:
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Config file not found: {config_path}")
     
-    with open(config_path, 'r') as f:
+    with open(config_path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
 
@@ -21,7 +21,7 @@ def save_config(config: Dict[str, Any], config_path: str) -> None:
     """Save configuration to JSON file."""
     os.makedirs(os.path.dirname(config_path), exist_ok=True)
     
-    with open(config_path, 'w') as f:
+    with open(config_path, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=2)
 
 
@@ -127,4 +127,9 @@ def flatten_hydra_config(cfg: dict) -> dict:
         for k, v in method_cfg.items():
             cfg.setdefault(k, v)
 
+    return cfg
+
+
+def normalize_config(cfg: dict) -> dict:
+    """No-op: legacy key mapping removed. Only `ib_mbm_*` keys are supported."""
     return cfg

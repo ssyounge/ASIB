@@ -19,7 +19,7 @@ from methods.ab import ABDistiller
 from methods.ft import FTDistiller
 
 # Import MBM components
-from models.mbm import IB_MBM, SynergyHead
+from models import IB_MBM, SynergyHead
 
 
 class TestKDDistillers:

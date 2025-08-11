@@ -218,7 +218,7 @@ class TestComprehensiveRegistryMapping:
                 
             for config_file in dir_path.glob("*.yaml"):
                 try:
-                    with open(config_file, 'r') as f:
+                    with open(config_file, 'r', encoding='utf-8') as f:
                         content = f.read()
                     
                     # Check for _student suffix in model references
@@ -318,7 +318,7 @@ class TestComprehensiveRegistryMapping:
             dir_path = Path(config_dir)
             if dir_path.exists():
                 for config_file in dir_path.glob("*.yaml"):
-                    with open(config_file, 'r') as f:
+                    with open(config_file, 'r', encoding='utf-8') as f:
                         content = f.read()
                         if "_student" in content:
                             pytest.fail(f"CRITICAL: {config_file} contains '_student' suffix")

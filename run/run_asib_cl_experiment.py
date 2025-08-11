@@ -25,7 +25,7 @@ log_dir = Path('experiments/sota/logs')
         level=logging.INFO,
         format='%(asctime)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.FileHandler(log_dir / 'asib_cl_experiment.log'),
+            logging.FileHandler(log_dir / 'asib_cl_experiment.log', encoding='utf-8'),
             logging.StreamHandler(sys.stdout)
         ]
     )
@@ -96,7 +96,7 @@ def create_comparison_configs():
     configs = {}
     
     # ASIB-CL 설정 저장
-    with open('PyCIL/exps/asib_cl.json', 'w') as f:
+    with open('PyCIL/exps/asib_cl.json', 'w', encoding='utf-8') as f:
         json.dump(asib_config, f, indent=4)
     configs["asib_cl"] = "PyCIL/exps/asib_cl.json"
     
@@ -106,7 +106,7 @@ def create_comparison_configs():
         method_config.update(config)
         
         config_path = f"PyCIL/exps/{method}_comparison.json"
-        with open(config_path, 'w') as f:
+        with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(method_config, f, indent=4)
         configs[method] = config_path
     
@@ -178,7 +178,7 @@ log_dirs = [
                 method_name = log_dir.split('/')[-1]
                 
                 try:
-                    with open(latest_log, 'r') as f:
+                    with open(latest_log, 'r', encoding='utf-8') as f:
                         content = f.read()
                         # "Average Accuracy" 라인 찾기
                         lines = content.split('\n')

@@ -74,7 +74,7 @@ def extract_results(results_dir: str, beta_value: float, run_id: int) -> Dict[st
         # JSON 결과 파일 읽기
         json_file = os.path.join(results_dir, "results", "latest.json")
         if os.path.exists(json_file):
-            with open(json_file, 'r') as f:
+            with open(json_file, 'r', encoding='utf-8') as f:
                 results = json.load(f)
             
             # 주요 메트릭 추출
@@ -219,7 +219,7 @@ def save_analysis_results(analysis: Dict[str, Any], best_beta: float, save_path:
     
     # 요약 보고서 생성
     report_path = os.path.join(save_path, 'beta_analysis_report.txt')
-    with open(report_path, 'w') as f:
+    with open(report_path, 'w', encoding='utf-8') as f:
         f.write("Beta Sensitivity Analysis Report\n")
         f.write("=" * 50 + "\n\n")
         f.write(f"Best β value: {best_beta:.1e}\n")

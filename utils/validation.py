@@ -44,15 +44,16 @@ def validate_config(cfg: Dict[str, Any]) -> None:
         if cfg["ib_beta"] < 0:
             raise ConfigurationError("ib_beta must be non-negative")
     
-    # Validate MBM parameters
-    if "mbm_query_dim" in cfg and cfg["mbm_query_dim"] <= 0:
-        raise ConfigurationError("mbm_query_dim must be positive")
-    
-    if "mbm_out_dim" in cfg and cfg["mbm_out_dim"] <= 0:
-        raise ConfigurationError("mbm_out_dim must be positive")
-    
-    if "mbm_n_head" in cfg and cfg["mbm_n_head"] <= 0:
-        raise ConfigurationError("mbm_n_head must be positive")
+    # Validate IB‑MBM parameters (legacy keys removed)
+    qd = cfg.get("ib_mbm_query_dim")
+    od = cfg.get("ib_mbm_out_dim")
+    nh = cfg.get("ib_mbm_n_head")
+    if qd is not None and qd <= 0:
+        raise ConfigurationError("ib_mbm_query_dim must be positive")
+    if od is not None and od <= 0:
+        raise ConfigurationError("ib_mbm_out_dim must be positive")
+    if nh is not None and nh <= 0:
+        raise ConfigurationError("ib_mbm_n_head must be positive")
 
 
 def validate_model(model: nn.Module, input_shape: Tuple[int, ...]) -> None:
@@ -230,19 +231,18 @@ def validate_hyperparameters(cfg: Dict[str, Any]) -> None:
     if cfg.get("ib_beta", 0) < 0:
         raise ValidationError("ib_beta must be non-negative")
     
-    # MBM parameters
-    if cfg.get("mbm_query_dim", 0) <= 0:
-        raise ValidationError("mbm_query_dim must be positive")
-    
-    if cfg.get("mbm_out_dim", 0) <= 0:
-        raise ValidationError("mbm_out_dim must be positive")
-    
-    if cfg.get("mbm_n_head", 0) <= 0:
-        raise ValidationError("mbm_n_head must be positive")
-    
-    # Check if mbm_out_dim is divisible by mbm_n_head
-    if (cfg.get("mbm_out_dim", 0) % cfg.get("mbm_n_head", 1)) != 0:
-        raise ValidationError("mbm_out_dim must be divisible by mbm_n_head")
+    # IB‑MBM parameters (legacy keys removed)
+    qd = cfg.get("ib_mbm_query_dim", 0)
+    od = cfg.get("ib_mbm_out_dim", 0)
+    nh = cfg.get("ib_mbm_n_head", 0)
+    if qd <= 0:
+        raise ValidationError("ib_mbm_query_dim must be positive")
+    if od <= 0:
+        raise ValidationError("ib_mbm_out_dim must be positive")
+    if nh <= 0:
+        raise ValidationError("ib_mbm_n_head must be positive")
+    if (od % max(1, nh)) != 0:
+        raise ValidationError("ib_mbm_out_dim must be divisible by ib_mbm_n_head")
 
 
 def validate_training_setup(

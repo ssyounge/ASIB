@@ -1,65 +1,54 @@
 # configs/base.yaml
-
-# ─────────────────────────────────────────────────────────────
-#  공통 설정 – 실험 YAML 이 명시하지 않은 값은 전부 여기서 가져온다
-# ─────────────────────────────────────────────────────────────
 defaults:
-  - dataset: cifar100            # 32×32 입력 데이터셋
-  - method:  asib                # 기본 KD 방법
-  - schedule: cosine             # 기본 LR 스케줄
+  - dataset@experiment.dataset: cifar100
+  - schedule@experiment.schedule: cosine
+  - method@experiment.method: asib
   - _self_
 
-# ───────── 하드 디폴트 (웬만하면 안 바뀌는 값) ─────────
-device: cuda
-seed: 42
-small_input: true
-batch_size: 128
-use_partial_freeze: false        # 실험 YAML 쪽에서만 true 로 바꿈
-use_amp: true
-amp_dtype: float16               # float16 | bfloat16
+experiment:
+  device: cuda
+  seed: 42
+  small_input: true
 
-# ───────── KD 계열 공통 기본값 ─────────
-kd_ens_alpha:        0.0          # 앙상블 KL
-hybrid_beta:         0.05
+  results_dir: experiments/default/results
+  exp_id: default
 
-# ───────── Data Aug / Mix 계열 ─────────
-mixup_alpha:          0.0
-cutmix_alpha_distill: 0.0
+  dataset:
+    batch_size: 64
+    num_workers: 2
 
-# ───────── Disagreement Weighting ─────────
-use_disagree_weight:  false
-disagree_mode:        none        # pred | both_wrong | any_wrong | none
-disagree_lambda_high: 1.0
-disagree_lambda_low:  1.0
+  num_stages: 1
+  student_epochs_per_stage: [5]
+  teacher_adapt_epochs: 0
+  use_partial_freeze: false
 
-# ───────── Feature-KD / RKD ─────────
-feat_kd_alpha:   0.0
-feat_kd_key:     feat_2d
-feat_kd_norm:    none             # none | l2
-rkd_loss_weight: 0.0
-rkd_gamma:       2.0
+  use_amp: true
+  amp_dtype: float16
 
-# ───────── IB-MBM / Synergy ─────────
-use_ib:                 false
-ib_beta:                1.0e-2
-ib_beta_warmup_epochs:  0
-mbm_out_dim:            512
-mbm_n_head:             1
-mbm_dropout:            0.0
-synergy_head_dropout:   0.0
-mbm_learnable_q:        false
-mbm_reg_lambda:         0.0
+  use_ib: false
+  ib_epochs_per_stage: 0
+  ib_beta: 0.0
+  ib_beta_warmup_epochs: 0
+  use_vib_synergy_head: false
+  ib_mbm_query_dim: 2048
+  ib_mbm_out_dim: 512
+  ib_mbm_n_head: 1
+  ib_mbm_feature_norm: l2
+  ib_mbm_reg_lambda: 0.0
 
-# ───────── CCCP (Concave-Convex Procedure) ─────────
-use_cccp:               true     # CCCP 사용 여부 (teacher adaptive 단계 KL surrogate)
-tau:                    4.0      # CCCP temperature
+  a_step_lr: 1.0e-4
+  a_step_weight_decay: 1.0e-4
+  b_step_lr: 1.0e-1
+  b_step_weight_decay: 3.0e-4
+  b_step_momentum: 0.9
+  b_step_nesterov: true
+  grad_clip_norm: 1.0
 
-# ───────── Optim / Reg / AMP ─────────
-reg_lambda:       0.0
-grad_clip_norm:   0.0
-adam_beta1:       0.9
-adam_beta2:       0.999
-disable_flops:    true     # FLOPs 계산 비활성화 (TorchDynamo 문제 방지)
+  ce_alpha: 0.3
+  kd_ens_alpha: 0.0
+  hybrid_beta: 0.05
 
-# ───────── Student 스케줄 디폴트 ─────────
-student_epochs_per_stage: 15
+  use_cccp: false
+  tau: 4.0
+  cccp_nt: 1
+  cccp_ns: 1

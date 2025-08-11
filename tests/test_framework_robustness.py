@@ -17,7 +17,7 @@ class TestFrameworkRobustness:
             "core.utils",
             "core.builder", 
             "core.trainer",
-            "models.mbm",
+            "models.ib_mbm",
             "models.common.base_wrapper",
             "data.cifar100",
             "data.imagenet32",
@@ -94,7 +94,7 @@ class TestFrameworkRobustness:
     
     def test_mbm_tensor_handling(self):
         """Test MBM tensor handling robustness"""
-        from models.mbm import IB_MBM
+        from models import IB_MBM
         
         mbm = IB_MBM(
             q_dim=2048,
@@ -163,8 +163,8 @@ class TestFrameworkRobustness:
             "num_classes": 100,
             "student_lr": 0.1,
             "teacher_lr": 0.0,
-            "mbm_query_dim": 2048,
-            "mbm_out_dim": 512,
+            "ib_mbm_query_dim": 2048,
+            "ib_mbm_out_dim": 512,
             "num_stages": 1,
             "student_epochs_per_stage": 15
         }

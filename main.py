@@ -1,29 +1,18 @@
 #!/usr/bin/env python3
-"""
-main.py
-
-Implements a multi-stage distillation flow using:
- (A) Teacher adaptive update (Teacher/MBM partial freeze)
- (B) Student distillation
-Repeated for 'num_stages' times, as in ASIB multi-stage self-training.
-"""
-
 import logging
 import os
 import json
-import torch
 from typing import Optional, List
-from utils.logging import init_logger, ExperimentLogger, get_logger
 
+import torch
 import hydra
 from omegaconf import DictConfig, OmegaConf
 
-# Import core functions
+from utils.logging import ExperimentLogger, get_logger
+
 from core import (
     create_student_by_name,
     create_teacher_by_name,
-    partial_freeze_teacher_auto,
-    partial_freeze_student_auto,
     run_training_stages,
     run_continual_learning,
     renorm_ce_kd,
@@ -33,168 +22,141 @@ from core import (
     cast_numeric_configs,
 )
 
-from utils.common import set_random_seed, check_label_range, get_model_num_classes, count_trainable_parameters
+from utils.common import (
+    set_random_seed,
+    check_label_range,
+    get_model_num_classes,
+)
+
 from data.cifar100 import get_cifar100_loaders
 from data.imagenet32 import get_imagenet32_loaders
 
-# partial freeze
-from modules.partial_freeze import (
-    apply_partial_freeze,
-    partial_freeze_teacher_resnet,
-    partial_freeze_teacher_efficientnet,
-    partial_freeze_student_resnet,
-)
-
-# Teacher creation (factory):
-from models.common.base_wrapper import MODEL_REGISTRY
-from models.common import registry as _reg  # ensure_scanned()
-
-# --- 중복 방지 플래그
-_HP_LOGGED = False
-# — W&B --------------------------------------------------------
 try:
     import wandb
 except ModuleNotFoundError:
     wandb = None
 
 
-@hydra.main(config_path="configs", config_name="base", version_base="1.3")
-def main(cfg: DictConfig):
-    cfg = OmegaConf.to_container(cfg, resolve=True)
+def _to_dict(cfg: DictConfig):
+    return OmegaConf.to_container(cfg, resolve=True)
 
-    # ── tqdm 전체 OFF ─────────────────────────────
-    if cfg.get("disable_tqdm", False):
-        os.environ["PROGRESS"] = 0  # utils.progress 에서 사용
-
-    # ── W&B API-key (config 우선) ────────────────
-    if cfg.get("use_wandb", False) and cfg.get("wandb_api_key", ""):
-        os.environ.setdefault("WANDB_API_KEY", str(cfg["wandb_api_key"]))
-
-    # ────────────────── LOGGING & W&B ──────────────────
-    # results_dir이 제대로 설정되어 있는지 확인
-    exp_dir = cfg.get("results_dir", ".")
-    if exp_dir == "." and "experiment" in cfg:
-        # experiment 섹션에서 results_dir 확인
-        exp_dir = cfg["experiment"].get("results_dir", ".")
+def normalize_exp(exp: dict):
+    """Flatten any remaining nesting in experiment config and promote method values to top level"""
+    if isinstance(exp, dict):
+        # dataset/schedule/method가 이중 중첩이면 평탄화
+        for k in ("dataset", "schedule", "method"):
+            v = exp.get(k)
+            if isinstance(v, dict) and k in v and isinstance(v[k], dict):
+                exp[k] = v[k]
+        
+        # teacher1, teacher2, model.student의 중첩도 평탄화
+        for k in ("teacher1", "teacher2"):
+            v = exp.get(k)
+            if isinstance(v, dict) and k in v and isinstance(v[k], dict):
+                exp[k] = v[k]
+        
+        # model.student 중첩 평탄화
+        model = exp.get("model", {})
+        if isinstance(model, dict):
+            student = model.get("student", {})
+            if isinstance(student, dict) and "student" in student and isinstance(student["student"], dict):
+                model["student"] = student["student"]
+        
+        # method 값을 최상위로 반영(이름 제외 선택)
+        if isinstance(exp.get("method"), dict):
+            for mk, mv in exp["method"].items():
+                if mk != "name" and mk not in exp:
+                    exp[mk] = mv
     
-    lvl = cfg.get("log_level") or "INFO"  # WARNING → INFO로 변경
-    logger = get_logger(
-        exp_dir,
-        level=lvl,
-        stream_level="INFO" if lvl.upper() == "DEBUG" else lvl,  # WARNING → INFO로 변경
-    )
+    return exp
 
-    global _HP_LOGGED
-    if not _HP_LOGGED:
-        safe_cfg = {k: v for k, v in cfg.items() if not isinstance(v, logging.Logger)}
-        logger.info("HParams:\n%s", json.dumps(safe_cfg, indent=2))  # warning → info로 변경
-        if wandb is not None and wandb.run:
-            wandb.config.update(cfg, allow_val_change=False)
-        _HP_LOGGED = True
+@hydra.main(config_path="configs", version_base="1.3")
+def main(cfg: DictConfig):
+    # 1) experiment 서브트리만 사용
+    exp = cfg.experiment if "experiment" in cfg else cfg
+    exp_dict = _to_dict(exp)
+    
+    # 2) 중첩 평탄화
+    exp_dict = normalize_exp(exp_dict)
 
-    if cfg.get("use_wandb", False):
+    # 2) 로거
+    exp_dir = exp_dict.get("results_dir", ".")
+    logger = get_logger(exp_dir, level=exp_dict.get("log_level", "INFO"))
+    logger.info("HParams:\n%s", json.dumps({k: v for k, v in exp_dict.items()}, indent=2))
+
+    # 3) W&B (옵션)
+    if exp_dict.get("use_wandb", False):
         if wandb is None:
-            logging.warning("[W&B] wandb not installed ‑‑ skipping")
+            logger.warning("[W&B] wandb not installed – skipping")
         else:
             wandb.init(
-                project=cfg.get("wandb_project", "kd_monitor"),
-                entity=cfg.get("wandb_entity") or None,
-                name=cfg.get("wandb_run_name") or cfg.get("exp_id", "run"),
-                config=cfg,
+                project=exp_dict.get("wandb_project", "kd_monitor"),
+                entity=exp_dict.get("wandb_entity"),
+                name=exp_dict.get("wandb_run_name", exp_dict.get("exp_id", "run")),
+                config=exp_dict,
             )
-            logging.info("[W&B] dashboard → %s", wandb.run.url)
+            logger.info("[W&B] %s", wandb.run.url)
 
-    # ────────────────── CONFIG PROCESSING ──────────────────
-    # Convert learning rate and weight decay fields to float when merged
-    cast_numeric_configs(cfg)
+    # 4) 숫자 캐스팅/안전 스위치
+    cast_numeric_configs(exp_dict)
 
-    # ────────────────── EXPERIMENT LOGGER ──────────────────
-    exp_logger = ExperimentLogger(cfg, exp_name="asib")
+    # 5) 로그 저장기
+    exp_logger = ExperimentLogger(exp_dict, exp_name="asib")
 
-    # ────────────────── DEVICE & SEED ──────────────────
-    device = cfg.get("device", "cuda")
-    if device == "cuda":
-        if torch.cuda.is_available():
-            os.environ.setdefault(
-                "PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True"
-            )
-        else:
-            logging.warning("No CUDA => Using CPU")
-            device = "cuda"
+    # 6) 디바이스/시드
+    device = exp_dict.get("device", "cuda")
+    if device == "auto":
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    elif device == "cuda" and not torch.cuda.is_available():
+        logger.warning("CUDA not available. Falling back to CPU.")
+        device = "cpu"
 
-    # fix seed
-    seed = cfg.get("seed", 42)
-    deterministic = cfg.get("deterministic", True)
-    set_random_seed(seed, deterministic=deterministic)
+    set_random_seed(exp_dict.get("seed", 42), deterministic=exp_dict.get("deterministic", True))
 
-    # ────────────────── DATA LOADING ──────────────────
-    dataset = cfg.get("dataset_name", "cifar100")
-    batch_size = cfg.get("batch_size", 128)
-    data_root = cfg.get("data_root", "./data")
-    
-    if cfg.get("overlap_pct", -1) >= 0:
-        from data.cifar100_overlap import get_overlap_loaders
+    # 7) 데이터 로더
+    ds_cfg = exp_dict.get("dataset", {})
+    dataset_name = ds_cfg.get("name", "cifar100")
+    data_root = ds_cfg.get("root", "./data")
+    batch_size = int(ds_cfg.get("batch_size", 128))
+    num_workers = int(ds_cfg.get("num_workers", 2))
+    data_aug = ds_cfg.get("data_aug", True)
+    small_input = bool(exp_dict.get("small_input", ds_cfg.get("small_input", dataset_name == "cifar100")))
+
+    if exp_dict.get("overlap_pct", -1) >= 0:
+        from data.cifar100_overlap import get_overlap_loaders, CIFAR100OverlapDataset
         (A_tr, A_te), (B_tr, B_te), _ = get_overlap_loaders(
-            pct_overlap=cfg["overlap_pct"],
+            pct_overlap=exp_dict["overlap_pct"],
             batch_size=batch_size,
-            num_workers=cfg.get("num_workers", 2),
-            augment=cfg.get("data_aug", True),
-            seed=seed,
+            num_workers=num_workers,
+            augment=data_aug,
+            seed=exp_dict.get("seed", 42),
         )
-        # 학생은 **두 교사 클래스의 합집합**을 모두 보게 해야 함
-        # Get the union of all classes from both teachers
-        all_classes = list(set(A_tr.dataset.class_indices + B_tr.dataset.class_indices))
-        all_classes.sort()
-        
-        # Create combined datasets
-        from data.cifar100_overlap import CIFAR100OverlapDataset
-        
-        # Get base CIFAR-100 datasets
         base_train_loader, base_test_loader = get_cifar100_loaders(
-            root=data_root,
-            batch_size=batch_size,
-            num_workers=cfg.get("num_workers", 2),
-            augment=cfg.get("data_aug", True),
+            root=data_root, batch_size=batch_size, num_workers=num_workers, augment=data_aug
         )
-        
-        # Create combined datasets with all classes
+        all_classes = sorted(list(set(A_tr.dataset.class_indices + B_tr.dataset.class_indices)))
         combined_train_dataset = CIFAR100OverlapDataset(base_train_loader.dataset, all_classes)
         combined_test_dataset = CIFAR100OverlapDataset(base_test_loader.dataset, all_classes)
-        
         train_loader = torch.utils.data.DataLoader(
-            combined_train_dataset,
-            batch_size=batch_size,
-            shuffle=True,
-            num_workers=cfg.get("num_workers", 2),
-            pin_memory=True,
+            combined_train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True
         )
         test_loader = torch.utils.data.DataLoader(
-            combined_test_dataset,
-            batch_size=batch_size,
-            shuffle=False,
-            num_workers=cfg.get("num_workers", 2),
-            pin_memory=True,
+            combined_test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True
         )
-    elif dataset == "cifar100":
+    elif dataset_name == "cifar100":
         train_loader, test_loader = get_cifar100_loaders(
-            root=data_root,
-            batch_size=batch_size,
-            num_workers=cfg.get("num_workers", 2),
-            augment=cfg.get("data_aug", True),
+            root=data_root, batch_size=batch_size, num_workers=num_workers, augment=data_aug
         )
-    elif dataset == "imagenet32":
+    elif dataset_name == "imagenet32":
         train_loader, test_loader = get_imagenet32_loaders(
-            root=data_root,
-            batch_size=batch_size,
-            num_workers=cfg.get("num_workers", 2),
-            augment=cfg.get("data_aug", True),
+            root=data_root, batch_size=batch_size, num_workers=num_workers, augment=data_aug
         )
     else:
-        raise ValueError(f"Unknown dataset_name={dataset}")
+        raise ValueError(f"Unknown dataset.name={dataset_name}")
 
-    # ────────────────── MODEL SETUP ──────────────────
+    # 8) 클래스 수
     if isinstance(train_loader.dataset, torch.utils.data.ConcatDataset):
-        num_classes = 100  # CIFAR-100 fixed
+        num_classes = 100
     else:
         n_classes = getattr(train_loader.dataset, "classes", None)
         if n_classes is None:
@@ -202,247 +164,131 @@ def main(cfg: DictConfig):
         if n_classes is None:
             raise AttributeError("Dataset must expose `classes` or `num_classes`")
         num_classes = len(n_classes) if not isinstance(n_classes, int) else n_classes
-    cfg["num_classes"] = num_classes
+
     exp_logger.update_metric("num_classes", num_classes)
     check_label_range(train_loader.dataset, num_classes)
     check_label_range(test_loader.dataset, num_classes)
 
-    small_input = cfg.get("small_input")
-    if small_input is None:
-        small_input = dataset == "cifar100"
+    # 9) 교사/학생 생성
+    # teacher1
+    t1 = exp_dict.get("teacher1", {})
+    t1_name = t1.get("name")
+    if not t1_name:
+        raise ValueError("Missing 'experiment.teacher1.name'")
+    t1_ckpt = exp_dict.get("teacher1_ckpt", f"./checkpoints/teachers/{t1_name}_ft.pth")
 
-    # Teacher models
-    # Check if config is nested under 'experiment'
-    if 'experiment' in cfg:
-        cfg = cfg['experiment']
-    
-    # ────────────────── TEACHER MODELS ──────────────────
-    teacher1_name = (
-        cfg.get("teacher1", {})
-        .get("model", {})
-        .get("teacher", {})
-        .get("name")
-    )
-    if not teacher1_name:
-        raise ValueError(
-            "YAML 에 'teacher1.model.teacher.name' 가 없습니다 (teacher1 모델 미지정)."
-        )
-    teacher1_ckpt_path = cfg.get(
-        "teacher1_ckpt", f"./checkpoints/teachers/{teacher1_name}_ft.pth"
-    )
-    
-    # 모델 생성 시 INFO 메시지 억제
-    original_level = logging.getLogger().level
     logging.getLogger().setLevel(logging.WARNING)
-    
     teacher1 = create_teacher_by_name(
-        teacher_name=teacher1_name,
+        teacher_name=t1_name,
         num_classes=num_classes,
-        pretrained=cfg.get("teacher1_pretrained", True),
+        pretrained=t1.get("pretrained", True),
         small_input=small_input,
-        cfg=cfg,
+        cfg=exp_dict,
     ).to(device)
-    
-    # 로깅 레벨 복원
-    logging.getLogger().setLevel(original_level)
-    
-    model_classes = get_model_num_classes(teacher1)
-    if model_classes != num_classes:
-        raise ValueError(
-            f"Teacher1 head expects {model_classes} classes but dataset provides {num_classes}"
-        )
+    logging.getLogger().setLevel(logging.INFO)
 
-    if os.path.exists(teacher1_ckpt_path):
-        teacher1.load_state_dict(
-            torch.load(teacher1_ckpt_path, map_location=device, weights_only=True),
-            strict=False,
-        )
-        logging.info("Loaded teacher1 from %s", teacher1_ckpt_path)
-        
-        # Teacher1 test accuracy
-        teacher1.eval()
-        correct = 0
-        total = 0
-        with torch.no_grad():
-            for data, target in test_loader:
-                data, target = data.to(device), target.to(device)
-                output = teacher1(data)
-                # tuple인 경우 처리
-                if isinstance(output, tuple):
-                    output = output[1]  # logits는 보통 두 번째 요소
-                pred = output.argmax(dim=1, keepdim=True)
-                correct += pred.eq(target.view_as(pred)).sum().item()
-                total += target.size(0)
-        teacher1_acc = 100.0 * correct / total
-        logging.info("Teacher1 (%s) testAcc=%.2f%%", teacher1_name, teacher1_acc)
+    if os.path.exists(t1_ckpt):
+        try:
+            sd = torch.load(t1_ckpt, map_location=device, weights_only=True)
+        except TypeError:
+            sd = torch.load(t1_ckpt, map_location=device)
+        teacher1.load_state_dict(sd, strict=False)
+        logging.info("Loaded teacher1 from %s", t1_ckpt)
 
-    teacher2_name = (
-        cfg.get("teacher2", {})
-        .get("model", {})
-        .get("teacher", {})
-        .get("name")
-    )
-    if not teacher2_name:
-        raise ValueError(
-            "YAML 에 'teacher2.model.teacher.name' 가 없습니다 (teacher2 모델 미지정)."
-        )
-    teacher2_ckpt_path = cfg.get(
-        "teacher2_ckpt", f"./checkpoints/teachers/{teacher2_name}_ft.pth"
-    )
-    
-    # 모델 생성 시 INFO 메시지 억제
-    original_level = logging.getLogger().level
+    # teacher2
+    t2 = exp_dict.get("teacher2", {})
+    t2_name = t2.get("name")
+    if not t2_name:
+        raise ValueError("Missing 'experiment.teacher2.name'")
+    t2_ckpt = exp_dict.get("teacher2_ckpt", f"./checkpoints/teachers/{t2_name}_ft.pth")
+
     logging.getLogger().setLevel(logging.WARNING)
-    
     teacher2 = create_teacher_by_name(
-        teacher_name=teacher2_name,
+        teacher_name=t2_name,
         num_classes=num_classes,
-        pretrained=cfg.get("teacher2_pretrained", True),
+        pretrained=t2.get("pretrained", True),
         small_input=small_input,
-        cfg=cfg,
+        cfg=exp_dict,
     ).to(device)
-    
-    # 로깅 레벨 복원
-    logging.getLogger().setLevel(original_level)
-    
-    model_classes = get_model_num_classes(teacher2)
-    if model_classes != num_classes:
-        raise ValueError(
-            f"Teacher2 head expects {model_classes} classes but dataset provides {num_classes}"
-        )
+    logging.getLogger().setLevel(logging.INFO)
 
-    if os.path.exists(teacher2_ckpt_path):
-        teacher2.load_state_dict(
-            torch.load(teacher2_ckpt_path, map_location=device, weights_only=True),
-            strict=False,
-        )
-        logging.info("Loaded teacher2 from %s", teacher2_ckpt_path)
-        
-        # Teacher2 test accuracy
-        teacher2.eval()
-        correct = 0
-        total = 0
-        with torch.no_grad():
-            for data, target in test_loader:
-                data, target = data.to(device), target.to(device)
-                output = teacher2(data)
-                # tuple인 경우 처리
-                if isinstance(output, tuple):
-                    output = output[1]  # logits는 보통 두 번째 요소
-                pred = output.argmax(dim=1, keepdim=True)
-                correct += pred.eq(target.view_as(pred)).sum().item()
-                total += target.size(0)
-        teacher2_acc = 100.0 * correct / total
-        logging.info("Teacher2 (%s) testAcc=%.2f%%", teacher2_name, teacher2_acc)
+    if os.path.exists(t2_ckpt):
+        try:
+            sd = torch.load(t2_ckpt, map_location=device, weights_only=True)
+        except TypeError:
+            sd = torch.load(t2_ckpt, map_location=device)
+        teacher2.load_state_dict(sd, strict=False)
+        logging.info("Loaded teacher1 from %s", t2_ckpt)
 
-    # Student model
-    student_name = (
-        cfg.get("model", {})
-        .get("student", {})
-        .get("model", {})
-        .get("student", {})
-        .get("name")
-    )
-    if not student_name:
-        raise ValueError(
-            "YAML 에 'model.student.name' 가 없습니다 (student 모델 미지정)."
-        )
-    
-    # 모델 생성 시 INFO 메시지 억제
-    original_level = logging.getLogger().level
+    # 학생
+    s = exp_dict.get("model", {}).get("student", {})
+    s_name = s.get("name")
+    if not s_name:
+        raise ValueError("Missing 'experiment.model.student.name'")
+
     logging.getLogger().setLevel(logging.WARNING)
-    
-    student_model = create_student_by_name(
-        student_name,
-        pretrained=cfg.get("student_pretrained", True),
+    student = create_student_by_name(
+        s_name,
+        pretrained=s.get("pretrained", False),
         small_input=small_input,
         num_classes=num_classes,
-        cfg=cfg,
+        cfg=exp_dict,
     ).to(device)
-    
-    # 로깅 레벨 복원
-    logging.getLogger().setLevel(original_level)
+    logging.getLogger().setLevel(logging.INFO)
 
-    # ────────────────── MBM & SYNERGY HEAD ──────────────────
-    from models.mbm import build_from_teachers
-    mbm, synergy_head = build_from_teachers(
-        [teacher1, teacher2], cfg
-    )
-    
-    # Move MBM and synergy head to device
-    mbm = mbm.to(device)
+    # 10) IB-MBM & Synergy Head
+    from models import build_ib_mbm_from_teachers as build_from_teachers
+    ib_mbm, synergy_head = build_from_teachers([teacher1, teacher2], exp_dict)
+    ib_mbm = ib_mbm.to(device)
     synergy_head = synergy_head.to(device)
 
-    # ────────────────── CONFIG SETUP ──────────────────
-    num_stages = int(cfg.get("num_stages", 2))
-    
-    # Setup partial freeze schedule
-    setup_partial_freeze_schedule_with_cfg(cfg, num_stages)
-    setup_safety_switches_with_cfg(cfg, num_stages)
-    
-    # Auto-set mbm_query_dim
-    auto_set_mbm_query_dim_with_model(student_model, cfg)
-    
-    # Renormalize ce_alpha and kd_alpha
-    renorm_ce_kd(cfg)
+    # 11) 학습 전 설정
+    num_stages = int(exp_dict.get("num_stages", 1))
+    setup_partial_freeze_schedule_with_cfg(exp_dict, num_stages)
+    setup_safety_switches_with_cfg(exp_dict, num_stages)
+    auto_set_mbm_query_dim_with_model(student, exp_dict)
+    renorm_ce_kd(exp_dict)
 
-    # ────────────────── TRAINING ──────────────────
+    # 12) 로그
     logging.info("🚀 Starting training process...")
-    logging.info(f"CL mode: {cfg.get('cl_mode', False)}")
+    logging.info(f"CL mode: {exp_dict.get('cl_mode', False)}")
     logging.info(f"Number of stages: {num_stages}")
-    logging.info(f"Student epochs per stage: {cfg.get('student_epochs_schedule', [])}")
-    logging.info(f"Batch size: {cfg.get('batch_size', 'N/A')}")
-    logging.info(f"Device: {cfg.get('device', 'N/A')}")
+    logging.info(f"Student epochs per stage: {exp_dict.get('student_epochs_per_stage', [])}")
+    logging.info(f"Batch size: {batch_size}")
+    logging.info(f"Device: {device}")
     logging.info(f"Train loader size: {len(train_loader)} batches")
     logging.info(f"Test loader size: {len(test_loader)} batches")
     logging.info(f"Dataset classes: {num_classes}")
-    
-    if cfg.get("cl_mode", False):
-        # Continual Learning mode
+
+    # 13) 트레이닝
+    if exp_dict.get("cl_mode", False):
         logging.info("📚 Running in Continual Learning mode...")
         final_acc = run_continual_learning(
-            [teacher1, teacher2],
-            mbm,
-            synergy_head,
-            student_model,
-            cfg,
-            exp_logger,
+            [teacher1, teacher2], ib_mbm, synergy_head, student, exp_dict, exp_logger
         )
     else:
-        # Standard training mode
         logging.info("🎯 Running in Standard training mode...")
-        logging.info(f"Training stages: {num_stages}")
-        logging.info(f"Student epochs per stage: {cfg.get('student_epochs_schedule', [])}")
-        logging.info(f"Use partial freeze: {cfg.get('use_partial_freeze', False)}")
-        logging.info(f"Teacher adaptive epochs: {cfg.get('teacher_adapt_epochs', 1)}")
-        
         try:
-            logging.info("🚀 Calling run_training_stages...")
             logging.info("📊 Training will start now - you should see epoch progress logs...")
             final_acc = run_training_stages(
                 [teacher1, teacher2],
-                mbm,
+                ib_mbm,
                 synergy_head,
-                student_model,
+                student,
                 train_loader,
                 test_loader,
-                cfg,
+                exp_dict,
                 exp_logger,
                 num_stages,
             )
             logging.info(f"✅ run_training_stages completed with accuracy: {final_acc:.2f}%")
         except Exception as e:
-            logging.error(f"❌ run_training_stages failed: {e}")
-            import traceback
-            traceback.print_exc()
+            logging.error(f"❌ run_training_stages failed: {e}", exc_info=True)
             final_acc = 0.0
-    
-    logging.info(f"✅ Training completed. Final student accuracy: {final_acc:.2f}%")
 
-    # ────────────────── FINAL LOGGING ──────────────────
+    logging.info(f"✅ Training completed. Final student accuracy: {final_acc:.2f}%")
     exp_logger.update_metric("final_student_acc", final_acc)
     exp_logger.save_results()
-    
     return final_acc
 
 

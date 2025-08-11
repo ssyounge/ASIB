@@ -447,7 +447,7 @@ def save_sensitivity_results(results: List[Dict[str, float]]):
     output_file = 'outputs/analysis/sensitivity_analysis/sensitivity_results.json'
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     
-    with open(output_file, 'w') as f:
+    with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(results, f, indent=2)
     
     print(f"Results saved to {output_file}")

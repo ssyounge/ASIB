@@ -50,12 +50,9 @@ class BaseKDModel(nn.Module):
                 nn.ReLU(inplace=True),
                 nn.Linear(hid, out),
             )
-            # legacy alias (외부 코드 호환)
-            self.distill_adapter = self.distillation_adapter
             self.distill_dim = out
         else:
             self.distillation_adapter = None
-            self.distill_adapter = None
             self.distill_dim = feat_dim
 
         self.classifier = nn.Linear(feat_dim, num_classes)

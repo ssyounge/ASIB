@@ -44,7 +44,7 @@ class PFEfficiencyAnalyzer:
             efficiency_file = os.path.join(run_path, 'efficiency', 'metrics.json')
             
             if os.path.exists(results_file):
-                with open(results_file, 'r') as f:
+                with open(results_file, 'r', encoding='utf-8') as f:
                     results = json.load(f)
                 
                 # 성능 메트릭
@@ -52,7 +52,7 @@ class PFEfficiencyAnalyzer:
                 
                 # 효율성 메트릭 (실제 측정값 또는 추정값)
                 if os.path.exists(efficiency_file):
-                    with open(efficiency_file, 'r') as f:
+                    with open(efficiency_file, 'r', encoding='utf-8') as f:
                         efficiency = json.load(f)
                     
                     data['peak_memory_gb'].append(efficiency.get('peak_memory_gb', 0.0))
@@ -304,7 +304,7 @@ Progressive Partial Freezing (PF) Efficiency Analysis Report
         
         if save_path:
             os.makedirs(save_path, exist_ok=True)
-            with open(os.path.join(save_path, 'pf_efficiency_report.txt'), 'w') as f:
+            with open(os.path.join(save_path, 'pf_efficiency_report.txt'), 'w', encoding='utf-8') as f:
                 f.write(report)
         
         return report

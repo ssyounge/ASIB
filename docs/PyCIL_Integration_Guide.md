@@ -14,7 +14,7 @@
 
 ## 개요
 
-이 가이드는 ASMB-KD 프로젝트에 PyCIL (PyTorch-based Continual Learning) 프레임워크를 통합하는 방법을 상세히 설명합니다. PyCIL은 Continual Learning 연구를 위한 표준화된 프레임워크로, 다양한 CL 방법론들을 쉽게 구현하고 비교할 수 있도록 설계되었습니다.
+이 가이드는 ASIB 프로젝트에 PyCIL (PyTorch-based Continual Learning) 프레임워크를 통합하는 방법을 상세히 설명합니다. PyCIL은 Continual Learning 연구를 위한 표준화된 프레임워크로, 다양한 CL 방법론들을 쉽게 구현하고 비교할 수 있도록 설계되었습니다.
 
 ### 주요 목표
 - **표준화된 CL 환경 구축**: PyCIL의 표준 프로토콜을 따르는 CL 실험 환경
@@ -115,7 +115,7 @@ source ~/.bashrc
 ### 통합된 프로젝트 구조
 
 ```
-ASMB_KD/
+ASIB/
 ├── PyCIL/                    # PyCIL 프레임워크
 │   ├── models/
 │   │   ├── base.py
@@ -279,7 +279,7 @@ config_files = [
 ]
 
 for config_file in config_files:
-    with open(config_file, 'r') as f:
+    with open(config_file, 'r', encoding='utf-8') as f:
         config = json.load(f)
     print(f'✅ {config_file}: 유효한 JSON')
 "
@@ -546,7 +546,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('experiments/logs/experiment.log'),
+        logging.FileHandler('experiments/logs/experiment.log', encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
@@ -564,7 +564,7 @@ with open('experiments/logs/metrics.json', 'a') as f:
 
 ## 결론
 
-PyCIL 프레임워크 통합을 통해 ASMB-KD 프로젝트는 표준화된 Continual Learning 실험 환경을 구축했습니다. 이 통합은 다음과 같은 이점을 제공합니다:
+PyCIL 프레임워크 통합을 통해 ASIB 프로젝트는 표준화된 Continual Learning 실험 환경을 구축했습니다. 이 통합은 다음과 같은 이점을 제공합니다:
 
 ### 주요 성과
 1. **표준화된 CL 환경**: PyCIL의 표준 프로토콜 준수

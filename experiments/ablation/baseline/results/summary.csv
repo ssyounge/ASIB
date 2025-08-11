@@ -1,0 +1,2 @@
+exp_id,csv_filename,eval_mode,train_acc,test_acc,batch_size,total_time_sec,mbm_type,mbm_r,ib_mbm_n_head,ib_mbm_learnable_q,student_epochs_per_stage
+ablation_baseline,summary.csv,,,,,2.06,,,4,,"[15, 15]"

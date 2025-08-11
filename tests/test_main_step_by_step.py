@@ -80,11 +80,11 @@ def test_main_steps():
             logger.error(f"❌ Data loading failed: {e}")
             return
         
-        # 6단계: MBM 생성 테스트
+        # 6단계: IB‑MBM 생성 테스트
         logger.info("Step 6: Testing MBM creation...")
         try:
-            from models.mbm import build_from_teachers
-            cfg = {"mbm_query_dim": 2048}
+            from models import build_ib_mbm_from_teachers as build_from_teachers
+            cfg = {"ib_mbm_query_dim": 2048}
             mbm, synergy_head = build_from_teachers([teacher_model, teacher_model], cfg)
             logger.info("✅ MBM creation successful")
         except Exception as e:

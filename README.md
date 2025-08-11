@@ -1,6 +1,6 @@
 # ASIB Knowledge Distillation Framework
 
-**ASIB** (Adaptive Synergy Information-Bottleneck) is a multi-stage knowledge distillation framework that uses Information-Bottleneck Manifold Bridging Module (IB-MBM) to create synergistic knowledge from multiple teachers.
+**ASIB** (Adaptive Synergy Information-Bottleneck) is a multi-stage knowledge distillation framework that uses the Information‑Bottleneck Manifold‑Bridging Module (IB‑MBM) to create synergistic knowledge from multiple teachers.
 
 ## 🎯 **Latest Updates**
 
@@ -24,8 +24,8 @@
 
 ```bash
 # Clone repository
-git clone https://github.com/YourName/ASIB-KD.git
-cd ASIB-KD
+git clone https://github.com/YourName/ASIB.git
+cd ASIB
 
 # Note: All paths are relative - no absolute path dependencies!
 
@@ -59,7 +59,7 @@ python scripts/analysis/comprehensive_analysis.py
 ## 📁 Project Structure
 
 ```
-ASMB_KD/
+ASIB/
 ├── main.py                 # Main training script
 ├── eval.py                 # Model evaluation
 ├── README.md              # This file
@@ -102,7 +102,7 @@ ASMB_KD/
 │   ├── run_asib_sota_comparison.sh
 │   ├── run_finetune_single.sh
 │   └── run_finetune_all_teachers.sh
-├── models/             # Model definitions
+├── models/             # Model definitions (IB‑MBM)
 ├── data/               # Data loading utilities
 ├── utils/              # Utility modules
 ├── core/               # Core functionality
@@ -231,7 +231,7 @@ ls analysis/reports/
 
 ### 🎯 **ASIB Method**
 - **Multi-Stage Distillation**: Teacher ↔ Student updates in phases
-- **Information-Bottleneck MBM**: Fuses teacher features using IB principles
+- **Information‑Bottleneck MBM (IB‑MBM)**: Fuses teacher features using IB principles (VIB is applied inside IB‑MBM; head is a plain MLP)
 - **Adaptive Synergy**: Creates synergistic knowledge from multiple teachers
 
 ### 🧊 **Partial Freezing**

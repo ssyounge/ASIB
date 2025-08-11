@@ -1,5 +1,5 @@
 import torch
-from models.mbm import IB_MBM
+from models import IB_MBM
 
 
 def test_ib_mbm_output_shape_dtype():

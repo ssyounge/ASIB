@@ -1,8 +1,3 @@
-# configs/experiment/sota_scenario_a.yaml
-# Phase 2 시나리오 A: 이종 구조 및 큰 성능 격차 (Heavy to Light)
-# Teachers: ConvNeXt-L, EfficientNet-L2
-# Student: MobileNetV2, ShuffleNetV2
-
 defaults:
   - /base
   - /model/teacher@experiment.teacher1: convnext_s
@@ -11,8 +6,8 @@ defaults:
   - _self_
 
 experiment:
-  results_dir: experiments/sota/scenario_a/results
-  exp_id: sota_scenario_a
+  results_dir: experiments/ablation/baseline/results
+  exp_id: ablation_baseline
   teacher1_ckpt: checkpoints/teachers/convnext_s_cifar100.pth
   teacher2_ckpt: checkpoints/teachers/resnet152_cifar100.pth
 
@@ -39,10 +34,6 @@ experiment:
   ib_mbm_n_head: 4
   ib_mbm_feature_norm: l2
 
-  use_sota_baselines: true
-  compare_methods: [vanilla_kd, fitnet, crd, dkd]
-  evaluation_metrics: [accuracy, f1_score, precision, recall]
-
   a_step_lr: 0.001
   a_step_weight_decay: 0.0001
   b_step_lr: 0.05
@@ -53,4 +44,4 @@ experiment:
 
   ce_alpha: 0.3
   kd_ens_alpha: 0.0
-  hybrid_beta: 0.0 
+  hybrid_beta: 0.0

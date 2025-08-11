@@ -30,7 +30,7 @@ def test_experiment_configurations():
     for config_file in config_files:
         assert os.path.exists(config_file), f"설정 파일이 없습니다: {config_file}"
         
-        with open(config_file, 'r') as f:
+        with open(config_file, 'r', encoding='utf-8') as f:
             config = json.load(f)
         
         # 기본 필수 키 확인

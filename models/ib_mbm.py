@@ -1,10 +1,10 @@
-# models/mbm.py
+# models/ib_mbm.py
 
 import torch
 import torch.nn as nn
 from typing import List, Optional, Tuple
 
-# ────────────────────────────── IB‑MBM ──────────────────────────────
+
 class IB_MBM(nn.Module):
     """Information‑Bottleneck Manifold‑Bridging Module."""
 
@@ -18,7 +18,6 @@ class IB_MBM(nn.Module):
         logvar_clip: float = 10.0,
         min_std: float = 1e-4,
     ):
-        # handle None or string inputs from config
         n_head = int(n_head or 1)
         d_emb = int(d_emb)
         if d_emb % n_head != 0:
@@ -34,42 +33,40 @@ class IB_MBM(nn.Module):
         self.min_std = float(min_std)
 
     def forward(self, q_feat: torch.Tensor, kv_feats: torch.Tensor):
-        # Handle different input shapes
         if q_feat.dim() == 2:
-            q = self.q_proj(q_feat).unsqueeze(1)  # (batch_size, 1, d_emb)
+            q = self.q_proj(q_feat).unsqueeze(1)
         else:
-            q = self.q_proj(q_feat)  # Already in correct shape
-        
-        # Handle kv_feats shape - flatten if 4D, reshape if 3D
+            q = self.q_proj(q_feat)
+
         if kv_feats.dim() == 4:
-            # 4D tensor: (batch_size, channels, height, width) -> (batch_size, channels*height*width)
             batch_size = kv_feats.shape[0]
             kv_feats = kv_feats.view(batch_size, -1)
-            kv = self.kv_proj(kv_feats).unsqueeze(1)  # (batch_size, 1, d_emb)
-        elif kv_feats.dim() == 3:
-            # 3D tensor: (batch_size, seq_len, features) -> (batch_size, seq_len, d_emb)
-            # This is the case from torch.stack([f1_2d, f2_2d], dim=1)
-            kv = self.kv_proj(kv_feats)  # (batch_size, seq_len, d_emb)
-        else:
-            # 2D tensor: (batch_size, features) -> (batch_size, 1, d_emb)
             kv = self.kv_proj(kv_feats).unsqueeze(1)
-        
+        elif kv_feats.dim() == 3:
+            # Support both per-token projection (in_features == feat_dim)
+            # and flattened projection (in_features == tokens * feat_dim)
+            bsz, tokens, feat_dim = kv_feats.shape
+            in_features = self.kv_proj.in_features
+            if in_features == feat_dim:
+                kv = self.kv_proj(kv_feats)  # (B, tokens, d_emb)
+            elif in_features == tokens * feat_dim:
+                kv = self.kv_proj(kv_feats.reshape(bsz, tokens * feat_dim)).unsqueeze(1)
+            else:
+                raise RuntimeError(
+                    f"KV projection in_features={in_features} mismatches KV shape (tokens={tokens}, feat={feat_dim})."
+                )
+        else:
+            kv = self.kv_proj(kv_feats).unsqueeze(1)
+
         syn, _ = self.attn(q, kv, kv)
         syn = syn.squeeze(1)
-        mu, logvar = self.mu(syn), torch.clamp(
-            self.logvar(syn), -self.logvar_clip, self.logvar_clip
-        )
-        # AMP 환경 under‑flow 방지
+        mu, logvar = self.mu(syn), torch.clamp(self.logvar(syn), -self.logvar_clip, self.logvar_clip)
         std = torch.exp(0.5 * logvar).clamp_min(self.min_std)
         z = mu + std * torch.randn_like(std)
         return z, mu, logvar
 
-    # legacy `loss()` 는 사용처가 사라져 제거했습니다.
-
 
 class SynergyHead(nn.Sequential):
-    """2‑Layer MLP head mapping IB‑MBM embedding → logits."""
-
     def __init__(self, in_dim: int, num_classes: int = 100, p: float = 0.0) -> None:
         super().__init__(
             nn.Linear(in_dim, in_dim),
@@ -78,37 +75,43 @@ class SynergyHead(nn.Sequential):
             nn.Linear(in_dim, num_classes),
         )
 
-def build_from_teachers(
+
+def build_ib_mbm_from_teachers(
     teachers: List[nn.Module],
     cfg: dict,
     query_dim: Optional[int] = None,
 ) -> Tuple[IB_MBM, SynergyHead]:
-    """Returns ``(IB_MBM, SynergyHead)``. ``mbm_type`` is ignored."""
-
-    # 1) collect feature dimensions from teachers
     use_da = bool(cfg.get("use_distillation_adapter", False))
     feat_dims = [
         (t.distill_dim if use_da and hasattr(t, "distill_dim") else t.get_feat_dim())
         for t in teachers
     ]
+    if not use_da:
+        unique_dims = set(int(d) for d in feat_dims)
+        if len(unique_dims) > 1:
+            raise ValueError(
+                "Teacher feature dims differ. Enable use_distillation_adapter to align dimensions."
+            )
 
-    qdim = cfg.get("mbm_query_dim") or query_dim
+    qdim = cfg.get("ib_mbm_query_dim") or query_dim
     if not qdim:
-        raise ValueError("`mbm_query_dim` must be specified for IB‑MBM.")
+        raise ValueError("`ib_mbm_query_dim` must be specified for IB‑MBM.")
 
     mbm = IB_MBM(
         q_dim=qdim,
         kv_dim=max(feat_dims),
-        d_emb=cfg.get("mbm_out_dim", 512),
+        d_emb=cfg.get("ib_mbm_out_dim", 512),
         beta=cfg.get("ib_beta", 1e-2),
-        n_head=cfg.get("mbm_n_head", 1),
-        logvar_clip=cfg.get("mbm_logvar_clip", 10),
-        min_std=cfg.get("mbm_min_std", 1e-4),
+        n_head=cfg.get("ib_mbm_n_head", 1),
+        logvar_clip=cfg.get("ib_mbm_logvar_clip", 10),
+        min_std=cfg.get("ib_mbm_min_std", 1e-4),
     )
 
     head = SynergyHead(
-        in_dim=cfg.get("mbm_out_dim", 512),
+        in_dim=cfg.get("ib_mbm_out_dim", 512),
         num_classes=cfg.get("num_classes", 100),
-        p=cfg.get("synergy_head_dropout", cfg.get("mbm_dropout", 0.0)),
+        p=cfg.get("synergy_head_dropout", cfg.get("ib_mbm_dropout", 0.0)),
     )
     return mbm, head
+
+

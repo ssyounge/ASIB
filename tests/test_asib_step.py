@@ -21,6 +21,12 @@ def dummy_teachers():
             feat_2d = torch.randn(feat.size(0), 2048)  # ResNet152 특징 차원
             logit = self.fc(feat_2d)
             return {"feat_2d": feat_2d, "logit": logit}
+
+        # New path used by ASIBDistiller
+        def extract_feats(self, x):
+            feat = self.conv(x)
+            feat_2d = torch.randn(feat.size(0), 2048)
+            return None, feat_2d
     
     teacher1 = DummyTeacher()
     teacher2 = DummyTeacher()
@@ -41,6 +47,12 @@ def dummy_student():
             feat_2d = torch.randn(feat.size(0), 1280)  # EfficientNet-B0 특징 차원
             logit = self.fc(feat_2d)
             return {"feat_2d": feat_2d}, logit, None
+
+        # For ASIBDistiller evaluate path
+        def extract_feats(self, x):
+            feat = self.conv(x)
+            feat_2d = torch.randn(feat.size(0), 1280)
+            return None, feat_2d
     
     return DummyStudent()
 
@@ -126,8 +138,9 @@ def test_asib_forward_backward(dummy_teachers):
             # query_feat와 key_feats 결합
             combined = torch.cat([query_feat, key_feats], dim=1)
             z = self.fc(combined)
-            mu = torch.zeros_like(z)
-            logvar = torch.zeros_like(z)
+            # VIB statistics (non‑zero logvar for meaningful KL)
+            mu = torch.tanh(z)
+            logvar = torch.zeros_like(z) + 0.0
             return z, mu, logvar
     
     class DummySynergyHead(nn.Module):
@@ -156,7 +169,7 @@ def test_asib_forward_backward(dummy_teachers):
     x = torch.randn(2, 3, 32, 32)
     y = torch.tensor([0, 1])
     
-    # Forward pass
+    # Forward pass (checks CE+KD path; KD uses zsyn.detach())
     total_loss, student_logit = distiller(x, y)
     
     # 결과 검증
@@ -192,7 +205,7 @@ def test_train_distillation(dummy_teachers, dummy_student, dummy_mbm, dummy_syne
     train_loader = MockDataLoader()
     test_loader = MockDataLoader()
     
-    # train_distillation이 예외 없이 실행되는지 확인
+    # train_distillation이 예외 없이 실행되는지 확인 (A‑Step + B‑Step 최소 실행)
     try:
         distiller.train_distillation(
             train_loader=train_loader,

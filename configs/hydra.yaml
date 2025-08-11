@@ -1,0 +1,5 @@
+hydra:
+  run:
+    dir: ${experiment.results_dir}/${now:%Y%m%d_%H%M%S}
+  job:
+    chdir: false

@@ -16,7 +16,7 @@ class TestExperimentConfigs:
         configs = {}
         for config_file in config_dir.glob("*.yaml"):
             if config_file.name != "_template.yaml":
-                with open(config_file, 'r') as f:
+                with open(config_file, 'r', encoding='utf-8') as f:
                     configs[config_file.stem] = yaml.safe_load(f)
         return configs
 
@@ -38,7 +38,7 @@ class TestExperimentConfigs:
 
     def test_experiment_configs_structure(self, experiment_configs):
         """Test that all experiment configs have required structure"""
-        required_sections = ["defaults"]  # Only check for defaults section
+        required_sections = ["defaults"]
 
         for config_name, config in experiment_configs.items():
             for section in required_sections:
@@ -79,19 +79,14 @@ class TestExperimentConfigs:
             assert isinstance(num_stages, int) and num_stages > 0, f"Invalid num_stages in {config_name}"
 
     def test_mbm_configs(self, experiment_configs):
-        """Test MBM-specific configurations"""
+        """Test IB‑MBM-specific configurations (legacy keys removed)."""
         for config_name, config in experiment_configs.items():
-            # Check mbm_query_dim
-            mbm_query_dim = config.get("mbm_query_dim")
-            assert isinstance(mbm_query_dim, int) and mbm_query_dim > 0, f"Invalid mbm_query_dim in {config_name}"
-            
-            # Check mbm_out_dim
-            mbm_out_dim = config.get("mbm_out_dim")
-            assert isinstance(mbm_out_dim, int) and mbm_out_dim > 0, f"Invalid mbm_out_dim in {config_name}"
-            
-            # Check mbm_n_head
-            mbm_n_head = config.get("mbm_n_head")
-            assert isinstance(mbm_n_head, int) and mbm_n_head > 0, f"Invalid mbm_n_head in {config_name}"
+            qd = config.get("ib_mbm_query_dim")
+            od = config.get("ib_mbm_out_dim")
+            nh = config.get("ib_mbm_n_head")
+            assert isinstance(qd, int) and qd > 0, f"Invalid ib_mbm_query_dim in {config_name}"
+            assert isinstance(od, int) and od > 0, f"Invalid ib_mbm_out_dim in {config_name}"
+            assert isinstance(nh, int) and nh > 0, f"Invalid ib_mbm_n_head in {config_name}"
 
     def test_configs_can_be_loaded_with_hydra(self, experiment_configs):
         """Test that configs can be loaded with Hydra"""

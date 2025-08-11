@@ -11,7 +11,7 @@ class TestErrorPrevention:
     
     def test_mbm_edge_cases(self):
         """Test MBM with edge cases"""
-        from models.mbm import IB_MBM
+        from models import IB_MBM
         
         # Test with minimal dimensions
         mbm = IB_MBM(
@@ -57,7 +57,7 @@ class TestErrorPrevention:
     
     def test_tensor_shape_validation(self):
         """Test tensor shape validation"""
-        from models.mbm import IB_MBM
+        from models import IB_MBM
         
         mbm = IB_MBM(
             q_dim=512,
@@ -97,6 +97,31 @@ class TestErrorPrevention:
                     pytest.fail(f"MBM failed for {desc}: {e}")
                 else:
                     assert True  # Expected to fail
+
+    def test_teacher_feature_dim_mismatch_raises(self):
+        """Teacher feature dims differ without adapter should raise in builder."""
+        from models import build_ib_mbm_from_teachers as build_from_teachers
+        import torch.nn as nn
+
+        class T1(nn.Module):
+            def get_feat_dim(self):
+                return 1024
+
+        class T2(nn.Module):
+            def get_feat_dim(self):
+                return 2048
+
+        teachers = [T1(), T2()]
+        cfg = {
+            "use_distillation_adapter": False,
+            "ib_mbm_query_dim": 1024,
+            "ib_mbm_out_dim": 512,
+            "ib_mbm_n_head": 8,
+            "num_classes": 100,
+        }
+
+        with pytest.raises(ValueError):
+            build_from_teachers(teachers, cfg)
     
     def test_config_edge_cases(self):
         """Test configuration edge cases"""
@@ -435,7 +460,7 @@ class TestErrorPrevention:
         # Test file permissions
         try:
             # Test reading main.py
-            with open("main.py", 'r') as f:
+            with open("main.py", 'r', encoding='utf-8') as f:
                 content = f.read()
                 assert len(content) > 0
                 

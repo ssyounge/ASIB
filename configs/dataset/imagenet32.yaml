@@ -1,8 +1,4 @@
-# configs/dataset/imagenet32.yaml
-
-dataset:
-  name: imagenet32
-  root: "./data/imagenet32"
-  small_input: true
-batch_size: 256
-num_workers: 8
+name: imagenet32
+root: ./data
+small_input: true
+data_aug: 1

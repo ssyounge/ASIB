@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Integration tests for ASMB_KD
+Integration tests for ASIB
 """
 
 import pytest
@@ -15,7 +15,7 @@ from pathlib import Path
 from core.builder import build_model, create_teacher_by_name, create_student_by_name
 from core.trainer import create_optimizers_and_schedulers, create_optimizers_and_schedulers_legacy
 from methods.asib import ASIBDistiller
-from models.mbm import IB_MBM, SynergyHead
+from models import IB_MBM, SynergyHead
 
 
 class TestCompletePipeline:
@@ -26,7 +26,13 @@ class TestCompletePipeline:
         """Create temporary directory for tests"""
         temp_dir = tempfile.mkdtemp()
         yield temp_dir
-        shutil.rmtree(temp_dir)
+        # On Windows, ensure file handlers are released before rmtree
+        try:
+            import logging
+            logging.shutdown()
+        except Exception:
+            pass
+        shutil.rmtree(temp_dir, ignore_errors=True)
     
     def test_model_creation_pipeline(self):
         """Test complete model creation pipeline"""
@@ -123,7 +129,7 @@ class TestCompletePipeline:
         logger.setLevel(logging.INFO)
         
         # Create file handler
-        file_handler = logging.FileHandler(log_file)
+        file_handler = logging.FileHandler(log_file, encoding='utf-8')
         file_handler.setLevel(logging.INFO)
         
         # Create formatter
@@ -149,6 +155,14 @@ class TestCompletePipeline:
         # Check that log file was created
         assert os.path.exists(log_file)
         assert logger is not None
+        # Close handlers to avoid Windows file lock
+        for h in list(logger.handlers):
+            try:
+                h.flush()
+                h.close()
+            except Exception:
+                pass
+            logger.removeHandler(h)
 
 
 class TestEndToEndTraining:
@@ -258,7 +272,7 @@ class TestEndToEndTraining:
         )
         
         # Load model
-        new_model.load_state_dict(torch.load(save_path))
+        new_model.load_state_dict(torch.load(save_path, weights_only=True))
         
         # Test forward pass
         x = torch.randn(2, 3, 32, 32)

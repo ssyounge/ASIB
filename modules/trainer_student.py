@@ -5,7 +5,7 @@ import copy
 import logging
 from utils.common import smart_tqdm, mixup_data, cutmix_data, mixup_criterion, get_amp_components
 from utils.training import get_tau, get_beta, StageMeter
-from models.mbm import IB_MBM
+from models import IB_MBM
 
 from modules.loss_safe import ce_safe, kl_safe
 from modules.losses import (

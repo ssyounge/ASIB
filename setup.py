@@ -2,7 +2,7 @@ from pathlib import Path
 from setuptools import setup, find_packages
 
 req_path = Path(__file__).resolve().parent / "requirements.txt"
-with req_path.open() as f:
+with req_path.open(encoding='utf-8') as f:
     install_requires = [
         ln.strip()
         for ln in f

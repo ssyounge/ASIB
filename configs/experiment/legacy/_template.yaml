@@ -54,9 +54,9 @@ teacher2_freeze_bn:    true
 # --- MBM / Adapter -----------------------------------------
 use_distillation_adapter: true
 distill_out_dim: 512
-mbm_query_dim:   <fill>            # student feat_2d 크기에 맞춤
-mbm_out_dim:     1024              # MBM 출력 차원
-mbm_n_head:      8                 # attention head 수
+ib_mbm_query_dim:   <fill>            # student feat_2d 크기에 맞춤
+ib_mbm_out_dim:     1024              # IB‑MBM 출력 차원
+ib_mbm_n_head:      8                 # attention head 수
 use_ib:          true              # Information Bottleneck 사용
 ib_beta:         0.001             # IB regularization strength
 ib_beta_warmup_epochs: 3

@@ -34,7 +34,7 @@ class StructuredLogger:
         self.logger.setLevel(getattr(logging, level.upper()))
         
         # File handler
-        handler = logging.FileHandler(log_file)
+        handler = logging.FileHandler(log_file, encoding="utf-8")
         handler.setFormatter(logging.Formatter('%(message)s'))
         self.logger.addHandler(handler)
         

@@ -1,7 +1,5 @@
 # configs/model/student/resnet50_scratch.yaml
 
-model:
-  student:
-    name: resnet50_scratch
-    pretrained: false
-    use_adapter: true
+name: resnet50_scratch
+pretrained: false
+use_adapter: true

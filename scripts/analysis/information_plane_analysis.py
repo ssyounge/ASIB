@@ -214,7 +214,7 @@ Information Bottleneck Theory Analysis Report
         
         if save_path:
             os.makedirs(save_path, exist_ok=True)
-            with open(os.path.join(save_path, 'ib_theory_analysis.txt'), 'w') as f:
+            with open(os.path.join(save_path, 'ib_theory_analysis.txt'), 'w', encoding='utf-8') as f:
                 f.write(report)
         
         return report

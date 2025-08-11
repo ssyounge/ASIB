@@ -22,7 +22,7 @@ ASIB 구성 요소들(IB, CCCP, Teacher Adaptation, PF)의 독립적 기여도 �
 
 ### 실험 구성
 1. **Baseline** (`ablation_baseline.yaml`)
-   - MBM + E2E + Fixed Teachers
+   - IB‑MBM + E2E + Fixed Teachers
    - 교사 완전 고정, VIB 비활성화 (β=0)
 
 2. **+IB** (`ablation_ib.yaml`)
@@ -93,7 +93,7 @@ ASIB 구성 요소들(IB, CCCP, Teacher Adaptation, PF)의 독립적 기여도 �
 
 ### 예상 결과
 - **단순 평균**: Overlap 감소 시 성능 급락
-- **ASIB**: IB-MBM을 통한 동적 선택으로 안정적 성능 유지
+- **ASIB**: IB‑MBM을 통한 동적 선택으로 안정적 성능 유지
 
 ## 실행 방법
 

@@ -44,7 +44,7 @@ class TeacherAdaptationAnalyzer:
             results_file = os.path.join(run_path, 'results', 'latest.json')
             
             if os.path.exists(results_file):
-                with open(results_file, 'r') as f:
+                with open(results_file, 'r', encoding='utf-8') as f:
                     results = json.load(f)
                 
                 # 최종 메트릭 추가
@@ -268,7 +268,7 @@ Teacher Adaptation Analysis Report
         
         if save_path:
             os.makedirs(save_path, exist_ok=True)
-            with open(os.path.join(save_path, 'teacher_adaptation_report.txt'), 'w') as f:
+            with open(os.path.join(save_path, 'teacher_adaptation_report.txt'), 'w', encoding='utf-8') as f:
                 f.write(report)
         
         return report

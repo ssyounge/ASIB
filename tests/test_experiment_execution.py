@@ -28,6 +28,8 @@ class TestExperimentExecution:
     def test_script_syntax(self, experiment_scripts):
         """Test that all scripts have valid bash syntax"""
         for script_path in experiment_scripts:
+            if sys.platform.startswith("win"):
+                pytest.skip("Skip bash syntax check on Windows")
             try:
                 result = subprocess.run(
                     ["bash", "-n", script_path],  # -n flag checks syntax without executing
@@ -68,7 +70,7 @@ class TestExperimentExecution:
                 
             try:
                 # Test YAML loading
-                with open(config_file, 'r') as f:
+                with open(config_file, 'r', encoding='utf-8') as f:
                     config = yaml.safe_load(f)
                 
                 # Test OmegaConf loading
@@ -167,7 +169,7 @@ class TestExperimentExecution:
     def test_mbm_creation_with_configs(self):
         """Test MBM creation with experiment configs"""
         import torch
-        from models.mbm import build_from_teachers
+        from models import build_ib_mbm_from_teachers as build_from_teachers
         
         # Mock teachers
         class MockTeacher:
@@ -181,10 +183,10 @@ class TestExperimentExecution:
         
         # Test with typical config
         config = {
-            "mbm_query_dim": 2048,
-            "mbm_out_dim": 512,
+            "ib_mbm_query_dim": 2048,
+            "ib_mbm_out_dim": 512,
             "ib_beta": 1e-2,
-            "mbm_n_head": 8,
+            "ib_mbm_n_head": 8,
             "num_classes": 100,
             "synergy_head_dropout": 0.1,
             "use_distillation_adapter": True
@@ -313,8 +315,8 @@ class TestExperimentExecution:
                 "num_classes": 100,
                 "student_lr": 0.1,
                 "teacher_lr": 0.0,
-                "mbm_query_dim": 2048,
-                "mbm_out_dim": 512,
+                "ib_mbm_query_dim": 2048,
+                "ib_mbm_out_dim": 512,
                 "num_stages": 1,
                 "student_epochs_per_stage": 15
             },
@@ -323,8 +325,8 @@ class TestExperimentExecution:
                 "num_classes": 1000,
                 "student_lr": 0.01,
                 "teacher_lr": 0.001,
-                "mbm_query_dim": 1280,
-                "mbm_out_dim": 1024,
+                "ib_mbm_query_dim": 1280,
+                "ib_mbm_out_dim": 1024,
                 "num_stages": 3,
                 "student_epochs_per_stage": 30
             }
@@ -477,7 +479,7 @@ class TestExperimentExecution:
             "core/utils.py",
             "core/builder.py",
             "core/trainer.py",
-            "models/mbm.py",
+            "models/ib_mbm.py",
             "models/common/base_wrapper.py",
             "data/cifar100.py",
             "data/imagenet32.py",

@@ -6,7 +6,7 @@ from typing import Optional, Dict, Any, Union
 
 from models.common.base_wrapper import MODEL_REGISTRY
 from models.common import registry as _reg
-from models.mbm import build_from_teachers
+from models import build_ib_mbm_from_teachers as build_from_teachers
 from modules.partial_freeze import (
     partial_freeze_teacher_resnet,
     partial_freeze_teacher_efficientnet,

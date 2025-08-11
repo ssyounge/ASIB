@@ -8,8 +8,7 @@ import sys
 import os
 import json
 
-# PyCIL 경로 추가
-sys.path.append('./PyCIL')
+# PyCIL 관련 의존성 제거됨 – 경로 추가 없음
 
 @pytest.fixture(scope="session")
 def device():
@@ -113,7 +112,7 @@ def temp_config_file(tmp_path_factory):
         "lambda_IB": 1.0
     }
     
-    with open(config_file, 'w') as f:
+    with open(config_file, 'w', encoding='utf-8') as f:
         json.dump(config, f)
     
     return str(config_file)
@@ -144,9 +143,9 @@ def registry_validation():
         if not key_path.exists() or not map_path.exists():
             return False, "Registry files not found"
         
-        with open(key_path, 'r') as f:
+        with open(key_path, 'r', encoding='utf-8') as f:
             key_config = yaml.safe_load(f)
-        with open(map_path, 'r') as f:
+        with open(map_path, 'r', encoding='utf-8') as f:
             map_config = yaml.safe_load(f)
         
         # 일관성 검사
@@ -222,11 +221,11 @@ def main_config():
             "use_ib": False,
             "ib_beta": 0.0,
             "ib_beta_warmup_epochs": 0,
-            "mbm_out_dim": 2048,
-            "mbm_n_head": 8,
-            "mbm_dropout": 0.0,
+            "ib_mbm_out_dim": 2048,
+            "ib_mbm_n_head": 8,
+            "ib_mbm_dropout": 0.0,
             "synergy_head_dropout": 0.0,
-            "mbm_learnable_q": False,
+            "ib_mbm_learnable_q": False,
             "mbm_reg_lambda": 0.0,
             "use_cccp": False,
             "tau": 4.0,

@@ -22,7 +22,7 @@ class TestFinalValidation:
     
     def test_mbm_core_functionality(self):
         """Test core MBM functionality"""
-        from models.mbm import IB_MBM, SynergyHead, build_from_teachers
+        from models import IB_MBM, SynergyHead, build_ib_mbm_from_teachers as build_from_teachers
         
         # Test MBM creation and forward pass
         mbm = IB_MBM(
@@ -112,8 +112,8 @@ class TestFinalValidation:
             "num_classes": 100,
             "student_lr": 0.1,
             "teacher_lr": 0.0,
-            "mbm_query_dim": 2048,
-            "mbm_out_dim": 512,
+            "ib_mbm_query_dim": 2048,
+            "ib_mbm_out_dim": 512,
             "num_stages": 1,
             "student_epochs_per_stage": 15
         }
@@ -130,10 +130,10 @@ class TestFinalValidation:
         import yaml
         
         # Load registry files
-        with open("configs/registry_key.yaml", 'r') as f:
+        with open("configs/registry_key.yaml", 'r', encoding='utf-8') as f:
             registry_key = yaml.safe_load(f)
         
-        with open("configs/registry_map.yaml", 'r') as f:
+        with open("configs/registry_map.yaml", 'r', encoding='utf-8') as f:
             registry_map = yaml.safe_load(f)
         
         student_keys = registry_key.get("student_keys", [])
@@ -165,7 +165,7 @@ class TestFinalValidation:
                 continue
             
             try:
-                with open(config_file, 'r') as f:
+                with open(config_file, 'r', encoding='utf-8') as f:
                     config = yaml.safe_load(f)
                 
                 # Check required fields
@@ -212,7 +212,7 @@ class TestFinalValidation:
             "core/utils.py",
             "core/builder.py",
             "core/trainer.py",
-            "models/mbm.py",
+            "models/ib_mbm.py",
             "models/common/base_wrapper.py",
             "data/cifar100.py",
             "data/imagenet32.py",
@@ -392,7 +392,9 @@ class TestFinalValidation:
         ]
         
         for script_path in script_files:
-            # Test script syntax
+            # Test script syntax (skip on Windows where bash may be unavailable)
+            if sys.platform.startswith("win"):
+                pytest.skip("Skip bash syntax check on Windows")
             try:
                 result = subprocess.run(
                     ["bash", "-n", script_path],

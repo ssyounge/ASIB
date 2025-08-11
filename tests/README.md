@@ -1,6 +1,6 @@
 # Tests Directory
 
-This directory contains comprehensive tests for the ASMB-KD project, ensuring all components work correctly and reliably.
+This directory contains comprehensive tests for the ASIB project, ensuring all components work correctly and reliably.
 
 ## 📁 Test Structure
 

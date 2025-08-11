@@ -14,7 +14,7 @@
 
 ---
 
-## 🧪 실험 1: Baseline (MBM + E2E + Fixed Teachers)
+## 🧪 실험 1: Baseline (IB‑MBM + E2E + Fixed Teachers)
 
 ### 📊 하이퍼파라미터 설정
 
@@ -31,9 +31,9 @@
 | | Teacher Adapt | 0 | 교사 적응 없음 |
 | **MBM/Adapter** | Distillation Adapter | True | 어댑터 사용 |
 | | Distill Out Dim | 512 | 어댑터 출력 차원 |
-| | MBM Query Dim | 2048 | MBM 쿼리 차원 |
-| | MBM Out Dim | 2048 | MBM 출력 차원 |
-| | MBM N Head | 8 | 멀티헤드 어텐션 |
+| | IB‑MBM Query Dim | 2048 | IB‑MBM 쿼리 차원 |
+| | IB‑MBM Out Dim | 2048 | IB‑MBM 출력 차원 |
+| | IB‑MBM N Head | 8 | 멀티헤드 어텐션 |
 | **Information Bottleneck** | Use IB | False | IB 비활성화 |
 | | IB Beta | 0.0 | 정보 압축 강도 |
 | **Knowledge Distillation** | KD Alpha | 0.5 | 기본 KD 가중치 |

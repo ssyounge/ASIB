@@ -188,12 +188,12 @@ class TestCoreUtils:
     def test_auto_set_mbm_query_dim(self):
         """Test auto_set_mbm_query_dim function"""
         cfg = {
-            "mbm_query_dim": None,
+            "ib_mbm_query_dim": None,
             "student_feat_dim": 2048
         }
         
         updated_cfg = auto_set_mbm_query_dim(cfg)
-        assert updated_cfg["mbm_query_dim"] == 512  # Default value
+        assert updated_cfg["ib_mbm_query_dim"] == 512  # Default value
     
     def test_cast_numeric_configs(self):
         """Test cast_numeric_configs function"""

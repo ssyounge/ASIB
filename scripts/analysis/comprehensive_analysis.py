@@ -81,7 +81,7 @@ practical effectiveness of the ASIB framework.
     report_path = "outputs/reports/comprehensive_analysis_report.txt"
     os.makedirs(os.path.dirname(report_path), exist_ok=True)
     
-    with open(report_path, 'w') as f:
+    with open(report_path, 'w', encoding='utf-8') as f:
         f.write(report)
     
     print(f"📄 Comprehensive report saved to: {report_path}")
