@@ -8,6 +8,11 @@ import sys
 import os
 import json
 
+# Ensure project root is importable for tests
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
 # PyCIL 관련 의존성 제거됨 – 경로 추가 없음
 
 @pytest.fixture(scope="session")

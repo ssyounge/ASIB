@@ -16,7 +16,7 @@ from core.trainer import (
 )
 from core.utils import (
     _renorm_ce_kd, setup_partial_freeze_schedule, setup_safety_switches,
-    auto_set_mbm_query_dim, cast_numeric_configs
+    auto_set_ib_mbm_query_dim, cast_numeric_configs
 )
 
 
@@ -185,14 +185,14 @@ class TestCoreUtils:
         assert "teacher2_freeze_level" in switches
         assert "student_freeze_schedule" in switches
     
-    def test_auto_set_mbm_query_dim(self):
-        """Test auto_set_mbm_query_dim function"""
+    def test_auto_set_ib_mbm_query_dim(self):
+        """Test auto_set_ib_mbm_query_dim function"""
         cfg = {
             "ib_mbm_query_dim": None,
             "student_feat_dim": 2048
         }
         
-        updated_cfg = auto_set_mbm_query_dim(cfg)
+        updated_cfg = auto_set_ib_mbm_query_dim(cfg)
         assert updated_cfg["ib_mbm_query_dim"] == 512  # Default value
     
     def test_cast_numeric_configs(self):

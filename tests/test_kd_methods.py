@@ -18,7 +18,7 @@ from methods.sskd import SSKDDistiller
 from methods.ab import ABDistiller
 from methods.ft import FTDistiller
 
-# Import MBM components
+# Import IB_MBM components
 from models import IB_MBM, SynergyHead
 
 
@@ -83,11 +83,11 @@ class TestKDDistillers:
         teacher1, teacher2, student = dummy_models
     
         # kv_dim should be 2 * feat_dim since we stack two teacher features
-        mbm = IB_MBM(q_dim=128, kv_dim=256, d_emb=128)
+        ib_mbm = IB_MBM(q_dim=128, kv_dim=256, d_emb=128)
         synergy_head = SynergyHead(128, num_classes=100)
     
         distiller = ASIBDistiller(
-            teacher1, teacher2, student, mbm, synergy_head, device="cuda"
+            teacher1, teacher2, student, ib_mbm, synergy_head, device="cuda"
         )
     
         x = torch.randn(4, 3)
@@ -252,18 +252,18 @@ class TestKDDistillers:
         assert loss > 0
 
 
-class TestMBMComponents:
-    """Test MBM components"""
+class TestIB_MBMComponents:
+    """Test IB_MBM components"""
     
     def test_ib_mbm(self):
         """Test IB_MBM module"""
-        mbm = IB_MBM(q_dim=128, kv_dim=128, d_emb=128)
+        ib_mbm = IB_MBM(q_dim=128, kv_dim=128, d_emb=128)
     
         # Test forward pass
         q = torch.randn(4, 128)  # (batch_size, q_dim)
         kv = torch.randn(4, 128)  # (batch_size, kv_dim)
     
-        output, mu, logvar = mbm(q, kv)
+        output, mu, logvar = ib_mbm(q, kv)
         assert output.shape == (4, 128)
         assert mu.shape == (4, 128)
         assert logvar.shape == (4, 128)

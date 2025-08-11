@@ -47,7 +47,7 @@
 | **학습 방식** | Partial Freeze | False | 교사 완전 고정 |
 | | Num Stages | 1 | 단일 스테이지 |
 | | Teacher Adapt | 0 | 교사 적응 없음 |
-| **MBM/Adapter** | Distillation Adapter | True | 어댑터 사용 |
+| **IB_MBM/Adapter** | Distillation Adapter | True | 어댑터 사용 |
 | | Distill Out Dim | 512 | 어댑터 출력 차원 |
 | | IB_MBM Query Dim | 2048 | IB_MBM 쿼리 차원 |
 | | IB_MBM Out Dim | 2048 | IB_MBM 출력 차원 |

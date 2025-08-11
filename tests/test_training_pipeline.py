@@ -124,13 +124,13 @@ class TestTrainingPipeline:
         )
         assert teacher is not None
     
-    def test_mbm_creation(self, mock_config, mock_models):
-        """Test MBM creation"""
+    def test_ib_mbm_creation(self, mock_config, mock_models):
+        """Test IB_MBM creation"""
         from models import build_ib_mbm_from_teachers as build_from_teachers
         
         student_model, teachers = mock_models
         
-        # Test MBM creation
+        # Test IB_MBM creation
         # Mock the feat_dims to avoid MagicMock comparison issues
         for teacher in teachers:
             teacher.get_feat_dim.return_value = 2048
@@ -139,8 +139,8 @@ class TestTrainingPipeline:
         # Add ib_mbm_query_dim to config (legacy key also supported via normalize)
         mock_config['ib_mbm_query_dim'] = 2048
         
-        mbm, synergy_head = build_from_teachers(teachers, mock_config)
-        assert mbm is not None
+        ib_mbm, synergy_head = build_from_teachers(teachers, mock_config)
+        assert ib_mbm is not None
         assert synergy_head is not None
         
         # Test forward pass
@@ -148,7 +148,7 @@ class TestTrainingPipeline:
         q_feat = torch.randn(batch_size, 2048)
         kv_feats = torch.randn(batch_size, 2, 2048)
         
-        z, mu, logvar = mbm(q_feat, kv_feats)
+        z, mu, logvar = ib_mbm(q_feat, kv_feats)
         logits = synergy_head(z)
         
         assert z.shape == (batch_size, 512)
@@ -162,8 +162,8 @@ class TestTrainingPipeline:
         
         # Test optimizer creation
         # Mock additional required components with parameters
-        mbm = MagicMock()
-        mbm.parameters.return_value = [torch.randn(10, 10, requires_grad=True)]
+        ib_mbm = MagicMock()
+        ib_mbm.parameters.return_value = [torch.randn(10, 10, requires_grad=True)]
         
         synergy_head = MagicMock()
         synergy_head.parameters.return_value = [torch.randn(5, 5, requires_grad=True)]
@@ -174,7 +174,7 @@ class TestTrainingPipeline:
         student_model.parameters.return_value = [torch.randn(10, 10, requires_grad=True)]
         
         teacher_optimizer, teacher_scheduler, student_optimizer, student_scheduler = create_optimizers_and_schedulers(
-            teacher_wrappers, mbm, synergy_head, student_model, mock_config, num_stages=1
+            teacher_wrappers, ib_mbm, synergy_head, student_model, mock_config, num_stages=1
         )
         
         assert teacher_optimizer is not None
@@ -189,9 +189,9 @@ class TestTrainingPipeline:
         student_model, teachers = mock_models
         train_loader, test_loader = mock_data_loaders
         
-        # Mock MBM and synergy head
-        mbm = MagicMock()
-        mbm.return_value = (torch.randn(4, 512), torch.randn(4, 512), torch.randn(4, 512))
+        # Mock IB_MBM and synergy head
+        ib_mbm = MagicMock()
+        ib_mbm.return_value = (torch.randn(4, 512), torch.randn(4, 512), torch.randn(4, 512))
         
         synergy_head = MagicMock()
         synergy_head.return_value = torch.randn(4, 100)
@@ -205,7 +205,7 @@ class TestTrainingPipeline:
         # Test training step
         try:
             student_distillation_update(
-                teachers, mbm, synergy_head, student_model,
+                teachers, ib_mbm, synergy_head, student_model,
                 train_loader, test_loader, mock_config,
                 logger, optimizer, None, global_ep=0
             )

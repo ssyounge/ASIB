@@ -79,7 +79,7 @@ class TestExperimentConfigs:
             assert isinstance(num_stages, int) and num_stages > 0, f"Invalid num_stages in {config_name}"
 
     def test_mbm_configs(self, experiment_configs):
-        """Test IB‑MBM-specific configurations (legacy keys removed)."""
+        """Test IB_MBM-specific configurations (legacy keys removed)."""
         for config_name, config in experiment_configs.items():
             qd = config.get("ib_mbm_query_dim")
             od = config.get("ib_mbm_out_dim")

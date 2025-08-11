@@ -61,7 +61,7 @@ student_freeze_schedule: [-1, 2, 1, 0]
 teacher1_freeze_level: 1
 teacher2_freeze_level: 1
 
-# IB‑MBM settings
+# IB_MBM settings
 ib_mbm_query_dim: 1024
 ib_mbm_out_dim: 1024
 ib_mbm_n_head: 8

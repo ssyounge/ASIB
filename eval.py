@@ -75,7 +75,7 @@ class SynergyEnsemble(nn.Module):
         self.synergy_head = synergy_head
         self.student = student
         self.cfg = cfg or {}
-        # LightweightAttnMBM removed; always query-based MBM is IB_MBM
+        # LightweightAttnMBM removed; always query-based IB_MBM is IB_MBM
         self.la_mode = False
 
     def forward(self, x):

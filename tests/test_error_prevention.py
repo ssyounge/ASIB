@@ -10,11 +10,11 @@ class TestErrorPrevention:
     """Test error prevention and edge case handling"""
     
     def test_mbm_edge_cases(self):
-        """Test MBM with edge cases"""
+        """Test IB_MBM with edge cases"""
         from models import IB_MBM
         
         # Test with minimal dimensions
-        mbm = IB_MBM(
+        ib_mbm = IB_MBM(
             q_dim=1,
             kv_dim=1,
             d_emb=1,
@@ -27,15 +27,15 @@ class TestErrorPrevention:
         kv_feats = torch.randn(batch_size, 1)
         
         try:
-            z, mu, logvar = mbm(q_feat, kv_feats)
+            z, mu, logvar = ib_mbm(q_feat, kv_feats)
             assert z.shape == (batch_size, 1)
             assert mu.shape == (batch_size, 1)
             assert logvar.shape == (batch_size, 1)
         except Exception as e:
-            pytest.fail(f"MBM failed with minimal dimensions: {e}")
+            pytest.fail(f"IB_MBM failed with minimal dimensions: {e}")
         
         # Test with very large dimensions
-        mbm_large = IB_MBM(
+        ib_mbm_large = IB_MBM(
             q_dim=4096,
             kv_dim=4096,
             d_emb=1024,
@@ -48,18 +48,18 @@ class TestErrorPrevention:
         kv_feats = torch.randn(batch_size, 2, 4096)
         
         try:
-            z, mu, logvar = mbm_large(q_feat, kv_feats)
+            z, mu, logvar = ib_mbm_large(q_feat, kv_feats)
             assert z.shape == (batch_size, 1024)
             assert mu.shape == (batch_size, 1024)
             assert logvar.shape == (batch_size, 1024)
         except Exception as e:
-            pytest.fail(f"MBM failed with large dimensions: {e}")
+            pytest.fail(f"IB_MBM failed with large dimensions: {e}")
     
     def test_tensor_shape_validation(self):
         """Test tensor shape validation"""
         from models import IB_MBM
         
-        mbm = IB_MBM(
+        ib_mbm = IB_MBM(
             q_dim=512,
             kv_dim=512,
             d_emb=256,
@@ -83,7 +83,7 @@ class TestErrorPrevention:
                 q_feat = torch.randn(*q_shape)
                 kv_feats = torch.randn(*kv_shape)
                 
-                z, mu, logvar = mbm(q_feat, kv_feats)
+                z, mu, logvar = ib_mbm(q_feat, kv_feats)
                 
                 if should_work:
                     assert z.shape == (batch_size, 256), f"Wrong z shape for {desc}"
@@ -94,7 +94,7 @@ class TestErrorPrevention:
                     
             except Exception as e:
                 if should_work:
-                    pytest.fail(f"MBM failed for {desc}: {e}")
+                    pytest.fail(f"IB_MBM failed for {desc}: {e}")
                 else:
                     assert True  # Expected to fail
 

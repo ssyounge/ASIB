@@ -1,5 +1,5 @@
 # configs/experiment/ablation_baseline.yaml
-# Phase 1.1 (1) Baseline: MBM + E2E + Fixed Teachers
+# Phase 1.1 (1) Baseline: IB_MBM + E2E + Fixed Teachers
 # 가장 기본적인 형태 - 교사 모델들은 완전히 고정하고 VIB는 비활성화
 
 defaults:
@@ -37,7 +37,7 @@ experiment:
   teacher1_freeze_bn: true
   teacher2_freeze_bn: true
 
-  # ─── MBM / Adapter ───────────────────────────────────────────
+  # ─── IB_MBM / Adapter ───────────────────────────────────────────
   use_distillation_adapter: true
   distill_out_dim: 512
   ib_mbm_query_dim: 2048

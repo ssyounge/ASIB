@@ -20,12 +20,12 @@ class TestFinalValidation:
             assert Path(script_file).exists(), f"Script file missing: {script_file}"
             assert Path(script_file).is_file(), f"Script is not a file: {script_file}"
     
-    def test_mbm_core_functionality(self):
-        """Test core MBM functionality"""
+    def test_ib_mbm_core_functionality(self):
+        """Test core IB_MBM functionality"""
         from models import IB_MBM, SynergyHead, build_ib_mbm_from_teachers as build_from_teachers
         
-        # Test MBM creation and forward pass
-        mbm = IB_MBM(
+        # Test IB_MBM creation and forward pass
+        ib_mbm = IB_MBM(
             q_dim=2048,
             kv_dim=2048,
             d_emb=512,
@@ -38,7 +38,7 @@ class TestFinalValidation:
         kv_feats = torch.randn(batch_size, 2, 2048)  # 2 teachers
         
         # Test forward pass
-        z, mu, logvar = mbm(q_feat, kv_feats)
+        z, mu, logvar = ib_mbm(q_feat, kv_feats)
         
         # Check output shapes
         assert z.shape == (batch_size, 512)
@@ -55,7 +55,7 @@ class TestFinalValidation:
         from core.utils import (
             setup_partial_freeze_schedule_with_cfg,
             setup_safety_switches_with_cfg,
-            auto_set_mbm_query_dim_with_model,
+            auto_set_ib_mbm_query_dim_with_model,
             renorm_ce_kd,
             cast_numeric_configs
         )
@@ -63,7 +63,7 @@ class TestFinalValidation:
         # Test all functions are callable
         assert callable(setup_partial_freeze_schedule_with_cfg)
         assert callable(setup_safety_switches_with_cfg)
-        assert callable(auto_set_mbm_query_dim_with_model)
+        assert callable(auto_set_ib_mbm_query_dim_with_model)
         assert callable(renorm_ce_kd)
         assert callable(cast_numeric_configs)
         
@@ -365,7 +365,7 @@ class TestFinalValidation:
             "core.utils",
             "core.builder", 
             "core.trainer",
-            "models.mbm",
+                "models.ib_mbm",
             "models.common.base_wrapper",
             "data.cifar100",
             "data.imagenet32",

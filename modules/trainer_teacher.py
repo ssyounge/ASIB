@@ -222,13 +222,13 @@ def teacher_adaptive_update(
         "syn_head": _cpu_state_dict(synergy_head),
     }
 
-        # 추가 검증 로직: learning rate 조정
-        prev_obj = float("inf")
-        backup_state = {
-            "teacher_wrappers": [_cpu_state_dict(tw) for tw in teacher_wrappers],
-            "ib_mbm": _cpu_state_dict(ib_mbm),
-            "syn_head": _cpu_state_dict(synergy_head),
-        }
+    # 추가 검증 로직: learning rate 조정을 위한 상태
+    prev_obj = float("inf")
+    backup_state = {
+        "teacher_wraps": [_cpu_state_dict(tw) for tw in teacher_wrappers],
+        "ib_mbm": _cpu_state_dict(ib_mbm),
+        "syn_head": _cpu_state_dict(synergy_head),
+    }
 
     logger.info(f"[TeacherAdaptive] Using teacher_epochs={teacher_epochs}")
 

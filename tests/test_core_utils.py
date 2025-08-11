@@ -13,8 +13,8 @@ from core.utils import (
     setup_partial_freeze_schedule_with_cfg,
     setup_safety_switches,
     setup_safety_switches_with_cfg,
-    auto_set_mbm_query_dim,
-    auto_set_mbm_query_dim_with_model,
+    auto_set_ib_mbm_query_dim,
+    auto_set_ib_mbm_query_dim_with_model,
     cast_numeric_configs,
 )
 
@@ -156,22 +156,22 @@ class TestSetupSafetySwitches:
         assert all(x == -1 for x in result["student_freeze_schedule"])
 
 
-class TestAutoSetMbmQueryDim:
-    """Test auto_set_mbm_query_dim functions"""
+class TestAutoSetIbMbmQueryDim:
+    """Test auto_set_ib_mbm_query_dim functions"""
     
-    def test_auto_set_mbm_query_dim_basic(self):
-        """Test basic auto_set_mbm_query_dim"""
+    def test_auto_set_ib_mbm_query_dim_basic(self):
+        """Test basic auto_set_ib_mbm_query_dim"""
         cfg = {
             "ib_mbm_query_dim": None
         }
         
-        auto_set_mbm_query_dim(cfg)
+        auto_set_ib_mbm_query_dim(cfg)
         
         # Should set default query_dim
         assert cfg.get("ib_mbm_query_dim") == 512
     
-    def test_auto_set_mbm_query_dim_with_model(self):
-        """Test auto_set_mbm_query_dim_with_model"""
+    def test_auto_set_ib_mbm_query_dim_with_model(self):
+        """Test auto_set_ib_mbm_query_dim_with_model"""
         cfg = {
             "device": "cuda",
             "ib_mbm_query_dim": None,
@@ -190,30 +190,30 @@ class TestAutoSetMbmQueryDim:
         
         model = MockModel()
         
-        auto_set_mbm_query_dim_with_model(model, cfg)
+        auto_set_ib_mbm_query_dim_with_model(model, cfg)
         
         # Should set top-level ib_mbm_query_dim
         assert cfg["ib_mbm_query_dim"] == 1024
     
-    def test_auto_set_mbm_query_dim_already_set(self):
+    def test_auto_set_ib_mbm_query_dim_already_set(self):
         """Test when query_dim is already set"""
         cfg = {
             "ib_mbm_query_dim": 256
         }
         
-        auto_set_mbm_query_dim(cfg)
+        auto_set_ib_mbm_query_dim(cfg)
         
         # Should not change existing value
         assert cfg.get("ib_mbm_query_dim") == 256
     
-    def test_auto_set_mbm_query_dim_no_feature_dim(self):
+    def test_auto_set_ib_mbm_query_dim_no_feature_dim(self):
         """Test with model that has no feature_dim"""
         cfg = {
             "ib_mbm_query_dim": None
         }
         
         # Should handle gracefully
-        auto_set_mbm_query_dim(cfg)
+        auto_set_ib_mbm_query_dim(cfg)
         
         # Should set default value
         assert cfg.get("ib_mbm_query_dim") == 512
@@ -352,7 +352,7 @@ class TestIntegration:
         
         model = MockModel()
         cfg["device"] = "cuda"
-        auto_set_mbm_query_dim_with_model(model, cfg)
+        auto_set_ib_mbm_query_dim_with_model(model, cfg)
         
         # Verify all functions worked correctly
         assert isinstance(cfg["experiment"]["student_lr"], float)

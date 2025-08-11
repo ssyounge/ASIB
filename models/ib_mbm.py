@@ -95,9 +95,9 @@ def build_ib_mbm_from_teachers(
 
     qdim = cfg.get("ib_mbm_query_dim") or query_dim
     if not qdim:
-        raise ValueError("`ib_mbm_query_dim` must be specified for IB‑MBM.")
+        raise ValueError("`ib_mbm_query_dim` must be specified for IB_MBM.")
 
-    mbm = IB_MBM(
+    ib_mbm = IB_MBM(
         q_dim=qdim,
         kv_dim=max(feat_dims),
         d_emb=cfg.get("ib_mbm_out_dim", 512),
@@ -112,6 +112,6 @@ def build_ib_mbm_from_teachers(
         num_classes=cfg.get("num_classes", 100),
         p=cfg.get("synergy_head_dropout", cfg.get("ib_mbm_dropout", 0.0)),
     )
-    return mbm, head
+    return ib_mbm, head
 
 

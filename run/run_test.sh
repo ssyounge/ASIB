@@ -4,11 +4,16 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
 #SBATCH --time=2:00:00
+#SBATCH --chdir=/home/suyoung425/ASIB
+#SBATCH --output=/home/suyoung425/ASIB/experiments/test/logs/slurm-%j.out
 # Simple unified test runner on Linux/SLURM
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+
+# Ensure logs directory exists
+mkdir -p "$ROOT/experiments/test/logs"
 
 export PYTHONPATH="${ROOT}:${PYTHONPATH:-}"
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
@@ -33,4 +38,4 @@ if [[ "${FULL:-0}" != "1" ]]; then
   )
 fi
 
-python -m pytest "${ARGS[@]}"
+python -m pytest "${ARGS[@]}" | tee "$ROOT/experiments/test/logs/core_functionality_test.log"

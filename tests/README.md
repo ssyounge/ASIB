@@ -45,8 +45,8 @@ This directory contains comprehensive tests for the ASIB project, ensuring all c
 - **`test_overlap_dataset.py`** - Class overlap dataset functionality
 
 ### 📐 Specialized Component Tests
-- **`test_mbm_tensor_shapes.py`** - MBM tensor shape validation
-- **`test_ib_mbm_shapes.py`** - IB-MBM specific shape tests
+- **`test_mbm_tensor_shapes.py`** - IB_MBM tensor shape validation
+- **`test_ib_mbm_shapes.py`** - IB_MBM specific shape tests
 - **`test_kd_methods.py`** - Knowledge distillation methods
 - **`test_registry_comprehensive.py`** - Model registry functionality
 
@@ -94,7 +94,7 @@ pytest --cov=. --cov-report=html tests/
 - `renorm_ce_kd()` - ✅ `test_core_utils.py`
 - `setup_partial_freeze_schedule_with_cfg()` - ✅ `test_core_utils.py`
 - `setup_safety_switches_with_cfg()` - ✅ `test_core_utils.py`
-- `auto_set_mbm_query_dim_with_model()` - ✅ `test_core_utils.py`
+- `auto_set_ib_mbm_query_dim_with_model()` - ✅ `test_core_utils.py`
 - `cast_numeric_configs()` - ✅ `test_core_utils.py`
 
 ### ✅ Utils Functions Covered
@@ -119,7 +119,7 @@ pytest --cov=. --cov-report=html tests/
 ### ✅ Model Registry & Creation Covered
 - Model registry functionality - ✅ `test_registry_comprehensive.py`
 - Teacher/Student model creation - ✅ `test_models.py`, `test_models_advanced.py`
-- MBM and synergy head creation - ✅ `test_mbm_tensor_shapes.py`
+- IB_MBM and synergy head creation - ✅ `test_mbm_tensor_shapes.py`
 
 ## 🎯 Test Quality Standards
 
@@ -143,7 +143,7 @@ pytest --cov=. --cov-report=html tests/
 - **`temp_config_file`** - Temporary configuration files
 - **`dummy_teachers`** - Mock teacher models
 - **`dummy_student`** - Mock student model
-- **`dummy_mbm`** - Mock MBM component
+- **`dummy_ib_mbm`** - Mock IB_MBM component
 - **`dummy_synergy_head`** - Mock synergy head
 
 ### Mock Classes

@@ -188,8 +188,8 @@ class ExperimentLogger:
             "test_acc",
             "batch_size",
             "total_time_sec",
-            "mbm_type",
-            "mbm_r",
+            "ib_mbm_type",
+            "ib_mbm_r",
             "ib_mbm_n_head",
             "ib_mbm_learnable_q",
         ]

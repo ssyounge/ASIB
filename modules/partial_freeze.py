@@ -211,8 +211,8 @@ def partial_freeze_teacher_resnet(
     ``freeze_level``:
 
     - ``0`` → only ``fc``
-    - ``1`` → ``fc`` + ``mbm`` (default)
-    - ``2`` → ``layer4`` + ``fc`` + ``mbm``
+    - ``1`` → ``fc`` + ``ib_mbm`` (default)
+    - ``2`` → ``layer4`` + ``fc`` + ``ib_mbm``
     """
     freeze_all(model)
 
@@ -236,11 +236,11 @@ def partial_freeze_teacher_resnet(
             [
                 r"^backbone\.layer4\.",
                 r"^backbone\.fc\.",
-                r"^mbm\.",
+                r"^ib_mbm\.",
             ]
         )
     else:
-        patterns.extend([r"^backbone\.fc\.", r"^mbm\."])
+        patterns.extend([r"^backbone\.fc\.", r"^ib_mbm\."])
 
     if use_adapter:
         patterns.append(r"\.distillation_adapter\.")
@@ -265,8 +265,8 @@ def partial_freeze_teacher_efficientnet(
     ``freeze_level``:
 
     - ``0`` or ``3`` → only ``classifier``
-    - ``1`` → ``classifier`` + ``mbm`` (default)
-    - ``2`` → ``features`` + ``classifier`` + ``mbm``
+    - ``1`` → ``classifier`` + ``ib_mbm`` (default)
+    - ``2`` → ``features`` + ``classifier`` + ``ib_mbm``
     """
     freeze_all(model)
 
@@ -290,11 +290,11 @@ def partial_freeze_teacher_efficientnet(
             [
                 r"^backbone\.features\.",
                 r"^backbone\.classifier\.",
-                r"^mbm\.",
+                r"^ib_mbm\.",
             ]
         )
     else:
-        patterns.extend([r"^backbone\.classifier\.", r"^mbm\."])
+        patterns.extend([r"^backbone\.classifier\.", r"^ib_mbm\."])
 
     if use_adapter:
         patterns.append(r"\.distillation_adapter\.")
@@ -339,7 +339,7 @@ def partial_freeze_teacher_convnext(
         unfreeze.append(r"(?:^|\.)head\.")
 
     if freeze_level >= 1:
-        unfreeze.append(r"^mbm\.")
+        unfreeze.append(r"^ib_mbm\.")
 
     if use_adapter:
         unfreeze.append(r"\.distillation_adapter\.")
@@ -360,7 +360,7 @@ def partial_freeze_teacher_swin(
     ``freeze_all`` is called first. ``freeze_level`` controls what to unfreeze:
 
     - ``0`` → only ``head``
-    - ``1`` → ``head`` + ``mbm`` (default)
+    - ``1`` → ``head`` + ``ib_mbm`` (default)
     """
     freeze_all(model)
 
@@ -375,7 +375,7 @@ def partial_freeze_teacher_swin(
     if freeze_level == 0:
         patterns.append(r"^backbone\.head\.")
     else:
-        patterns.extend([r"^backbone\.head\.", r"^mbm\."])
+        patterns.extend([r"^backbone\.head\.", r"^ib_mbm\."])
 
     if use_adapter:
         patterns.append(r"\.distillation_adapter\.")

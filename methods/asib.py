@@ -23,7 +23,7 @@ class ASIBDistiller(nn.Module):
     Adaptive Synergy Information-Bottleneck (ASIB) Distiller
     - Teacher가 2명(teacher1, teacher2)
     - Student
-    - IB-MBM(Information-Bottleneck Manifold Bridging Module), synergy_head
+    - IB_MBM(Information-Bottleneck Manifold Bridging Module), synergy_head
     - 여러 stage에 걸쳐 (A) teacher update, (B) student distillation
     - 최종적으로 student의 Acc를 높이는 KD 프레임워크
     """
@@ -77,7 +77,7 @@ class ASIBDistiller(nn.Module):
     def forward(self, x, y=None):
         """
         (단발성 forward) => Student Loss만 계산 (Teacher는 이미 학습됐다고 가정)
-        - MBM 통해 synergy logit 얻고 => KL with student
+        - IB_MBM 통해 synergy logit 얻고 => KL with student
         - + CE(student, y)
         => total_loss, student_logit
         """
@@ -101,7 +101,7 @@ class ASIBDistiller(nn.Module):
             elif norm_mode == "layernorm":
                 t1_f2d = torch.nn.functional.layer_norm(t1_f2d, (t1_f2d.shape[-1],))
                 t2_f2d = torch.nn.functional.layer_norm(t2_f2d, (t2_f2d.shape[-1],))
-            # Use stacked 3D (batch, 2, feat_dim) as KV for MBM
+            # Use stacked 3D (batch, 2, feat_dim) as KV for IB_MBM
             feats_2d = torch.stack([t1_f2d, t2_f2d], dim=1)
 
         # 3) student (query feature)
@@ -114,8 +114,8 @@ class ASIBDistiller(nn.Module):
         elif norm_mode == "layernorm":
             s_feat = torch.nn.functional.layer_norm(s_feat, (s_feat.shape[-1],))
 
-        # 2) MBM → simple MLP head (no VIB in head)
-        syn_feat, _, _ = self.mbm(s_feat, feats_2d)
+        # 2) IB_MBM → simple MLP head (no VIB in head)
+        syn_feat, _, _ = self.ib_mbm(s_feat, feats_2d)
         zsyn = self.synergy_head(syn_feat)
 
         # CE
@@ -125,7 +125,7 @@ class ASIBDistiller(nn.Module):
             else torch.tensor(0.0, device=s_logit.device)
         )
 
-        # KL with stop‑grad to prevent gradients flowing into MBM/Head in this path
+        # KL with stop‑grad to prevent gradients flowing into IB_MBM/Head in this path
         kd_val = kd_loss_fn(s_logit, zsyn.detach(), T=self.T, reduction="batchmean")
         total_loss = (
             self.alpha * ce_val
@@ -146,22 +146,22 @@ class ASIBDistiller(nn.Module):
     ):
         """
         단순화된 2‑스텝 학습 루프:
-         - A‑Step (IB 학습): 교사·학생 동결, IB‑MBM + SynergyHead만 학습 (AdamW, 낮은 LR)
+         - A‑Step (IB 학습): 교사·학생 동결, IB_MBM + SynergyHead만 학습 (AdamW, 낮은 LR)
          - B‑Step (학생 학습): 교사·IB 동결, 학생만 학습 (SGD, 높은 LR)
         """
         # GPU로 이동
         self.to(self.device)
         self.teacher1.to(self.device)
         self.teacher2.to(self.device)
-        self.mbm.to(self.device)
+        self.ib_mbm.to(self.device)
         self.synergy_head.to(self.device)
         self.student.to(self.device)
 
         # ---- Optimizers (분리) ----
-        # A‑Step: IB‑MBM + Head
+        # A‑Step: IB_MBM + Head
         a_lr = self.config.get("a_step_lr", 1e-4)
         a_wd = self.config.get("a_step_weight_decay", 1e-4)
-        params_a = list(self.mbm.parameters()) + list(self.synergy_head.parameters())
+        params_a = list(self.ib_mbm.parameters()) + list(self.synergy_head.parameters())
         optA = optim.AdamW(params_a, lr=a_lr, weight_decay=a_wd)
 
         # B‑Step: Student SGD
@@ -179,7 +179,7 @@ class ASIBDistiller(nn.Module):
             if self.logger:
                 self.logger.info(f"\n[ASIB] Stage {stage}/{self.num_stages} 시작.")
 
-            # (A) IB Step – 교사·학생 동결, IB‑MBM + Head 학습
+            # (A) IB Step – 교사·학생 동결, IB_MBM + Head 학습
             ib_epochs = self.config.get("ib_epochs_per_stage", max(1, epochs_per_stage // 3))
             self._ib_update(
                 train_loader,
@@ -208,7 +208,7 @@ class ASIBDistiller(nn.Module):
                 best_acc = acc
                 best_student_state = copy.deepcopy(self.student.state_dict())
 
-            for m in (self.teacher1, self.teacher2, self.mbm, self.synergy_head):
+            for m in (self.teacher1, self.teacher2, self.ib_mbm, self.synergy_head):
                 for p in m.parameters():
                     p.requires_grad = True
 
@@ -229,7 +229,7 @@ class ASIBDistiller(nn.Module):
     ):
         """
         A‑Step: IB 학습 전용 업데이트.
-        - Freeze teacher and student; train only MBM + synergy head.
+        - Freeze teacher and student; train only IB_MBM + synergy head.
         - Loss: KL(zsyn || s_logit) + synergy_ce_alpha * CE(zsyn, y) + vib_kl_weight * VIB_KL
         """
         # Freeze
@@ -237,9 +237,9 @@ class ASIBDistiller(nn.Module):
             m.eval()
             for p in m.parameters():
                 p.requires_grad = False
-        self.mbm.train()
+        self.ib_mbm.train()
         self.synergy_head.train()
-        for p in self.mbm.parameters():
+        for p in self.ib_mbm.parameters():
             p.requires_grad = True
         for p in self.synergy_head.parameters():
             p.requires_grad = True
@@ -289,8 +289,8 @@ class ASIBDistiller(nn.Module):
                         t2_logit = self.teacher2.classifier(t2_f2d)
                         t_avg_logit = 0.5 * (t1_logit + t2_logit)
 
-                    # MBM + Head forward (VIB solely in MBM)
-                    syn_feat, mu, logvar = self.mbm(s_feat, kv)
+                    # IB_MBM + Head forward (VIB solely in IB_MBM)
+                    syn_feat, mu, logvar = self.ib_mbm(s_feat, kv)
                     zsyn = self.synergy_head(syn_feat)
 
                     # Losses
@@ -301,20 +301,20 @@ class ASIBDistiller(nn.Module):
                     )
                     synergy_ce = self.synergy_ce_alpha * ce_val
                     vib_kl_weight = float(self.config.get("vib_kl_weight", 1.0))
-                    # MBM KL (mean-normalized)
+                    # IB_MBM KL (mean-normalized)
                     kl_mbm = -0.5 * torch.mean(torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1))
                     # Optional weak alignment term (default 0): teacher-ensemble or student
                     lambda_TK = float(self.config.get("lambda_tk_align", 0.0))
                     align_target = t_avg_logit if self.config.get("a_step_align_target", "teacher") == "teacher" else s_logit
                     kl_to_target = lambda_TK * kd_loss_fn(zsyn, align_target, T=cur_tau)
-                    # β warmup로 VIB(IB) KL의 기여도 조절 – MBM KL only
+                    # β warmup로 VIB(IB) KL의 기여도 조절 – IB_MBM KL only
                     loss = synergy_ce + (vib_kl_weight * cur_beta) * kl_mbm + kl_to_target
 
                 optimizer.zero_grad()
                 if scaler is not None:
                     scaler.scale(loss).backward()
                     torch.nn.utils.clip_grad_norm_(
-                        filter(lambda p: p.requires_grad, self.mbm.parameters()), max_norm=2.0
+                        filter(lambda p: p.requires_grad, self.ib_mbm.parameters()), max_norm=2.0
                     )
                     torch.nn.utils.clip_grad_norm_(
                         filter(lambda p: p.requires_grad, self.synergy_head.parameters()), max_norm=2.0
@@ -324,7 +324,7 @@ class ASIBDistiller(nn.Module):
                 else:
                     loss.backward()
                     torch.nn.utils.clip_grad_norm_(
-                        filter(lambda p: p.requires_grad, self.mbm.parameters()), max_norm=2.0
+                        filter(lambda p: p.requires_grad, self.ib_mbm.parameters()), max_norm=2.0
                     )
                     torch.nn.utils.clip_grad_norm_(
                         filter(lambda p: p.requires_grad, self.synergy_head.parameters()), max_norm=2.0
@@ -349,15 +349,15 @@ class ASIBDistiller(nn.Module):
         stage: int = 1,
     ):
         """
-        Teacher adaptive update (BN/Head + MBM).
+        Teacher adaptive update (BN/Head + IB_MBM).
         - Student는 고정, Teacher만 업데이트
         - synergy 로짓 vs. Student 로짓 => KL
         - synergy 로짓 vs. GT => synergy_ce_alpha * CE
         - L2 정규화(reg_lambda)
         """
-        # 1) Teacher/MBM 파라미터만 requires_grad=True 여야 함
-        #    └ teach_params / mbm_params 를 별도로 기록해 L2 계수를 분리
-        params, teach_params, mbm_params = [], [], []
+        # 1) Teacher/IB_MBM 파라미터만 requires_grad=True 여야 함
+        #    └ teach_params / ib_mbm_params 를 별도로 기록해 L2 계수를 분리
+        params, teach_params, ib_mbm_params = [], [], []
         use_da = self.config.get("use_distillation_adapter", False)
         # teacher1
         param_src = (
@@ -379,22 +379,22 @@ class ASIBDistiller(nn.Module):
             if p.requires_grad:
                 params.append(p)
                 teach_params.append(p)          # ← Teacher 전용
-        # mbm, synergy_head
-        for p in self.mbm.parameters():
+        # ib_mbm, synergy_head
+        for p in self.ib_mbm.parameters():
             if p.requires_grad:
                 params.append(p)
-                mbm_params.append(p)            # ← MBM / synergy 용
+                ib_mbm_params.append(p)            # ← IB_MBM / synergy 용
         for p in self.synergy_head.parameters():
             if p.requires_grad:
                 params.append(p)
-                mbm_params.append(p)
+                ib_mbm_params.append(p)
 
         # ``optimizer`` is constructed outside and shared across stages
 
         self.teacher1.train()
         self.teacher2.train()
         logger = logger or self.logger
-        self.mbm.train()
+        self.ib_mbm.train()
         self.synergy_head.train()
         self.student.eval()   # Student 고정
 
@@ -442,11 +442,11 @@ class ASIBDistiller(nn.Module):
 
                     # synergy
                     if self.la_mode:
-                        syn_feat, attn, *_ = self.mbm(s_feat, f1)
+                        syn_feat, attn, *_ = self.ib_mbm(s_feat, f1)
                         attn_flat = attn.squeeze(1)
                         _, _ = attn_flat[:, 0], attn_flat[:, 1]
                     else:
-                        syn_feat, *_ = self.mbm(s_feat, f1)
+                        syn_feat, *_ = self.ib_mbm(s_feat, f1)
                         attn = None
                     zsyn_out = self.synergy_head(syn_feat)
                     if isinstance(zsyn_out, tuple):
@@ -486,9 +486,9 @@ class ASIBDistiller(nn.Module):
                         [(p ** 2).mean() for p in teach_params]
                     ).mean() if teach_params else torch.tensor(0.0, device=x.device)
 
-                    reg_mbm   = torch.stack(
-                        [(p ** 2).mean() for p in mbm_params]
-                    ).mean() if mbm_params else torch.tensor(0.0, device=x.device)
+                    reg_ib_mbm   = torch.stack(
+                        [(p ** 2).mean() for p in ib_mbm_params]
+                    ).mean() if ib_mbm_params else torch.tensor(0.0, device=x.device)
 
                     vib_kl_weight = float(self.config.get("vib_kl_weight", 1.0))
                     loss = (
@@ -496,7 +496,7 @@ class ASIBDistiller(nn.Module):
                         + synergy_ce
                         + self.config.get("feat_kd_alpha", 0) * feat_kd_val
                         + self.reg_lambda     * reg_teach      # 기존
-                        + self.mbm_reg_lambda * reg_mbm        # ★ 추가됨
+                        + self.ib_mbm_reg_lambda * reg_ib_mbm        # ★ 추가됨
                         + vib_kl_weight * vib_kl
                     )
 
@@ -539,7 +539,7 @@ class ASIBDistiller(nn.Module):
             p.requires_grad = True
         for p in self.teacher2.parameters():
             p.requires_grad = True
-        for p in self.mbm.parameters():
+        for p in self.ib_mbm.parameters():
             p.requires_grad = True
         for p in self.synergy_head.parameters():
             p.requires_grad = True
@@ -558,7 +558,7 @@ class ASIBDistiller(nn.Module):
     ):
         """
         Student Distillation:
-         - Freeze teacher + MBM
+         - Freeze teacher + IB_MBM
          - Student upper layers만 업데이트
          - CE + KL(student vs synergy)
          - Optional vanilla KD blending when ``hybrid_beta > 0``
@@ -572,9 +572,9 @@ class ASIBDistiller(nn.Module):
         for p in self.teacher2.parameters():
             p.requires_grad = False
 
-        self.mbm.eval()
+        self.ib_mbm.eval()
         self.synergy_head.eval()
-        for p in self.mbm.parameters():
+        for p in self.ib_mbm.parameters():
             p.requires_grad = False
         for p in self.synergy_head.parameters():
             p.requires_grad = False
@@ -625,11 +625,11 @@ class ASIBDistiller(nn.Module):
                         s_feat = torch.nn.functional.layer_norm(s_feat, (s_feat.shape[-1],))
 
                 if self.la_mode:
-                    syn_feat, attn, *_ = self.mbm(s_feat, f1)
+                    syn_feat, attn, *_ = self.ib_mbm(s_feat, f1)
                     attn_flat = attn.squeeze(1)
                     w1, w2 = attn_flat[:, 0], attn_flat[:, 1]
                 else:
-                    syn_feat, *_ = self.mbm(s_feat, f1)
+                    syn_feat, *_ = self.ib_mbm(s_feat, f1)
                     attn = None
                     w1, w2 = None, None
                 # Head is a simple MLP (no VIB in head)
@@ -645,7 +645,7 @@ class ASIBDistiller(nn.Module):
                 if stage <= self.kd_warmup_stage:
                     kd_val = torch.tensor(0.0, device=x.device)
                 else:
-                    # stop‑grad so student update does not backprop through MBM/Head
+                    # stop‑grad so student update does not backprop through IB_MBM/Head
                     kd_val = kd_loss_fn(s_logit, zsyn.detach(), T=cur_tau)
 
                 # vanilla KD using teacher logits

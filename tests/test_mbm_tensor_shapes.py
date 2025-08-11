@@ -117,14 +117,14 @@ class TestIB_MBMTensorShapes:
         }
         
         # This should work
-        mbm, head = build_from_teachers(teachers, cfg)
+        ib_mbm, head = build_from_teachers(teachers, cfg)
         
         # Test forward pass
         batch_size = 4
         q_feat = torch.randn(batch_size, 512)
         kv_feats = torch.randn(batch_size, 512)
         
-        z, mu, logvar = mbm(q_feat, kv_feats)
+        z, mu, logvar = ib_mbm(q_feat, kv_feats)
         logits = head(z)
         
         # Check shapes

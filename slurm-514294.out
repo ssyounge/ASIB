@@ -1,0 +1,16 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.11, pytest-8.4.1, pluggy-1.6.0 -- /home/suyoung425/anaconda3/envs/tlqkf/bin/python
+cachedir: .pytest_cache
+rootdir: /var/spool/slurmd
+plugins: anyio-4.10.0, cov-6.2.1, hydra-core-1.3.2
+collecting ... ERROR: file or directory not found: tests
+
+collected 0 items
+
+=============================== warnings summary ===============================
+../../../home/suyoung425/anaconda3/envs/tlqkf/lib/python3.12/site-packages/_pytest/cacheprovider.py:475
+  /home/suyoung425/anaconda3/envs/tlqkf/lib/python3.12/site-packages/_pytest/cacheprovider.py:475: PytestCacheWarning: could not create cache path /var/spool/slurmd/.pytest_cache/v/cache/nodeids: [Errno 13] Permission denied: '/var/spool/slurmd/pytest-cache-files-lfjw16d0'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============================== 1 warning in 0.01s ==============================

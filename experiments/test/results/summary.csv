@@ -1,4 +1,0 @@
-exp_id,csv_filename,eval_mode,train_acc,test_acc,batch_size,total_time_sec,mbm_type,mbm_r,ib_mbm_n_head,ib_mbm_learnable_q,student_ep1_acc,student_ep1_loss,student_ep2_acc,student_ep2_loss,student_ep3_acc,student_ep3_loss,student_ep4_acc,student_ep4_loss,student_ep5_acc,student_ep5_loss
-asib_noeval_20250810_022844,summary.csv,,,,,258.40,,,,,1.00,nan,1.00,nan,1.00,nan,1.00,nan,1.00,nan
-asib_noeval_20250810_025105,summary.csv,,,,,256.12,,,,,1.00,nan,1.00,nan,1.00,nan,1.00,nan,1.00,nan
-asib_noeval_20250810_025823,summary.csv,,,,,256.40,,,,,1.00,nan,1.00,nan,1.00,nan,1.00,nan,1.00,nan

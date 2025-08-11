@@ -11,42 +11,42 @@ from models.common.adapter import ChannelAdapter2D
 from models.common.base_wrapper import BaseKDModel
 
 
-class TestMBMAdvanced:
-    """Test advanced MBM features"""
+class TestIB_MBMAdvanced:
+    """Test advanced IB_MBM features"""
     
-    def test_mbm_attention_weights(self):
-        """Test MBM attention weights"""
-        mbm = IB_MBM(q_dim=128, kv_dim=256, d_emb=128, n_head=8)
+    def test_ib_mbm_attention_weights(self):
+        """Test IB_MBM attention weights"""
+        ib_mbm = IB_(q_dim=128, kv_dim=256, d_emb=128, n_head=8)
         
         # Create inputs
         q = torch.randn(4, 128)
         kv = torch.randn(4, 256)
         
-        # Get output (MBM doesn't support return_attention parameter)
-        output, mu, logvar = mbm(q, kv)
+        # Get output (IB_MBM doesn't support return_attention parameter)
+        output, mu, logvar = ib_mbm(q, kv)
         
         assert output.shape == (4, 128)
         assert torch.isfinite(output).all()
     
-    def test_mbm_multi_head_attention(self):
-        """Test multi-head attention in MBM"""
+    def test_ib_mbm_multi_head_attention(self):
+        """Test multi-head attention in IB_MBM"""
         n_heads = [1, 4, 8, 16]
         
         for n_head in n_heads:
-            mbm = IB_MBM(q_dim=128, kv_dim=256, d_emb=128, n_head=n_head)
+            ib_mbm = IB_MBM(q_dim=128, kv_dim=256, d_emb=128, n_head=n_head)
             
             q = torch.randn(4, 128)
             kv = torch.randn(4, 256)
             
-            output, mu, logvar = mbm(q, kv)
+            output, mu, logvar = ib_mbm(q, kv)
             
             assert output.shape == (4, 128)
             assert mu.shape == (4, 128)
             assert logvar.shape == (4, 128)
             assert torch.isfinite(output).all()
     
-    def test_mbm_different_dimensions(self):
-        """Test MBM with different dimensions"""
+    def test_ib_mbm_different_dimensions(self):
+        """Test IB_MBM with different dimensions"""
         test_cases = [
             (64, 128, 64),
             (128, 256, 128),
@@ -55,26 +55,26 @@ class TestMBMAdvanced:
         ]
         
         for q_dim, kv_dim, d_emb in test_cases:
-            mbm = IB_MBM(q_dim=q_dim, kv_dim=kv_dim, d_emb=d_emb)
+            ib_mbm = IB_MBM(q_dim=q_dim, kv_dim=kv_dim, d_emb=d_emb)
             
             q = torch.randn(4, q_dim)
             kv = torch.randn(4, kv_dim)
             
-            output, mu, logvar = mbm(q, kv)
+            output, mu, logvar = ib_mbm(q, kv)
             
             assert output.shape == (4, d_emb)
             assert mu.shape == (4, d_emb)
             assert logvar.shape == (4, d_emb)
             assert torch.isfinite(output).all()
     
-    def test_mbm_gradient_flow(self):
-        """Test gradient flow in MBM"""
-        mbm = IB_MBM(q_dim=128, kv_dim=256, d_emb=128)
+    def test_ib_mbm_gradient_flow(self):
+        """Test gradient flow in IB_MBM"""
+        ib_mbm = IB_MBM(q_dim=128, kv_dim=256, d_emb=128)
         
         q = torch.randn(4, 128, requires_grad=True)
         kv = torch.randn(4, 256, requires_grad=True)
         
-        output, mu, logvar = mbm(q, kv)
+        output, mu, logvar = ib_mbm(q, kv)
         loss = output.sum() + mu.sum() + logvar.sum()
         loss.backward()
         
@@ -390,20 +390,20 @@ class TestBaseKDModelAdvanced:
 class TestModelIntegration:
     """Test model integration"""
     
-    def test_mbm_synergy_integration(self):
-        """Test MBM and SynergyHead integration"""
-        mbm = IB_MBM(q_dim=128, kv_dim=256, d_emb=128)
+    def test_ib_mbm_synergy_integration(self):
+        """Test IB_MBM and SynergyHead integration"""
+        ib_mbm = IB_MBM(q_dim=128, kv_dim=256, d_emb=128)
         synergy_head = SynergyHead(128, num_classes=100)
         
         # Create inputs
         q = torch.randn(4, 128)
         kv = torch.randn(4, 256)
         
-        # Process through MBM
-        mbm_output, mu, logvar = mbm(q, kv)
+        # Process through IB_MBM
+        ib_mbm_output, mu, logvar = ib_mbm(q, kv)
         
         # Process through SynergyHead
-        final_output = synergy_head(mbm_output)
+        final_output = synergy_head(ib_mbm_output)
         
         assert final_output.shape == (4, 100)
         assert torch.isfinite(final_output).all()
@@ -434,7 +434,7 @@ class TestModelIntegration:
     def test_complete_pipeline(self):
         """Test complete model pipeline"""
         # Create components
-        mbm = IB_MBM(q_dim=128, kv_dim=128, d_emb=128)  # kv_dim should match features_2d dimension
+        ib_mbm = IB_MBM(q_dim=128, kv_dim=128, d_emb=128)  # kv_dim should match features_2d dimension
         synergy_head = SynergyHead(128, num_classes=100)
         adapter = ChannelAdapter2D(128, 128)  # ChannelAdapter2D preserves input channels
         
@@ -469,11 +469,11 @@ class TestModelIntegration:
         # Extract features
         features_4d, features_2d = model.extract_feats(x)
         
-        # Process through MBM
-        mbm_output, mu, logvar = mbm(features_2d, features_2d)  # Use same features as q and kv
+        # Process through IB_MBM
+        ib_mbm_output, mu, logvar = ib_mbm(features_2d, features_2d)  # Use same features as q and kv
         
         # Process through SynergyHead
-        final_output = synergy_head(mbm_output)
+        final_output = synergy_head(ib_mbm_output)
         
         # BaseKDModel.extract_feats returns (None, feat_2d) for simple backbones
         assert features_4d is None  # Simple backbone doesn't return 4D features

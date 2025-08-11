@@ -57,12 +57,12 @@ def dummy_student():
     return DummyStudent()
 
 @pytest.fixture
-def dummy_mbm():
-    """더미 MBM 모델을 생성하는 fixture"""
-    class DummyMBM(nn.Module):
+def dummy_ib_mbm():
+    """더미 IB_MBM 모델을 생성하는 fixture"""
+    class DummyIB_MBM(nn.Module):
         def __init__(self):
             super().__init__()
-            # 실제 MBM과 비슷한 차원으로 설정
+            # 실제 IB_MBM과 비슷한 차원으로 설정
             # query_feat: (batch, 1280), key_feats: (batch, 2, 2048) -> flatten 후 (batch, 5376)
             self.fc = nn.Linear(1280 + 2048 * 2, 2048)  # student(1280) + teachers(2048*2)
             
@@ -83,7 +83,7 @@ def dummy_mbm():
             logvar = torch.zeros_like(z)
             return z, mu, logvar
     
-    return DummyMBM()
+    return DummyIB_MBM()
 
 @pytest.fixture
 def dummy_synergy_head():
@@ -91,7 +91,7 @@ def dummy_synergy_head():
     class DummySynergyHead(nn.Module):
         def __init__(self):
             super().__init__()
-            self.fc = nn.Linear(2048, 10)  # MBM 출력 차원과 맞춤
+            self.fc = nn.Linear(2048, 10)  # IB_MBM 출력 차원과 맞춤
             
         def forward(self, x):
             return self.fc(x)
@@ -116,7 +116,7 @@ def test_asib_forward_backward(dummy_teachers):
             logit = self.fc(feat_2d)
             return {"feat_2d": feat_2d}, logit, None
     
-    class DummyMBM(nn.Module):
+    class DummyIB_MBM(nn.Module):
         def __init__(self):
             super().__init__()
             self.fc = nn.Linear(1280 + 2048 * 2, 2048)  # student(1280) + teachers(2048*2)
@@ -146,13 +146,13 @@ def test_asib_forward_backward(dummy_teachers):
     class DummySynergyHead(nn.Module):
         def __init__(self):
             super().__init__()
-            self.fc = nn.Linear(2048, 10)  # MBM 출력 차원과 맞춤
+            self.fc = nn.Linear(2048, 10)  # IB_MBM 출력 차원과 맞춤
             
         def forward(self, x):
             return self.fc(x)
     
     student = DummyStudent()
-    mbm = DummyMBM()
+    ib_mbm = DummyIB_MBM()
     synergy_head = DummySynergyHead()
     
     # ASIB Distiller 초기화
@@ -160,7 +160,7 @@ def test_asib_forward_backward(dummy_teachers):
         teacher1=teacher1,
         teacher2=teacher2,
         student=student,
-        mbm=mbm,
+        ib_mbm=ib_mbm,
         synergy_head=synergy_head,
         device="cuda"
     )
@@ -178,7 +178,7 @@ def test_asib_forward_backward(dummy_teachers):
     assert total_loss.requires_grad
     assert student_logit.shape == (2, 10)
 
-def test_train_distillation(dummy_teachers, dummy_student, dummy_mbm, dummy_synergy_head):
+def test_train_distillation(dummy_teachers, dummy_student, dummy_ib_mbm, dummy_synergy_head):
     """train_distillation 메소드가 올바르게 작동하는지 테스트"""
     teacher1, teacher2 = dummy_teachers
     
@@ -187,7 +187,7 @@ def test_train_distillation(dummy_teachers, dummy_student, dummy_mbm, dummy_syne
         teacher1=teacher1,
         teacher2=teacher2,
         student=dummy_student,
-        mbm=dummy_mbm,
+        ib_mbm=dummy_ib_mbm,
         synergy_head=dummy_synergy_head,
         device="cuda"
     )
@@ -218,7 +218,7 @@ def test_train_distillation(dummy_teachers, dummy_student, dummy_mbm, dummy_syne
         # 텐서 차원 관련 오류는 예상됨
         assert "tensor" in str(e).lower() or "dimension" in str(e).lower() or "shape" in str(e).lower()
 
-def test_evaluate_method(dummy_teachers, dummy_student, dummy_mbm, dummy_synergy_head):
+def test_evaluate_method(dummy_teachers, dummy_student, dummy_ib_mbm, dummy_synergy_head):
     """evaluate 메소드가 올바르게 작동하는지 테스트"""
     teacher1, teacher2 = dummy_teachers
     
@@ -227,7 +227,7 @@ def test_evaluate_method(dummy_teachers, dummy_student, dummy_mbm, dummy_synergy
         teacher1=teacher1,
         teacher2=teacher2,
         student=dummy_student,
-        mbm=dummy_mbm,
+        ib_mbm=dummy_ib_mbm,
         synergy_head=dummy_synergy_head,
         device="cuda"
     )
@@ -253,7 +253,7 @@ def test_evaluate_method(dummy_teachers, dummy_student, dummy_mbm, dummy_synergy
         # 모델 forward pass 관련 오류는 예상됨
         assert "forward" in str(e).lower() or "input" in str(e).lower()
 
-def test_teacher_adaptive_update(dummy_teachers, dummy_student, dummy_mbm, dummy_synergy_head):
+def test_teacher_adaptive_update(dummy_teachers, dummy_student, dummy_ib_mbm, dummy_synergy_head):
     """_teacher_adaptive_update 메소드가 올바르게 작동하는지 테스트"""
     teacher1, teacher2 = dummy_teachers
     
@@ -262,7 +262,7 @@ def test_teacher_adaptive_update(dummy_teachers, dummy_student, dummy_mbm, dummy
         teacher1=teacher1,
         teacher2=teacher2,
         student=dummy_student,
-        mbm=dummy_mbm,
+        ib_mbm=dummy_ib_mbm,
         synergy_head=dummy_synergy_head,
         device="cuda"
     )
@@ -297,7 +297,7 @@ def test_teacher_adaptive_update(dummy_teachers, dummy_student, dummy_mbm, dummy
         # 텐서 차원 관련 오류는 예상됨
         assert "tensor" in str(e).lower() or "dimension" in str(e).lower() or "shape" in str(e).lower()
 
-def test_student_distill_update(dummy_teachers, dummy_student, dummy_mbm, dummy_synergy_head):
+def test_student_distill_update(dummy_teachers, dummy_student, dummy_ib_mbm, dummy_synergy_head):
     """_student_distill_update 메소드가 올바르게 작동하는지 테스트"""
     teacher1, teacher2 = dummy_teachers
     
@@ -306,7 +306,7 @@ def test_student_distill_update(dummy_teachers, dummy_student, dummy_mbm, dummy_
         teacher1=teacher1,
         teacher2=teacher2,
         student=dummy_student,
-        mbm=dummy_mbm,
+        ib_mbm=dummy_ib_mbm,
         synergy_head=dummy_synergy_head,
         device="cuda"
     )
@@ -342,7 +342,7 @@ def test_student_distill_update(dummy_teachers, dummy_student, dummy_mbm, dummy_
         # 텐서 차원 관련 오류는 예상됨
         assert "tensor" in str(e).lower() or "dimension" in str(e).lower() or "shape" in str(e).lower()
 
-def test_unfreeze_teacher(dummy_teachers, dummy_student, dummy_mbm, dummy_synergy_head):
+def test_unfreeze_teacher(dummy_teachers, dummy_student, dummy_ib_mbm, dummy_synergy_head):
     """_unfreeze_teacher 메소드가 올바르게 작동하는지 테스트"""
     teacher1, teacher2 = dummy_teachers
     
@@ -351,7 +351,7 @@ def test_unfreeze_teacher(dummy_teachers, dummy_student, dummy_mbm, dummy_synerg
         teacher1=teacher1,
         teacher2=teacher2,
         student=dummy_student,
-        mbm=dummy_mbm,
+        ib_mbm=dummy_ib_mbm,
         synergy_head=dummy_synergy_head,
         device="cuda"
     )

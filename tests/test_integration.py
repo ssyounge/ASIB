@@ -59,13 +59,13 @@ class TestCompletePipeline:
             small_input=True
         )
         
-        # Create MBM components
-        mbm = IB_MBM(q_dim=1280, kv_dim=4096, d_emb=2048)  # kv_dim = 2 * teacher_feature_dim
+        # Create IB_MBM components
+        ib_mbm = IB_MBM(q_dim=1280, kv_dim=4096, d_emb=2048)  # kv_dim = 2 * teacher_feature_dim
         synergy_head = SynergyHead(2048, num_classes=100)
         
         # Create distiller
         distiller = ASIBDistiller(
-            teacher1, teacher2, student, mbm, synergy_head, device="cuda"
+            teacher1, teacher2, student, ib_mbm, synergy_head, device="cuda"
         )
         
         # Test forward pass
@@ -199,13 +199,13 @@ class TestEndToEndTraining:
             small_input=True
         )
         
-        # Create MBM components
-        mbm = IB_MBM(q_dim=1280, kv_dim=4096, d_emb=2048)  # kv_dim = 2 * teacher_feature_dim
+        # Create IB_MBM components
+        ib_mbm = IB_MBM(q_dim=1280, kv_dim=4096, d_emb=2048)  # kv_dim = 2 * teacher_feature_dim
         synergy_head = SynergyHead(2048, num_classes=10)
         
         # Create distiller
         distiller = ASIBDistiller(
-            teacher1, teacher2, student, mbm, synergy_head, device="cuda"
+            teacher1, teacher2, student, ib_mbm, synergy_head, device="cuda"
         )
         
         # Create optimizers
@@ -340,14 +340,14 @@ class TestErrorHandling:
             small_input=True
         )
         
-        # Try to create MBM with mismatched dimensions
+        # Try to create IB_MBM with mismatched dimensions
         # This should be handled gracefully
         try:
-            mbm = IB_MBM(q_dim=1280, kv_dim=4096, d_emb=2048)  # kv_dim = 2 * teacher_feature_dim
+            ib_mbm = IB_MBM(q_dim=1280, kv_dim=4096, d_emb=2048)  # kv_dim = 2 * teacher_feature_dim
             synergy_head = SynergyHead(2048, num_classes=100)
             
             distiller = ASIBDistiller(
-                teacher1, teacher2, student, mbm, synergy_head, device="cuda"
+                teacher1, teacher2, student, ib_mbm, synergy_head, device="cuda"
             )
             
             # Test forward pass
@@ -395,13 +395,13 @@ class TestPerformance:
             small_input=True
         )
         
-        # Create MBM components
-        mbm = IB_MBM(q_dim=1280, kv_dim=4096, d_emb=2048)  # kv_dim = 2 * teacher_feature_dim
+        # Create IB_MBM components
+        ib_mbm = IB_MBM(q_dim=1280, kv_dim=4096, d_emb=2048)  # kv_dim = 2 * teacher_feature_dim
         synergy_head = SynergyHead(2048, num_classes=100)
         
         # Create distiller
         distiller = ASIBDistiller(
-            teacher1, teacher2, student, mbm, synergy_head, device="cuda"
+            teacher1, teacher2, student, ib_mbm, synergy_head, device="cuda"
         )
         
         # Test forward pass
@@ -442,13 +442,13 @@ class TestPerformance:
             small_input=True
         )
         
-        # Create MBM components
-        mbm = IB_MBM(q_dim=1280, kv_dim=4096, d_emb=2048)  # kv_dim = 2 * teacher_feature_dim
+        # Create IB_MBM components
+        ib_mbm = IB_MBM(q_dim=1280, kv_dim=4096, d_emb=2048)  # kv_dim = 2 * teacher_feature_dim
         synergy_head = SynergyHead(2048, num_classes=100)
         
         # Create distiller
         distiller = ASIBDistiller(
-            teacher1, teacher2, student, mbm, synergy_head, device="cuda"
+            teacher1, teacher2, student, ib_mbm, synergy_head, device="cuda"
         )
         
         # Warm up
@@ -506,13 +506,13 @@ class TestReproducibility:
             small_input=True
         )
         
-        # Create MBM components
-        mbm = IB_MBM(q_dim=1280, kv_dim=4096, d_emb=2048)  # kv_dim = 2 * teacher_feature_dim
+        # Create IB_MBM components
+        ib_mbm = IB_MBM(q_dim=1280, kv_dim=4096, d_emb=2048)  # kv_dim = 2 * teacher_feature_dim
         synergy_head = SynergyHead(2048, num_classes=10)
         
         # Create distiller
         distiller = ASIBDistiller(
-            teacher1, teacher2, student, mbm, synergy_head, device="cuda"
+            teacher1, teacher2, student, ib_mbm, synergy_head, device="cuda"
         )
         
         # Create optimizers
@@ -569,7 +569,7 @@ class TestReproducibility:
             small_input=True
         )
         
-        # Create new MBM components
+        # Create new IB_MBM components
         mbm_new = IB_MBM(q_dim=1280, kv_dim=4096, d_emb=2048)  # kv_dim = 2 * teacher_feature_dim
         synergy_head_new = SynergyHead(2048, num_classes=10)
         

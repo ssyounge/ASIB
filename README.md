@@ -231,7 +231,7 @@ ls analysis/reports/
 
 ### 🎯 **ASIB Method**
 - **Multi-Stage Distillation**: Teacher ↔ Student updates in phases
-- **Information‑Bottleneck MBM (IB_MBM)**: Fuses teacher features using IB principles (VIB is applied inside IB_MBM; head is a plain MLP)
+- **Information‑Bottleneck IB_MBM (IB_MBM)**: Fuses teacher features using IB principles (VIB is applied inside IB_MBM; head is a plain MLP)
 - **Adaptive Synergy**: Creates synergistic knowledge from multiple teachers
 
 ### 🧊 **Partial Freezing**
