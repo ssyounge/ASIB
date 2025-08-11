@@ -1,6 +1,6 @@
 # utils/logging/structured.py
 
-"""Structured logging utilities for ASIB-KD."""
+"""Structured logging utilities for ASIB."""
 
 import logging
 import json

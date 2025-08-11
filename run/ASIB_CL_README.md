@@ -2,7 +2,7 @@
 
 ## 📖 개요
 
-ASIB-CL은 ASIB-KD(Adaptive Sampling Information Bottleneck Knowledge Distillation)를 Continual Learning 환경에 적용한 방법입니다. Information Bottleneck을 활용하여 안정성-가소성 딜레마(Stability-Plasticity Dilemma)를 해결하는 Class-Incremental Learning 방법입니다.
+ASIB-CL은 ASIB(Adaptive Sampling Information Bottleneck)를 Continual Learning 환경에 적용한 방법입니다. Information Bottleneck을 활용하여 안정성-가소성 딜레마(Stability-Plasticity Dilemma)를 해결하는 Class-Incremental Learning 방법입니다.
 
 ## 🎯 핵심 아이디어
 

@@ -33,13 +33,13 @@ class ASIBDistiller(nn.Module):
         teacher1,
         teacher2,
         student,
-        mbm,
+        ib_mbm,
         synergy_head,
         alpha=0.5,               # student CE vs. KL 비율
         synergy_ce_alpha=0.3,    # teacher 시너지 CE 비중
         temperature=4.0,
         reg_lambda=1e-4,
-        mbm_reg_lambda=1e-4,
+        ib_mbm_reg_lambda=1e-4,
         num_stages=2,
         device="cuda",
         config=None
@@ -48,7 +48,7 @@ class ASIBDistiller(nn.Module):
         self.teacher1 = teacher1
         self.teacher2 = teacher2
         self.student  = student
-        self.mbm = mbm
+        self.ib_mbm = ib_mbm
         self.synergy_head = synergy_head
         # LightweightAttnMBM 기능은 제거되었습니다.
         self.la_mode = False
@@ -62,7 +62,7 @@ class ASIBDistiller(nn.Module):
         self.kd_warmup_stage = cfg.get("teacher_adapt_kd_warmup", 2)
         self.T = cfg.get("tau_start", temperature)
         self.reg_lambda = cfg.get("reg_lambda", reg_lambda)
-        self.mbm_reg_lambda = cfg.get("ib_mbm_reg_lambda", mbm_reg_lambda)
+        self.ib_mbm_reg_lambda = cfg.get("ib_mbm_reg_lambda", ib_mbm_reg_lambda)
         self.num_stages = cfg.get("num_stages", num_stages)
         self.device = device
         self.config = config if config is not None else {}

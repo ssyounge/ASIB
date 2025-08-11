@@ -12,8 +12,8 @@
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/YourName/ASIB-KD.git
-cd ASIB-KD
+git clone https://github.com/YourName/ASIB.git
+cd ASIB
 ```
 
 ### 2. Create Conda Environment

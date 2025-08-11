@@ -10,7 +10,7 @@ with req_path.open(encoding='utf-8') as f:
     ]
 
 setup(
-    name="asib_kd",
+    name="asib",
     version="0.2.0",
     packages=find_packages(),
     install_requires=install_requires,

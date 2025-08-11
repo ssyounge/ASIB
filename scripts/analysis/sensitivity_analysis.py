@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Sensitivity Analysis for ASIB-KD Framework
+Sensitivity Analysis for ASIB Framework
 
 Phase 1: 구성 요소 분석 (Ablation Study)
 목표: ASIB를 구성하는 핵심 요소들(IB, CCCP, Teacher Adaptation, PF)이 최종 성능 향상에 독립적으로 기여함을 증명
@@ -11,7 +11,7 @@ Phase 1: 구성 요소 분석 (Ablation Study)
 - Student: ResNet50
 
 실험 구성:
-1. Baseline 설정 (MBM + E2E + Fixed Teachers)
+1. Baseline 설정 (IB_MBM + E2E + Fixed Teachers)
 2. Information Bottleneck (IB) 효과 검증 (+IB)
 3. CCCP (Stage-wise 학습) 효과 검증 (+IB +CCCP)
 4. Teacher Adaptation 효과 검증 (+IB +CCCP +T-Adapt)
@@ -57,14 +57,14 @@ def create_ablation_configs() -> List[AblationConfig]:
     """Ablation 실험 설정들 생성"""
     configs = []
     
-    # 실험 1: Baseline 설정 (MBM + E2E + Fixed Teachers)
+    # 실험 1: Baseline 설정 (IB_MBM + E2E + Fixed Teachers)
     configs.append(AblationConfig(
         experiment_name="baseline",
         use_ib=False,
         use_cccp=False,
         use_teacher_adaptation=False,
         use_pf=False,
-        description="MBM + E2E + Fixed Teachers"
+        description="IB_MBM + E2E + Fixed Teachers"
     ))
     
     # 실험 2: Information Bottleneck (IB) 효과 검증 (+IB)
@@ -190,9 +190,9 @@ def run_ablation_experiment(config: AblationConfig, seed: int = 42) -> Dict[str,
             
             # CCCP 적용 (실험 3, 4, 5)
             if config.use_cccp:
-                # A-Step: IB-MBM 학습
+                # A-Step: IB_MBM 학습
                 if epoch % 2 == 0:  # A-Step
-                    pass  # IB-MBM 학습 로직
+                    pass  # IB_MBM 학습 로직
                 # B-Step: Student 학습
                 else:  # B-Step
                     pass  # Student 학습 로직

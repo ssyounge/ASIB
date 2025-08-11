@@ -32,7 +32,7 @@ class TeacherAdaptationAnalyzer:
             'student_loss': [],
             'teacher1_loss': [],
             'teacher2_loss': [],
-            'mbm_reg_loss': [],
+            'ib_mbm_reg_loss': [],
             'learning_curves': {}
         }
         
@@ -54,11 +54,11 @@ class TeacherAdaptationAnalyzer:
                 data['student_loss'].append(results.get('final_student_loss', 0.0))
                 data['teacher1_loss'].append(results.get('final_teacher1_loss', 0.0))
                 data['teacher2_loss'].append(results.get('final_teacher2_loss', 0.0))
-                data['mbm_reg_loss'].append(results.get('final_mbm_reg_loss', 0.0))
+                data['ib_mbm_reg_loss'].append(results.get('final_ib_mbm_reg_loss', 0.0))
         
         # 평균 계산
         for key in ['student_acc', 'teacher1_acc', 'teacher2_acc', 
-                   'student_loss', 'teacher1_loss', 'teacher2_loss', 'mbm_reg_loss']:
+                   'student_loss', 'teacher1_loss', 'teacher2_loss', 'ib_mbm_reg_loss']:
             if data[key]:
                 data[f'avg_{key}'] = np.mean(data[key])
                 data[f'std_{key}'] = np.std(data[key])
@@ -75,7 +75,7 @@ class TeacherAdaptationAnalyzer:
         teacher2_degradation = 100 - self.adapt_data['avg_teacher2_acc']
         
         # 정규화 손실 분석
-        avg_reg_loss = self.adapt_data['avg_mbm_reg_loss']
+        avg_reg_loss = self.adapt_data['avg_ib_mbm_reg_loss']
         
         # 학생 성능 향상
         student_improvement = (self.adapt_data['avg_student_acc'] - 
@@ -156,7 +156,7 @@ class TeacherAdaptationAnalyzer:
         adapt_losses = [self.adapt_data['avg_student_loss'],
                        self.adapt_data['avg_teacher1_loss'],
                        self.adapt_data['avg_teacher2_loss'],
-                       self.adapt_data['avg_mbm_reg_loss']]
+                       self.adapt_data['avg_ib_mbm_reg_loss']]
         
         x = np.arange(len(losses))
         width = 0.35
@@ -225,9 +225,9 @@ class TeacherAdaptationAnalyzer:
         
         # λ_reg 민감도 분석 (간단한 버전)
         reg_loss_analysis = ""
-        if self.adapt_data['avg_mbm_reg_loss'] > 0:
+        if self.adapt_data['avg_ib_mbm_reg_loss'] > 0:
             reg_loss_analysis = f"""
-   - Average regularization loss: {self.adapt_data['avg_mbm_reg_loss']:.4f}
+        - Average regularization loss: {self.adapt_data['avg_ib_mbm_reg_loss']:.4f}
    - Regularization effectively prevents catastrophic forgetting
    - λ_reg = 0.01 provides good balance between adaptation and preservation"""
         

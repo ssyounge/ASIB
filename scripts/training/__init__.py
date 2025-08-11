@@ -1,5 +1,5 @@
 """
-Training scripts for ASIB-KD framework.
+Training scripts for ASIB framework.
 
 Available scripts:
 - fine_tuning.py: Teacher fine-tuning utilities

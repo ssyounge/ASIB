@@ -18,7 +18,7 @@ from core import (
     renorm_ce_kd,
     setup_partial_freeze_schedule_with_cfg,
     setup_safety_switches_with_cfg,
-    auto_set_mbm_query_dim_with_model,
+    auto_set_ib_mbm_query_dim_with_model,
     cast_numeric_configs,
 )
 
@@ -236,7 +236,7 @@ def main(cfg: DictConfig):
     ).to(device)
     logging.getLogger().setLevel(logging.INFO)
 
-    # 10) IB-MBM & Synergy Head
+    # 10) IB_MBM & Synergy Head
     from models import build_ib_mbm_from_teachers as build_from_teachers
     ib_mbm, synergy_head = build_from_teachers([teacher1, teacher2], exp_dict)
     ib_mbm = ib_mbm.to(device)
@@ -246,7 +246,7 @@ def main(cfg: DictConfig):
     num_stages = int(exp_dict.get("num_stages", 1))
     setup_partial_freeze_schedule_with_cfg(exp_dict, num_stages)
     setup_safety_switches_with_cfg(exp_dict, num_stages)
-    auto_set_mbm_query_dim_with_model(student, exp_dict)
+    auto_set_ib_mbm_query_dim_with_model(student, exp_dict)
     renorm_ce_kd(exp_dict)
 
     # 12) 로그

@@ -43,14 +43,14 @@ class TestSensitivityAnalysis:
         sensitivity_configs = {
             'baseline': config,
             'no_ib': {**config, 'use_ib': False},
-            'no_mbm': {**config, 'use_mbm': False},
+            'no_ib_mbm': {**config, 'use_ib_mbm': False},
             'no_cccp': {**config, 'use_cccp': False}
         }
         
         assert len(sensitivity_configs) == 4
         assert 'baseline' in sensitivity_configs
         assert 'no_ib' in sensitivity_configs
-        assert 'no_mbm' in sensitivity_configs
+        assert 'no_ib_mbm' in sensitivity_configs
         assert 'no_cccp' in sensitivity_configs
     
     def test_sensitivity_analysis_execution(self):
@@ -66,19 +66,19 @@ class TestSensitivityAnalysis:
         """Test sensitivity config validation"""
         # Create test configs
         configs = {
-            'baseline': {'use_ib': True, 'use_mbm': True, 'use_cccp': True},
-            'no_ib': {'use_ib': False, 'use_mbm': True, 'use_cccp': True},
-            'no_mbm': {'use_ib': True, 'use_mbm': False, 'use_cccp': True},
-            'no_cccp': {'use_ib': True, 'use_mbm': True, 'use_cccp': False}
+            'baseline': {'use_ib': True, 'use_ib_mbm': True, 'use_cccp': True},
+            'no_ib': {'use_ib': False, 'use_ib_mbm': True, 'use_cccp': True},
+            'no_ib_mbm': {'use_ib': True, 'use_ib_mbm': False, 'use_cccp': True},
+            'no_cccp': {'use_ib': True, 'use_ib_mbm': True, 'use_cccp': False}
         }
         
         # Validate configs
         for name, config in configs.items():
             assert 'use_ib' in config
-            assert 'use_mbm' in config
+            assert 'use_ib_mbm' in config
             assert 'use_cccp' in config
             assert isinstance(config['use_ib'], bool)
-            assert isinstance(config['use_mbm'], bool)
+            assert isinstance(config['use_ib_mbm'], bool)
             assert isinstance(config['use_cccp'], bool)
 
 

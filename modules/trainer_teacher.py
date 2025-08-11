@@ -133,7 +133,7 @@ def _cpu_state_dict(module: torch.nn.Module):
 @torch.no_grad()
 def eval_synergy(
     teacher_wrappers,
-    mbm,
+    ib_mbm,
     synergy_head,
     loader,
     device="cuda",
@@ -142,7 +142,7 @@ def eval_synergy(
 ):
     """Evaluate synergy accuracy.
 
-    When the MBM operates in query mode, ``student_model`` must be provided so
+    When the IB_MBM operates in query mode, ``student_model`` must be provided so
     that the student features can be used as the attention query.
     """
 
@@ -166,9 +166,9 @@ def eval_synergy(
             f1_2d = t1_dict[key]
             f2_2d = t2_dict[key]
 
-            assert student_model is not None, "student_model required for IB-MBM"
+            assert student_model is not None, "student_model required for IB_MBM"
             s_feat = student_model(x)[0][cfg.get("feat_kd_key", "feat_2d")]
-            fsyn, _, _ = mbm(s_feat, torch.stack([f1_2d, f2_2d], dim=1))
+            fsyn, _, _ = ib_mbm(s_feat, torch.stack([f1_2d, f2_2d], dim=1))
             zsyn = synergy_head(fsyn)
 
         pred = zsyn.argmax(dim=1)
@@ -181,7 +181,7 @@ def eval_synergy(
 
 def teacher_adaptive_update(
     teacher_wrappers,
-    mbm,
+    ib_mbm,
     synergy_head,
     student_model,
     trainloader,
@@ -194,7 +194,7 @@ def teacher_adaptive_update(
 ):
     """
     - ``teacher_wrappers``: list containing ``teacher1`` and ``teacher2``.
-    - ``mbm`` and ``synergy_head``: assume partial freezing has been applied.
+    - ``ib_mbm`` and ``synergy_head``: assume partial freezing has been applied.
     - ``student_model``: kept fixed for knowledge distillation.
     - ``testloader``: optional loader used to evaluate synergy accuracy.
     """
@@ -210,7 +210,7 @@ def teacher_adaptive_update(
         for p in param_src:
             if p.requires_grad:
                 teacher_params.append(p)
-    mbm_params = [p for p in mbm.parameters() if p.requires_grad]
+    ib_mbm_params = [p for p in ib_mbm.parameters() if p.requires_grad]
     syn_params = [p for p in synergy_head.parameters() if p.requires_grad]
 
     teacher_epochs = cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5))
@@ -218,17 +218,17 @@ def teacher_adaptive_update(
     best_synergy = -1
     best_state = {
         "teacher_wraps": [_cpu_state_dict(tw) for tw in teacher_wrappers],
-        "mbm": _cpu_state_dict(mbm),
+        "ib_mbm": _cpu_state_dict(ib_mbm),
         "syn_head": _cpu_state_dict(synergy_head),
     }
 
-    # 추가 검증 로직: learning rate 조정
-    prev_obj = float("inf")
-    backup_state = {
-        "teacher_wraps": [_cpu_state_dict(tw) for tw in teacher_wrappers],
-        "mbm": _cpu_state_dict(mbm),
-        "syn_head": _cpu_state_dict(synergy_head),
-    }
+        # 추가 검증 로직: learning rate 조정
+        prev_obj = float("inf")
+        backup_state = {
+            "teacher_wrappers": [_cpu_state_dict(tw) for tw in teacher_wrappers],
+            "ib_mbm": _cpu_state_dict(ib_mbm),
+            "syn_head": _cpu_state_dict(synergy_head),
+        }
 
     logger.info(f"[TeacherAdaptive] Using teacher_epochs={teacher_epochs}")
 
@@ -236,7 +236,7 @@ def teacher_adaptive_update(
     for ep in range(teacher_epochs):
         for tw in teacher_wrappers:
             tw.train()
-        mbm.train()
+        ib_mbm.train()
         synergy_head.train()
         if student_model is not None:
             student_model.eval()
@@ -280,8 +280,8 @@ def teacher_adaptive_update(
                         t1_dict = t_dict
                     feats_2d.append(t_dict[feat_key])
 
-                # (C) MBM + synergy_head (IB-MBM only)
-                syn_feat, mu, logvar = mbm(s_feat, torch.stack(feats_2d, dim=1))
+                # (C) IB_MBM + synergy_head (IB_MBM only)
+                syn_feat, mu, logvar = ib_mbm(s_feat, torch.stack(feats_2d, dim=1))
                 ib_loss_val = 0.0
                 if cfg.get("use_ib", False):
                     mu, logvar = mu.float(), logvar.float()
@@ -291,7 +291,7 @@ def teacher_adaptive_update(
                 zsyn = synergy_head(fsyn)
 
                 # (D) compute loss (KL + synergyCE)
-                if cfg.get("use_ib", False) and isinstance(mbm, IB_MBM):
+                if cfg.get("use_ib", False) and isinstance(ib_mbm, IB_MBM):
                     ce_vec = ce_loss_fn(
                         zsyn,
                         y,
@@ -360,10 +360,10 @@ def teacher_adaptive_update(
                     if teacher_params
                     else torch.tensor(0.0, device=cfg["device"])
                 )
-                mbm_reg_params = mbm_params + syn_params
-                mbm_reg_loss = (
-                    torch.stack([(p ** 2).mean() for p in mbm_reg_params]).mean()
-                    if mbm_reg_params
+                ib_mbm_reg_params = ib_mbm_params + syn_params
+                ib_mbm_reg_loss = (
+                    torch.stack([(p ** 2).mean() for p in ib_mbm_reg_params]).mean()
+                    if ib_mbm_reg_params
                     else torch.tensor(0.0, device=cfg["device"])
                 )
 
@@ -373,7 +373,7 @@ def teacher_adaptive_update(
                     + cfg.get("feat_kd_alpha", 0) * feat_kd_loss
                     + ib_loss_val
                     + float(cfg.get("reg_lambda", 0.0)) * reg_loss
-                    + float(cfg.get("mbm_reg_lambda", 0.0)) * mbm_reg_loss
+                    + float(cfg.get("ib_mbm_reg_lambda", 0.0)) * ib_mbm_reg_loss
                     + kd_cccp  # CCCP surrogate 추가
                 )
                 
@@ -386,7 +386,7 @@ def teacher_adaptive_update(
                 scaler.scale(total_loss_step).backward()
                 if cfg.get("grad_clip_norm", 0) > 0:
                     scaler.unscale_(optimizer)
-                    grad_params = teacher_params + mbm_params + syn_params
+                    grad_params = teacher_params + ib_mbm_params + syn_params
                     if grad_params:
                         torch.nn.utils.clip_grad_norm_(
                             grad_params,
@@ -397,7 +397,7 @@ def teacher_adaptive_update(
             else:
                 total_loss_step.backward()
                 if cfg.get("grad_clip_norm", 0) > 0:
-                    grad_params = teacher_params + mbm_params + syn_params
+                    grad_params = teacher_params + ib_mbm_params + syn_params
                     if grad_params:
                         torch.nn.utils.clip_grad_norm_(
                             grad_params,
@@ -414,7 +414,7 @@ def teacher_adaptive_update(
     if testloader is not None:
         synergy_test_acc = eval_synergy(
             teacher_wrappers,
-            mbm,
+            ib_mbm,
             synergy_head,
             loader=testloader,
             device=cfg["device"],
@@ -442,7 +442,7 @@ def teacher_adaptive_update(
         best_state["teacher_wraps"] = [
             copy.deepcopy(tw.state_dict()) for tw in teacher_wrappers
         ]
-        best_state["mbm"] = copy.deepcopy(mbm.state_dict())
+        best_state["ib_mbm"] = copy.deepcopy(ib_mbm.state_dict())
         best_state["syn_head"] = copy.deepcopy(synergy_head.state_dict())
 
     # 추가 검증 로직: loss가 증가하면 learning rate 조정 및 상태 복원
@@ -453,7 +453,7 @@ def teacher_adaptive_update(
         # 이전 상태로 복원
         for i, tw in enumerate(teacher_wrappers):
             tw.load_state_dict(backup_state["teacher_wraps"][i])
-        mbm.load_state_dict(backup_state["mbm"])
+        ib_mbm.load_state_dict(backup_state["ib_mbm"])
         synergy_head.load_state_dict(backup_state["syn_head"])
     else:
         prev_obj = ep_loss
@@ -461,13 +461,13 @@ def teacher_adaptive_update(
         backup_state["teacher_wraps"] = [
             copy.deepcopy(tw.state_dict()) for tw in teacher_wrappers
         ]
-        backup_state["mbm"] = copy.deepcopy(mbm.state_dict())
+        backup_state["ib_mbm"] = copy.deepcopy(ib_mbm.state_dict())
         backup_state["syn_head"] = copy.deepcopy(synergy_head.state_dict())
 
     # restore best
     for i, tw in enumerate(teacher_wrappers):
         tw.load_state_dict(best_state["teacher_wraps"][i])
-    mbm.load_state_dict(best_state["mbm"])
+    ib_mbm.load_state_dict(best_state["ib_mbm"])
     synergy_head.load_state_dict(best_state["syn_head"])
 
     return best_synergy

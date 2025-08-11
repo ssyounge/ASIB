@@ -3,13 +3,13 @@ import torch
 import torch.nn as nn
 from models import IB_MBM, SynergyHead, build_ib_mbm_from_teachers as build_from_teachers
 
-class TestMBMTensorShapes:
-    """Test MBM tensor shape issues"""
+class TestIB_MBMTensorShapes:
+    """Test IB_MBM tensor shape issues"""
     
-    def test_mbm_forward_tensor_shapes(self):
-        """Test that MBM forward handles tensor shapes correctly"""
-        # Create MBM with typical dimensions
-        mbm = IB_MBM(
+    def test_ib_mbm_forward_tensor_shapes(self):
+        """Test that IB_MBM forward handles tensor shapes correctly"""
+        # Create IB_MBM with typical dimensions
+        ib_mbm = IB_MBM(
             q_dim=512,
             kv_dim=512,
             d_emb=512,
@@ -23,16 +23,16 @@ class TestMBMTensorShapes:
         kv_feats = torch.randn(batch_size, 512)  # (batch_size, kv_dim)
         
         # This should work
-        z, mu, logvar = mbm(q_feat, kv_feats)
+        z, mu, logvar = ib_mbm(q_feat, kv_feats)
         
         # Check output shapes
         assert z.shape == (batch_size, 512)
         assert mu.shape == (batch_size, 512)
         assert logvar.shape == (batch_size, 512)
     
-    def test_mbm_forward_with_3d_tensor_from_stack(self):
+    def test_ib_mbm_forward_with_3d_tensor_from_stack(self):
         """Test the specific issue with 3D tensors from torch.stack"""
-        mbm = IB_MBM(
+        ib_mbm = IB_MBM(
             q_dim=2048,  # student feature dimension
             kv_dim=2048,  # teacher feature dimension
             d_emb=512,
@@ -48,16 +48,16 @@ class TestMBMTensorShapes:
         kv_feats_3d = torch.randn(batch_size, 2, 2048)  # (batch_size, num_teachers, kv_dim)
         
         # This should now work with the fixed implementation
-        z, mu, logvar = mbm(q_feat, kv_feats_3d)
+        z, mu, logvar = ib_mbm(q_feat, kv_feats_3d)
         
         # Check output shapes
         assert z.shape == (batch_size, 512)
         assert mu.shape == (batch_size, 512)
         assert logvar.shape == (batch_size, 512)
     
-    def test_mbm_forward_with_3d_tensor(self):
+    def test_ib_mbm_forward_with_3d_tensor(self):
         """Test with 3D tensor (sequence of features)"""
-        mbm = IB_MBM(
+        ib_mbm = IB_MBM(
             q_dim=512,
             kv_dim=512,
             d_emb=512,
@@ -71,7 +71,7 @@ class TestMBMTensorShapes:
         kv_feats_3d = torch.randn(batch_size, seq_len, 512)  # (batch_size, seq_len, kv_dim)
         
         # This should work
-        z, mu, logvar = mbm(q_feat, kv_feats_3d)
+        z, mu, logvar = ib_mbm(q_feat, kv_feats_3d)
         
         # Check output shapes
         assert z.shape == (batch_size, 512)

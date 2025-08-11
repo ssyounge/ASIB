@@ -19,7 +19,7 @@ from .utils import (
     setup_partial_freeze_schedule_with_cfg,
     setup_safety_switches,
     setup_safety_switches_with_cfg,
-    auto_set_mbm_query_dim_with_model,
+    auto_set_ib_mbm_query_dim_with_model,
     cast_numeric_configs,
 )
 
@@ -42,6 +42,6 @@ __all__ = [
     "setup_partial_freeze_schedule_with_cfg",
     "setup_safety_switches",
     "setup_safety_switches_with_cfg",
-    "auto_set_mbm_query_dim_with_model",
+    "auto_set_ib_mbm_query_dim_with_model",
     "cast_numeric_configs",
 ] 

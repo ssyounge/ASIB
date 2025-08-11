@@ -2,7 +2,7 @@
 
 ## Overview
 
-ASIB-KD uses Hydra for configuration management. All configurations are stored in YAML files under the `configs/` directory.
+ASIB uses Hydra for configuration management. All configurations are stored in YAML files under the `configs/` directory.
 
 ## Configuration Structure
 
@@ -298,7 +298,7 @@ dataset:
 # Weights & Biases
 use_wandb: true
 wandb_entity: ${oc.env:WANDB_ENTITY,}
-wandb_project: ${oc.env:WANDB_PROJECT,asib-kd}
+wandb_project: ${oc.env:WANDB_PROJECT,asib}
 ```
 
 ## Advanced Configuration

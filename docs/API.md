@@ -92,7 +92,7 @@ Create a teacher model from registry.
 ```python
 def create_optimizers_and_schedulers(
     teacher_wrappers: List[torch.nn.Module],
-    mbm: torch.nn.Module,
+    ib_mbm: torch.nn.Module,
     synergy_head: torch.nn.Module,
     student_model: torch.nn.Module,
     cfg: Dict[str, Any],
@@ -105,7 +105,7 @@ Create optimizers and schedulers for training.
 
 **Parameters:**
 - `teacher_wrappers` (List[torch.nn.Module]): List of teacher models
-- `mbm` (torch.nn.Module): IB‑MBM (Information‑Bottleneck Manifold Bridging Module)
+- `ib_mbm` (torch.nn.Module): IB_MBM (Information‑Bottleneck Manifold Bridging Module)
 - `synergy_head` (torch.nn.Module): Synergy head
 - `student_model` (torch.nn.Module): Student model
 - `cfg` (Dict[str, Any]): Configuration dictionary
@@ -121,7 +121,7 @@ from core.trainer import create_optimizers_and_schedulers
 teacher_opt, teacher_sched, student_opt, student_sched = \
     create_optimizers_and_schedulers(
         teacher_wrappers=[teacher1, teacher2],
-        mbm=mbm,
+        ib_mbm=ib_mbm,
         synergy_head=synergy_head,
         student_model=student,
         cfg=cfg,
@@ -134,7 +134,7 @@ teacher_opt, teacher_sched, student_opt, student_sched = \
 ```python
 def run_training_stages(
     teacher_wrappers: List[torch.nn.Module],
-    mbm: torch.nn.Module,
+    ib_mbm: torch.nn.Module,
     synergy_head: torch.nn.Module,
     student_model: torch.nn.Module,
     train_loader: torch.utils.data.DataLoader,
@@ -149,7 +149,7 @@ Run the main training stages.
 
 **Parameters:**
 - `teacher_wrappers` (List[torch.nn.Module]): List of teacher models
-- `mbm` (torch.nn.Module): IB‑MBM
+- `ib_mbm` (torch.nn.Module): IB_MBM
 - `synergy_head` (torch.nn.Module): Synergy head
 - `student_model` (torch.nn.Module): Student model
 - `train_loader` (DataLoader): Training data loader
@@ -167,7 +167,7 @@ from core.trainer import run_training_stages
 
 final_acc = run_training_stages(
     teacher_wrappers=[teacher1, teacher2],
-    mbm=mbm,
+    ib_mbm=ib_mbm,
     synergy_head=synergy_head,
     student_model=student,
     train_loader=train_loader,
@@ -199,13 +199,13 @@ from core.utils import setup_partial_freeze_schedule
 setup_partial_freeze_schedule(cfg, num_stages=4)
 ```
 
-#### `core.utils.auto_set_mbm_query_dim`
+#### `core.utils.auto_set_ib_mbm_query_dim`
 
 ```python
-def auto_set_mbm_query_dim(student_model: torch.nn.Module, cfg: Dict[str, Any]) -> None
+def auto_set_ib_mbm_query_dim(student_model: torch.nn.Module, cfg: Dict[str, Any]) -> None
 ```
 
-Auto-set MBM query dimension based on student model.
+Auto-set IB_MBM query dimension based on student model.
 
 **Parameters:**
 - `student_model` (torch.nn.Module): Student model
@@ -213,9 +213,9 @@ Auto-set MBM query dimension based on student model.
 
 **Example:**
 ```python
-from core.utils import auto_set_mbm_query_dim
+from core.utils import auto_set_ib_mbm_query_dim
 
-auto_set_mbm_query_dim(student_model, cfg)
+auto_set_ib_mbm_query_dim(student_model, cfg)
 ```
 
 ## Utils Module
@@ -468,7 +468,7 @@ for i in smart_tqdm(range(100)):
 ```python
 def student_distillation_update(
     teacher_wrappers: List[torch.nn.Module],
-    mbm: torch.nn.Module,
+    ib_mbm: torch.nn.Module,
     synergy_head: torch.nn.Module,
     student_model: torch.nn.Module,
     trainloader: DataLoader,
@@ -485,7 +485,7 @@ Perform student distillation update.
 
 **Parameters:**
 - `teacher_wrappers` (List[torch.nn.Module]): List of teacher models
-- `mbm` (torch.nn.Module): Manifold Bridging Module
+- `ib_mbm` (torch.nn.Module): IB_MBM
 - `synergy_head` (torch.nn.Module): Synergy head
 - `student_model` (torch.nn.Module): Student model
 - `trainloader` (DataLoader): Training data loader
@@ -506,7 +506,7 @@ Perform student distillation update.
 ```python
 def teacher_adaptive_update(
     teacher_wrappers: List[torch.nn.Module],
-    mbm: torch.nn.Module,
+    ib_mbm: torch.nn.Module,
     synergy_head: torch.nn.Module,
     student_model: torch.nn.Module,
     trainloader: DataLoader,
@@ -523,7 +523,7 @@ Perform teacher adaptive update.
 
 **Parameters:**
 - `teacher_wrappers` (List[torch.nn.Module]): List of teacher models
-- `mbm` (torch.nn.Module): Manifold Bridging Module
+- `ib_mbm` (torch.nn.Module): IB_MBM
 - `synergy_head` (torch.nn.Module): Synergy head
 - `student_model` (torch.nn.Module): Student model
 - `trainloader` (DataLoader): Training data loader
@@ -606,7 +606,7 @@ class ASIBDistiller(nn.Module):
         teacher1: nn.Module,
         teacher2: nn.Module,
         student: nn.Module,
-        mbm: nn.Module,
+        ib_mbm: nn.Module,
         synergy_head: nn.Module,
         cfg: Dict[str, Any],
     ):
@@ -617,7 +617,7 @@ class ASIBDistiller(nn.Module):
         - teacher1: First teacher model
         - teacher2: Second teacher model
         - student: Student model
-        - mbm: Manifold Bridging Module
+        - ib_mbm: IB_MBM
         - synergy_head: Synergy head
         - cfg: Configuration dictionary
         """
@@ -667,7 +667,7 @@ tau: 4.0
 use_partial_freeze: true
 student_freeze_schedule: [-1, 2, 1, 0]
 
-# IB‑MBM settings
+# IB_MBM settings
 ib_mbm_query_dim: 1024
 ib_mbm_out_dim: 1024
 ib_mbm_n_head: 8
@@ -719,14 +719,14 @@ def main(cfg: DictConfig):
     teacher1 = create_teacher_by_name("convnext_l_teacher")
     teacher2 = create_teacher_by_name("efficientnet_l2_teacher")
     
-# Create IB‑MBM and synergy head
+# Create IB_MBM and synergy head
 from models import build_ib_mbm_from_teachers as build_from_teachers
-mbm, synergy_head = build_from_teachers([teacher1, teacher2], cfg)
+ib_mbm, synergy_head = build_from_teachers([teacher1, teacher2], cfg)
     
     # Run training
     final_acc = run_training_stages(
         teacher_wrappers=[teacher1, teacher2],
-        mbm=mbm,
+        ib_mbm=ib_mbm,
         synergy_head=synergy_head,
         student_model=student,
         train_loader=train_loader,

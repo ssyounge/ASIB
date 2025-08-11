@@ -1,5 +1,5 @@
 """
-Setup scripts for ASIB-KD framework.
+Setup scripts for ASIB framework.
 
 Available scripts:
 - setup_tests.sh: Test environment setup

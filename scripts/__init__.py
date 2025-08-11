@@ -1,5 +1,5 @@
 """
-Scripts package for ASIB-KD framework.
+Scripts package for ASIB framework.
 
 This package contains various utility scripts for:
 - analysis: Sensitivity and overlap analysis

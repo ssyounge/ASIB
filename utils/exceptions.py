@@ -1,10 +1,10 @@
 # utils/exceptions.py
 
-"""Custom exceptions for ASIB-KD framework."""
+"""Custom exceptions for ASIB framework."""
 
 
 class ASIBError(Exception):
-    """Base exception for ASIB-KD framework."""
+    """Base exception for ASIB framework."""
     pass
 
 

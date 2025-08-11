@@ -16,7 +16,7 @@ from utils.training.metrics import ExperimentMeter
 
 def create_optimizers_and_schedulers(
     teacher_wrappers: List[torch.nn.Module],
-    mbm: torch.nn.Module,
+    ib_mbm: torch.nn.Module,
     synergy_head: torch.nn.Module,
     student_model: torch.nn.Module,
     cfg: Dict[str, Any],
@@ -38,7 +38,7 @@ def create_optimizers_and_schedulers(
             if p.requires_grad:
                 teacher_params.append(p)
     
-    mbm_params = [p for p in mbm.parameters() if p.requires_grad]
+    ib_mbm_params = [p for p in ib_mbm.parameters() if p.requires_grad]
     syn_params = [p for p in synergy_head.parameters() if p.requires_grad]
 
     # Teacher optimizer
@@ -46,12 +46,12 @@ def create_optimizers_and_schedulers(
         [
             {"params": teacher_params, "lr": cfg["teacher_lr"]},
             {
-                "params": mbm_params,
-                "lr": cfg["teacher_lr"] * cfg.get("mbm_lr_factor", 1.0),
+                "params": ib_mbm_params,
+                "lr": cfg["teacher_lr"] * cfg.get("ib_mbm_lr_factor", 1.0),
             },
             {
                 "params": syn_params,
-                "lr": cfg["teacher_lr"] * cfg.get("mbm_lr_factor", 1.0),
+                "lr": cfg["teacher_lr"] * cfg.get("ib_mbm_lr_factor", 1.0),
             },
         ],
         weight_decay=cfg["teacher_weight_decay"],
@@ -116,7 +116,7 @@ def create_optimizers_and_schedulers(
 
 def run_training_stages(
     teacher_wrappers: List[torch.nn.Module],
-    mbm: torch.nn.Module,
+    ib_mbm: torch.nn.Module,
     synergy_head: torch.nn.Module,
     student_model: torch.nn.Module,
     train_loader: DataLoader,
@@ -137,7 +137,7 @@ def run_training_stages(
         student_optimizer,
         student_scheduler,
     ) = create_optimizers_and_schedulers(
-        teacher_wrappers, mbm, synergy_head, student_model, cfg, num_stages
+        teacher_wrappers, ib_mbm, synergy_head, student_model, cfg, num_stages
     )
 
     # Training loop
@@ -149,7 +149,7 @@ def run_training_stages(
         if cfg.get("use_partial_freeze", False):
             te1_acc = teacher_adaptive_update(
                 teacher_wrappers,
-                mbm,
+                ib_mbm,
                 synergy_head,
                 student_model,
                 train_loader,
@@ -171,7 +171,7 @@ def run_training_stages(
         # Student distillation
         student_acc = student_distillation_update(
             teacher_wrappers,
-            mbm,
+            ib_mbm,
             synergy_head,
             student_model,
             train_loader,
@@ -210,7 +210,7 @@ def run_training_stages(
 
 def run_continual_learning(
     teacher_wrappers: List[torch.nn.Module],
-    mbm: torch.nn.Module,
+    ib_mbm: torch.nn.Module,
     synergy_head: torch.nn.Module,
     student_model: torch.nn.Module,
     cfg: Dict[str, Any],

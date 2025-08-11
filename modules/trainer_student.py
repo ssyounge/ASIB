@@ -148,7 +148,7 @@ def _get_cfg_val(cfg: dict, key: str, default):
 
 def student_distillation_update(
     teacher_wrappers,
-    mbm, synergy_head,
+    ib_mbm, synergy_head,
     student_model,
     trainloader,
     testloader,
@@ -160,13 +160,13 @@ def student_distillation_update(
 ):
     """Train the student model via knowledge distillation.
 
-    The teachers and MBM are frozen to generate synergy logits while the
+    The teachers and IB_MBM are frozen to generate synergy logits while the
     student is optimized using a combination of cross-entropy and KD losses.
-    If the MBM operates in query mode, the optional feature-level KD term
-    aligns the student query with the teacher attention output in the MBM
+    If the IB_MBM operates in query mode, the optional feature-level KD term
+    aligns the student query with the teacher attention output in the IB_MBM
     latent space.
     """
-    # 1) freeze teacher + mbm
+    # 1) freeze teacher + ib_mbm
     teacher_reqgrad_states = []
     teacher_train_states = []
     for tw in teacher_wrappers:
@@ -178,12 +178,12 @@ def student_distillation_update(
         teacher_reqgrad_states.append(states)
         tw.eval()
 
-    mbm_reqgrad_states = []
-    mbm_train_state = mbm.training
-    for p in mbm.parameters():
-        mbm_reqgrad_states.append(p.requires_grad)
+    ib_mbm_reqgrad_states = []
+    ib_mbm_train_state = ib_mbm.training
+    for p in ib_mbm.parameters():
+        ib_mbm_reqgrad_states.append(p.requires_grad)
         p.requires_grad = False
-    mbm.eval()
+    ib_mbm.eval()
 
     syn_reqgrad_states = []
     syn_train_state = synergy_head.training
@@ -216,9 +216,9 @@ def student_distillation_update(
 
     autocast_ctx, scaler = get_amp_components(cfg)
     # ---------------------------------------------------------
-    # IB‑MBM forward
+    # IB_MBM forward
     # ---------------------------------------------------------
-    # no attention weights returned in simplified IB-MBM
+    # no attention weights returned in simplified IB_MBM
     for ep in range(student_epochs):
         if scheduler is not None and hasattr(scheduler, "T_max"):
             total_epochs = scheduler.T_max
@@ -270,7 +270,7 @@ def student_distillation_update(
                     f2_2d = t2_dict[feat_key]
 
                 s_feat = feat_dict[cfg.get("feat_kd_key", "feat_2d")]
-                syn_feat, mu, logvar = mbm(
+                syn_feat, mu, logvar = ib_mbm(
                     s_feat, torch.stack([f1_2d, f2_2d], dim=1)
                 )
                 if cfg.get("use_ib", False):
@@ -319,7 +319,7 @@ def student_distillation_update(
             # AMP / float16 환경에서도 안전
             weights = weights.to(s_logit.dtype)
 
-            if cfg.get("use_ib", False) and isinstance(mbm, IB_MBM):
+            if cfg.get("use_ib", False) and isinstance(ib_mbm, IB_MBM):
                 cw = certainty_weights(logvar).mean(dim=1).to(s_logit.dtype)
                 weights = weights * cw
 
@@ -410,9 +410,9 @@ def student_distillation_update(
         for p, rg in zip(tw.parameters(), states):
             p.requires_grad = rg
         tw.train(train_flag)
-    for p, rg in zip(mbm.parameters(), mbm_reqgrad_states):
+    for p, rg in zip(ib_mbm.parameters(), ib_mbm_reqgrad_states):
         p.requires_grad = rg
-    mbm.train(mbm_train_state)
+    ib_mbm.train(ib_mbm_train_state)
     for p, rg in zip(synergy_head.parameters(), syn_reqgrad_states):
         p.requires_grad = rg
     synergy_head.train(syn_train_state)

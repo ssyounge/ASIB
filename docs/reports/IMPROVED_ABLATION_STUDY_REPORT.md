@@ -19,7 +19,7 @@
 
 ### **수정된 실험 테이블**
 
-| 실험 | IB‑MBM | VIB (IB) | CCCP | T-Adapt | PF | 분석 목표 |
+| 실험 | IB_MBM | VIB (IB) | CCCP | T-Adapt | PF | 분석 목표 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
 | 1 (Baseline) | ✅ | ❌ | ❌ (E2E) | ❌ | ❌ | 기본 성능 확인 |
 | 2 (+IB) | ✅ | **✅** | ❌ (E2E) | ❌ | ❌ | IB 효과 (정보 압축) |
@@ -29,7 +29,7 @@
 
 ---
 
-## 🧪 실험 1: Baseline (IB‑MBM + E2E + Fixed Teachers)
+## 🧪 실험 1: Baseline (IB_MBM + E2E + Fixed Teachers)
 
 ### 📊 개선된 하이퍼파라미터 설정
 
@@ -49,9 +49,9 @@
 | | Teacher Adapt | 0 | 교사 적응 없음 |
 | **MBM/Adapter** | Distillation Adapter | True | 어댑터 사용 |
 | | Distill Out Dim | 512 | 어댑터 출력 차원 |
-| | MBM Query Dim | 2048 | MBM 쿼리 차원 |
-| | MBM Out Dim | 2048 | MBM 출력 차원 |
-| | MBM N Head | 8 | 멀티헤드 어텐션 |
+| | IB_MBM Query Dim | 2048 | IB_MBM 쿼리 차원 |
+| | IB_MBM Out Dim | 2048 | IB_MBM 출력 차원 |
+| | IB_MBM N Head | 8 | 멀티헤드 어텐션 |
 | **Information Bottleneck** | Use IB | False | IB 비활성화 |
 | | IB Beta | 0.0 | 정보 압축 강도 |
 | **Knowledge Distillation** | KD Alpha | 0.5 | 기본 KD 가중치 |
@@ -108,7 +108,7 @@ IB 설정에서 학습 방식을 E2E에서 A-Step/B-Step 교대 최적화 방식
 | **Teacher Adaptation** | Teacher LR: 0.0 → **1.0e-5** | 교사 적응 학습률 |
 | | Teacher Freeze Level: -1 → **0** | 교사 상위 레이어 학습 |
 | | Teacher Freeze BN: True → **False** | 교사 BN도 학습 |
-| | MBM Reg Lambda: 0.0 → **0.01** | 교사 정규화 (사전 지식 보호) |
+| | IB_MBM Reg Lambda: 0.0 → **0.01** | 교사 정규화 (사전 지식 보호) |
 
 ### 🎯 실험 목적
 IB+CCCP 설정에서 A-Step 시 교사 모델의 상위 레이어를 업데이트하여 시너지 효과를 검증합니다.

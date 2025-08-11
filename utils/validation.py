@@ -1,6 +1,6 @@
 # utils/validation.py
 
-"""Validation utilities for ASIB-KD."""
+"""Validation utilities for ASIB."""
 
 import torch
 import torch.nn as nn
@@ -44,7 +44,7 @@ def validate_config(cfg: Dict[str, Any]) -> None:
         if cfg["ib_beta"] < 0:
             raise ConfigurationError("ib_beta must be non-negative")
     
-    # Validate IB‑MBM parameters (legacy keys removed)
+    # Validate IB_MBM parameters (legacy keys removed)
     qd = cfg.get("ib_mbm_query_dim")
     od = cfg.get("ib_mbm_out_dim")
     nh = cfg.get("ib_mbm_n_head")
@@ -231,7 +231,7 @@ def validate_hyperparameters(cfg: Dict[str, Any]) -> None:
     if cfg.get("ib_beta", 0) < 0:
         raise ValidationError("ib_beta must be non-negative")
     
-    # IB‑MBM parameters (legacy keys removed)
+    # IB_MBM parameters (legacy keys removed)
     qd = cfg.get("ib_mbm_query_dim", 0)
     od = cfg.get("ib_mbm_out_dim", 0)
     nh = cfg.get("ib_mbm_n_head", 0)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Class Overlap Analysis for ASIB-KD Framework
+Class Overlap Analysis for ASIB Framework
 
 Phase 3: 강건성 분석 (Class Overlap 실험)
 목적: ASIB의 핵심 동기인 '상충(Contradictory) 및 중복(Redundant) 정보 처리 능력'을 극한의 상황에서 검증
@@ -20,7 +20,7 @@ Overlap 비율:
 
 가설: Overlap 비율이 낮아질수록(특히 0%일 때), 단순 평균 방식은 성능이 급격히 하락할 것입니다.
 교사가 모르는 클래스에 대해 잘못된 신호(Noise)를 생성하고 이것이 평균에 반영되기 때문입니다.
-반면, ASIB는 IB-MBM을 통해 현재 샘플에 대해 유용한 지식을 가진 교사를 동적으로 선택하고(Adaptive) 
+반면, ASIB는 IB_MBM을 통해 현재 샘플에 대해 유용한 지식을 가진 교사를 동적으로 선택하고(Adaptive) 
 노이즈를 억제하므로(IB), Overlap 비율이 낮아도 훨씬 안정적이고 높은 성능을 유지할 것입니다.
 """
 

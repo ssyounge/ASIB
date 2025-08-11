@@ -166,8 +166,8 @@ class TestExperimentExecution:
             except Exception as e:
                 pytest.fail(f"Data loading failed: {e}")
     
-    def test_mbm_creation_with_configs(self):
-        """Test MBM creation with experiment configs"""
+    def test_ib_mbm_creation_with_configs(self):
+        """Test IB_MBM creation with experiment configs"""
         import torch
         from models import build_ib_mbm_from_teachers as build_from_teachers
         
@@ -193,8 +193,8 @@ class TestExperimentExecution:
         }
         
         try:
-            mbm, synergy_head = build_from_teachers(teachers, config)
-            assert mbm is not None
+            ib_mbm, synergy_head = build_from_teachers(teachers, config)
+            assert ib_mbm is not None
             assert synergy_head is not None
             
             # Test forward pass
@@ -202,14 +202,14 @@ class TestExperimentExecution:
             q_feat = torch.randn(batch_size, 2048)
             kv_feats = torch.randn(batch_size, 2, 2048)
             
-            z, mu, logvar = mbm(q_feat, kv_feats)
+            z, mu, logvar = ib_mbm(q_feat, kv_feats)
             logits = synergy_head(z)
             
             assert z.shape == (batch_size, 512)
             assert logits.shape == (batch_size, 100)
             
         except Exception as e:
-            pytest.fail(f"MBM creation failed: {e}")
+            pytest.fail(f"IB_MBM creation failed: {e}")
     
     def test_optimizer_creation_with_configs(self):
         """Test optimizer creation with experiment configs"""
@@ -247,8 +247,8 @@ class TestExperimentExecution:
         
         try:
             # Mock additional required components
-            mbm = MagicMock()
-            mbm.parameters.return_value = [torch.randn(10, 10, requires_grad=True)]
+            ib_mbm = MagicMock()
+            ib_mbm.parameters.return_value = [torch.randn(10, 10, requires_grad=True)]
             
             synergy_head = MagicMock()
             synergy_head.parameters.return_value = [torch.randn(10, 10, requires_grad=True)]
@@ -256,7 +256,7 @@ class TestExperimentExecution:
             teacher_wrappers = [teacher1, teacher2]
             
             teacher_optimizer, teacher_scheduler, student_optimizer, student_scheduler = create_optimizers_and_schedulers(
-                teacher_wrappers, mbm, synergy_head, student_model, config, num_stages=1
+                teacher_wrappers, ib_mbm, synergy_head, student_model, config, num_stages=1
             )
             
             assert teacher_optimizer is not None

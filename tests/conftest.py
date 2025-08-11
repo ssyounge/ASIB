@@ -226,7 +226,7 @@ def main_config():
             "ib_mbm_dropout": 0.0,
             "synergy_head_dropout": 0.0,
             "ib_mbm_learnable_q": False,
-            "mbm_reg_lambda": 0.0,
+            "ib_mbm_reg_lambda": 0.0,
             "use_cccp": False,
             "tau": 4.0,
             "reg_lambda": 0.0,

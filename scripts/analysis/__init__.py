@@ -1,5 +1,5 @@
 """
-Analysis scripts for ASIB-KD framework.
+Analysis scripts for ASIB framework.
 
 Available scripts:
 - sensitivity_analysis.py: Feature sensitivity analysis

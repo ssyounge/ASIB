@@ -1,6 +1,6 @@
 # utils/optimization.py
 
-"""Performance optimization utilities for ASIB-KD."""
+"""Performance optimization utilities for ASIB."""
 
 import torch
 import torch.nn as nn

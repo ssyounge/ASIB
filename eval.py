@@ -1,6 +1,6 @@
 # eval.py
 """
-Evaluates either a single model or a synergy model (Teacher1+2 + MBM + synergy head)
+Evaluates either a single model or a synergy model (Teacher1+2 + IB_MBM + synergy head)
 and logs the results (train_acc, test_acc, etc.) using ExperimentLogger.
 Supports evaluation on the CIFAR-100 and ImageNet-100 datasets.
 """
@@ -67,11 +67,11 @@ def evaluate_acc(model, loader, device="cuda", cfg=None):
 
 # Synergy Ensemble
 class SynergyEnsemble(nn.Module):
-    def __init__(self, teacher1, teacher2, mbm, synergy_head, student=None, cfg=None):
+    def __init__(self, teacher1, teacher2, ib_mbm, synergy_head, student=None, cfg=None):
         super().__init__()
         self.teacher1 = teacher1
         self.teacher2 = teacher2
-        self.mbm = mbm
+        self.ib_mbm = ib_mbm
         self.synergy_head = synergy_head
         self.student = student
         self.cfg = cfg or {}
@@ -91,13 +91,13 @@ class SynergyEnsemble(nn.Module):
         f2_4d = f2_dict.get("feat_4d")
 
         if self.la_mode:
-            assert self.student is not None, "student required for query-based MBM"
+            assert self.student is not None, "student required for query-based IB_MBM"
             feat_dict, _, _ = self.student(x)
             key = self.cfg.get("feat_kd_key", "feat_2d")
             s_feat = feat_dict[key]
-            fsyn, _, _, _ = self.mbm(s_feat, [f1_2d, f2_2d])
+            fsyn, _, _, _ = self.ib_mbm(s_feat, [f1_2d, f2_2d])
         else:
-            fsyn = self.mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
+            fsyn = self.ib_mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
 
         out = self.synergy_head(fsyn)
         if isinstance(out, tuple):
@@ -118,8 +118,8 @@ def main(cfg: DictConfig):
     logger = ExperimentLogger(cfg, exp_name="eval_experiment")
     logger.update_metric("use_amp", cfg.get("use_amp", False))
     logger.update_metric("amp_dtype", cfg.get("amp_dtype", "float16"))
-    logger.update_metric("mbm_type", "ib_mbm")
-    logger.update_metric("mbm_r", cfg.get("mbm_r"))
+    logger.update_metric("ib_mbm_type", "ib_mbm")
+    logger.update_metric("ib_mbm_r", cfg.get("ib_mbm_r"))
     logger.update_metric("ib_mbm_n_head", cfg.get("ib_mbm_n_head"))
     logger.update_metric("ib_mbm_learnable_q", cfg.get("ib_mbm_learnable_q"))
 
@@ -217,20 +217,20 @@ def main(cfg: DictConfig):
             )
             teacher2.load_state_dict(t2_ck, strict=False)
 
-        # 4) MBM and synergy head
-        mbm_query_dim = cfg.get("ib_mbm_query_dim")
-        mbm, synergy_head = build_from_teachers(
-            [teacher1, teacher2], cfg, query_dim=mbm_query_dim
+        # 4) IB_MBM and synergy head
+        ib_mbm_query_dim = cfg.get("ib_mbm_query_dim")
+        ib_mbm, synergy_head = build_from_teachers(
+            [teacher1, teacher2], cfg, query_dim=ib_mbm_query_dim
         )
-        mbm = mbm.to(device)
+        ib_mbm = ib_mbm.to(device)
         synergy_head = synergy_head.to(device)
 
-        # load MBM, synergy head
-        if cfg.get("mbm_ckpt"):
-            mbm_ck = torch.load(
-                cfg["mbm_ckpt"], map_location=device, weights_only=True
+        # load IB_MBM, synergy head
+        if cfg.get("ib_mbm_ckpt"):
+            ib_mbm_ck = torch.load(
+                cfg["ib_mbm_ckpt"], map_location=device, weights_only=True
             )
-            mbm.load_state_dict(mbm_ck, strict=False)
+            ib_mbm.load_state_dict(ib_mbm_ck, strict=False)
         if cfg.get("head_ckpt"):
             head_ck = torch.load(
                 cfg["head_ckpt"], map_location=device, weights_only=True
@@ -267,7 +267,7 @@ def main(cfg: DictConfig):
         synergy_model = SynergyEnsemble(
             teacher1,
             teacher2,
-            mbm,
+            ib_mbm,
             synergy_head,
             student=student,
             cfg=cfg,

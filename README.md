@@ -1,6 +1,6 @@
 # ASIB Knowledge Distillation Framework
 
-**ASIB** (Adaptive Synergy Information-Bottleneck) is a multi-stage knowledge distillation framework that uses the Information‑Bottleneck Manifold‑Bridging Module (IB‑MBM) to create synergistic knowledge from multiple teachers.
+**ASIB** (Adaptive Synergy Information-Bottleneck) is a multi-stage knowledge distillation framework that uses the Information‑Bottleneck Manifold‑Bridging Module (IB_MBM) to create synergistic knowledge from multiple teachers.
 
 ## 🎯 **Latest Updates**
 
@@ -102,7 +102,7 @@ ASIB/
 │   ├── run_asib_sota_comparison.sh
 │   ├── run_finetune_single.sh
 │   └── run_finetune_all_teachers.sh
-├── models/             # Model definitions (IB‑MBM)
+├── models/             # Model definitions (IB_MBM)
 ├── data/               # Data loading utilities
 ├── utils/              # Utility modules
 ├── core/               # Core functionality
@@ -231,11 +231,11 @@ ls analysis/reports/
 
 ### 🎯 **ASIB Method**
 - **Multi-Stage Distillation**: Teacher ↔ Student updates in phases
-- **Information‑Bottleneck MBM (IB‑MBM)**: Fuses teacher features using IB principles (VIB is applied inside IB‑MBM; head is a plain MLP)
+- **Information‑Bottleneck MBM (IB_MBM)**: Fuses teacher features using IB principles (VIB is applied inside IB_MBM; head is a plain MLP)
 - **Adaptive Synergy**: Creates synergistic knowledge from multiple teachers
 
 ### 🧊 **Partial Freezing**
-- **Efficient Training**: Freeze backbone, adapt BN/Heads/MBM
+- **Efficient Training**: Freeze backbone, adapt BN/Heads/IB_MBM
 - **Flexible Levels**: -1 (no freeze) to N (freeze N blocks)
 - **Auto-Scheduling**: Stage-wise freeze level progression
 
@@ -289,7 +289,7 @@ sbatch run/run_ablation_study.sh
 ```
 
 **Experiments:**
-1. **Baseline**: MBM + E2E + Fixed Teachers
+1. **Baseline**: IB_MBM + E2E + Fixed Teachers
 2. **+IB**: Information Bottleneck
 3. **+CCCP**: Stage-wise learning
 4. **+T-Adapt**: Teacher Adaptation

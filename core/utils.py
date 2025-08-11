@@ -82,14 +82,14 @@ def setup_safety_switches_with_cfg(cfg: Dict[str, Any], num_stages: int):
         target["student_freeze_schedule"] = [-1] * num_stages
 
 
-def auto_set_mbm_query_dim(cfg: Dict[str, Any]):
+def auto_set_ib_mbm_query_dim(cfg: Dict[str, Any]):
     """Auto-set ib_mbm_query_dim based on student model (legacy keys removed)."""
     key = "ib_mbm_query_dim"
     if cfg.get(key, 0) in (0, None):
         cfg[key] = 512  # Default
     return cfg
 
-def auto_set_mbm_query_dim_with_model(student_model, cfg: Dict[str, Any]):
+def auto_set_ib_mbm_query_dim_with_model(student_model, cfg: Dict[str, Any]):
     """Auto-set ib_mbm_query_dim based on student model (legacy keys removed)."""
     key = "ib_mbm_query_dim"
     if cfg.get(key, 0) in (0, None):
