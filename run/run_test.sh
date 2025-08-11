@@ -62,12 +62,27 @@ if command -v nvidia-smi >/dev/null 2>&1; then
   nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv,noheader,nounits || true
 fi
 
-# Helper to run a group and tee to a named log
+# Helper to run a group and write to a named log
+declare -a PIDS=()
 run_group() {
   local log_name="$1"; shift
   local patterns=("$@")
   echo "[run_test] Running group: ${log_name} -> ${patterns[*]}"
-  python -m pytest -v "${patterns[@]}" | tee "$ROOT/experiments/test/logs/${log_name}.log"
+  if [[ "${PARALLEL:-0}" == "1" ]]; then
+    # Run in background, redirecting output to its own log
+    (
+      python -m pytest -v "${patterns[@]}" > "$ROOT/experiments/test/logs/${log_name}.log" 2>&1
+    ) &
+    PIDS+=($!)
+    # Optional throttle via MAX_PARALLEL
+    if [[ -n "${MAX_PARALLEL:-}" ]]; then
+      while [[ $(jobs -p | wc -l) -ge ${MAX_PARALLEL} ]]; do
+        wait -n || true
+      done
+    fi
+  else
+    python -m pytest -v "${patterns[@]}" | tee "$ROOT/experiments/test/logs/${log_name}.log"
+  fi
 }
 
 # Quick mode by default; pass FULL=1 to run everything
@@ -110,4 +125,13 @@ if [[ "${FULL:-0}" != "1" ]]; then
 else
   # Full suite
   run_group full_suite tests -v
+fi
+
+# Wait for all background jobs if PARALLEL=1
+if [[ "${PARALLEL:-0}" == "1" ]]; then
+  echo "[run_test] Waiting for parallel groups to finish..."
+  for pid in "${PIDS[@]}"; do
+    wait "$pid" || true
+  done
+  echo "[run_test] All groups completed."
 fi
