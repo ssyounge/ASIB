@@ -6,12 +6,12 @@
 #SBATCH --mem=16G
 #SBATCH --time=2:00:00
 #SBATCH --chdir=/home/suyoung425/ASIB
-#SBATCH --output=/home/suyoung425/ASIB/experiments/test/logs/slurm-%j.out
-#SBATCH --error=/home/suyoung425/ASIB/experiments/test/logs/slurm-%j.err
+#SBATCH --output=experiments/test/logs/slurm-%j.out
+#SBATCH --error=experiments/test/logs/slurm-%j.err
 # Simple unified test runner on Linux/SLURM
 set -euo pipefail
 
-ROOT="$(git rev-parse --show-toplevel 2>/dev/null || cd "$(dirname "$0")/.." && pwd)"
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || (cd "$(dirname "$0")/.." && pwd))"
 cd "$ROOT"
 
 # Ensure logs directory exists
