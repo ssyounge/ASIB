@@ -5,14 +5,15 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
 #SBATCH --time=2:00:00
-#SBATCH --chdir=/home/suyoung425/ASIB
 #SBATCH --output=experiments/test/logs/slurm-%j.out
 #SBATCH --error=experiments/test/logs/slurm-%j.err
 # Simple unified test runner on Linux/SLURM
 set -euo pipefail
 
-ROOT="$(git rev-parse --show-toplevel 2>/dev/null || (cd "$(dirname "$0")/.." && pwd))"
-cd "$ROOT"
+# Move to repo root relative to this script (no absolute paths)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.."
+ROOT="$(pwd)"
 
 # Ensure logs directory exists
 mkdir -p "$ROOT/experiments/test/logs"
