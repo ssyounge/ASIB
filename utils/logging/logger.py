@@ -180,18 +180,25 @@ class ExperimentLogger:
 
         # 4) Write CSV
         #   - 기본 열 + 모든 ep* 또는 teacher_ep* key 자동 포함
+        #   - 실제 사용하는 핵심 메타 위주로 필드 구성 (가독성↑)
         base_cols = [
             "exp_id",
             "csv_filename",
-            "eval_mode",
-            "train_acc",
-            "test_acc",
-            "batch_size",
             "total_time_sec",
-            "ib_mbm_type",
-            "ib_mbm_r",
-            "ib_mbm_n_head",
-            "ib_mbm_learnable_q",
+            "final_student_acc",
+            "num_classes",
+            "batch_size",
+            # KD / IB / CCCP
+            "ce_alpha",
+            "kd_alpha",
+            "use_ib",
+            "ib_beta",
+            "ib_epochs_per_stage",
+            "use_cccp",
+            # Optim
+            "optimizer",
+            "student_lr",
+            "student_weight_decay",
         ]
 
         epoch_cols = [
@@ -203,3 +210,16 @@ class ExperimentLogger:
 
         save_csv_row(self.config, csv_path, fieldnames, write_header_if_new=True)
         logging.info("[ExperimentLogger] CSV saved => %s", csv_path)
+
+    # --------------------------------------------------------------
+    # Meta writer: save high-level experiment metadata to meta.json
+    # --------------------------------------------------------------
+    def save_meta(self, meta: dict):
+        try:
+            os.makedirs(self.results_dir, exist_ok=True)
+            path = os.path.join(self.results_dir, "meta.json")
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(meta, f, ensure_ascii=False, indent=2)
+            logging.info("[ExperimentLogger] META saved ⇒ %s", path)
+        except Exception as e:
+            logging.warning("[ExperimentLogger] meta.json save failed: %s", e)

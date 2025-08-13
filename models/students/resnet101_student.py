@@ -53,5 +53,20 @@ def create_resnet101_student(
         cfg=cfg,
     )
 
+
+def create_resnet101_scratch_student(
+    pretrained: bool = False,
+    num_classes: int = 100,
+    small_input: bool = False,
+    cfg: Optional[dict] = None,
+) -> ResNetStudent:
+    """Build :class:`ResNetStudent` with scratch training (pretrained=False)."""
+    return ResNetStudent(
+        pretrained=pretrained,
+        num_classes=num_classes,
+        small_input=small_input,
+        cfg=cfg,
+    )
+
 # legacy registry key kept minimal without warnings
 from models.common.base_wrapper import MODEL_REGISTRY  # keep registry import for other keys if any

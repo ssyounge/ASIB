@@ -43,14 +43,16 @@ class BaseKDModel(nn.Module):
         self.feat_dim = feat_dim
 
         if self.cfg.get("use_distillation_adapter", False):
-            hid = self.cfg.get("distill_hidden_dim", feat_dim // 2)
-            out = self.cfg.get("distill_out_dim", feat_dim // 4)
+            # distill_out_dim을 강제로 적용 (feat_dim과 무관하게)
+            target_dim = self.cfg.get("distill_out_dim", feat_dim // 4)
+            hid = self.cfg.get("distill_hidden_dim", max(feat_dim // 2, target_dim))
+            
             self.distillation_adapter = nn.Sequential(
                 nn.Linear(feat_dim, hid),
                 nn.ReLU(inplace=True),
-                nn.Linear(hid, out),
+                nn.Linear(hid, target_dim),
             )
-            self.distill_dim = out
+            self.distill_dim = target_dim
         else:
             self.distillation_adapter = None
             self.distill_dim = feat_dim

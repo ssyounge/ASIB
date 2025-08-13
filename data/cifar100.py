@@ -155,15 +155,19 @@ def get_cifar100_loaders(root="./data", batch_size=128, num_workers=2, augment=T
         train_dataset,
         batch_size=batch_size,
         shuffle=True,
-        num_workers=num_workers,  # 테스트에서는 0으로 설정
-        pin_memory=True  # GPU 전송 속도 향상
+        num_workers=num_workers,
+        pin_memory=True,  # GPU 전송 속도 향상
+        persistent_workers=True if num_workers > 0 else False,  # 워커 재사용으로 속도 향상
+        prefetch_factor=4 if num_workers > 0 else None  # 미리 로드할 배치 수
     )
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
         batch_size=batch_size,
         shuffle=False,
-        num_workers=num_workers,  # 테스트에서는 0으로 설정
-        pin_memory=True  # GPU 전송 속도 향상
+        num_workers=num_workers,
+        pin_memory=True,  # GPU 전송 속도 향상
+        persistent_workers=True if num_workers > 0 else False,  # 워커 재사용으로 속도 향상
+        prefetch_factor=4 if num_workers > 0 else None  # 미리 로드할 배치 수
     )
     return train_loader, test_loader
 

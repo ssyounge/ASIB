@@ -70,8 +70,7 @@ CFG_NAME="${1:-convnext_s_cifar100}"
 shift || true         # 나머지 인자 → Hydra override
 
 # 5) 실행
-python scripts/training/fine_tuning.py \
-    --config-name "finetune/$CFG_NAME" \
+python scripts/training/fine_tuning.py -cn="finetune/$CFG_NAME" \
     "$@"
 
 echo "[run_finetune_single.sh] ✅ finished – $CFG_NAME"

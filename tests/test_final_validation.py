@@ -1,4 +1,5 @@
 import pytest
+import sys
 import torch
 import subprocess
 import time
@@ -158,24 +159,34 @@ class TestFinalValidation:
     def test_experiment_configs(self):
         """Test experiment configurations"""
         import yaml
-        
+
+        def assert_no_deprecated_suffix_keys(obj, context="root"):
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    if isinstance(k, str):
+                        assert not k.endswith("_student"), f"Key '{k}' at {context} has deprecated _student suffix"
+                        assert not k.endswith("_teacher"), f"Key '{k}' at {context} has deprecated _teacher suffix"
+                    assert_no_deprecated_suffix_keys(v, context=f"{context}.{k}")
+            elif isinstance(obj, list):
+                for idx, item in enumerate(obj):
+                    # list 항목(예: Hydra defaults 문자열)은 키가 아니므로 무시
+                    assert_no_deprecated_suffix_keys(item, context=f"{context}[{idx}]")
+
         config_dir = Path("configs/experiment")
         for config_file in config_dir.glob("*.yaml"):
             if config_file.name == "_template.yaml":
                 continue
-            
+
             try:
                 with open(config_file, 'r', encoding='utf-8') as f:
                     config = yaml.safe_load(f)
-                
+
                 # Check required fields
                 assert "defaults" in config, f"Config {config_file} missing defaults"
-                
-                # Check no deprecated suffixes in config content
-                config_str = str(config)
-                assert "_student" not in config_str, f"Config {config_file} contains _student suffix"
-                assert "_teacher" not in config_str, f"Config {config_file} contains _teacher suffix"
-                
+
+                # Check no deprecated suffixes in config KEYS (not raw string)
+                assert_no_deprecated_suffix_keys(config, context=str(config_file))
+
             except Exception as e:
                 pytest.fail(f"Failed to load config {config_file}: {e}")
     

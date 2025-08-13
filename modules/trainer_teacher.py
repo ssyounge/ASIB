@@ -163,12 +163,12 @@ def eval_synergy(
                 if (cfg or {}).get("use_distillation_adapter", False)
                 else "feat_2d"
             )
-            f1_2d = t1_dict[key]
-            f2_2d = t2_dict[key]
+            t1_feat = t1_dict[key]
+            t2_feat = t2_dict[key]
 
             assert student_model is not None, "student_model required for IB_MBM"
             s_feat = student_model(x)[0][cfg.get("feat_kd_key", "feat_2d")]
-            fsyn, _, _ = ib_mbm(s_feat, torch.stack([f1_2d, f2_2d], dim=1))
+            fsyn, _, _ = ib_mbm(s_feat, torch.stack([t1_feat, t2_feat], dim=1))
             zsyn = synergy_head(fsyn)
 
         pred = zsyn.argmax(dim=1)
@@ -198,22 +198,34 @@ def teacher_adaptive_update(
     - ``student_model``: kept fixed for knowledge distillation.
     - ``testloader``: optional loader used to evaluate synergy accuracy.
     """
-    # cfg.train_distill_adapter_only == True → teacher 본체는 그대로 freeze
-    teacher_params = []
+    # 교사 백본 freeze 보장 (미세조정 OFF일 때)
+    use_tf = bool(cfg.get("use_teacher_finetuning", False))
     only_da = cfg.get("train_distill_adapter_only", False)
+    
+    teacher_params = []
     for tw in teacher_wrappers:
-        param_src = (
-            tw.distillation_adapter.parameters()
-            if only_da and hasattr(tw, "distillation_adapter")
-            else tw.parameters()
-        )
-        for p in param_src:
-            if p.requires_grad:
+        if not use_tf:
+            # 교사 백본 고정 (기본값)
+            for p in tw.parameters():
+                p.requires_grad = False
+            tw.eval()  # 교사를 eval 모드로 설정
+        
+        # optimizer에 추가할 파라미터 선택 (이미 optimizer에서 처리하지만 여기서도 확인)
+        if use_tf:
+            # 교사 전체 미세조정 허용
+            for p in tw.parameters():
+                if p.requires_grad:
+                    teacher_params.append(p)
+        elif only_da and hasattr(tw, "distillation_adapter"):
+            # adapter만 학습
+            for p in tw.distillation_adapter.parameters():
+                p.requires_grad = True  # adapter는 학습 가능하게
                 teacher_params.append(p)
+        # else: 교사 백본은 학습하지 않음
     ib_mbm_params = [p for p in ib_mbm.parameters() if p.requires_grad]
     syn_params = [p for p in synergy_head.parameters() if p.requires_grad]
 
-    teacher_epochs = cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5))
+    teacher_epochs = int(cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5)))
 
     best_synergy = -1
     best_state = {
@@ -230,12 +242,47 @@ def teacher_adaptive_update(
         "syn_head": _cpu_state_dict(synergy_head),
     }
 
-    logger.info(f"[TeacherAdaptive] Using teacher_epochs={teacher_epochs}")
-
-    autocast_ctx, scaler = get_amp_components(cfg)
-    for ep in range(teacher_epochs):
+    # A-Step 시작 로깅
+    stage_info = f"[Stage {cfg.get('cur_stage', '?')}]" if 'cur_stage' in cfg else ""
+    logger.info(f"{stage_info} A-Step (Teacher/IB) start - teacher_epochs={teacher_epochs}")
+    
+    # teacher_epochs=0인 경우 early return
+    if teacher_epochs == 0:
+        logger.info(f"{stage_info} A-Step (Teacher/IB) skipped - teacher_epochs=0")
+        return 0.0  # 기본값 반환
+    
+    # student를 eval 모드로 고정하고 requires_grad=False
+    if student_model is not None:
+        student_model.eval()
+        for p in student_model.parameters():
+            p.requires_grad_(False)
+    
+    # ib_mbm, synergy_head만 train 모드로 (교사는 use_tf에 따라)
+    if use_tf:
+        # 교사 미세조정 모드에서만 train 모드로
         for tw in teacher_wrappers:
             tw.train()
+    else:
+        # 기본값: 교사는 eval 모드 유지
+        for tw in teacher_wrappers:
+            tw.eval()
+    ib_mbm.train()
+    synergy_head.train()
+
+    autocast_ctx, scaler = get_amp_components(cfg)
+    
+    # teacher_epochs=0인 경우를 위한 기본값 설정
+    teacher_loss_sum = 0.0
+    count = 0
+    
+    for ep in range(teacher_epochs):
+        # 교사 모델 모드 설정
+        if use_tf:
+            for tw in teacher_wrappers:
+                tw.train()
+        else:
+            for tw in teacher_wrappers:
+                tw.eval()
         ib_mbm.train()
         synergy_head.train()
         if student_model is not None:
@@ -256,7 +303,11 @@ def teacher_adaptive_update(
             smart_tqdm(trainloader, desc=f"[TeacherAdaptive ep={ep+1}]")
         ):
             x, y = batch
-            x, y = x.to(cfg["device"]), y.to(cfg["device"])
+            x, y = x.to(cfg["device"], non_blocking=True), y.to(cfg["device"], non_blocking=True)
+            
+            # 채널-라스트 포맷 적용 (Conv 연산 가속)
+            if cfg.get("use_channels_last", True) and x.dim() == 4:
+                x = x.to(memory_format=torch.channels_last)
 
             with autocast_ctx:
                 # (A) Student features and logits (kept fixed)
@@ -278,10 +329,52 @@ def teacher_adaptive_update(
                     t_dict = out[0] if isinstance(out, tuple) else out
                     if i == 0:
                         t1_dict = t_dict
-                    feats_2d.append(t_dict[feat_key])
+                    feat = t_dict[feat_key]
+                    feats_2d.append(feat)
+                    
+                    # 차원 확인 로그 (첫 배치에서만)
+                    if ep == 0 and step == 0:
+                        logging.info(f"Teacher {i} {feat_key} shape: {feat.shape}")
 
                 # (C) IB_MBM + synergy_head (IB_MBM only)
-                syn_feat, mu, logvar = ib_mbm(s_feat, torch.stack(feats_2d, dim=1))
+                # 차원 불일치 안전장치
+                if len(feats_2d) > 0:
+                    target_dim = feats_2d[0].size(1)
+                    for i, feat in enumerate(feats_2d):
+                        if feat.size(1) != target_dim:
+                            logging.warning(f"Teacher {i} feature dim mismatch: {feat.size(1)} vs {target_dim}")
+                            # 차원을 맞춰주기 위해 projection 추가
+                            if not hasattr(self, f'feat_proj_{i}'):
+                                setattr(self, f'feat_proj_{i}', 
+                                       nn.Linear(feat.size(1), target_dim).to(feat.device))
+                            proj_layer = getattr(self, f'feat_proj_{i}')
+                            feats_2d[i] = proj_layer(feat)
+                
+                # 스택/검증 직전
+                if len(feats_2d) < 2:
+                    logging.error("[A-Step] need 2 teacher feats, got %d", len(feats_2d))
+                    raise RuntimeError("Not enough teacher features")
+
+                t1, t2 = feats_2d[0], feats_2d[1]
+                if t1.shape[1] != t2.shape[1]:
+                    logging.error("[A-Step] KV dim mismatch: t1=%s, t2=%s. Check use_distillation_adapter/distill_out_dim.",
+                                  tuple(t1.shape), tuple(t2.shape))
+                    raise RuntimeError("KV dim mismatch")
+
+                # (선택) 쿼리 q_dim도 점검
+                if getattr(ib_mbm.q_proj, "in_features", None) != s_feat.shape[1]:
+                    logging.error("[A-Step] q_dim mismatch: q_in=%s, s_feat=%s",
+                                  getattr(ib_mbm.q_proj, "in_features", None), s_feat.shape[1])
+                    raise RuntimeError("Q dim mismatch")
+
+                # A-Step에서 shape 체크 (첫 배치에서만)
+                if ep == 0 and step == 0:
+                    logging.info("[A-Step] t1=%s, t2=%s, s_feat=%s, q_in=%s",
+                                 tuple(t1.shape), tuple(t2.shape), tuple(s_feat.shape), 
+                                 getattr(ib_mbm.q_proj, "in_features", None))
+
+                kv = torch.stack([t1, t2], dim=1)
+                syn_feat, mu, logvar = ib_mbm(s_feat, kv)
                 ib_loss_val = 0.0
                 if cfg.get("use_ib", False):
                     mu, logvar = mu.float(), logvar.float()
@@ -378,7 +471,12 @@ def teacher_adaptive_update(
                 )
                 
                 # 추가 안전장치: loss가 너무 크면 clipping
-                total_loss_step = torch.clamp(total_loss_step, 0.0, 100.0)
+                # Loss 클리핑 완화 (A-Step 안정화를 위해)
+            if cfg.get("use_loss_clamp", False):
+                total_loss_step = torch.clamp(total_loss_step, 0.0, cfg.get("loss_clamp_max", 1000.0))
+            else:
+                # 기본적으로는 클리핑 해제
+                pass
 
             # ---- (2) per-batch Optim ----
             optimizer.zero_grad()
@@ -470,4 +568,8 @@ def teacher_adaptive_update(
     ib_mbm.load_state_dict(best_state["ib_mbm"])
     synergy_head.load_state_dict(best_state["syn_head"])
 
+    # A-Step 종료 로깅
+    stage_info = f"[Stage {cfg.get('cur_stage', '?')}]" if 'cur_stage' in cfg else ""
+    logger.info(f"{stage_info} A-Step (Teacher/IB) end - best_synergy={best_synergy:.2f}%")
+    
     return best_synergy

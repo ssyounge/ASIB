@@ -254,18 +254,23 @@ class TestConfigValidation:
         # Test base config
         base_config = OmegaConf.load("configs/base.yaml")
         assert "defaults" in base_config
-        assert "device" in base_config
-        assert "batch_size" in base_config
+        # device는 experiment 하위에서 관리
+        assert "experiment" in base_config
+        assert "device" in base_config["experiment"]
+        # Our base config nests batch_size under experiment.dataset
+        assert "dataset" in base_config["experiment"]
+        assert "batch_size" in base_config["experiment"]["dataset"]
     
     def test_experiment_config(self):
         """Test experiment config validation"""
         from omegaconf import OmegaConf
         
-        # Test experiment config (legacy 폴더로 이동됨)
-        exp_config = OmegaConf.load("configs/experiment/legacy/res152_convnext_effi.yaml")
+        # Test experiment config (legacy 예제는 제거됨) → 대체로 현재 실험 템플릿 검사
+        exp_config = OmegaConf.load("configs/experiment/ablation_baseline.yaml")
         assert "defaults" in exp_config
-        assert "teacher1_ckpt" in exp_config
-        assert "teacher2_ckpt" in exp_config
+        # num_stages is nested under experiment
+        assert "experiment" in exp_config
+        assert "num_stages" in exp_config["experiment"]
     
     def test_finetune_config(self):
         """Test finetune config validation"""

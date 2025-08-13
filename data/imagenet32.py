@@ -95,7 +95,11 @@ def get_imagenet32_loaders(root, batch_size=128, num_workers=2, augment=True):
     te_set = ImageNet32(root, "val", tf_test)
 
     tr_loader = DataLoader(tr_set, batch_size, shuffle=True,
-                           num_workers=num_workers, pin_memory=True)
+                           num_workers=num_workers, pin_memory=True,
+                           persistent_workers=True if num_workers > 0 else False,
+                           prefetch_factor=4 if num_workers > 0 else None)
     te_loader = DataLoader(te_set, batch_size, shuffle=False,
-                           num_workers=num_workers, pin_memory=True)
+                           num_workers=num_workers, pin_memory=True,
+                           persistent_workers=True if num_workers > 0 else False,
+                           prefetch_factor=4 if num_workers > 0 else None)
     return tr_loader, te_loader

@@ -214,6 +214,16 @@ def student_distillation_update(
 
     logger.info(f"[StudentDistill] Using student_epochs={student_epochs}")
 
+    # B-Step 시작 전 안전 복원 (A-Step에서 freeze된 경우 대비)
+    for p in student_model.parameters():
+        p.requires_grad_(True)
+    student_model.train()
+    
+    # B-Step 시작 전 trainable 파라미터 수 기록
+    s_train = sum(p.requires_grad for p in student_model.parameters())
+    s_total = sum(1 for p in student_model.parameters())
+    logger.info(f"[PPF][B-Step] student trainable: {s_train}/{s_total} ({100*s_train/s_total:.1f}%)")
+
     autocast_ctx, scaler = get_amp_components(cfg)
     # ---------------------------------------------------------
     # IB_MBM forward
@@ -243,7 +253,11 @@ def student_distillation_update(
         for step, (x, y) in enumerate(
             smart_tqdm(trainloader, desc=f"[StudentDistill ep={ep+1}]")
         ):
-            x, y = x.to(cfg["device"]), y.to(cfg["device"])
+            x, y = x.to(cfg["device"], non_blocking=True), y.to(cfg["device"], non_blocking=True)
+            
+            # 채널-라스트 포맷 적용 (Conv 연산 가속)
+            if cfg.get("use_channels_last", True) and x.dim() == 4:
+                x = x.to(memory_format=torch.channels_last)
 
             if mix_mode == "cutmix":
                 x_mixed, y_a, y_b, lam = cutmix_data(
@@ -258,29 +272,49 @@ def student_distillation_update(
                 # (A) Student forward (query)
                 feat_dict, s_logit, _ = student_model(x_mixed)
 
-                with torch.no_grad():
-                    t1_out = teacher_wrappers[0](x_mixed)
-                    t2_out = teacher_wrappers[1](x_mixed)
-                    t1_dict = t1_out[0] if isinstance(t1_out, tuple) else t1_out
-                    t2_dict = t2_out[0] if isinstance(t2_out, tuple) else t2_out
+                # 교사 모델이 필요한지 확인 (KD, Feature KD, IB 중 하나라도 사용하는 경우)
+                need_teachers = (cfg.get("kd_alpha", 0.0) > 0.0) or \
+                               (cfg.get("feat_kd_alpha", 0.0) > 0.0) or \
+                               bool(cfg.get("use_ib", False))
+                
+                if need_teachers:
+                    with torch.no_grad():
+                        t1_out = teacher_wrappers[0](x_mixed)
+                        t2_out = teacher_wrappers[1](x_mixed)
+                        t1_dict = t1_out[0] if isinstance(t1_out, tuple) else t1_out
+                        t2_dict = t2_out[0] if isinstance(t2_out, tuple) else t2_out
 
-                    feat_key = "distill_feat" if cfg.get("use_distillation_adapter", False) \
-                               else "feat_2d"
-                    f1_2d = t1_dict[feat_key]
-                    f2_2d = t2_dict[feat_key]
-
-                s_feat = feat_dict[cfg.get("feat_kd_key", "feat_2d")]
-                syn_feat, mu, logvar = ib_mbm(
-                    s_feat, torch.stack([f1_2d, f2_2d], dim=1)
-                )
-                if cfg.get("use_ib", False):
-                    ib_beta = get_beta(cfg, global_ep + ep)
-                    mu, logvar = mu.float(), logvar.float()
-                    ib_loss_val = ib_loss(mu, logvar, beta=ib_beta)
+                        feat_key = "distill_feat" if cfg.get("use_distillation_adapter", False) \
+                                   else "feat_2d"
+                        f1_2d = t1_dict[feat_key]
+                        f2_2d = t2_dict[feat_key]
                 else:
-                    ib_loss_val = torch.tensor(0.0, device=cfg["device"])
-                fsyn = syn_feat
-                zsyn = synergy_head(fsyn)
+                    # 교사 모델 forward를 스킵하는 경우 None으로 설정
+                    t1_dict = t2_dict = None
+                    f1_2d = f2_2d = None
+
+                feat_kd_key = cfg.get("feat_kd_key", "feat_2d")
+                s_feat = feat_dict[feat_kd_key]
+                
+                # 첫 배치에서 feat_kd_key와 차원 확인
+                if ep == 0 and step == 0:
+                    logging.info(f"[B-Step] feat_kd_key={feat_kd_key}, s_feat.shape={s_feat.shape}")
+                
+                # IB/KD 타깃이 필요할 때만 IB_MBM 실행 (need_teachers와 동일한 조건)
+                need_ibm = need_teachers
+                if need_ibm:
+                    # 스택 전 shape 검증 (차원 불일치 조기 발견)
+                    if f1_2d.shape[1] != f2_2d.shape[1]:
+                        logging.error(f"[IB-MBM] KV dim mismatch: f1={f1_2d.shape}, f2={f2_2d.shape}. Check distill_out_dim and adapters.")
+                        raise RuntimeError("KV dim mismatch")
+                    
+                    with torch.no_grad():
+                        syn_feat_ng, mu_ng, logvar_ng = ib_mbm(
+                            s_feat, torch.stack([f1_2d, f2_2d], dim=1)
+                        )
+                        zsyn_ng = synergy_head(syn_feat_ng)
+                else:
+                    mu_ng = logvar_ng = zsyn_ng = None
 
                 # stable CE/KL calculations in float32
                 loss_ce = ce_safe(
@@ -288,11 +322,44 @@ def student_distillation_update(
                     y,
                     ls_eps=cfg.get("label_smoothing", 0.0),
                 )
-                loss_kd = kl_safe(
-                    s_logit,
-                    zsyn,
-                    tau=cur_tau,
-                )
+                # KD는 no-grad 타깃 사용 (필요할 때만)
+                kd_loss_val = 0.0
+                if cfg.get("kd_alpha", 0.0) > 0 and need_teachers:
+                    # KD 타겟 선택
+                    kd_target = cfg.get("kd_target", "synergy")
+                    if kd_target == "synergy" and zsyn_ng is not None:
+                        kd_tgt = zsyn_ng
+                    elif kd_target == "avg" and t1_dict is not None and t2_dict is not None:
+                        # Teacher 평균
+                        t1_logit = t1_dict["logit"]
+                        t2_logit = t2_dict["logit"]
+                        kd_tgt = (t1_logit + t2_logit) / 2.0
+                    elif kd_target == "weighted_conf" and t1_dict is not None and t2_dict is not None:
+                        # Teacher confidence 기반 가중 평균
+                        t1_logit = t1_dict["logit"]
+                        t2_logit = t2_dict["logit"]
+                        p1 = torch.softmax(t1_logit / cur_tau, dim=1).amax(dim=1).values
+                        p2 = torch.softmax(t2_logit / cur_tau, dim=1).amax(dim=1).values
+                        w1 = (p1 / (p1 + p2 + 1e-8)).unsqueeze(1)
+                        w2 = 1.0 - w1
+                        kd_tgt = w1 * t1_logit + w2 * t2_logit
+                    else:
+                        # 기본값: synergy
+                        kd_tgt = zsyn_ng if zsyn_ng is not None else torch.zeros_like(s_logit)
+                    
+                    if kd_tgt is not None:
+                        loss_kd = kl_safe(
+                            s_logit,
+                            kd_tgt.detach(),  # gradient 끊김
+                            tau=cur_tau,
+                        )
+                        kd_loss_val = loss_kd
+                    else:
+                        loss_kd = torch.tensor(0.0, device=s_logit.device)
+                        kd_loss_val = loss_kd
+                else:
+                    loss_kd = torch.tensor(0.0, device=s_logit.device)
+                    kd_loss_val = loss_kd
 
                 # ---- DEBUG: 첫 batch 모양 확인 ----
                 if ep == 0 and step == 0 and cfg.get("debug_verbose", False):
@@ -304,7 +371,7 @@ def student_distillation_update(
                     )
 
             # ── (B1) sample-weights (always same dtype as losses) ───────────
-            if cfg.get("use_disagree_weight", False):
+            if cfg.get("use_disagree_weight", False) and need_teachers and t1_dict is not None and t2_dict is not None:
                 weights = sample_weights_from_disagreement(
                     t1_dict["logit"],
                     t2_dict["logit"],
@@ -319,8 +386,14 @@ def student_distillation_update(
             # AMP / float16 환경에서도 안전
             weights = weights.to(s_logit.dtype)
 
-            if cfg.get("use_ib", False) and isinstance(ib_mbm, IB_MBM):
-                cw = certainty_weights(logvar).mean(dim=1).to(s_logit.dtype)
+            # cw 기본값 설정 (안전 가드)
+            cw = torch.ones(y.size(0), device=s_logit.device, dtype=s_logit.dtype)
+
+            if cfg.get("use_ib", False) and logvar_ng is not None:
+                # 큰 logvar_ng(불확실) → 작은 weight
+                cw = torch.exp(-logvar_ng).mean(dim=1).clamp(
+                    cfg.get("min_cw", 0.1), 1.0
+                ).to(s_logit.dtype)
                 weights = weights * cw
 
             # apply sample weights to CE and KD losses computed above
@@ -328,20 +401,40 @@ def student_distillation_update(
             kd_loss_val = loss_kd
 
             # --- μ‑MSE with certainty weight ---------------------------------
-            feat_kd_val = torch.tensor(0.0, device=cfg["device"])
-            if cfg.get("feat_kd_alpha", 0) > 0:
-                diff = (s_feat - mu).pow(2).sum(dim=1)   # ‖zs - μφ‖²
-                feat_kd_val = (cw * diff).mean()
+            feat_kd_val = None
+            if cfg.get("feat_kd_alpha", 0.0) > 0 and need_teachers and mu_ng is not None:
+                # 차원 불일치 안전장치
+                if s_feat.shape[1] == mu_ng.shape[1]:
+                    diff = (s_feat - mu_ng).pow(2).sum(dim=1)  # s_feat에서 grad 흐름
+                    feat_kd_val = (cw * diff).mean()
+                else:
+                    logging.warning("[B-Step] Feat-KD skipped (dim mismatch): s=%s, mu=%s", tuple(s_feat.shape), tuple(mu_ng.shape))
+                    feat_kd_val = None
 
-            loss = (
-                _get_cfg_val(cfg, "ce_alpha", 1.0) * ce_loss_val
-                + cfg["kd_alpha"] * kd_loss_val
-                + cfg.get("feat_kd_alpha", 0.0) * feat_kd_val
-                + ib_loss_val
-            )
+            # IB KL은 B-Step에서 제외 (A-Step에서만 최적화)
+            ib_loss_val = None
+            # if cfg.get("use_ib_on_student", False):
+            #     ib_loss_val = ib_loss(mu_ng, logvar_ng, beta=get_beta(cfg, global_ep + ep))
             
-            # 추가 안전장치: loss가 너무 크면 clipping
-            loss = torch.clamp(loss, 0.0, 100.0)
+            # 최종 loss는 조건부 합 (상수 0 텐서 더하지 않기)
+            loss = _get_cfg_val(cfg, "ce_alpha", 1.0) * loss_ce
+            if cfg.get("kd_alpha", 0.0) > 0 and zsyn_ng is not None:
+                loss = loss + cfg["kd_alpha"] * kd_loss_val
+            if feat_kd_val is not None:
+                loss = loss + cfg.get("feat_kd_alpha", 0.0) * feat_kd_val
+            
+            # 추가 안전장치: loss가 너무 크면 clipping (클리핑 완화)
+            if cfg.get("use_loss_clamp", False):
+                loss = torch.clamp(loss, 0.0, cfg.get("loss_clamp_max", 1000.0))
+            else:
+                # 기본적으로는 클리핑 해제 (안정화를 위해)
+                pass
+            
+            # loss.requires_grad 보증 (디버깅용)
+            if not loss.requires_grad:
+                logging.error("loss grad off: ce=%s kd=%s feat=%s", 
+                            loss_ce.requires_grad, loss_kd.requires_grad, 
+                            feat_kd_val.requires_grad if feat_kd_val is not None else None)
 
             optimizer.zero_grad()
             if scaler is not None:

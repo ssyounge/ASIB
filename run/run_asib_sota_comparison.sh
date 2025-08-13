@@ -12,10 +12,14 @@
 # ASIB vs State-of-the-Art Methods 비교
 # ---------------------------------------------------------
 set -euo pipefail
+trap 'echo "❌ Job failed at $(date)"; exit 1' ERR
 
 # Python 환경 설정
 echo "🔧 Setting up Python environment..."
 export PATH="$HOME/anaconda3/envs/tlqkf/bin:$PATH"
+export HYDRA_FULL_ERROR=1
+export OMP_NUM_THREADS=${OMP_NUM_THREADS:-4}
+export MKL_NUM_THREADS=${MKL_NUM_THREADS:-4}
 echo "✅ Python environment setup completed"
 echo ""
 
@@ -25,6 +29,9 @@ cd "$ROOT"
 
 # 2) PYTHONPATH 추가
 export PYTHONPATH="${ROOT}:${PYTHONPATH:-}"
+
+# Ensure log directory exists
+mkdir -p "$ROOT/experiments/sota/logs" || true
 
 # 3) GPU 할당 확인 및 설정
 echo "🔍 Checking GPU allocation..."
@@ -43,19 +50,22 @@ else
 fi
 
 # CUDA 컨텍스트 초기화 (segmentation fault 방지)
-export CUDA_LAUNCH_BLOCKING=1
+export CUDA_LAUNCH_BLOCKING=${CUDA_LAUNCH_BLOCKING:-0}
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-# PyTorch CUDA 12.4 라이브러리 사용
-export LD_LIBRARY_PATH="$HOME/anaconda3/envs/tlqkf/lib/python3.12/site-packages/torch/lib:$LD_LIBRARY_PATH"
-export CUDA_HOME="$HOME/anaconda3/envs/tlqkf/lib/python3.12/site-packages/torch/lib"
+# PyTorch CUDA 라이브러리 경로 가드
+TORCH_LIB_DIR="$HOME/anaconda3/envs/tlqkf/lib/python3.12/site-packages/torch/lib"
+if [ -d "$TORCH_LIB_DIR" ]; then
+  export LD_LIBRARY_PATH="$TORCH_LIB_DIR:$LD_LIBRARY_PATH"
+  export CUDA_HOME="$TORCH_LIB_DIR"
+fi
 
 # PyTorch CUDA 설정
 export TORCH_CUDA_ARCH_LIST="8.6"
 
-# CUDA 환경변수 (PyTorch 내장 CUDA 12.4 사용)
-export CUDA_PATH="$HOME/anaconda3/envs/tlqkf/lib/python3.12/site-packages/torch/lib"
-export CUDA_ROOT="$HOME/anaconda3/envs/tlqkf/lib/python3.12/site-packages/torch/lib"
+# CUDA 환경변수 (PyTorch 내장 CUDA 사용)
+export CUDA_PATH="${CUDA_HOME:-${CUDA_PATH:-}}"
+export CUDA_ROOT="${CUDA_HOME:-${CUDA_ROOT:-}}"
 
 # GPU 정보 출력
 echo "🔍 GPU Information:"
@@ -78,8 +88,7 @@ for exp in "${EXPERIMENTS[@]}"; do
     echo "=================================================="
     
     # 실험 실행
-    python main.py \
-        --config-name "experiment/$exp" \
+    python -u main.py -cn="experiment/$exp" \
         "$@"
     
     echo "✅ Finished ASIB SOTA Comparison experiment: $exp"

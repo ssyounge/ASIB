@@ -82,8 +82,7 @@ for teacher in "${TEACHERS[@]}"; do
     echo "=================================================="
     
     # finetune 실행
-    python scripts/training/fine_tuning.py \
-        --config-name "finetune/$teacher" \
+    python scripts/training/fine_tuning.py -cn="finetune/$teacher" \
         "$@"
     
     echo "✅ Finished finetune for: $teacher"

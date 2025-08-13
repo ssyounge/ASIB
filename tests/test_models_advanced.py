@@ -16,7 +16,7 @@ class TestIB_MBMAdvanced:
     
     def test_ib_mbm_attention_weights(self):
         """Test IB_MBM attention weights"""
-        ib_mbm = IB_(q_dim=128, kv_dim=256, d_emb=128, n_head=8)
+        ib_mbm = IB_MBM(q_dim=128, kv_dim=256, d_emb=128, n_head=8)
         
         # Create inputs
         q = torch.randn(4, 128)
@@ -478,6 +478,6 @@ class TestModelIntegration:
         # BaseKDModel.extract_feats returns (None, feat_2d) for simple backbones
         assert features_4d is None  # Simple backbone doesn't return 4D features
         assert features_2d is not None
-        assert mbm_output.shape == (4, 128)
+        assert ib_mbm_output.shape == (4, 128)
         assert final_output.shape == (4, 100)
         assert torch.isfinite(final_output).all() 

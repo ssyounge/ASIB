@@ -92,6 +92,16 @@ def auto_set_ib_mbm_query_dim(cfg: Dict[str, Any]):
 def auto_set_ib_mbm_query_dim_with_model(student_model, cfg: Dict[str, Any]):
     """Auto-set ib_mbm_query_dim based on student model (legacy keys removed)."""
     key = "ib_mbm_query_dim"
+    
+    # distill_feat(어댑터 512)를 쿼리로 쓰는 경우 우선
+    if cfg.get("feat_kd_key", "feat_2d") == "distill_feat" and cfg.get("use_distillation_adapter", False):
+        qdim = int(cfg.get("distill_out_dim", 0))
+        if qdim > 0:
+            cfg[key] = qdim
+            logging.info(f"[auto_set_ib] q_dim set to distill_out_dim={qdim}")
+            return
+    
+    # 이하 기존 로직 유지(학생 feat 기반 추정)
     if cfg.get(key, 0) in (0, None):
         with torch.no_grad(), torch.autocast(device_type="cuda", enabled=False):
             dummy = torch.randn(1, 3, 32, 32, device=cfg["device"])

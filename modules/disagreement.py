@@ -12,6 +12,8 @@ def compute_disagreement_rate(
     device="cuda",
     cfg=None,
     mode: str = "both_wrong",
+    max_samples: int = None,  # 샘플링으로 속도 개선
+    max_batches: int = None,  # 배치 수 제한으로 더 빠른 계산
 ):
     """Return the disagreement rate between two teachers.
 
@@ -55,8 +57,17 @@ def compute_disagreement_rate(
     disagree_count = 0
 
     autocast_ctx, _ = get_amp_components(cfg or {})
-    for x, y in loader:
-        x, y = x.to(device), y.to(device)
+    for batch_idx, (x, y) in enumerate(loader):
+        # 배치 수 제한 (더 빠른 계산)
+        if max_batches is not None and batch_idx >= max_batches:
+            break
+            
+        x = x.to(device, non_blocking=True)  # non_blocking으로 전송 속도 향상
+        y = y.to(device, non_blocking=True)
+        
+        # 샘플 수 제한
+        if max_samples is not None and total_samples >= max_samples:
+            break
 
         with autocast_ctx:
             out1 = teacher1(x)

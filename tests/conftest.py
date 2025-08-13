@@ -260,7 +260,7 @@ def main_config():
                 "student": {
                     "model": {
                         "student": {
-                            "name": "resnet50_scratch",
+                            "name": "resnet101_scratch",
                             "pretrained": False
                         }
                     }
@@ -325,7 +325,7 @@ def training_config():
                 "student": {
                     "model": {
                         "student": {
-                            "name": "resnet50_scratch",
+                            "name": "resnet101_scratch",
                             "pretrained": False
                         }
                     }

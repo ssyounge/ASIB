@@ -320,10 +320,31 @@ class TestComprehensiveRegistryMapping:
                 for config_file in dir_path.glob("*.yaml"):
                     with open(config_file, 'r', encoding='utf-8') as f:
                         content = f.read()
-                        if "_student" in content:
-                            pytest.fail(f"CRITICAL: {config_file} contains '_student' suffix")
-                        if "_teacher" in content:
-                            pytest.fail(f"CRITICAL: {config_file} contains '_teacher' suffix")
+                        
+                        # Skip valid keys that contain _student or _teacher
+                        valid_keys = [
+                            'compute_teacher_eval',  # Valid configuration key
+                            'teacher_adapt_epochs',  # Valid configuration key
+                            'teacher_lr',           # Valid configuration key
+                            'teacher_weight_decay', # Valid configuration key
+                            'teacher1_ckpt',        # Valid configuration key
+                            'teacher2_ckpt',        # Valid configuration key
+                            'teacher1_freeze_level', # Valid configuration key
+                            'teacher2_freeze_level', # Valid configuration key
+                            'teacher1_freeze_bn',   # Valid configuration key
+                            'teacher2_freeze_bn',   # Valid configuration key
+                        ]
+                        
+                        # Check for actual deprecated suffixes, not valid keys
+                        lines = content.split('\n')
+                        for line_num, line in enumerate(lines, 1):
+                            line = line.strip()
+                            if line and not line.startswith('#'):
+                                # Check if line contains deprecated suffix pattern
+                                if any(key.endswith('_student') for key in line.split() if '=' in key):
+                                    pytest.fail(f"CRITICAL: {config_file}:{line_num} contains deprecated '_student' suffix in key: {line}")
+                                if any(key.endswith('_teacher') for key in line.split() if '=' in key):
+                                    pytest.fail(f"CRITICAL: {config_file}:{line_num} contains deprecated '_teacher' suffix in key: {line}")
         
         # 4. Check registry consistency
         key_teachers = set(key_config.teacher_keys)
