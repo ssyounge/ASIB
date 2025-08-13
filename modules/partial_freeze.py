@@ -551,3 +551,22 @@ def freeze_student_with_adapter(
             use_adapter=True,
             freeze_level=freeze_level,
         )
+
+
+def apply_partial_freeze(
+    model: nn.Module,
+    model_name: str,
+    freeze_level: int,
+    freeze_bn: bool = True,
+    freeze_ln: bool = True,
+) -> None:
+    """
+    Unified interface used by main.py to apply partial freeze quickly.
+    """
+    if freeze_level == -1:
+        return
+    schedule = get_freeze_schedule(model_name, freeze_level)
+    # override BN/LN flags if explicitly provided
+    schedule['freeze_bn'] = bool(freeze_bn)
+    schedule['freeze_ln'] = bool(freeze_ln)
+    apply_freeze_schedule(model, schedule)

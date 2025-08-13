@@ -9,29 +9,28 @@ import numpy as np
 from utils.data.overlap import make_pairs
 
 class CIFAR100OverlapDataset(Dataset):
-    """CIFAR-100 dataset with class overlap support"""
-    
+    """CIFAR-100 dataset with class overlap support (optimized)."""
     def __init__(self, dataset, class_indices):
         self.dataset = dataset
-        self.class_indices = class_indices
-        self.classes = class_indices  # Add classes attribute
-        self.num_classes = len(class_indices)  # Add num_classes attribute
-        
-        # Filter dataset to only include specified classes
-        self.indices = []
-        for idx, (_, label) in enumerate(dataset):
-            if label in class_indices:
-                self.indices.append(idx)
+        self.class_indices = list(class_indices)
+        self.classes = self.class_indices
+        self.num_classes = len(self.class_indices)
+        # fast label map and index filtering
+        label_map = {orig: i for i, orig in enumerate(self.class_indices)}
+        targets = getattr(dataset, "targets", None)
+        if targets is None:
+            # fallback: extract labels without applying transforms
+            targets = [dataset[i][1] for i in range(len(dataset))]
+        self._label_map = label_map
+        self.indices = [i for i, y in enumerate(targets) if y in label_map]
     
     def __len__(self):
         return len(self.indices)
     
     def __getitem__(self, idx):
-        data_idx = self.indices[idx]
-        data, label = self.dataset[data_idx]
-        # Map label to new class index
-        new_label = self.class_indices.index(label)
-        return data, new_label
+        i = self.indices[idx]
+        x, y = self.dataset[i]
+        return x, self._label_map[y]
 
 def get_overlap_loaders(pct_overlap, batch_size, num_workers=2, augment=True, seed=42):
     """Get CIFAR-100 loaders with class overlap"""

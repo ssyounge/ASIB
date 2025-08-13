@@ -75,35 +75,31 @@ class SynergyEnsemble(nn.Module):
         self.synergy_head = synergy_head
         self.student = student
         self.cfg = cfg or {}
-        # LightweightAttnMBM removed; always query-based IB_MBM is IB_MBM
-        self.la_mode = False
+        self.feat_key = (self.cfg.get("feat_kd_key") or
+                         ("distill_feat" if self.cfg.get("use_distillation_adapter", False) else "feat_2d"))
 
     def forward(self, x):
-        with torch.no_grad():
-            f1_out = self.teacher1(x)
-            f2_out = self.teacher2(x)
-            f1_dict = f1_out[0] if isinstance(f1_out, tuple) else f1_out
-            f2_dict = f2_out[0] if isinstance(f2_out, tuple) else f2_out
-
-        f1_2d = f1_dict["feat_2d"]
-        f2_2d = f2_dict["feat_2d"]
-        f1_4d = f1_dict.get("feat_4d")
-        f2_4d = f2_dict.get("feat_4d")
-
-        if self.la_mode:
-            assert self.student is not None, "student required for query-based IB_MBM"
-            feat_dict, _, _ = self.student(x)
-            key = self.cfg.get("feat_kd_key", "feat_2d")
-            s_feat = feat_dict[key]
-            fsyn, _, _, _ = self.ib_mbm(s_feat, [f1_2d, f2_2d])
-        else:
-            fsyn = self.ib_mbm([f1_2d, f2_2d], [f1_4d, f2_4d])
-
-        out = self.synergy_head(fsyn)
-        if isinstance(out, tuple):
-            logits, kl = out
+        # AMP 컨텍스트 가져오기
+        autocast_ctx, _ = get_amp_components(self.cfg or {})
+        
+        with autocast_ctx:
+            # 1) student query feature
+            s_out = self.student(x)
+            s_dict = s_out[0] if isinstance(s_out, tuple) else s_out
+            q = s_dict[self.feat_key]  # (B, D)
+            # 2) teacher tokens (B, K, D)
+            with torch.no_grad():
+                t1 = self.teacher1(x)
+                t2 = self.teacher2(x)
+                t1d = t1[0] if isinstance(t1, tuple) else t1
+                t2d = t2[0] if isinstance(t2, tuple) else t2
+                k1 = t1d[self.feat_key]
+                k2 = t2d[self.feat_key]
+                kv = torch.stack([k1, k2], dim=1)  # (B, 2, D)
+            # 3) IB-MBM → SynergyHead
+            z, mu, logvar = self.ib_mbm(q, kv)
+            logits = self.synergy_head(z)
             return logits
-        return out
 
 @hydra.main(config_path="configs", config_name="base", version_base="1.3")
 def main(cfg: DictConfig):

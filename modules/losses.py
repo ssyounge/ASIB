@@ -306,3 +306,28 @@ def rkd_angle_loss(
     loss = F.mse_loss(student_angle, teacher_angle, reduction=reduction)
     
     return loss
+
+
+def masked_kd_loss(student_logits, teacher_logits, seen_classes, T=4.0, reduction="batchmean"):
+    """
+    Class-IL용 KD: seen_classes 열만 골라 KL(student||teacher).
+    seen_classes: 1D LongTensor (e.g., tensor([0,1,2,...]))
+    """
+    if not torch.is_tensor(seen_classes):
+        seen_classes = torch.tensor(seen_classes, device=student_logits.device, dtype=torch.long)
+    if seen_classes.numel() == 0:
+        # 첫 태스크 등: KD 항 없음
+        return student_logits.new_zeros(())
+    s = student_logits.index_select(dim=1, index=seen_classes)
+    t = teacher_logits.index_select(dim=1, index=seen_classes)
+    s_log = F.log_softmax(s / T, dim=1)
+    t_prob = F.softmax(t / T, dim=1)
+    return F.kl_div(s_log, t_prob, reduction=reduction) * (T * T)
+
+
+def class_il_total_loss(student_logits, teacher_logits, targets, seen_classes,
+                        ce_weight=1.0, kd_weight=1.0, T=4.0):
+    ce = ce_loss_fn(student_logits, targets)
+    kd = masked_kd_loss(student_logits, teacher_logits, seen_classes, T=T) if kd_weight > 0 else 0.0
+    total = ce_weight * ce + kd_weight * kd
+    return total
