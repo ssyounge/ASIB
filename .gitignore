@@ -107,6 +107,7 @@ tensorboard_logs/
 outputs/
 experiments/outputs/
 experiments/checkpoints/
+experiments/*/results/
 
 # Checkpoints directory
 checkpoints/
