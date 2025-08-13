@@ -6,7 +6,7 @@ defaults:
   - /base
   - /model/teacher@experiment.teacher1: convnext_s
   - /model/teacher@experiment.teacher2: resnet152
-  - /model/student@experiment.model.student: resnet50_scratch
+  - /model/student@experiment.model.student: resnet101_scratch
   - _self_
 
 experiment:
@@ -23,6 +23,7 @@ experiment:
   student_epochs_per_stage: [15, 15]
   teacher_adapt_epochs: 0
   use_partial_freeze: false
+  compute_teacher_eval: true
 
   use_amp: true
   amp_dtype: bfloat16
@@ -33,12 +34,16 @@ experiment:
   ib_beta_warmup_epochs: 3
   use_vib_synergy_head: false
 
+  # Align heterogeneous teacher feature dims via adapter
+  use_distillation_adapter: true
+  distill_out_dim: 512
+
   ib_mbm_query_dim: 2048
   ib_mbm_out_dim: 512
   ib_mbm_n_head: 4
   ib_mbm_feature_norm: l2
 
-  class_overlap_ratio: 1.0
+  overlap_pct: 100
   use_overlap_sampling: true
 
   a_step_lr: 0.001

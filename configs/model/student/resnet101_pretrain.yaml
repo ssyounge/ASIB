@@ -1,7 +1,4 @@
 # configs/model/student/resnet101_pretrain.yaml
-
-model:
-  student:
-    name: resnet101_pretrain
-    pretrained: true
-    use_adapter: true
+name: resnet101_pretrain
+pretrained: true
+use_adapter: true

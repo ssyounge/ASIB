@@ -15,7 +15,7 @@ experiment:
 
   dataset:
     batch_size: 64
-    num_workers: 2
+    num_workers: 8  # 더 많은 워커로 데이터 로딩 속도 향상
 
   num_stages: 1
   student_epochs_per_stage: [5]
@@ -23,7 +23,7 @@ experiment:
   use_partial_freeze: false
 
   use_amp: true
-  amp_dtype: float16
+  amp_dtype: bfloat16  # bfloat16이 더 안정적이고 빠름 (A100/H100에서)
 
   use_ib: false
   ib_epochs_per_stage: 0
@@ -52,3 +52,20 @@ experiment:
   tau: 4.0
   cccp_nt: 1
   cccp_ns: 1
+
+  # Teacher evaluation (초반 평가 스킵으로 속도 향상)
+  compute_teacher_eval: false
+
+  # Teacher fine-tuning control (교사 백본 학습 제어)
+  use_teacher_finetuning: false  # false: 교사 백본 고정 (기본값)
+  train_distill_adapter_only: false  # true: distillation adapter만 학습
+
+  # Disagreement calculation optimization
+  disagreement_max_samples: 2000  # 전체 대신 샘플링으로 속도 향상 (None: 전체 사용)
+  disagreement_max_batches: 10  # 배치 수 제한 (수 분 → 수 초)
+
+  # Legacy trainer compatibility keys (do not remove)
+  teacher_lr: 0.0
+  teacher_weight_decay: 0.0
+  student_lr: 0.05
+  student_weight_decay: 0.0003

@@ -4,54 +4,75 @@
 
 defaults:
   - /base
-  - /model/teacher@experiment.teacher1: convnext_s
+  - /model/teacher@experiment.teacher1: convnext_l
   - /model/teacher@experiment.teacher2: resnet152
-  - /model/student@experiment.model.student: resnet50_scratch
+  - /model/student@experiment.model.student: resnet101_scratch
   - _self_
 
 experiment:
   results_dir: experiments/ablation/cccp/results
   exp_id: ablation_cccp
-  teacher1_ckpt: checkpoints/teachers/convnext_s_cifar100.pth
+  teacher1_ckpt: checkpoints/teachers/convnext_l_cifar100.pth
   teacher2_ckpt: checkpoints/teachers/resnet152_cifar100.pth
 
   dataset:
     batch_size: 128
     num_workers: 4
+    data_aug: 1
 
   num_stages: 2
   student_epochs_per_stage: [15, 15]
-  teacher_adapt_epochs: 0
+  teacher_adapt_epochs: 5
   use_partial_freeze: false
+  compute_teacher_eval: true
 
   use_amp: true
   amp_dtype: bfloat16
 
   use_ib: true
   ib_epochs_per_stage: 5
-  ib_beta: 0.005
+  ib_beta: 0.001
   ib_beta_warmup_epochs: 3
   use_vib_synergy_head: false
 
-  ib_mbm_query_dim: 2048
+  # Align heterogeneous teacher feature dims via adapter
+  use_distillation_adapter: true
+  distill_out_dim: 512
+
+  ib_mbm_query_dim: 512  # distill_feat 차원과 맞춤
   ib_mbm_out_dim: 512
-  ib_mbm_n_head: 4
+  ib_mbm_n_head: 1
   ib_mbm_feature_norm: l2
 
   use_cccp: true
   cccp_alpha: 0.5
-  tau: 4.0
+  tau: 6.0
   cccp_nt: 1
   cccp_ns: 1
 
   a_step_lr: 0.001
   a_step_weight_decay: 0.0001
-  b_step_lr: 0.05
-  b_step_weight_decay: 0.0003
+  teacher_lr: 3.0e-5
+  teacher_weight_decay: 1.0e-4
+  optimizer: adamw
+  student_lr: 0.001
+  student_weight_decay: 0.0003
+  b_step_lr: 0.001
   b_step_momentum: 0.9
   b_step_nesterov: true
   grad_clip_norm: 1.0
 
-  ce_alpha: 0.3
+  ce_alpha: 0.6
+  kd_alpha: 0.4
   kd_ens_alpha: 0.0
-  hybrid_beta: 0.0 
+  feat_kd_alpha: 0.1
+  feat_kd_key: distill_feat
+  kd_target: synergy
+  hybrid_beta: 0.0
+  teacher_adapt_kd_warmup: 0
+
+  schedule:
+    type: step
+    lr_warmup_epochs: 0
+    step_size: 15
+    gamma: 0.1

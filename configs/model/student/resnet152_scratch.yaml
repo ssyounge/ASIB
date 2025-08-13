@@ -1,7 +1,4 @@
 # configs/model/student/resnet152_scratch.yaml
-
-model:
-  student:
-    name: resnet152_scratch
-    pretrained: false
-    use_adapter: true
+name: resnet152_scratch
+pretrained: false
+use_adapter: true

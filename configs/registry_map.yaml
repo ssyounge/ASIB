@@ -9,6 +9,7 @@ teachers:
 students:
   resnet152_pretrain: models.students.resnet152_student.create_resnet152_student
   resnet101_pretrain: models.students.resnet101_student.create_resnet101_student
+  resnet101_scratch:   models.students.resnet101_student.create_resnet101_scratch_student
   resnet50_scratch:   models.students.resnet50_student.create_resnet50_student
   shufflenet_v2_scratch: models.students.shufflenet_v2_student.create_shufflenet_v2_scratch_student
   mobilenet_v2_scratch:  models.students.mobilenet_v2_student.create_mobilenet_v2_scratch_student

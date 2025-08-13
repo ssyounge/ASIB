@@ -1,87 +1,89 @@
 # configs/experiment/ablation_baseline.yaml
-# Phase 1.1 (1) Baseline: IB_MBM + E2E + Fixed Teachers
-# 가장 기본적인 형태 - 교사 모델들은 완전히 고정하고 VIB는 비활성화
 
 defaults:
   - /base
-  - /model/teacher@experiment.teacher1: convnext_s
+  - /model/teacher@experiment.teacher1: convnext_l
   - /model/teacher@experiment.teacher2: resnet152
-  - /model/student@experiment.model.student: resnet50_scratch
+  - /model/student@experiment.model.student: resnet101_scratch
   - _self_
 
 experiment:
-  # ─── 경로 & 식별자 ────────────────────────────────────────────
-  teacher1_ckpt: checkpoints/teachers/convnext_s_cifar32.pth
-  teacher2_ckpt: checkpoints/teachers/resnet152_cifar32.pth
   results_dir: experiments/ablation/baseline/results
   exp_id: ablation_baseline
 
-  # ─── 모델 & Optim ────────────────────────────────────────────
-  optimizer: sgd                # SGD optimizer 사용
-  teacher_lr: 0.0              # 교사 고정 (lr=0)
-  teacher_weight_decay: 0.0
-  student_lr: 0.1              # CIFAR-100 ResNet50에 적합한 학습률
-  student_weight_decay: 3.0e-4
-  momentum: 0.9                # SGD momentum
-  nesterov: true               # Nesterov momentum
+  teacher1_ckpt: checkpoints/teachers/convnext_l_cifar100.pth
+  teacher2_ckpt: checkpoints/teachers/resnet152_cifar100.pth
 
-  # ─── Partial‑Freeze Stage 스케줄 ──────────────────────────────
-  use_partial_freeze: false    # 교사 완전 고정
-  num_stages: 1                # 단일 스테이지
-  teacher_adapt_epochs: 0      # 교사 적응 없음
-  student_freeze_schedule: [0] # 학생만 학습
-  student_epochs_per_stage: [200] # 200 에포크
-  teacher1_freeze_level: -1    # 교사 완전 고정
+  dataset:
+    batch_size: 128
+    num_workers: 4
+    data_aug: 1
+
+  schedule:
+    type: step
+    lr_warmup_epochs: 0
+    step_size: 15
+    gamma: 0.1
+
+  # Simplify for CE-only debug run
+  num_stages: 2
+  student_epochs_per_stage: [15, 15]
+  teacher_adapt_epochs: 0
+  use_partial_freeze: false
+  compute_teacher_eval: true
+  # Force full unfreeze for CE-only sanity check
+  student_freeze_level: -1
+  teacher1_freeze_level: -1
   teacher2_freeze_level: -1
   student_freeze_bn: false
   teacher1_freeze_bn: true
   teacher2_freeze_bn: true
 
-  # ─── IB_MBM / Adapter ───────────────────────────────────────────
+  # Disable AMP to eliminate precision-related instability for CE-only
+  use_amp: false
+  amp_dtype: bfloat16
+
+  # IB settings (disabled for CE-only)
+  ib_epochs_per_stage: 0
+  ib_beta: 0.005
+  ib_beta_warmup_epochs: 3
+  use_vib_synergy_head: false
+
+  # Align heterogeneous teacher feature dims via adapter
   use_distillation_adapter: true
   distill_out_dim: 512
-  ib_mbm_query_dim: 2048
-  ib_mbm_out_dim: 2048
-  ib_mbm_n_head: 8
-  use_ib: false                # IB 비활성화 (β=0)
-  ib_beta: 0.0
-  ib_beta_warmup_epochs: 0
-  ib_mbm_reg_lambda: 0.0
+  feat_kd_key: distill_feat  # ← 추가 (512 차원으로 맞춤)
 
-  # ─── VIB Synergy Head (기본 OFF, 필요 시 ON) ──────────────────
-  use_vib_synergy_head: false
-  vib_kl_weight: 1.0
-  # vib_head_hidden_dim: 512
-  # vib_head_logvar_clip: 10.0
-  # vib_head_min_std: 1.0e-4
-  # synergy_head_dropout: 0.1
+  ib_mbm_query_dim: 512  # distill_feat 차원과 맞춤
+  ib_mbm_out_dim: 512
+  ib_mbm_n_head: 1
+  ib_mbm_feature_norm: l2
 
-  # ─── 2‑스텝 루프 하이퍼파라미터 (override 가능) ─────────────
-  a_step_lr: 1.0e-4
-  a_step_weight_decay: 1.0e-4
-  ib_epochs_per_stage: 5
-  b_step_lr: 1.0e-1
-  b_step_weight_decay: 3.0e-4
+  a_step_lr: 0.001
+  a_step_weight_decay: 0.0001
+  # CE-only: higher LR for CIFAR-ResNet baseline
+  b_step_lr: 0.001
+  b_step_weight_decay: 0.0003
   b_step_momentum: 0.9
   b_step_nesterov: true
+  # Temporarily disable grad clipping to avoid suppressing updates
+  grad_clip_norm: 1.0
 
-  # ─── KD 세부 옵션 ────────────────────────────────────────────
-  kd_alpha: 0.5                # 기본 KD
-  kd_ens_alpha: 0.5            # 앙상블 KD
-  use_disagree_weight: false   # Disagreement 가중치 없음
-  disagree_mode: both_wrong
-  disagree_lambda_high: 1.0
-  disagree_lambda_low: 1.0
+  # Force CE-only (disable any KD influence)
+  ce_alpha: 1.0
+  kd_alpha: 0.0          # KD 완전 끔
+  kd_ens_alpha: 0.0
+  hybrid_beta: 0.0
+  teacher_adapt_kd_warmup: 0
+  use_ib: false          # IB 끔
+  feat_kd_alpha: 0.0     # Feature-KD 끔
+  kd_target: synergy
 
-  # ─── CCCP (비활성화) ─────────────────────────────────────────
-  use_cccp: false              # E2E 학습
-  tau: 4.0
-  cccp_nt: 1                   # A-Step 반복 횟수 (1 iteration)
-  cccp_ns: 1                   # B-Step 반복 횟수 (1 iteration)
-
-  # ─── 데이터증강 / 기타 ───────────────────────────────────────────
-  dataset:
-    batch_size: 64
-  cutmix_alpha_distill: 0.0
-  mixup_alpha: 0.0
-  grad_clip_norm: 1.0 
+  # Optimizer/LR for student (AdamW 기본)
+  optimizer: adamw
+  student_lr: 0.001
+  student_weight_decay: 0.0003
+  
+  # Loss 클리핑 제어 (A-Step 안정화를 위해)
+  use_loss_clamp: false
+  loss_clamp_max: 1000.0
