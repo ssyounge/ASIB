@@ -317,10 +317,11 @@ def student_distillation_update(
                     mu_ng = logvar_ng = zsyn_ng = None
 
                 # stable CE/KL calculations in float32
+                ls = cfg.get("ce_label_smoothing", cfg.get("label_smoothing", 0.0))
                 loss_ce = ce_safe(
                     s_logit,
                     y,
-                    ls_eps=cfg.get("label_smoothing", 0.0),
+                    ls_eps=ls,
                 )
                 # KD는 no-grad 타깃 사용 (필요할 때만)
                 kd_loss_val = 0.0
@@ -346,6 +347,18 @@ def student_distillation_update(
                     else:
                         # 기본값: synergy
                         kd_tgt = zsyn_ng if zsyn_ng is not None else torch.zeros_like(s_logit)
+
+                    # Warmup 동안 시너지/앙상블 혼합 (ens_alpha 비율)
+                    warmup_epochs = int(cfg.get("teacher_adapt_kd_warmup", 0))
+                    ens_alpha = float(cfg.get("kd_ens_alpha", 0.0))
+                    if (
+                        warmup_epochs > 0 and ep < warmup_epochs and ens_alpha > 0.0
+                        and zsyn_ng is not None and t1_dict is not None and t2_dict is not None
+                    ):
+                        t1_logit = t1_dict["logit"]
+                        t2_logit = t2_dict["logit"]
+                        avg_t = (t1_logit + t2_logit) / 2.0
+                        kd_tgt = (1.0 - ens_alpha) * zsyn_ng + ens_alpha * avg_t
                     
                     if kd_tgt is not None:
                         loss_kd = kl_safe(
@@ -367,7 +380,7 @@ def student_distillation_update(
                         "[DBG/student] x %s s_logit %s zsyn %s",
                         tuple(x.shape),
                         tuple(s_logit.shape),
-                        tuple(zsyn.shape),
+                        tuple(zsyn_ng.shape) if 'zsyn_ng' in locals() and zsyn_ng is not None else None,
                     )
 
             # ── (B1) sample-weights (always same dtype as losses) ───────────
@@ -408,7 +421,13 @@ def student_distillation_update(
                     diff = (s_feat - mu_ng).pow(2).sum(dim=1)  # s_feat에서 grad 흐름
                     feat_kd_val = (cw * diff).mean()
                 else:
-                    logging.warning("[B-Step] Feat-KD skipped (dim mismatch): s=%s, mu=%s", tuple(s_feat.shape), tuple(mu_ng.shape))
+                    # 첫 배치에서만 경고 출력 (로그 과다 방지)
+                    if ep == 0 and step == 0:
+                        logging.warning(
+                            "[B-Step] Feat-KD skipped (dim mismatch): s=%s, mu=%s",
+                            tuple(s_feat.shape),
+                            tuple(mu_ng.shape),
+                        )
                     feat_kd_val = None
 
             # IB KL은 B-Step에서 제외 (A-Step에서만 최적화)

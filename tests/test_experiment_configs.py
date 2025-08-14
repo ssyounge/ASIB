@@ -23,11 +23,12 @@ class TestExperimentConfigs:
     def test_all_experiment_configs_exist(self, config_dir):
         """Test that all expected experiment configs exist"""
         expected_configs = [
-            "ablation_baseline",
-            "ablation_cccp", 
-            "ablation_full",
-            "ablation_ib",
-            "ablation_tadapt",
+            "L0_baseline",
+            "L1_ib",
+            "L2_cccp", 
+            "L3_ib_cccp_tadapt",
+            "L4_full",
+            "side_cccp_ppf",
             "overlap_100",
             "sota_scenario_a"
         ]

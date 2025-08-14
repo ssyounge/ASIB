@@ -440,9 +440,19 @@ def teacher_adaptive_update(
 
                 feat_kd_loss = torch.tensor(0.0, device=cfg["device"])
                 if cfg.get("feat_kd_alpha", 0) > 0:
-                    diff = (s_feat - mu).pow(2).sum(dim=1)
-                    cw = certainty_weights(logvar).mean(dim=1).to(s_feat.dtype)
-                    feat_kd_loss = (cw * diff).mean()
+                    dims_match = s_feat.shape[1] == mu.shape[1]
+                    first_batch = (ep == 0 and step == 0)
+                    if dims_match:
+                        diff = (s_feat - mu).pow(2).sum(dim=1)
+                        cw = certainty_weights(logvar).mean(dim=1).to(s_feat.dtype)
+                        feat_kd_loss = (cw * diff).mean()
+                    else:
+                        if first_batch:
+                            logging.warning(
+                                "[A-Step] Feat-KD skipped (dim mismatch): s=%s, mu=%s",
+                                tuple(s_feat.shape),
+                                tuple(mu.shape),
+                            )
 
                 # ---- (1) 전체 손실 구성 ----
                 kd_weight = cfg.get("teacher_adapt_alpha_kd", cfg.get("kd_alpha", 1.0))

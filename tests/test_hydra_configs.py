@@ -83,7 +83,7 @@ class TestHydraExperimentCompose:
             "experiment.experiment.student_epochs_per_stage=[5]",
             "experiment.experiment.num_stages=1",
         ]
-        cfg = _compose(config_name="experiment/ablation_baseline", overrides=overrides)
+        cfg = _compose(config_name="experiment/L0_baseline", overrides=overrides)
         # Resolve effective experiment node
         def get_exp_node(c):
             node = c
@@ -100,7 +100,7 @@ class TestHydraExperimentCompose:
         assert int(exp["num_stages"]) == 1
 
     def test_hydra_run_dir_policy_references_results_dir(self):
-        cfg = _compose(config_name="experiment/ablation_baseline")
+        cfg = _compose(config_name="experiment/L0_baseline")
         if "hydra" in cfg and "run" in cfg.hydra:
             run_dir = str(cfg.hydra.run.dir)
             # We don't force resolver evaluation; just ensure reference to experiment.results_dir

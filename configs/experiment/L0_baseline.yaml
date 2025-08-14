@@ -1,4 +1,4 @@
-# configs/experiment/ablation_baseline.yaml
+# configs/experiment/L0_baseline.yaml
 
 defaults:
   - /base
@@ -9,25 +9,19 @@ defaults:
 
 experiment:
   results_dir: experiments/ablation/baseline/results
-  exp_id: ablation_baseline
+  exp_id: L0_baseline
 
   teacher1_ckpt: checkpoints/teachers/convnext_l_cifar100.pth
   teacher2_ckpt: checkpoints/teachers/resnet152_cifar100.pth
 
   dataset:
-    batch_size: 128
+    batch_size: 64
     num_workers: 4
     data_aug: 1
 
-  schedule:
-    type: step
-    lr_warmup_epochs: 0
-    step_size: 15
-    gamma: 0.1
-
-  # Simplify for CE-only debug run
+  # Stages/Epochs (BS=64 풀-런)
   num_stages: 2
-  student_epochs_per_stage: [15, 15]
+  student_epochs_per_stage: [20, 20]
   teacher_adapt_epochs: 0
   use_partial_freeze: false
   compute_teacher_eval: true
@@ -39,8 +33,8 @@ experiment:
   teacher1_freeze_bn: true
   teacher2_freeze_bn: true
 
-  # Disable AMP to eliminate precision-related instability for CE-only
-  use_amp: false
+  # AMP
+  use_amp: true
   amp_dtype: bfloat16
 
   # IB settings (disabled for CE-only)
@@ -52,38 +46,40 @@ experiment:
   # Align heterogeneous teacher feature dims via adapter
   use_distillation_adapter: true
   distill_out_dim: 512
-  feat_kd_key: distill_feat  # ← 추가 (512 차원으로 맞춤)
+  feat_kd_key: distill_feat
 
-  ib_mbm_query_dim: 512  # distill_feat 차원과 맞춤
+  ib_mbm_query_dim: 512
   ib_mbm_out_dim: 512
   ib_mbm_n_head: 1
   ib_mbm_feature_norm: l2
 
   a_step_lr: 0.001
   a_step_weight_decay: 0.0001
-  # CE-only: higher LR for CIFAR-ResNet baseline
   b_step_lr: 0.001
   b_step_weight_decay: 0.0003
   b_step_momentum: 0.9
   b_step_nesterov: true
-  # Temporarily disable grad clipping to avoid suppressing updates
-  grad_clip_norm: 1.0
+  grad_clip_norm: 0.5
 
-  # Force CE-only (disable any KD influence)
-  ce_alpha: 1.0
-  kd_alpha: 0.0          # KD 완전 끔
-  kd_ens_alpha: 0.0
-  hybrid_beta: 0.0
-  teacher_adapt_kd_warmup: 0
-  use_ib: false          # IB 끔
-  feat_kd_alpha: 0.0     # Feature-KD 끔
+  # KD/IB/CCCP OFF
   kd_target: synergy
+  kd_alpha: 0.0
+  tau: 4.0
+  use_ib: false
+  use_cccp: false
 
   # Optimizer/LR for student (AdamW 기본)
   optimizer: adamw
   student_lr: 0.001
   student_weight_decay: 0.0003
   
-  # Loss 클리핑 제어 (A-Step 안정화를 위해)
-  use_loss_clamp: false
-  loss_clamp_max: 1000.0
+  # Schedule
+  schedule:
+    type: cosine
+    lr_warmup_epochs: 5
+    min_lr: 1e-5
+
+  # Adapter(차원 정렬만)
+  ce_label_smoothing: 0.0
+
+ 

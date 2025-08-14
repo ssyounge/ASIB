@@ -266,7 +266,7 @@ class TestConfigValidation:
         from omegaconf import OmegaConf
         
         # Test experiment config (legacy 예제는 제거됨) → 대체로 현재 실험 템플릿 검사
-        exp_config = OmegaConf.load("configs/experiment/ablation_baseline.yaml")
+        exp_config = OmegaConf.load("configs/experiment/L0_baseline.yaml")
         assert "defaults" in exp_config
         # num_stages is nested under experiment
         assert "experiment" in exp_config

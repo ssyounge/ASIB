@@ -35,7 +35,7 @@ class TestExperimentConfigs:
     """Test experiment configurations"""
     
     @pytest.mark.parametrize("config_file", [
-        "configs/experiment/ablation_baseline.yaml",
+        "configs/experiment/L0_baseline.yaml",
     ])
     def test_experiment_config_structure(self, config_file):
         """Test experiment config structure"""
@@ -50,7 +50,7 @@ class TestExperimentConfigs:
         assert "results_dir" in exp
     
     @pytest.mark.parametrize("config_file", [
-        "configs/experiment/ablation_baseline.yaml",
+        "configs/experiment/L0_baseline.yaml",
     ])
     def test_experiment_config_values(self, config_file):
         """Test experiment config values"""
@@ -65,7 +65,7 @@ class TestExperimentConfigs:
     
     def test_res152_convnext_effi_config(self):
         """Test specific res152_convnext_effi config"""
-        config = OmegaConf.load("configs/experiment/ablation_baseline.yaml")
+        config = OmegaConf.load("configs/experiment/L0_baseline.yaml")
         exp = config["experiment"]
         assert "results_dir" in exp and isinstance(exp["results_dir"], str)
     
@@ -428,7 +428,7 @@ class TestConfigValidation:
         # For now, just check that configs can be loaded
         config_files = [
             "configs/base.yaml",
-            "configs/experiment/ablation_baseline.yaml",
+            "configs/experiment/L0_baseline.yaml",
             "configs/finetune/resnet152_cifar100.yaml",
             "configs/finetune/convnext_l_cifar100.yaml",
             "configs/finetune/efficientnet_l2_cifar100.yaml",

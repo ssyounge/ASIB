@@ -69,3 +69,8 @@ experiment:
   teacher_weight_decay: 0.0
   student_lr: 0.05
   student_weight_decay: 0.0003
+  
+  # KD warmup and loss stabilization
+  teacher_adapt_kd_warmup: 0
+  use_loss_clamp: false
+  loss_clamp_max: 100.0

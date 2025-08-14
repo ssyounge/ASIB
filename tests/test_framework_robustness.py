@@ -64,7 +64,7 @@ class TestFrameworkRobustness:
         required_files = [
             "configs/registry_key.yaml",
             "configs/registry_map.yaml",
-            "configs/experiment/ablation_baseline.yaml",
+            "configs/experiment/L0_baseline.yaml",
             "configs/experiment/sota_scenario_a.yaml", 
             "configs/experiment/overlap_100.yaml",
             "configs/model/student/resnet50_scratch.yaml",
