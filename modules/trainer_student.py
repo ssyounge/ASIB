@@ -12,6 +12,7 @@ from modules.losses import (
     ib_loss, certainty_weights, feat_mse_loss
 )
 from modules.disagreement import sample_weights_from_disagreement
+from torch.amp import autocast
 
 
 try:
@@ -146,6 +147,34 @@ def _get_cfg_val(cfg: dict, key: str, default):
         return cfg["method"]["method"][key]
     return default
 
+
+def ce_safe_vec(logits: torch.Tensor, target: torch.Tensor, ls_eps: float = 0.0) -> torch.Tensor:
+    """Return per-sample CE loss in float32, with optional label smoothing.
+
+    The output shape is [batch]. Autocast is disabled inside to avoid fp16 underflow.
+    """
+    with autocast('cuda', enabled=False):
+        logits = logits.float()
+        # Use PyTorch's native label_smoothing implementation for stability
+        return torch.nn.functional.cross_entropy(
+            logits,
+            target,
+            label_smoothing=float(ls_eps),
+            reduction="none",
+        )
+
+
+def kl_safe_vec(p_logits: torch.Tensor, q_logits: torch.Tensor, tau: float = 1.0) -> torch.Tensor:
+    """Return per-sample KL divergence (sum over classes), scaled by tau^2.
+
+    Uses float32 math under autocast-disabled region for stability.
+    """
+    with autocast('cuda', enabled=False):
+        p_log = torch.log_softmax(p_logits.float() / tau, dim=1)
+        q = torch.softmax(q_logits.float() / tau, dim=1)
+        kl = torch.nn.functional.kl_div(p_log, q, reduction="none")  # [B, C]
+        return kl.sum(dim=1) * (tau * tau)
+
 def student_distillation_update(
     teacher_wrappers,
     ib_mbm, synergy_head,
@@ -239,6 +268,19 @@ def student_distillation_update(
             epoch=global_ep + ep,
             total_epochs=total_epochs,
         )
+        # τ 스케줄(선형 보간): [t0, t1]로 주어지면 B-step 내에서 2→4 등 선형 증가
+        tau_sched = cfg.get("tau_schedule", None)
+        if tau_sched and isinstance(tau_sched, (list, tuple)) and len(tau_sched) == 2:
+            try:
+                t0, t1 = float(tau_sched[0]), float(tau_sched[1])
+                if "student_epochs_schedule" in cfg:
+                    total_ep = int(cfg["student_epochs_schedule"][max(0, int(cfg.get("cur_stage",1))-1)])
+                else:
+                    total_ep = int(cfg.get("student_iters", 1))
+                r = 0.0 if total_ep <= 1 else float(ep) / float(max(1, total_ep - 1))
+                cur_tau = t0 + r * (t1 - t0)
+            except Exception:
+                pass
         distill_loss_sum = 0.0
         cnt = 0
         student_model.train()
@@ -316,18 +358,22 @@ def student_distillation_update(
                 else:
                     mu_ng = logvar_ng = zsyn_ng = None
 
-                # stable CE/KL calculations in float32
+                # stable CE/KL calculations (per-sample vector) then apply cw weights
                 ls = cfg.get("ce_label_smoothing", cfg.get("label_smoothing", 0.0))
-                loss_ce = ce_safe(
-                    s_logit,
-                    y,
-                    ls_eps=ls,
-                )
+                ce_vec = ce_safe_vec(s_logit, y, ls_eps=ls)  # [B]
                 # KD는 no-grad 타깃 사용 (필요할 때만)
                 kd_loss_val = 0.0
                 if cfg.get("kd_alpha", 0.0) > 0 and need_teachers:
                     # KD 타겟 선택
+                    # 시너지 품질이 낮으면 avg로 대체
+                    synergy_good = False
+                    try:
+                        synergy_good = float(cfg.get("last_synergy_acc", 0.0)) >= float(cfg.get("enable_kd_after_syn_acc", 0.0))
+                    except Exception:
+                        pass
                     kd_target = cfg.get("kd_target", "synergy")
+                    if cfg.get("use_avg_until_synergy", False) and kd_target == "synergy" and not synergy_good:
+                        kd_target = "avg"
                     if kd_target == "synergy" and zsyn_ng is not None:
                         kd_tgt = zsyn_ng
                     elif kd_target == "avg" and t1_dict is not None and t2_dict is not None:
@@ -336,12 +382,12 @@ def student_distillation_update(
                         t2_logit = t2_dict["logit"]
                         kd_tgt = (t1_logit + t2_logit) / 2.0
                     elif kd_target == "weighted_conf" and t1_dict is not None and t2_dict is not None:
-                        # Teacher confidence 기반 가중 평균
+                        # Teacher confidence 기반 가중 평균 (use .max(...).values; not .amax)
                         t1_logit = t1_dict["logit"]
                         t2_logit = t2_dict["logit"]
-                        p1 = torch.softmax(t1_logit / cur_tau, dim=1).amax(dim=1).values
-                        p2 = torch.softmax(t2_logit / cur_tau, dim=1).amax(dim=1).values
-                        w1 = (p1 / (p1 + p2 + 1e-8)).unsqueeze(1)
+                        p1 = torch.softmax(t1_logit / cur_tau, dim=1).max(dim=1).values  # [B]
+                        p2 = torch.softmax(t2_logit / cur_tau, dim=1).max(dim=1).values  # [B]
+                        w1 = (p1 / (p1 + p2 + 1e-8)).unsqueeze(1)  # [B,1]
                         w2 = 1.0 - w1
                         kd_tgt = w1 * t1_logit + w2 * t2_logit
                     else:
@@ -361,12 +407,8 @@ def student_distillation_update(
                         kd_tgt = (1.0 - ens_alpha) * zsyn_ng + ens_alpha * avg_t
                     
                     if kd_tgt is not None:
-                        loss_kd = kl_safe(
-                            s_logit,
-                            kd_tgt.detach(),  # gradient 끊김
-                            tau=cur_tau,
-                        )
-                        kd_loss_val = loss_kd
+                        kd_vec = kl_safe_vec(s_logit, kd_tgt.detach(), tau=cur_tau)  # [B]
+                        kd_loss_val = None  # set below after cw
                     else:
                         loss_kd = torch.tensor(0.0, device=s_logit.device)
                         kd_loss_val = loss_kd
@@ -403,15 +445,16 @@ def student_distillation_update(
             cw = torch.ones(y.size(0), device=s_logit.device, dtype=s_logit.dtype)
 
             if cfg.get("use_ib", False) and logvar_ng is not None:
-                # 큰 logvar_ng(불확실) → 작은 weight
-                cw = torch.exp(-logvar_ng).mean(dim=1).clamp(
-                    cfg.get("min_cw", 0.1), 1.0
-                ).to(s_logit.dtype)
+                cw = torch.exp(-logvar_ng).mean(dim=1).to(s_logit.dtype)
+                cw = cw.clamp(float(cfg.get("min_cw", 0.1)), 1.0)
                 weights = weights * cw
 
-            # apply sample weights to CE and KD losses computed above
-            ce_loss_val = loss_ce
-            kd_loss_val = loss_kd
+            # apply cw to CE and KD
+            ce_loss_val = (cw * ce_vec).mean()
+            if isinstance(kd_loss_val, torch.Tensor) and kd_loss_val.dim() == 0:
+                pass
+            elif 'kd_vec' in locals() and isinstance(kd_vec, torch.Tensor):
+                kd_loss_val = (cw * kd_vec).mean()
 
             # --- μ‑MSE with certainty weight ---------------------------------
             feat_kd_val = None
@@ -435,10 +478,42 @@ def student_distillation_update(
             # if cfg.get("use_ib_on_student", False):
             #     ib_loss_val = ib_loss(mu_ng, logvar_ng, beta=get_beta(cfg, global_ep + ep))
             
+            # KD α 워밍업 (0→base)
+            kd_alpha_base = float(cfg.get("kd_alpha", 0.0))
+            kw = int(cfg.get("kd_warmup_epochs", 0))
+            kd_alpha_eff = kd_alpha_base
+            try:
+                if kw > 0:
+                    # τ 스케줄 r 재사용 가능, 아니면 ep 기준
+                    if tau_sched and isinstance(tau_sched, (list, tuple)) and len(tau_sched) == 2:
+                        if "student_epochs_schedule" in cfg:
+                            total_ep = int(cfg["student_epochs_schedule"][max(0, int(cfg.get("cur_stage",1))-1)])
+                        else:
+                            total_ep = int(cfg.get("student_iters", 1))
+                        r = 0.0 if total_ep <= 1 else float(ep) / float(max(1, total_ep - 1))
+                        warm = min(1.0, r)
+                    else:
+                        warm = min(1.0, float(ep + 1) / float(kw))
+                    kd_alpha_eff = kd_alpha_base * warm
+            except Exception:
+                kd_alpha_eff = kd_alpha_base
+
+            # KD 손실 클램프: KD가 CE를 압도하지 않도록 스케일 (weights 적용 후 값 사용)
+            kdmr = cfg.get("kd_max_ratio", None)
+            if kdmr is not None and isinstance(kdmr, (int, float)) and kd_loss_val is not None:
+                try:
+                    with torch.no_grad():
+                        ce_s = ce_loss_val.detach().clamp_min(1e-6)
+                        kd_s = kd_loss_val.detach().clamp_min(1e-6)
+                        scale = torch.clamp((float(kdmr) * ce_s) / kd_s, max=1.0)
+                    kd_loss_val = kd_loss_val * scale
+                except Exception:
+                    pass
+
             # 최종 loss는 조건부 합 (상수 0 텐서 더하지 않기)
-            loss = _get_cfg_val(cfg, "ce_alpha", 1.0) * loss_ce
-            if cfg.get("kd_alpha", 0.0) > 0 and zsyn_ng is not None:
-                loss = loss + cfg["kd_alpha"] * kd_loss_val
+            loss = _get_cfg_val(cfg, "ce_alpha", 1.0) * ce_loss_val
+            if kd_alpha_eff > 0 and (('kd_tgt' in locals() and kd_tgt is not None) or zsyn_ng is not None):
+                loss = loss + kd_alpha_eff * kd_loss_val
             if feat_kd_val is not None:
                 loss = loss + cfg.get("feat_kd_alpha", 0.0) * feat_kd_val
             
@@ -451,9 +526,12 @@ def student_distillation_update(
             
             # loss.requires_grad 보증 (디버깅용)
             if not loss.requires_grad:
-                logging.error("loss grad off: ce=%s kd=%s feat=%s", 
-                            loss_ce.requires_grad, loss_kd.requires_grad, 
-                            feat_kd_val.requires_grad if feat_kd_val is not None else None)
+                logging.error(
+                    "loss grad off: ce=%s kd=%s feat=%s",
+                    ce_loss_val.requires_grad,
+                    (kd_loss_val.requires_grad if isinstance(kd_loss_val, torch.Tensor) else None),
+                    (feat_kd_val.requires_grad if isinstance(feat_kd_val, torch.Tensor) else None),
+                )
 
             optimizer.zero_grad()
             if scaler is not None:

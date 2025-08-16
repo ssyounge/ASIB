@@ -1,0 +1,2 @@
+exp_id,csv_filename,total_time_sec,final_student_acc,num_classes,batch_size,ce_alpha,kd_alpha,use_ib,ib_beta,ib_epochs_per_stage,use_cccp,optimizer,student_lr,student_weight_decay,student_ep1_acc,student_ep1_loss,student_ep2_acc,student_ep2_loss,student_epochs_per_stage,student_epochs_schedule
+L2_ce_only,summary.csv,106.21,17.42,100,,1.00,0.00,0,0.00,8,0,adamw,0.00,0.00,9.02,4.49,17.42,3.93,[2],[2]

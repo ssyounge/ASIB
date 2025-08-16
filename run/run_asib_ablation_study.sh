@@ -2,7 +2,7 @@
 #SBATCH --job-name=asib_ablation_study
 #SBATCH --partition=base_suma_rtx3090
 #SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=4
+#SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
 #SBATCH --time=72:00:00
 #SBATCH --output=experiments/ablation/logs/ablation_%j.log
@@ -23,8 +23,8 @@ conda activate tlqkf || {
 }
 set -u
 export HYDRA_FULL_ERROR=1
-export OMP_NUM_THREADS=${OMP_NUM_THREADS:-4}
-export MKL_NUM_THREADS=${MKL_NUM_THREADS:-4}
+export OMP_NUM_THREADS=${OMP_NUM_THREADS:-8}
+export MKL_NUM_THREADS=${MKL_NUM_THREADS:-8}
 echo "✅ Python environment setup completed"
 echo ""
 
@@ -36,8 +36,8 @@ export PYTHONPATH="${ROOT}:${PYTHONPATH:-}"
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 echo "🔍 Checking GPU allocation..."
-export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
-echo "✅ CUDA_VISIBLE_DEVICES set to: ${CUDA_VISIBLE_DEVICES}"
+# export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+echo "✅ CUDA_VISIBLE_DEVICES set to: ${CUDA_VISIBLE_DEVICES:-<slurm_default>}"
 
 # CUDA libs guard (노드별 경로 차이 대응)
 TORCH_LIB_DIR="$HOME/anaconda3/envs/tlqkf/lib/python3.12/site-packages/torch/lib"
@@ -103,8 +103,10 @@ run_one() {
   echo ""
   echo "🚀 Starting ASIB ablation experiment: ${cfg} | seed=${seed}"
   echo "Time: $(date)"
-  # Hydra 호출: -cn으로 config name 지정, seed는 struct 안전하게 append(+)
-  python -u main.py -cn="experiment/${cfg}" +experiment.seed="${seed}" ${EXTRA_OVR}
+  # Hydra 호출(권장): -cn으로 experiment 그룹 선택, 오버라이드는 루트 키로 전달
+  echo "OVERRIDES: ${EXTRA_OVR}"
+  # root struct에는 seed가 없으므로 '+'로 추가하여 Hydra strict 오류를 회피
+  python -u main.py -cn="experiment/${cfg}" +seed="${seed}" ${EXTRA_OVR}
   echo "✅ Finished: ${cfg} | seed=${seed} | Time: $(date)"
 }
 

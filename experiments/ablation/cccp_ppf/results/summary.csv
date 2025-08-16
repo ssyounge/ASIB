@@ -1,0 +1,2 @@
+exp_id,csv_filename,total_time_sec,final_student_acc,num_classes,batch_size,ce_alpha,kd_alpha,use_ib,ib_beta,ib_epochs_per_stage,use_cccp,optimizer,student_lr,student_weight_decay,student_epochs_per_stage,student_epochs_schedule
+side_cccp_ppf,summary.csv,26.29,0.00,100,,0.55,0.45,1,0.00,12,1,adamw,0.00,0.00,"[20, 20]","[20, 20]"

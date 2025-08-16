@@ -13,46 +13,61 @@ experiment:
 
   dataset:
     batch_size: 64
-    num_workers: 4
+    num_workers: 8
     data_aug: 1
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 2
 
-  # Stages/Epochs (BS=64 풀-런)
-  num_stages: 2
-  student_epochs_per_stage: [20, 20]
-  teacher_adapt_epochs: 12
-  ib_epochs_per_stage: 12
+  # 4-stage(총 40ep) - 안정 수렴
+  num_stages: 4
+  student_epochs_per_stage: [10, 10, 10, 10]
+  teacher_adapt_epochs: 6
+  ib_epochs_per_stage: 6
 
-  # KD/IB/CCCP
-  kd_target: synergy
-  kd_alpha: 0.25
-  tau: 8.0
-  teacher_adapt_kd_warmup: 5
+  # KD(안정 세팅: teacher avg)
+  kd_target: avg
+  ce_alpha: 0.65
+  kd_alpha: 0.35
+  tau_schedule: [3.5, 5.0]
+  kd_warmup_epochs: 2
+  kd_max_ratio: 1.25
+  ce_label_smoothing: 0.05
+  min_cw: 0.1
+  feat_kd_alpha: 0.0
 
-  use_ib: true
-  ib_beta: 0.0003
-  ib_beta_warmup_epochs: 5
+  use_ib: false
+  ib_beta: 0.00005
+  ib_beta_warmup_epochs: 4
+  synergy_only_epochs: 6
+  synergy_ce_alpha: 1.0
   use_vib_synergy_head: false
 
   use_cccp: true
+  use_cccp_in_a: true
+  cccp_alpha: 0.20
   cccp_nt: 1
   cccp_ns: 1
+  tau: 4.0
 
   # IB‑MBM 용량(시너지 표현력↑)
   ib_mbm_query_dim: 512
-  ib_mbm_out_dim: 768
+  ib_mbm_out_dim: 512
   ib_mbm_n_head: 4
   ib_mbm_feature_norm: l2
+  ib_mbm_lr_factor: 10
+  ib_mbm_min_std: 0.01
+  ib_mbm_logvar_clip: 4
 
   # Optimizers
   optimizer: adamw
   student_lr: 0.001
   student_weight_decay: 0.0003
-  a_step_lr: 0.001            # teacher_lr=0일 때 alias→IB/Head lr
+  a_step_lr: 0.0001
   a_step_weight_decay: 0.0001
-  b_step_lr: 0.001
-  b_step_momentum: 0.9
-  b_step_nesterov: true
   grad_clip_norm: 0.5
+  use_loss_clamp: true
+  loss_clamp_max: 20.0
 
   # Schedule
   schedule:
@@ -68,14 +83,13 @@ experiment:
   use_distillation_adapter: true
   distill_out_dim: 512
   feat_kd_key: distill_feat
-  ce_label_smoothing: 0.1
 
   # PPF ON (T‑Adapt 없음)
   use_partial_freeze: true
-  student_freeze_level: 2
-  teacher1_freeze_level: 2
-  teacher2_freeze_level: 2
-  student_freeze_bn: true
+  student_freeze_level: 1
+  teacher1_freeze_level: 1
+  teacher2_freeze_level: 1
+  student_freeze_bn: false
   teacher1_freeze_bn: true
   teacher2_freeze_bn: true
 
@@ -86,8 +100,6 @@ experiment:
   teacher_weight_decay: 0.0
 
   # 안전장치
-  use_loss_clamp: true
-  loss_clamp_max: 100.0
 
   compute_teacher_eval: true
 

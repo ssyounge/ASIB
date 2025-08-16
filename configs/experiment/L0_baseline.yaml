@@ -1,5 +1,3 @@
-# configs/experiment/L0_baseline.yaml
-
 defaults:
   - /base
   - /model/teacher@experiment.teacher1: convnext_l
@@ -8,78 +6,66 @@ defaults:
   - _self_
 
 experiment:
-  results_dir: experiments/ablation/baseline/results
   exp_id: L0_baseline
-
+  results_dir: experiments/ablation/L0/results
   teacher1_ckpt: checkpoints/teachers/convnext_l_cifar100.pth
   teacher2_ckpt: checkpoints/teachers/resnet152_cifar100.pth
 
-  dataset:
-    batch_size: 64
-    num_workers: 4
-    data_aug: 1
+  dataset: { batch_size: 64, num_workers: 8, data_aug: 1, pin_memory: true, persistent_workers: true, prefetch_factor: 2 }
 
-  # Stages/Epochs (BS=64 풀-런)
-  num_stages: 2
-  student_epochs_per_stage: [20, 20]
+  # 4-stage(총 40ep)
+  num_stages: 4
+  student_epochs_per_stage: [10, 10, 10, 10]
   teacher_adapt_epochs: 0
-  use_partial_freeze: false
   compute_teacher_eval: true
-  # Force full unfreeze for CE-only sanity check
-  student_freeze_level: -1
-  teacher1_freeze_level: -1
-  teacher2_freeze_level: -1
-  student_freeze_bn: false
-  teacher1_freeze_bn: true
-  teacher2_freeze_bn: true
 
-  # AMP
   use_amp: true
   amp_dtype: bfloat16
 
-  # IB settings (disabled for CE-only)
-  ib_epochs_per_stage: 0
-  ib_beta: 0.005
-  ib_beta_warmup_epochs: 3
-  use_vib_synergy_head: false
+  # KD (teacher avg)
+  kd_target: avg
+  ce_alpha: 0.65
+  kd_alpha: 0.35
+  tau_schedule: [3.5, 5.0]
+  kd_warmup_epochs: 2
+  kd_ens_alpha: 0.0
+  kd_max_ratio: 1.25
+  ce_label_smoothing: 0.05
+  min_cw: 0.1
+  feat_kd_alpha: 0.0
 
-  # Align heterogeneous teacher feature dims via adapter
+  # 어댑터로 피처 정렬
   use_distillation_adapter: true
   distill_out_dim: 512
   feat_kd_key: distill_feat
 
+  # IB config (uniform keys; baseline에서는 OFF)
+  use_ib: false
+  ib_epochs_per_stage: 0
+  ib_beta: 0.0001
+  ib_beta_warmup_epochs: 0
   ib_mbm_query_dim: 512
   ib_mbm_out_dim: 512
-  ib_mbm_n_head: 1
+  ib_mbm_n_head: 4
   ib_mbm_feature_norm: l2
+  ib_mbm_logvar_clip: 4
+  ib_mbm_min_std: 0.01
+  ib_mbm_reg_lambda: 0.0
+  ib_mbm_lr_factor: 10
 
-  a_step_lr: 0.001
-  a_step_weight_decay: 0.0001
-  b_step_lr: 0.001
-  b_step_weight_decay: 0.0003
-  b_step_momentum: 0.9
-  b_step_nesterov: true
-  grad_clip_norm: 0.5
-
-  # KD/IB/CCCP OFF
-  kd_target: synergy
-  kd_alpha: 0.0
-  tau: 4.0
-  use_ib: false
+  # CCCP (baseline에서는 OFF; 키만 보유)
   use_cccp: false
+  use_cccp_in_a: false
+  cccp_alpha: 0.20
+  tau: 4.0
 
-  # Optimizer/LR for student (AdamW 기본)
+  # Optim/Schedule
   optimizer: adamw
   student_lr: 0.001
   student_weight_decay: 0.0003
-  
-  # Schedule
-  schedule:
-    type: cosine
-    lr_warmup_epochs: 5
-    min_lr: 1e-5
-
-  # Adapter(차원 정렬만)
-  ce_label_smoothing: 0.0
+  grad_clip_norm: 0.5
+  use_loss_clamp: true
+  loss_clamp_max: 20.0
+  schedule: { type: cosine, lr_warmup_epochs: 5, min_lr: 1e-5 }
 
  

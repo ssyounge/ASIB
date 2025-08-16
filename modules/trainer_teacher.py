@@ -1,6 +1,7 @@
 # modules/trainer_teacher.py
 
 import torch
+import torch.nn as nn
 import copy
 import logging
 from torch.nn import functional as F
@@ -276,6 +277,10 @@ def teacher_adaptive_update(
     count = 0
     
     for ep in range(teacher_epochs):
+        # A-step CCCP 사용 여부(학생 정답 고정 참조는 기본 OFF)
+        use_cccp_a = bool(cfg.get("use_cccp_in_a", cfg.get("use_cccp", False)))
+        # 초반 CE-only 구간 (ep는 0-based)
+        synergy_only = (ep < int(cfg.get("synergy_only_epochs", 0)))
         # 교사 모델 모드 설정
         if use_tf:
             for tw in teacher_wrappers:
@@ -342,13 +347,12 @@ def teacher_adaptive_update(
                     target_dim = feats_2d[0].size(1)
                     for i, feat in enumerate(feats_2d):
                         if feat.size(1) != target_dim:
-                            logging.warning(f"Teacher {i} feature dim mismatch: {feat.size(1)} vs {target_dim}")
-                            # 차원을 맞춰주기 위해 projection 추가
-                            if not hasattr(self, f'feat_proj_{i}'):
-                                setattr(self, f'feat_proj_{i}', 
-                                       nn.Linear(feat.size(1), target_dim).to(feat.device))
-                            proj_layer = getattr(self, f'feat_proj_{i}')
-                            feats_2d[i] = proj_layer(feat)
+                            logging.warning(
+                                "Teacher %d feature dim mismatch: %d vs %d",
+                                i, feat.size(1), target_dim,
+                            )
+                            # 차원 맞춤은 호출자 측 adapter로 해결해야 함. 여기서는 오류만 보고.
+                            raise RuntimeError("Teacher feature dim mismatch – check adapters/distill_out_dim")
                 
                 # 스택/검증 직전
                 if len(feats_2d) < 2:
@@ -378,6 +382,12 @@ def teacher_adaptive_update(
                 ib_loss_val = 0.0
                 if cfg.get("use_ib", False):
                     mu, logvar = mu.float(), logvar.float()
+                    # μ/σ 안정화: logvar 클리핑
+                    try:
+                        clip_lv = float(cfg.get("ib_mbm_logvar_clip", 6))
+                        logvar = logvar.clamp(-clip_lv, clip_lv)
+                    except Exception:
+                        pass
                     ib_beta = get_beta(cfg, global_ep + ep)
                     ib_loss_val = ib_loss(mu, logvar, beta=ib_beta)
                 fsyn = syn_feat
@@ -403,9 +413,42 @@ def teacher_adaptive_update(
                             tuple(s_logit.shape),
                             tuple(zsyn.shape),
                         )
-                    cw = certainty_weights(logvar).mean(dim=1).to(zsyn.dtype)
+                    cw = torch.exp(-logvar).detach().mean(dim=1).to(zsyn.dtype)
+                    # Clamp certainty weights to prevent vanishing sample weights
+                    try:
+                        cw_min = float(cfg.get("min_cw", 0.1))
+                    except Exception:
+                        cw_min = 0.1
+                    cw = cw.clamp(cw_min, 1.0)
+                    # Optional monitoring on first step of each epoch
+                    if step == 0:
+                        try:
+                            logger.update_metric(f"ep{ep+1}_cw_mean", float(cw.mean().item()))
+                            logger.update_metric(f"ep{ep+1}_cw_min", float(cw.min().item()))
+                            logger.update_metric(f"ep{ep+1}_cw_max", float(cw.max().item()))
+                            logger.update_metric(f"ep{ep+1}_logvar_mean", float(logvar.mean().item()))
+                        except Exception:
+                            pass
                     loss_ce = (cw * ce_vec).mean()
                     loss_kd = (cw * kd_vec).mean()
+                    # CE-only 구간: cw 비활성화 및 IB-KL/KD OFF
+                    if ep < int(cfg.get("synergy_only_epochs", 0)):
+                        loss_ce = ce_vec.mean()
+                        loss_kd = torch.zeros((), device=zsyn.device)
+                        ib_loss_val = 0.0
+                    else:
+                        # 시너지 정확도 임계치 기반 KD 게이팅 (안정성 강화)
+                        try:
+                            thr = float(cfg.get("enable_kd_after_syn_acc", 0.0))
+                            last_syn = 0.0
+                            if hasattr(logger, "get_metric"):
+                                last_syn = float(logger.get_metric("last_synergy_acc", cfg.get("last_synergy_acc", 0.0)) or 0.0)
+                            else:
+                                last_syn = float(cfg.get("last_synergy_acc", 0.0))
+                            if thr > 0.0 and last_syn < thr:
+                                loss_kd = torch.zeros((), device=zsyn.device)
+                        except Exception:
+                            pass
                 else:
                     loss_kd = kd_loss_fn(zsyn, s_logit, T=cur_tau)
                     loss_ce = ce_loss_fn(
@@ -413,30 +456,59 @@ def teacher_adaptive_update(
                         y,
                         label_smoothing=cfg.get("label_smoothing", 0.0),
                     )
+                    # CE-only 구간: KD OFF, IB는 사용 안 하므로 영향 없음
+                    if ep < int(cfg.get("synergy_only_epochs", 0)):
+                        loss_kd = torch.zeros((), device=zsyn.device)
+                    else:
+                        # 시너지 정확도 임계치 기반 KD 게이팅
+                        try:
+                            thr = float(cfg.get("enable_kd_after_syn_acc", 0.0))
+                            last_syn = 0.0
+                            if hasattr(logger, "get_metric"):
+                                last_syn = float(logger.get_metric("last_synergy_acc", cfg.get("last_synergy_acc", 0.0)) or 0.0)
+                            else:
+                                last_syn = float(cfg.get("last_synergy_acc", 0.0))
+                            if thr > 0.0 and last_syn < thr:
+                                loss_kd = torch.zeros((), device=zsyn.device)
+                        except Exception:
+                            pass
 
                 # ① 누락 시 기본값 0.6
                 synergy_weight = cfg.get("synergy_ce_alpha", 0.6)
                 synergy_ce_loss = synergy_weight * loss_ce
 
                 # -----------------------------------------------
-                #  Concave‑Convex surrogate 추가
-                #   · 학생 로짓 z_S 는 gradient 를 막아 고정값으로 취급  (∇h(x^t))
-                #   · KL( z_syn || z_S_detached )  ← convex in θ_T
+                #  Concave‑Convex surrogate (A-step에서 별도 플래그로 제어)
+                #  - synergy_only_epochs 동안은 CCCP OFF
+                #  - (선택) enable_kd_after_syn_acc 임계치 충족 시에만 ON
                 # -----------------------------------------------
                 kd_cccp = 0.0
-                if cfg.get("use_cccp", True):
-                    with torch.no_grad():
-                        s_out = student_model(x)[1] if isinstance(student_model(x), tuple) else student_model(x)
-                    tau  = float(cfg.get("tau", 4.0))
-                    kd_w = float(cfg.get("kd_alpha", 0.0))
-                    kd_cccp = (
-                        kd_w * tau * tau *
-                        F.kl_div(
-                            F.log_softmax(zsyn / tau, dim=1),
-                            F.softmax(s_out.detach() / tau, dim=1),
-                            reduction="batchmean",
-                        )
-                    )
+                if use_cccp_a:
+                    syn_warm = int(cfg.get("synergy_only_epochs", 0))
+                    if ep >= syn_warm:
+                        thr = float(cfg.get("enable_kd_after_syn_acc", 0.0))
+                        last_syn = 0.0
+                        try:
+                            if hasattr(logger, "get_metric"):
+                                # logger 메트릭 우선, 없으면 cfg의 last_synergy_acc 사용
+                                last_syn = float(logger.get_metric("last_synergy_acc", cfg.get("last_synergy_acc", 0.0)) or 0.0)
+                            else:
+                                last_syn = float(cfg.get("last_synergy_acc", 0.0))
+                        except Exception:
+                            last_syn = float(cfg.get("last_synergy_acc", 0.0))
+                        if thr <= 0.0 or last_syn >= thr:
+                            with torch.no_grad():
+                                s_out = student_model(x)[1] if isinstance(student_model(x), tuple) else student_model(x)
+                            tau  = float(cfg.get("tau", 4.0))
+                            kd_w = float(cfg.get("cccp_alpha", 0.0))
+                            kd_cccp = (
+                                kd_w * tau * tau *
+                                F.kl_div(
+                                    F.log_softmax(zsyn / tau, dim=1),
+                                    F.softmax(s_out.detach() / tau, dim=1),
+                                    reduction="batchmean",
+                                )
+                            )
 
                 feat_kd_loss = torch.tensor(0.0, device=cfg["device"])
                 if cfg.get("feat_kd_alpha", 0) > 0:
@@ -444,7 +516,12 @@ def teacher_adaptive_update(
                     first_batch = (ep == 0 and step == 0)
                     if dims_match:
                         diff = (s_feat - mu).pow(2).sum(dim=1)
-                        cw = certainty_weights(logvar).mean(dim=1).to(s_feat.dtype)
+                        cw = torch.exp(-logvar).detach().mean(dim=1).to(s_feat.dtype)
+                        try:
+                            cw_min = float(cfg.get("min_cw", 0.1))
+                        except Exception:
+                            cw_min = 0.1
+                        cw = cw.clamp(cw_min, 1.0)
                         feat_kd_loss = (cw * diff).mean()
                     else:
                         if first_batch:
@@ -454,8 +531,23 @@ def teacher_adaptive_update(
                                 tuple(mu.shape),
                             )
 
-                # ---- (1) 전체 손실 구성 ----
+                # ---- (1) 전체 손실 구성 (KD/CCCP 게이팅) ----
                 kd_weight = cfg.get("teacher_adapt_alpha_kd", cfg.get("kd_alpha", 1.0))
+
+                # A-step 초반(ep<synergy_only_epochs) 또는 KD 가중치 0이면 KD/CCCP 비활성화
+                if synergy_only or float(kd_weight) == 0.0:
+                    loss_kd = torch.zeros((), device=zsyn.device)
+                    kd_cccp = 0.0
+
+                # 시너지 품질 임계치 미만이면 KD/CCCP 비활성화 (다음 loop부터 반영되지만 안전)
+                try:
+                    syn_gate = float(cfg.get("enable_kd_after_syn_acc", 0.0))
+                    last_syn = float(cfg.get("last_synergy_acc", 0.0))
+                    if last_syn < syn_gate:
+                        loss_kd = torch.zeros((), device=zsyn.device)
+                        kd_cccp = 0.0
+                except Exception:
+                    pass
 
                 # 정규화 항은 batch-별로 포함
                 reg_loss = (
@@ -535,6 +627,17 @@ def teacher_adaptive_update(
     logger.info(
         f"[TeacherAdaptive ep={ep+1}] loss={ep_loss:.4f}, synergy={synergy_test_acc:.2f}"
     )
+
+    # 다음 단계 게이팅을 위한 시너지 품질 공유(0~1 스케일)
+    try:
+        cfg["last_synergy_acc"] = float(synergy_test_acc) / 100.0
+    except Exception:
+        pass
+    # 로거에도 저장하여 게이팅 시 참조 가능하게 함
+    try:
+        logger.update_metric("last_synergy_acc", float(synergy_test_acc) / 100.0)
+    except Exception:
+        pass
 
     # ── NEW: per-epoch logging ───────────────────────────────
     logger.update_metric(f"teacher_ep{ep+1}_loss", ep_loss)

@@ -1,5 +1,3 @@
-# configs/experiment/L4_full.yaml
-
 defaults:
   - /base
   - /model/teacher@experiment.teacher1: convnext_l
@@ -8,94 +6,84 @@ defaults:
   - _self_
 
 experiment:
-  results_dir: experiments/ablation/full/results
   exp_id: L4_full
+  results_dir: experiments/ablation/L4/results
   teacher1_ckpt: checkpoints/teachers/convnext_l_cifar100.pth
   teacher2_ckpt: checkpoints/teachers/resnet152_cifar100.pth
 
-  dataset:
-    batch_size: 64
-    num_workers: 4
-    data_aug: 1
+  dataset: { batch_size: 64, num_workers: 8, data_aug: 1, pin_memory: true, persistent_workers: true, prefetch_factor: 2 }
 
-  # Stages/Epochs (BS=64 풀-런)
-  num_stages: 2
-  student_epochs_per_stage: [20, 20]
-  teacher_adapt_epochs: 12
-  ib_epochs_per_stage: 12
+  num_stages: 4
+  student_epochs_per_stage: [10, 10, 10, 10]
+  teacher_adapt_epochs: 6
+  compute_teacher_eval: true
 
-  # KD/타깃
-  kd_target: synergy
-  kd_alpha: 0.30
-  tau: 8.0
-  teacher_adapt_kd_warmup: 5
-
-  # IB
-  use_ib: true
-  ib_beta: 0.0003
-  ib_beta_warmup_epochs: 5
-  use_vib_synergy_head: false
-
-  # CCCP (A/B-step)
-  use_cccp: true
-  cccp_nt: 1
-  cccp_ns: 1
-
-  # IB‑MBM 용량(시너지 표현력↑)
-  ib_mbm_query_dim: 512
-  ib_mbm_out_dim: 768
-  ib_mbm_n_head: 4
-  ib_mbm_feature_norm: l2
-
-  # Optimizer/학습률
-  optimizer: adamw
-  student_lr: 0.001
-  student_weight_decay: 0.0003
-  b_step_lr: 0.001
-  b_step_momentum: 0.9
-  b_step_nesterov: true
-
-  # A-Step(교사/IB/Head) lr
-  a_step_lr: 0.001
-  a_step_weight_decay: 0.0001
-
-  # 스케줄
-  schedule:
-    type: cosine
-    lr_warmup_epochs: 5
-    min_lr: 1e-5
-
-  # AMP
   use_amp: true
   amp_dtype: bfloat16
 
-  # Distillation Adapter
-  use_distillation_adapter: true
-  distill_out_dim: 512
-  feat_kd_key: distill_feat
-  ce_label_smoothing: 0.1
+  # KD (teacher avg)
+  kd_target: avg
+  ce_alpha: 0.65
+  kd_alpha: 0.35
+  tau_schedule: [3.5, 5.0]
+  kd_warmup_epochs: 2
+  kd_ens_alpha: 0.0
+  kd_max_ratio: 1.25
+  ce_label_smoothing: 0.05
+  feat_kd_alpha: 0.0
+  min_cw: 0.1
 
-  # PPF ON (핵심)
-  use_partial_freeze: true
-  student_freeze_level: 2
-  teacher1_freeze_level: 2
-  teacher2_freeze_level: 2
-  student_freeze_bn: true
-  teacher1_freeze_bn: true
-  teacher2_freeze_bn: true
+  # IB
+  use_ib: true
+  ib_epochs_per_stage: 6
+  ib_beta: 0.0001
+  ib_beta_warmup_epochs: 4
+  ib_mbm_query_dim: 512
+  ib_mbm_out_dim: 512
+  ib_mbm_n_head: 4
+  ib_mbm_feature_norm: l2
+  ib_mbm_logvar_clip: 4
+  ib_mbm_min_std: 0.01
+  ib_mbm_lr_factor: 10
 
-  # T‑Adapt (교사 적응: adapter-only)
+  # CCCP
+  use_cccp: true
+  use_cccp_in_a: true
+  cccp_alpha: 0.20
+  tau: 4.0
+
+  # Teacher Adapt(어댑터만)
   use_teacher_finetuning: false
   train_distill_adapter_only: true
   teacher_lr: 3e-06
   teacher_weight_decay: 1e-4
-  ib_mbm_lr_factor: 300
 
-  # 안전장치
+  # PPF(부분 동결) – 안정/속도/VRAM 절감
+  use_partial_freeze: true
+  student_freeze_level: 1
+  teacher1_freeze_level: 1
+  teacher2_freeze_level: 1
+  student_freeze_bn: false
+  teacher1_freeze_bn: true
+  teacher2_freeze_bn: true
+
+  # A‑Step 안정화
+  synergy_only_epochs: 6
+  synergy_ce_alpha: 1.0
+  enable_kd_after_syn_acc: 0.6
+
+  use_distillation_adapter: true
+  distill_out_dim: 512
+  feat_kd_key: distill_feat
+
+  optimizer: adamw
+  student_lr: 0.001
+  student_weight_decay: 0.0003
+  a_step_lr: 0.0001
+  a_step_weight_decay: 0.0001
   grad_clip_norm: 0.5
   use_loss_clamp: true
-  loss_clamp_max: 100.0
-
-  compute_teacher_eval: true
+  loss_clamp_max: 20.0
+  schedule: { type: cosine, lr_warmup_epochs: 5, min_lr: 1e-5 }
 
 

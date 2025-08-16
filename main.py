@@ -224,9 +224,32 @@ def main(cfg: DictConfig):
     except Exception:
         pass
     exp_dict = _to_dict(exp)
+
+    # 2-a) 루트 키 오버라이드 병합 지원: -cn으로 experiment 선택 시에도
+    # root 수준의 오버라이드(예: seed=42, kd_alpha=0.3)를 exp로 병합한다.
+    try:
+        root_dict = _to_dict(cfg)
+        for rk, rv in list(root_dict.items()):
+            if rk in ("experiment", "hydra", "defaults"):
+                continue
+            # 루트 오버라이드는 실험 기본값을 덮어쓴다
+            exp_dict[rk] = rv
+    except Exception:
+        pass
     
     # 2) 중첩 평탄화
     exp_dict = normalize_exp(exp_dict)
+
+    # 2-a) method.* 잔존 키로 인한 충돌 방지:
+    # normalize_exp는 method의 값을 최상위에 채우되(없을 때만)
+    # 잔존 method 서브트리가 남아있으면 일부 모듈이 cfg["method"]를 참조해
+    # 의도치 않게 다른 하이퍼파라미터를 사용할 수 있다.
+    # 혼선을 방지하기 위해 method 서브트리를 제거한다.
+    try:
+        if isinstance(exp_dict.get("method"), dict):
+            exp_dict.pop("method", None)
+    except Exception:
+        pass
 
     # 2-b) 학습 스케줄 키 정규화: trainer 모듈이 기대하는 키로 매핑
     # student_epochs_per_stage -> student_epochs_schedule
@@ -278,6 +301,17 @@ def main(cfg: DictConfig):
     # 3) 로거
     exp_dir = exp_dict.get("results_dir", ".")
     logger = get_logger(exp_dir, level=exp_dict.get("log_level", "INFO"))
+    # Effective config (post-normalize) quick check
+    try:
+        logger.info(
+            "[CFG] kd_target=%s ce=%s kd=%s ib_beta=%s",
+            str(exp_dict.get("kd_target")),
+            str(exp_dict.get("ce_alpha")),
+            str(exp_dict.get("kd_alpha")),
+            str(exp_dict.get("ib_beta")),
+        )
+    except Exception:
+        pass
     # Clean internal/derived keys from HParams for clarity
     _hp = {k: v for k, v in exp_dict.items()}
     for _k in ("student_epochs_schedule", "student_iters", "stages", "student_epochs", "dataset_batch_size"):
