@@ -213,6 +213,25 @@ def _quick_eval(model: torch.nn.Module, loader, device: str) -> float:
         total += y.size(0)
     return 100.0 * correct / max(1, total)
 
+
+def _debug_check_stem(backbone: torch.nn.Module, device: str):
+    """Log the output shape of backbone.conv1 for a 32x32 input to verify CIFAR stem.
+
+    Prints: [STEM] conv1 out: (B, C, 32, 32) when conv1 uses stride=1 and no maxpool before.
+    """
+    try:
+        import torch
+        backbone.eval()
+        x = torch.zeros(1, 3, 32, 32, device=device)
+        with torch.no_grad():
+            if hasattr(backbone, "conv1"):
+                y = backbone.conv1(x)
+                logging.info("[STEM] conv1 out: %s", str(tuple(y.shape)))
+            else:
+                logging.info("[STEM] no conv1 attribute on backbone: %s", type(backbone).__name__)
+    except Exception as e:
+        logging.warning("[STEM] check failed: %s", e)
+
 @hydra.main(config_path="configs", version_base="1.3")
 def main(cfg: DictConfig):
     # 1) experiment 서브트리만 사용 (nested experiment 방어)
@@ -517,6 +536,14 @@ def main(cfg: DictConfig):
             except Exception as e:
                 logger.debug(f"Could not convert {name} to channels_last: {e}")
         # IB_MBM과 synergy_head는 주로 Linear 레이어이므로 제외
+
+    # STEM debug (optional): confirm CIFAR stem when small_input=True
+    try:
+        logger.info("[CFG] small_input=%s", str(small_input))
+        if hasattr(student, "backbone"):
+            _debug_check_stem(student.backbone, device)
+    except Exception as _e:
+        logger.debug("[STEM] debug skipped: %s", _e)
 
     # 11-b) 메타데이터 배너 및 저장
     try:
