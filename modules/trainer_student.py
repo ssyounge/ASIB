@@ -227,27 +227,6 @@ def get_kd_target(
         return zsyn_ng
     return avg_t
 
-# --- NEW: synergy gating helper --------------------------------------------
-def _synergy_gate_ok(cfg, logger) -> bool:
-    """
-    Return True if synergy quality passes the gate:
-    last_synergy_acc >= enable_kd_after_syn_acc (handles 0~1 or % scale).
-    """
-    thr = float(cfg.get("enable_kd_after_syn_acc", 0.8))
-    try:
-        if logger is not None and hasattr(logger, "get_metric"):
-            last = float(logger.get_metric("last_synergy_acc", cfg.get("last_synergy_acc", 0.0)) or 0.0)
-        else:
-            last = float(cfg.get("last_synergy_acc", 0.0))
-    except Exception:
-        last = float(cfg.get("last_synergy_acc", 0.0))
-    # normalize mixed scales
-    if thr > 1.5:
-        thr /= 100.0
-    if last > 1.5:
-        last /= 100.0
-    return last >= thr
-
 def student_distillation_update(
     teacher_wrappers,
     ib_mbm, synergy_head,
@@ -365,11 +344,6 @@ def student_distillation_update(
             else "none"
         )
 
-        # gating/KD usage meters
-        gate_on_cnt = 0
-        kd_syn_cnt = 0
-        batch_cnt = 0
-
         for step, (x, y) in enumerate(
             smart_tqdm(trainloader, desc=f"[StudentDistill ep={ep+1}]")
         ):
@@ -420,9 +394,8 @@ def student_distillation_update(
                 if ep == 0 and step == 0:
                     logging.info(f"[B-Step] feat_kd_key={feat_kd_key}, s_feat.shape={s_feat.shape}")
                 
-                # IB/KD 타깃이 필요할 때만 IB_MBM 실행 (synergy gate 통과 시에만)
-                allow_syn = _synergy_gate_ok(cfg, logger) if cfg.get("kd_target","avg") in ("synergy","auto") else False
-                need_ibm = bool(cfg.get("use_ib", False)) and allow_syn
+                # IB/KD 타깃이 필요할 때만 IB_MBM 실행 (need_teachers와 동일한 조건)
+                need_ibm = need_teachers
                 if need_ibm:
                     # 스택 전 shape 검증 (차원 불일치 조기 발견)
                     if f1_2d.shape[1] != f2_2d.shape[1]:
@@ -456,18 +429,12 @@ def student_distillation_update(
                     t1_logit = t1_dict["logit"] if t1_dict is not None else None
                     t2_logit = t2_dict["logit"] if t2_dict is not None else None
                     kd_tgt = get_kd_target(cfg, logger, ep, zsyn_ng, t1_logit, t2_logit)
-                    # meters update
-                    gate_on_cnt += int(allow_syn)
-                    kd_syn_cnt  += int(allow_syn and (kd_tgt is not None))
-                    batch_cnt   += 1
 
                     # 혼합은 get_kd_target에서만 수행 (중복 혼합 방지)
                     
                     if kd_tgt is not None:
                         # KL with current KD temperature schedule
                         kd_vec = kl_safe_vec(s_logit, kd_tgt.detach(), tau=cur_tau)  # [B]
-                        # NaN/Inf guard
-                        kd_vec = torch.nan_to_num(kd_vec, nan=0.0, posinf=0.0, neginf=0.0)
                         kd_loss_val = None  # set below after cw
                     else:
                         loss_kd = torch.tensor(0.0, device=s_logit.device)
@@ -523,13 +490,10 @@ def student_distillation_update(
 
             # --- μ‑MSE with certainty weight (normalized) ---------------------
             feat_kd_val = None
-            if cfg.get("feat_kd_alpha", 0.0) > 0 and mu_ng is not None and ('allow_syn' in locals() and allow_syn):
+            if cfg.get("feat_kd_alpha", 0.0) > 0 and need_teachers and mu_ng is not None:
                 # 차원 불일치 안전장치
                 if s_feat.shape[1] == mu_ng.shape[1]:
-                    # (옵션) μ 안정화: 클리핑 + Huber로 로버스트화
-                    mu_safe = mu_ng.clamp(-float(cfg.get("feat_kd_clip", 3.0)), float(cfg.get("feat_kd_clip", 3.0)))
-                    huber_beta = float(cfg.get("feat_kd_huber_beta", 1.0))
-                    diff = F.smooth_l1_loss(s_feat, mu_safe, beta=huber_beta, reduction="none").sum(dim=1)
+                    diff = (s_feat - mu_ng).pow(2).sum(dim=1)  # s_feat에서 grad 흐름
                     cw_feat = torch.exp(-logvar_ng).mean(dim=1).detach()
                     # 정규화: 평균 1.0 부근으로 맞추고 과도한 다운/업웨이팅 방지
                     cw_feat = (cw_feat / (cw_feat.mean() + 1e-8)).clamp(0.5, 1.5).to(s_feat.dtype)
@@ -641,15 +605,6 @@ def student_distillation_update(
             stage_meter.step(bs)
 
         ep_loss = distill_loss_sum / cnt
-
-        # epoch-level ratios
-        try:
-            gate_ratio = gate_on_cnt / max(1, batch_cnt)
-            kd_syn_ratio = kd_syn_cnt / max(1, batch_cnt)
-            logger.update_metric(f"student_ep{ep+1}_gate_ratio", float(gate_ratio))
-            logger.update_metric(f"student_ep{ep+1}_kd_syn_ratio", float(kd_syn_ratio))
-        except Exception:
-            pass
 
         # (C) validate
         test_acc = eval_student(student_model, testloader, cfg["device"], cfg)
