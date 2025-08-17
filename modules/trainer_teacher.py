@@ -5,6 +5,7 @@ import torch.nn as nn
 import copy
 import logging
 from torch.nn import functional as F
+from contextlib import nullcontext
 from utils.common import smart_tqdm, get_amp_components
 from utils.training import get_tau, get_beta
 from models import IB_MBM
@@ -141,14 +142,16 @@ def eval_synergy(
     cfg=None,
     student_model=None,
 ):
-    """Evaluate synergy accuracy.
-
+    """Evaluate synergy accuracy (AMP off, float32).
+    
     When the IB_MBM operates in query mode, ``student_model`` must be provided so
     that the student features can be used as the attention query.
     """
 
-    autocast_ctx, _ = get_amp_components(cfg or {})
+    # Force AMP off for numerically stable evaluation
+    autocast_ctx = nullcontext()
     correct, total = 0, 0
+    first = True
     for x, y in loader:
         x, y = x.to(device), y.to(device)
         with autocast_ctx:
@@ -164,13 +167,20 @@ def eval_synergy(
                 if (cfg or {}).get("use_distillation_adapter", False)
                 else "feat_2d"
             )
-            t1_feat = t1_dict[key]
-            t2_feat = t2_dict[key]
+            t1_feat = t1_dict[key].float()
+            t2_feat = t2_dict[key].float()
 
             assert student_model is not None, "student_model required for IB_MBM"
-            s_feat = student_model(x)[0][cfg.get("feat_kd_key", "feat_2d")]
+            s_feat = student_model(x)[0][(cfg or {}).get("feat_kd_key", "feat_2d")].float()
             fsyn, _, _ = ib_mbm(s_feat, torch.stack([t1_feat, t2_feat], dim=1))
-            zsyn = synergy_head(fsyn)
+            zsyn = synergy_head(fsyn).float()
+            if first:
+                logging.info(
+                    "[eval_synergy] t1=%s t2=%s s=%s z=%s mean=%.4f std=%.4f min=%.4f max=%.4f",
+                    tuple(t1_feat.shape), tuple(t2_feat.shape), tuple(s_feat.shape), tuple(zsyn.shape),
+                    zsyn.mean().item(), zsyn.std().item(), zsyn.min().item(), zsyn.max().item(),
+                )
+                first = False
 
         pred = zsyn.argmax(dim=1)
         correct += (pred == y).sum().item()
@@ -227,6 +237,14 @@ def teacher_adaptive_update(
     syn_params = [p for p in synergy_head.parameters() if p.requires_grad]
 
     teacher_epochs = int(cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5)))
+    # Ensure synergy_only_epochs ≤ teacher_epochs
+    cfg_syn_only = int(cfg.get("synergy_only_epochs", 0))
+    syn_only_epochs = min(cfg_syn_only, teacher_epochs)
+    if cfg_syn_only > teacher_epochs:
+        logging.info(
+            "[A-Step] synergy_only_epochs=%d truncated to %d to fit teacher_adapt_epochs=%d",
+            cfg_syn_only, syn_only_epochs, teacher_epochs,
+        )
 
     best_synergy = -1
     best_state = {
@@ -280,7 +298,7 @@ def teacher_adaptive_update(
         # A-step CCCP 사용 여부(학생 정답 고정 참조는 기본 OFF)
         use_cccp_a = bool(cfg.get("use_cccp_in_a", cfg.get("use_cccp", False)))
         # 초반 CE-only 구간 (ep는 0-based)
-        synergy_only = (ep < int(cfg.get("synergy_only_epochs", 0)))
+        synergy_only = (ep < syn_only_epochs)
         # 교사 모델 모드 설정
         if use_tf:
             for tw in teacher_wrappers:
@@ -432,7 +450,7 @@ def teacher_adaptive_update(
                     loss_ce = (cw * ce_vec).mean()
                     loss_kd = (cw * kd_vec).mean()
                     # CE-only 구간: cw 비활성화 및 IB-KL/KD OFF
-                    if ep < int(cfg.get("synergy_only_epochs", 0)):
+                    if synergy_only:
                         loss_ce = ce_vec.mean()
                         loss_kd = torch.zeros((), device=zsyn.device)
                         ib_loss_val = 0.0
@@ -457,7 +475,7 @@ def teacher_adaptive_update(
                         label_smoothing=cfg.get("label_smoothing", 0.0),
                     )
                     # CE-only 구간: KD OFF, IB는 사용 안 하므로 영향 없음
-                    if ep < int(cfg.get("synergy_only_epochs", 0)):
+                    if synergy_only:
                         loss_kd = torch.zeros((), device=zsyn.device)
                     else:
                         # 시너지 정확도 임계치 기반 KD 게이팅
@@ -574,7 +592,9 @@ def teacher_adaptive_update(
                 
                 # 추가 안전장치: loss가 너무 크면 clipping
                 # Loss 클리핑 완화 (A-Step 안정화를 위해)
-            if cfg.get("use_loss_clamp", False):
+            # A-step loss clamp (disabled by default; enable by setting disable_loss_clamp_in_a=false)
+            disable_in_a = bool(cfg.get("disable_loss_clamp_in_a", True))
+            if cfg.get("use_loss_clamp", False) and not disable_in_a:
                 max_v = float(cfg.get("loss_clamp_max", 1000.0))
                 mode = str(cfg.get("loss_clamp_mode", "soft"))
                 lc_warm = int(cfg.get("loss_clamp_warmup_epochs", 0))
@@ -646,6 +666,8 @@ def teacher_adaptive_update(
     # 로거에도 저장하여 게이팅 시 참조 가능하게 함
     try:
         logger.update_metric("last_synergy_acc", float(synergy_test_acc) / 100.0)
+        # 추가로 퍼센트 스케일도 기록 (게이팅 헬퍼는 0~1/0~100 모두 처리)
+        logger.update_metric("last_synergy_acc_pct", float(synergy_test_acc))
     except Exception:
         pass
 
