@@ -3,13 +3,15 @@
 ASIB 프레임워크의 전반 구조, 메소드(IB, CCCP, PPF/FFP), 핵심 모듈, 주요 설정 키, 학습 플로우, ablation 규칙을 한 문서로 요약합니다. 다른 프롬프트에 넣을 때 본문 전체를 복사해도 됩니다.
 
 ## 최신 Ablation 업데이트 요약 (2025-08)
-- 공통 하이퍼(모든 L0~L4):
-  - Distillation: `ce_alpha: 0.65`, `kd_alpha: 0.35`, `kd_max_ratio: 2.0`, `tau_schedule: [2.0, 6.0]`
-  - A‑Step: `a_step_lr: 0.0001`, `synergy_only_epochs: 12`, `enable_kd_after_syn_acc: 0.01`
-  - IB‑MBM: `ib_mbm_out_dim: 512`, `ib_mbm_logvar_clip: 6`, `ib_mbm_min_std: 0.001`, `ib_mbm_lr_factor: 10`, `ib_beta: 0.00005`
+- 공통 베이스(모든 L0~L4/side):
+  - KD: `kd_target: avg`, `ce_alpha: 0.65`, `kd_alpha: 0.35`, `kd_max_ratio: 1.25`, `tau_schedule: [3.5, 5.0]`, `kd_warmup_epochs: 3`, `ce_label_smoothing: 0.0`
+  - 스테이지/스케줄: `num_stages: 4`, `student_epochs_per_stage: [20, 20, 20, 20]`, `schedule: { type: cosine, lr_warmup_epochs: 5, min_lr: 1e-6 }`
+  - 증강: `mixup_alpha: 0.2`, `cutmix_alpha_distill: 1.0`
   - Adapter/Feature: `use_distillation_adapter: true`, `distill_out_dim: 512`, `feat_kd_alpha: 0.0`, `feat_kd_key: distill_feat`
-- A‑Step 안정화 로직(코드 반영): 초기 `synergy_only_epochs` 동안 IB‑KL off, certainty 가중 무시(CE 균등), logvar 클리핑, 에폭 말에 `cfg["last_synergy_acc"]` 저장.
-- 실행 스크립트: `-cn="experiment/<CFG>"` + 루트 오버라이드(`+seed=`), `CUDA_VISIBLE_DEVICES` 강제 해제.
+- IB 가드(IB 사용하는 설정에만 적용): `ib_mbm_out_dim: 512`, `ib_mbm_logvar_clip: 4`, `ib_mbm_min_std: 0.01`, `ib_mbm_lr_factor: 1`, `ib_beta: 0.0001(또는 0.00005)`, `ib_beta_warmup_epochs: 4~6`, `synergy_only_epochs: 6`, `enable_kd_after_syn_acc: 0.6`
+- PPF/BN: `L4_full`/`side_cccp_ppf`에서 `student_freeze_bn: true` 권장
+- A‑Step 안정화(코드 반영): 초기 `synergy_only_epochs` 동안 CE‑only(IB‑KL=0, KD=0, cw=1.0), logvar 클리핑. 에폭 종료 시 `last_synergy_acc`를 cfg와 logger에 저장.
+- 실행/구성: `-cn="experiment/<CFG>"` + 루트 오버라이드(`+seed=`). normalize 이후 `method.*` 서브트리 제거, `[CFG] kd_target/ce/kd/ib_beta` 한 줄 로그 출력.
 
 ## 1) 아키텍처 개요
 - Teachers(교사 2개): `teacher1`, `teacher2` 고정 백본에서 특징 추출
@@ -167,20 +169,24 @@ def apply_partial_freeze(model, level: int, freeze_bn: bool = False):
 
 ### 8.3 CCCP 통합(총 손실 구성부)
 ```python
+# synergy-only 구간/시너지 정확도 임계치(thr) 기반 게이팅 적용
 kd_cccp = 0.0
-if cfg.get("use_cccp", True):
-    with torch.no_grad():
-        s_out = student_model(x)[1] if isinstance(student_model(x), tuple) else student_model(x)
-    tau  = float(cfg.get("tau", 4.0))
-    kd_w = float(cfg.get("kd_alpha", 0.0))
-    kd_cccp = (
-        kd_w * tau * tau *
-        F.kl_div(
-            F.log_softmax(zsyn / tau, dim=1),
-            F.softmax(s_out.detach() / tau, dim=1),
-            reduction="batchmean",
-        )
-    )
+use_cccp_a = cfg.get("use_cccp", False) and cfg.get("use_cccp_in_a", False)
+if use_cccp_a:
+    syn_warm = int(cfg.get("synergy_only_epochs", 0))
+    if ep >= syn_warm:
+        thr = float(cfg.get("enable_kd_after_syn_acc", 0.0))
+        last_syn = float(logger.get_metric("last_synergy_acc", cfg.get("last_synergy_acc", 0.0))) if hasattr(logger, "get_metric") else float(cfg.get("last_synergy_acc", 0.0))
+        if thr <= 0.0 or last_syn >= thr:
+            with torch.no_grad():
+                s_out = student_model(x)[1] if isinstance(student_model(x), tuple) else student_model(x)
+            tau  = float(cfg.get("tau", 4.0))
+            cccp_w = float(cfg.get("cccp_alpha", 0.0))
+            kd_cccp = cccp_w * (tau**2) * F.kl_div(
+                F.log_softmax(zsyn / tau, dim=1),
+                F.softmax(s_out.detach() / tau, dim=1),
+                reduction="batchmean",
+            )
 
 total_loss_step = (
     kd_weight * loss_kd
@@ -388,27 +394,31 @@ ib_mbm, synergy_head = build_from_teachers([teacher1, teacher2], cfg, query_dim=
 
 ## 13) 손실/헬퍼 함수 (안전 계산)
 
-### 13.1 CE/KL 세이프 계산
+### 13.1 CE/KL 안전 계산(현행)
 ```python
 def ce_safe(logits, target, ls_eps: float = 0.0):
-    # FP16 underflow 방지: float32로 변환 후 softmax clamp
     with torch.autocast('cuda', enabled=False):
-        logits = logits.float()
-        if ls_eps > 0:
-            # label smoothing
-            num_classes = logits.size(-1)
-            smooth = torch.full_like(logits, ls_eps / (num_classes - 1))
-            smooth.scatter_(1, target.unsqueeze(1), 1 - ls_eps)
-            return -(smooth * torch.log_softmax(logits, dim=1).clamp(1e-8, 1.0)).sum(dim=1).mean()
-        else:
-            return F.cross_entropy(logits, target)
-
+        return F.cross_entropy(logits.float(), target, label_smoothing=float(ls_eps))
 
 def kl_safe(p_logits, q_logits, tau: float = 1.0):
     with torch.autocast('cuda', enabled=False):
-        p = torch.softmax(p_logits.float() / tau, dim=1).clamp(1e-8, 1.0)
-        q = torch.softmax(q_logits.float() / tau, dim=1).clamp(1e-8, 1.0)
-        return F.kl_div(torch.log(p), q, reduction="batchmean") * (tau * tau)
+        s_log = F.log_softmax(p_logits.float() / tau, dim=1)
+        t_prob = F.softmax(q_logits.float() / tau, dim=1)
+        return F.kl_div(s_log, t_prob, reduction="batchmean") * (tau * tau)
+```
+
+추가: B‑Step에서 mixup/cutmix 사용 시 CE를 라벨 두 개(y_a, y_b)와 `lam`으로 직접 혼합합니다.
+```python
+ls = float(cfg.get("ce_label_smoothing", 0.0))
+if mix_mode in ("mixup", "cutmix"):
+    ce_loss_val = (
+        F.cross_entropy(s_logit.float(), y_a, label_smoothing=ls) * lam
+        + F.cross_entropy(s_logit.float(), y_b, label_smoothing=ls) * (1.0 - lam)
+    )
+else:
+    ce_vec = ce_safe_vec(s_logit, y, ls_eps=ls)  # [B]
+    ce_loss_val = (weights * ce_vec).mean()
+# KD에도 동일 weights 적용 후 kd_max_ratio로 클램프
 ```
 
 ### 13.2 IB 손실, Certainty Weights

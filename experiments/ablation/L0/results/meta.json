@@ -50,7 +50,7 @@
   "schedule": {
     "type": "cosine",
     "lr_warmup_epochs": 5,
-    "min_lr": 1e-05,
+    "min_lr": 1e-06,
     "step_size": null,
     "gamma": null
   },

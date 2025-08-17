@@ -218,18 +218,33 @@ def run_training_stages(
 
     # Training loop
     global_ep = 0
+    def get_level_for_stage(cfg_local, key: str, stage_idx1: int) -> int:
+        sched_key = f"{key}_schedule"
+        if sched_key in cfg_local and isinstance(cfg_local[sched_key], (list, tuple)):
+            try:
+                return int(cfg_local[sched_key][stage_idx1 - 1])
+            except Exception:
+                return int(cfg_local.get(key, -1))
+        return int(cfg_local.get(key, -1))
+
     for stage in range(1, num_stages + 1):
         cfg["cur_stage"] = stage
         logging.info(f"=== Stage {stage}/{num_stages} ===")
         
         # Stage별 PPF 상태 로깅
-        s_freeze = cfg.get("student_freeze_level", -1)
-        t1_freeze = cfg.get("teacher1_freeze_level", -1)
-        t2_freeze = cfg.get("teacher2_freeze_level", -1)
+        s_freeze = get_level_for_stage(cfg, "student_freeze_level", stage)
+        t1_freeze = get_level_for_stage(cfg, "teacher1_freeze_level", stage)
+        t2_freeze = get_level_for_stage(cfg, "teacher2_freeze_level", stage)
         s_bn_freeze = cfg.get("student_freeze_bn", False)
         t1_bn_freeze = cfg.get("teacher1_freeze_bn", True)
         t2_bn_freeze = cfg.get("teacher2_freeze_bn", True)
         logging.info(f"[PPF][Stage {stage}] s_freeze={s_freeze} t1_freeze={t1_freeze} t2_freeze={t2_freeze} | BN(s/t1/t2)={s_bn_freeze}/{t1_bn_freeze}/{t2_bn_freeze}")
+
+        if cfg.get("use_partial_freeze", False):
+            from utils.training.freeze import apply_partial_freeze
+            apply_partial_freeze(student_model, s_freeze, cfg.get("student_freeze_bn", False))
+            apply_partial_freeze(teacher_wrappers[0], t1_freeze, cfg.get("teacher1_freeze_bn", True))
+            apply_partial_freeze(teacher_wrappers[1], t2_freeze, cfg.get("teacher2_freeze_bn", True))
         
         # Teacher adaptive update
         if (

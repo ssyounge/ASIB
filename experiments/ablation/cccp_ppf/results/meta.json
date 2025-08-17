@@ -50,7 +50,7 @@
   "schedule": {
     "type": "cosine",
     "lr_warmup_epochs": 5,
-    "min_lr": 1e-05,
+    "min_lr": 1e-06,
     "step_size": null,
     "gamma": null
   },
@@ -68,7 +68,7 @@
     "student_freeze_level": 1,
     "teacher1_freeze_level": 1,
     "teacher2_freeze_level": 1,
-    "student_freeze_bn": false,
+    "student_freeze_bn": true,
     "teacher1_freeze_bn": true,
     "teacher2_freeze_bn": true
   }

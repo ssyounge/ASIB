@@ -1,6 +1,7 @@
 # modules/trainer_student.py
 
 import torch
+import torch.nn.functional as F
 import copy
 import logging
 from utils.common import smart_tqdm, mixup_data, cutmix_data, mixup_criterion, get_amp_components
@@ -9,7 +10,7 @@ from models import IB_MBM
 
 from modules.loss_safe import ce_safe, kl_safe
 from modules.losses import (
-    ib_loss, certainty_weights, feat_mse_loss
+    ib_loss, certainty_weights, feat_mse_loss, soft_clip_loss
 )
 from modules.disagreement import sample_weights_from_disagreement
 from torch.amp import autocast
@@ -174,6 +175,57 @@ def kl_safe_vec(p_logits: torch.Tensor, q_logits: torch.Tensor, tau: float = 1.0
         q = torch.softmax(q_logits.float() / tau, dim=1)
         kl = torch.nn.functional.kl_div(p_log, q, reduction="none")  # [B, C]
         return kl.sum(dim=1) * (tau * tau)
+
+
+def get_kd_target(
+    cfg: dict,
+    logger,
+    ep: int,
+    zsyn_ng: torch.Tensor | None,
+    t1_logit: torch.Tensor | None,
+    t2_logit: torch.Tensor | None,
+):
+    """Select KD target with synergy gating and warmup mixing.
+
+    - kd_target in {"synergy","auto"}: use synergy only when last_synergy_acc >= thr
+    - During warmup (teacher_adapt_kd_warmup), blend synergy with avg using kd_ens_alpha
+    - Fallback to avg if synergy is unavailable or gate not passed
+    """
+    kd_mode = cfg.get("kd_target", "avg")
+    try:
+        thr = float(cfg.get("enable_kd_after_syn_acc", 0.8))
+    except Exception:
+        thr = 0.8
+    last_syn = 0.0
+    try:
+        if logger is not None and hasattr(logger, "get_metric"):
+            last_syn = float(logger.get_metric("last_synergy_acc", cfg.get("last_synergy_acc", 0.0)) or 0.0)
+        else:
+            last_syn = float(cfg.get("last_synergy_acc", 0.0))
+    except Exception:
+        last_syn = float(cfg.get("last_synergy_acc", 0.0))
+    warm = int(cfg.get("teacher_adapt_kd_warmup", 0))
+    ens = float(cfg.get("kd_ens_alpha", 0.0))
+
+    avg_t = None
+    if t1_logit is not None and t2_logit is not None:
+        avg_t = (t1_logit + t2_logit) / 2.0
+
+    # normalize to 0-1 scale if needed
+    try:
+        if last_syn > 1.5:
+            last_syn = last_syn / 100.0
+        if thr > 1.5:
+            thr = thr / 100.0
+    except Exception:
+        pass
+
+    use_syn = (kd_mode in ("synergy", "auto")) and (zsyn_ng is not None) and (last_syn >= thr)
+    if use_syn:
+        if ep < warm and avg_t is not None and ens > 0.0:
+            return (1.0 - ens) * zsyn_ng + ens * avg_t
+        return zsyn_ng
+    return avg_t
 
 def student_distillation_update(
     teacher_wrappers,
@@ -358,55 +410,30 @@ def student_distillation_update(
                 else:
                     mu_ng = logvar_ng = zsyn_ng = None
 
-                # stable CE/KL calculations (per-sample vector) then apply cw weights
-                ls = cfg.get("ce_label_smoothing", cfg.get("label_smoothing", 0.0))
-                ce_vec = ce_safe_vec(s_logit, y, ls_eps=ls)  # [B]
+                # stable CE/KL calculations
+                # CE: mixup/cutmix는 라벨 두 개(y_a,y_b)와 lambda로 직접 혼합
+                ls = float(cfg.get("ce_label_smoothing", cfg.get("label_smoothing", 0.0)))
+                if mix_mode in ("mixup", "cutmix"):
+                    ce_loss_val = (
+                        F.cross_entropy(s_logit.float(), y_a, label_smoothing=ls)
+                        * lam
+                        + F.cross_entropy(s_logit.float(), y_b, label_smoothing=ls)
+                        * (1.0 - lam)
+                    )
+                else:
+                    ce_vec = ce_safe_vec(s_logit, y, ls_eps=ls)  # [B]
                 # KD는 no-grad 타깃 사용 (필요할 때만)
                 kd_loss_val = 0.0
                 if cfg.get("kd_alpha", 0.0) > 0 and need_teachers:
-                    # KD 타겟 선택
-                    # 시너지 품질이 낮으면 avg로 대체
-                    synergy_good = False
-                    try:
-                        synergy_good = float(cfg.get("last_synergy_acc", 0.0)) >= float(cfg.get("enable_kd_after_syn_acc", 0.0))
-                    except Exception:
-                        pass
-                    kd_target = cfg.get("kd_target", "synergy")
-                    if cfg.get("use_avg_until_synergy", False) and kd_target == "synergy" and not synergy_good:
-                        kd_target = "avg"
-                    if kd_target == "synergy" and zsyn_ng is not None:
-                        kd_tgt = zsyn_ng
-                    elif kd_target == "avg" and t1_dict is not None and t2_dict is not None:
-                        # Teacher 평균
-                        t1_logit = t1_dict["logit"]
-                        t2_logit = t2_dict["logit"]
-                        kd_tgt = (t1_logit + t2_logit) / 2.0
-                    elif kd_target == "weighted_conf" and t1_dict is not None and t2_dict is not None:
-                        # Teacher confidence 기반 가중 평균 (use .max(...).values; not .amax)
-                        t1_logit = t1_dict["logit"]
-                        t2_logit = t2_dict["logit"]
-                        p1 = torch.softmax(t1_logit / cur_tau, dim=1).max(dim=1).values  # [B]
-                        p2 = torch.softmax(t2_logit / cur_tau, dim=1).max(dim=1).values  # [B]
-                        w1 = (p1 / (p1 + p2 + 1e-8)).unsqueeze(1)  # [B,1]
-                        w2 = 1.0 - w1
-                        kd_tgt = w1 * t1_logit + w2 * t2_logit
-                    else:
-                        # 기본값: synergy
-                        kd_tgt = zsyn_ng if zsyn_ng is not None else torch.zeros_like(s_logit)
+                    # KD 타겟 선택: synergy 게이팅 + 워밍업 혼합 + fallback avg
+                    t1_logit = t1_dict["logit"] if t1_dict is not None else None
+                    t2_logit = t2_dict["logit"] if t2_dict is not None else None
+                    kd_tgt = get_kd_target(cfg, logger, ep, zsyn_ng, t1_logit, t2_logit)
 
-                    # Warmup 동안 시너지/앙상블 혼합 (ens_alpha 비율)
-                    warmup_epochs = int(cfg.get("teacher_adapt_kd_warmup", 0))
-                    ens_alpha = float(cfg.get("kd_ens_alpha", 0.0))
-                    if (
-                        warmup_epochs > 0 and ep < warmup_epochs and ens_alpha > 0.0
-                        and zsyn_ng is not None and t1_dict is not None and t2_dict is not None
-                    ):
-                        t1_logit = t1_dict["logit"]
-                        t2_logit = t2_dict["logit"]
-                        avg_t = (t1_logit + t2_logit) / 2.0
-                        kd_tgt = (1.0 - ens_alpha) * zsyn_ng + ens_alpha * avg_t
+                    # 혼합은 get_kd_target에서만 수행 (중복 혼합 방지)
                     
                     if kd_tgt is not None:
+                        # KL with current KD temperature schedule
                         kd_vec = kl_safe_vec(s_logit, kd_tgt.detach(), tau=cur_tau)  # [B]
                         kd_loss_val = None  # set below after cw
                     else:
@@ -446,23 +473,31 @@ def student_distillation_update(
 
             if cfg.get("use_ib", False) and logvar_ng is not None:
                 cw = torch.exp(-logvar_ng).mean(dim=1).to(s_logit.dtype)
-                cw = cw.clamp(float(cfg.get("min_cw", 0.1)), 1.0)
+                # 정규화: 평균을 1.0 부근으로 맞추고 가드 범위로 제한
+                cw_mean = (cw.mean() + 1e-8)
+                min_cw = float(cfg.get("min_cw", 0.1))
+                max_cw = float(cfg.get("max_cw", 1.5))
+                cw = (cw / cw_mean).clamp(min_cw, max_cw)
                 weights = weights * cw
 
             # apply cw to CE and KD
-            ce_loss_val = (cw * ce_vec).mean()
+            if 'ce_vec' in locals():
+                ce_loss_val = (weights * ce_vec).mean()
             if isinstance(kd_loss_val, torch.Tensor) and kd_loss_val.dim() == 0:
                 pass
             elif 'kd_vec' in locals() and isinstance(kd_vec, torch.Tensor):
-                kd_loss_val = (cw * kd_vec).mean()
+                kd_loss_val = (weights * kd_vec).mean()
 
-            # --- μ‑MSE with certainty weight ---------------------------------
+            # --- μ‑MSE with certainty weight (normalized) ---------------------
             feat_kd_val = None
             if cfg.get("feat_kd_alpha", 0.0) > 0 and need_teachers and mu_ng is not None:
                 # 차원 불일치 안전장치
                 if s_feat.shape[1] == mu_ng.shape[1]:
                     diff = (s_feat - mu_ng).pow(2).sum(dim=1)  # s_feat에서 grad 흐름
-                    feat_kd_val = (cw * diff).mean()
+                    cw_feat = torch.exp(-logvar_ng).mean(dim=1).detach()
+                    # 정규화: 평균 1.0 부근으로 맞추고 과도한 다운/업웨이팅 방지
+                    cw_feat = (cw_feat / (cw_feat.mean() + 1e-8)).clamp(0.5, 1.5).to(s_feat.dtype)
+                    feat_kd_val = (cw_feat * diff).mean()
                 else:
                     # 첫 배치에서만 경고 출력 (로그 과다 방지)
                     if ep == 0 and step == 0:
@@ -517,9 +552,18 @@ def student_distillation_update(
             if feat_kd_val is not None:
                 loss = loss + cfg.get("feat_kd_alpha", 0.0) * feat_kd_val
             
-            # 추가 안전장치: loss가 너무 크면 clipping (클리핑 완화)
+            # 추가 안전장치: loss가 너무 크면 clipping (soft/hard 선택) + 워밍업 게이트
             if cfg.get("use_loss_clamp", False):
-                loss = torch.clamp(loss, 0.0, cfg.get("loss_clamp_max", 1000.0))
+                max_v = float(cfg.get("loss_clamp_max", 1000.0))
+                mode = str(cfg.get("loss_clamp_mode", "soft"))
+                lc_warm = int(cfg.get("loss_clamp_warmup_epochs", 0))
+                if (global_ep + ep) < lc_warm:
+                    pass  # 워밍업 동안 clamp 미적용
+                else:
+                    if mode == "soft":
+                        loss = soft_clip_loss(loss, max_v)
+                    else:
+                        loss = torch.clamp(loss, 0.0, max_v)
             else:
                 # 기본적으로는 클리핑 해제 (안정화를 위해)
                 pass

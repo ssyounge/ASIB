@@ -575,7 +575,17 @@ def teacher_adaptive_update(
                 # 추가 안전장치: loss가 너무 크면 clipping
                 # Loss 클리핑 완화 (A-Step 안정화를 위해)
             if cfg.get("use_loss_clamp", False):
-                total_loss_step = torch.clamp(total_loss_step, 0.0, cfg.get("loss_clamp_max", 1000.0))
+                max_v = float(cfg.get("loss_clamp_max", 1000.0))
+                mode = str(cfg.get("loss_clamp_mode", "soft"))
+                lc_warm = int(cfg.get("loss_clamp_warmup_epochs", 0))
+                if (global_ep + ep) < lc_warm:
+                    pass  # 워밍업 동안 clamp 미적용
+                else:
+                    if mode == "soft":
+                        from modules.losses import soft_clip_loss
+                        total_loss_step = soft_clip_loss(total_loss_step, max_v)
+                    else:
+                        total_loss_step = torch.clamp(total_loss_step, 0.0, max_v)
             else:
                 # 기본적으로는 클리핑 해제
                 pass

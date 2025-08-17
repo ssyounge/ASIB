@@ -4,6 +4,15 @@ import torch
 import torch.nn.functional as F
 from typing import Optional
 
+def soft_clip_loss(loss: torch.Tensor, max_val: float) -> torch.Tensor:
+    """Softly scale the loss to not exceed max_val while preserving gradients.
+
+    loss' = loss * min(1, max_val / loss_detached)
+    """
+    with torch.no_grad():
+        scale = torch.clamp(max_val / (loss.detach() + 1e-8), max=1.0)
+    return loss * scale
+
 def ce_loss_fn(student_logits, labels, label_smoothing: float = 0.0, reduction: str = "mean"):
     """Standard cross-entropy loss for classification.
 

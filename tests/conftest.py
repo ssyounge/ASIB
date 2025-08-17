@@ -210,6 +210,10 @@ def main_config():
             "use_partial_freeze": False,
             "use_amp": True,
             "amp_dtype": "float16",
+            # KD/Synergy gating (align with current defaults)
+            "kd_target": "synergy",
+            "teacher_adapt_kd_warmup": 6,
+            "enable_kd_after_syn_acc": 0.8,
             "kd_ens_alpha": 0.5,
             "hybrid_beta": 0.05,
             "mixup_alpha": 0.0,
@@ -218,6 +222,7 @@ def main_config():
             "disagree_mode": "both_wrong",
             "disagree_lambda_high": 1.0,
             "disagree_lambda_low": 1.0,
+            # Feature KD off by default in tests
             "feat_kd_alpha": 0.0,
             "feat_kd_key": "feat_2d",
             "feat_kd_norm": "none",
@@ -238,6 +243,10 @@ def main_config():
             "grad_clip_norm": 1.0,
             "adam_beta1": 0.9,
             "adam_beta2": 0.999,
+            # Soft loss clamp mode (matches runtime)
+            "use_loss_clamp": True,
+            "loss_clamp_mode": "soft",
+            "loss_clamp_max": 20.0,
             "disable_flops": True,
             "student_epochs_per_stage": 15,
             "teacher1": {
@@ -304,6 +313,15 @@ def training_config():
             "use_partial_freeze": False,
             "use_amp": True,
             "amp_dtype": "float16",
+            # KD/Synergy gating (align with current defaults)
+            "kd_target": "synergy",
+            "teacher_adapt_kd_warmup": 6,
+            "enable_kd_after_syn_acc": 0.8,
+            "kd_ens_alpha": 0.5,
+            # Soft loss clamp mode (matches runtime)
+            "use_loss_clamp": True,
+            "loss_clamp_mode": "soft",
+            "loss_clamp_max": 20.0,
             "student_epochs_per_stage": 15,
             "teacher1": {
                 "model": {
