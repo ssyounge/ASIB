@@ -8,9 +8,10 @@ ASIB 프레임워크의 전반 구조, 메소드(IB, CCCP, PPF/FFP), 핵심 모�
   - 스테이지/스케줄: `num_stages: 4`, `student_epochs_per_stage: [20, 20, 20, 20]`, `schedule: { type: cosine, lr_warmup_epochs: 5, min_lr: 1e-6 }`
   - 증강: `mixup_alpha: 0.2`, `cutmix_alpha_distill: 1.0`
   - Adapter/Feature: `use_distillation_adapter: true`, `distill_out_dim: 512`, `feat_kd_alpha: 0.0`, `feat_kd_key: distill_feat`
-- IB 가드(IB 사용하는 설정에만 적용): `ib_mbm_out_dim: 512`, `ib_mbm_logvar_clip: 4`, `ib_mbm_min_std: 0.01`, `ib_mbm_lr_factor: 1`, `ib_beta: 0.0001(또는 0.00005)`, `ib_beta_warmup_epochs: 4~6`, `synergy_only_epochs: 6`, `enable_kd_after_syn_acc: 0.6`
+- IB 가드(IB 사용하는 설정에만 적용): `ib_mbm_out_dim: 512`, `ib_mbm_logvar_clip: 4`, `ib_mbm_min_std: 0.01`, `ib_mbm_lr_factor: 2`, `ib_beta: 0.0001(또는 0.00005)`, `ib_beta_warmup_epochs: 4~6`, `synergy_only_epochs: 8`, `enable_kd_after_syn_acc: 0.8`
 - PPF/BN: `L4_full`/`side_cccp_ppf`에서 `student_freeze_bn: true` 권장
 - A‑Step 안정화(코드 반영): 초기 `synergy_only_epochs` 동안 CE‑only(IB‑KL=0, KD=0, cw=1.0), logvar 클리핑. 에폭 종료 시 `last_synergy_acc`를 cfg와 logger에 저장.
+- B‑Step 시너지 게이트(코드 반영): `_synergy_gate_ok`로 `last_synergy_acc ≥ enable_kd_after_syn_acc`일 때만 IB_MBM/zsyn/μ‑KD 활성. 임계 미만이면 avg‑KD만 사용. KD 벡터는 `nan_to_num`으로 안전 처리, μ‑KD는 Huber/clip 옵션(`feat_kd_clip`, `feat_kd_huber_beta`).
 - 실행/구성: `-cn="experiment/<CFG>"` + 루트 오버라이드(`+seed=`). normalize 이후 `method.*` 서브트리 제거, `[CFG] kd_target/ce/kd/ib_beta` 한 줄 로그 출력.
 
 ## 1) 아키텍처 개요
@@ -20,7 +21,7 @@ ASIB 프레임워크의 전반 구조, 메소드(IB, CCCP, PPF/FFP), 핵심 모�
 - 손실: CE + (선택) KD + (선택) Feature KD + (선택) CCCP surrogate + 정규항
 - 정책: PPF/FFP(Partial Freeze/Finetuning)로 일부 블록/정규화를 동결하거나 교사를 소규모 파인튜닝
 
-참고 문서: `framework_docs/configs.md`, `framework_docs/root_files.md`, `framework_docs/utils.md`, `framework_docs/modules.md`, `framework_docs/run.md`, `framework_docs/tests.md`
+참고 문서: `framework_docs/root_files.md`, `framework_docs/utils.md`, `framework_docs/modules.md`, `framework_docs/run.md`, `framework_docs/tests.md`
 
 ## 2) 핵심 메소드 요약
 ### IB (Information Bottleneck)
@@ -67,27 +68,35 @@ ASIB 프레임워크의 전반 구조, 메소드(IB, CCCP, PPF/FFP), 핵심 모�
 
 ## 4) 최소 설정 템플릿(복붙용)
 ```yaml
-# Baseline(예)
-kd_target: synergy
-ce_alpha: 1.0
-kd_alpha: 0.0
+# Baseline (avg-KD, 공정 비교용)
+kd_target: avg
+ce_alpha: 0.65
+kd_alpha: 0.35
 kd_ens_alpha: 0.0
 feat_kd_alpha: 0.0
-use_loss_clamp: false
-teacher_adapt_epochs: 0
-teacher_adapt_kd_warmup: 0
 
-# IB
+# KD 안정 가드
+kd_max_ratio: 1.25
+tau_schedule: [3.5, 5.0]
+kd_warmup_epochs: 3
+
+# Loss clamp (soft)
+use_loss_clamp: true
+loss_clamp_mode: soft
+loss_clamp_max: 20.0
+loss_clamp_warmup_epochs: 8
+
+# IB (기본 OFF; 전환 시 안전 값)
 use_ib: false
-ib_beta: 0.001
-ib_beta_warmup_epochs: 0
-ib_epochs_per_stage: 12
 ib_mbm_out_dim: 512
 ib_mbm_n_head: 4
+ib_mbm_logvar_clip: 4
+ib_mbm_min_std: 0.01
+ib_mbm_lr_factor: 2
 
-# CCCP
+# CCCP (옵션)
 use_cccp: false
-cccp_alpha: 0.5
+cccp_alpha: 0.20
 tau: 4.0
 cccp_nt: 1
 cccp_ns: 1
@@ -653,6 +662,80 @@ for method, cfg_path in configs.items():
   - 조치: `ib_beta` 워밍업(`ib_beta_warmup_epochs`) 사용, `ib_mbm_out_dim`을 `distill_out_dim`과 정합
 
 (끝)
+
+---
+
+## 30) ASIB 전환 가이드 (Migration)
+
+### 30.1 기존 KD 파이프라인 → ASIB 최소 전환 절차
+- 1) 모델/데이터 정렬: `teacher1/2`, `student`를 기존 설정으로 생성. 어댑터가 없다면 `use_distillation_adapter: true`, `distill_out_dim: 512` 권장
+- 2) KD 베이스라인 통일: `kd_target: avg`, `ce/kd=0.65/0.35`, `tau_schedule: [3.5, 5.0]`, `kd_warmup_epochs: 3`, `kd_max_ratio: 1.25`
+- 3) 안정 가드: `use_loss_clamp: true`, `loss_clamp_mode: soft`, `loss_clamp_max: 20.0`, `loss_clamp_warmup_epochs: 8`
+- 4) 스테이지 구성: `num_stages: 4`, `student_epochs_per_stage: [20,20,20,20]`, `schedule.cosine + warmup=5`
+- 5) AMP: `use_amp: true`, `amp_dtype: bfloat16`
+- 6) 실행: `python main.py -cn=experiment/L0_baseline +seed=42`
+
+### 30.2 IB/시너지 경로 활성화 절차
+- 1) IB 켜기: `use_ib: true`, `ib_epochs_per_stage: 6`, `ib_beta: 5e-05`, `ib_beta_warmup_epochs: 4`
+- 2) IB_MBM 용량: `ib_mbm_out_dim: 512`, `ib_mbm_n_head: 4`, `ib_mbm_logvar_clip: 4`, `ib_mbm_min_std: 0.01`, `ib_mbm_lr_factor: 2`
+- 3) 시너지 게이트: `synergy_only_epochs: 8`, `enable_kd_after_syn_acc: 0.8`, `kd_ens_alpha: 0.5`
+- 4) 권장 실행: `-cn=experiment/L4_full` 또는 `-cn=experiment/L1_ib`로 시작, 성능/안정 확인 후 하이퍼 튜닝
+
+### 30.3 CCCP 결합
+- 1) `use_cccp: true`, `use_cccp_in_a: true`, `cccp_alpha: 0.20`
+- 2) KD와 별개로 surrogate 항이 A/B 단계에서 안전하게 합산됨. 과대 시 `cccp_alpha`를 0.10~0.25로 조절
+
+### 30.4 체크리스트
+- 로그에 `[KD]`, `[IB/CCCP]`, `[PPF]` 블록이 베이스라인과 비교해 의도한 변경만 포함되는지 확인
+- `auto_set_ib_mbm_query_dim_with_model` 호출로 `ib_mbm_query_dim` 자동 세팅 여부 확인
+- 첫 배치에서 KV/Q dim mismatch 경고가 없는지 확인
+
+## 31) PPF 스케줄 키 설명 상세
+
+### 31.1 단일 레벨 키
+- `use_partial_freeze`(bool): PPF 정책 사용 여부
+- `student_freeze_level`, `teacher1_freeze_level`, `teacher2_freeze_level`(int): −1 없음, 0 헤드만, 1 마지막 블록, 2 마지막 두 블록
+- `student_freeze_bn`, `teacher1_freeze_bn`, `teacher2_freeze_bn`(bool): BN 고정 여부. BN 고정보다 LN은 기본적으로 학습 유지
+
+### 31.2 스테이지별 스케줄 키
+- `student_freeze_level_schedule`, `teacher1_freeze_level_schedule`, `teacher2_freeze_level_schedule`(list[int]): 스테이지 1..N에 대응하는 레벨 값
+  - 예) `[-1, -1, 1, 1]`이면 1~2스테이지는 동결 없음, 3~4스테이지는 마지막 블록 동결
+- 스케줄 키가 없고 단일 레벨만 주어진 경우, 내부 로직은 스케줄을 유추하거나 그대로 단일 레벨을 사용
+
+### 31.3 적용 타이밍과 동작
+- 스테이지 진입 시점에 각 모델(학생/교사)에 대해 `apply_partial_freeze(model, level, freeze_bn)` 호출
+- 레벨 < 0: `requires_grad=True`로 전체 해제
+- 레벨 = 0: 헤드만 학습. BN은 `freeze_bn`에 따라 동결
+- 레벨 ≥ 1: 백본 전체를 먼저 동결 후 레벨 규칙에 맞는 블록/헤드만 해제해 학습
+
+### 31.4 실전 가이드
+- 성능 안정 우선: `L4_full.yaml`처럼 후반 스테이지에만 레벨 1을 적용하고 `student_freeze_bn: true` 권장
+- 빠른 수렴/VRAM 절감: `side_cccp_ppf.yaml`처럼 전 스테이지에서 `level: 1` 고정도 가능
+- 주의: freeze ≥ 0인데 `student_pretrained=false`이면 랜덤 초기화된 동결층이 생길 수 있음. 사전학습 사용 권장 또는 level=-1 유지
+
+### 31.5 예시 스니펫
+```yaml
+# 안정형 (후반만 동결)
+use_partial_freeze: true
+student_freeze_level_schedule: [-1, -1, 1, 1]
+teacher1_freeze_level_schedule: [-1, -1, 1, 1]
+teacher2_freeze_level_schedule: [-1, -1, 1, 1]
+student_freeze_bn: true
+teacher1_freeze_bn: true
+teacher2_freeze_bn: true
+```
+
+```yaml
+# 경량/고속형 (전 스테이지 동결)
+use_partial_freeze: true
+student_freeze_level: 1
+teacher1_freeze_level: 1
+teacher2_freeze_level: 1
+student_freeze_bn: true
+teacher1_freeze_bn: true
+teacher2_freeze_bn: true
+```
+
 
 ---
 
