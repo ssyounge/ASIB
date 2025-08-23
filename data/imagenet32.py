@@ -5,6 +5,7 @@ import pickle
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
+from multiprocessing import get_context
 from torchvision import transforms as T
 from utils.data import ClassInfoMixin
 
@@ -65,7 +66,7 @@ class ImageNet32(ClassInfoMixin, Dataset):
 ImageNet32Dataset = ImageNet32
 
 
-def get_imagenet32_loaders(root, batch_size=128, num_workers=2, augment=True):
+def get_imagenet32_loaders(root, batch_size=128, num_workers=2, augment=True, use_spawn_dl: bool = False):
     """
     ImageNet-32 size = (32x32) - 강화된 증강 적용
     Returns:
@@ -94,12 +95,16 @@ def get_imagenet32_loaders(root, batch_size=128, num_workers=2, augment=True):
     tr_set = ImageNet32(root, "train", tf_train)
     te_set = ImageNet32(root, "val", tf_test)
 
+    pin = True if num_workers > 0 else False
+    mp_ctx = get_context("spawn") if (num_workers > 0 and bool(use_spawn_dl)) else None
     tr_loader = DataLoader(tr_set, batch_size, shuffle=True,
-                           num_workers=num_workers, pin_memory=True,
-                           persistent_workers=True if num_workers > 0 else False,
-                           prefetch_factor=4 if num_workers > 0 else None)
+                           num_workers=num_workers, pin_memory=pin,
+                           persistent_workers=pin,
+                           prefetch_factor=(4 if pin else None),
+                           multiprocessing_context=mp_ctx)
     te_loader = DataLoader(te_set, batch_size, shuffle=False,
-                           num_workers=num_workers, pin_memory=True,
-                           persistent_workers=True if num_workers > 0 else False,
-                           prefetch_factor=4 if num_workers > 0 else None)
+                           num_workers=num_workers, pin_memory=pin,
+                           persistent_workers=pin,
+                           prefetch_factor=(4 if pin else None),
+                           multiprocessing_context=mp_ctx)
     return tr_loader, te_loader

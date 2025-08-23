@@ -64,24 +64,27 @@ class CRDDistiller(nn.Module):
         # optional runtime configuration for training loops
         self.cfg = config if config is not None else {}
 
-        s_dim = student_model.get_feat_dim()
-        t_dim = teacher_model.get_feat_dim()
-        if s_dim != t_dim:
-            self.projection = nn.Linear(s_dim, t_dim)
-        else:
-            self.projection = nn.Identity()
+        # Delay projection init until we see actual features
+        self.projection = None
 
     def forward(self, x, y):
         # 1) teacher
         with torch.no_grad():
             t_dict = self.teacher(x)
+            if isinstance(t_dict, tuple):
+                t_dict = t_dict[0]
         # 2) student
         s_dict, s_logit, _ = self.student(x)
 
         # CRD
         t_feat = t_dict[self.feat_key]  # [N, D_t]
         s_feat = s_dict[self.feat_key]
-        s_feat = self.projection(s_feat)  # match dims
+        # lazy projection init based on runtime dims
+        if self.projection is None:
+            in_dim = s_feat.shape[1]
+            out_dim = t_feat.shape[1]
+            self.projection = nn.Identity() if in_dim == out_dim else nn.Linear(in_dim, out_dim).to(s_feat.device)
+        s_feat = self.projection(s_feat)
         crd_loss_val = self.crd_loss_fn(s_feat, t_feat)
 
         # CE

@@ -1,0 +1,4 @@
+name: at
+ce_alpha: 0.6
+kd_alpha: 0.4
+at_beta: 1e-1

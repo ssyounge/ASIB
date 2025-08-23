@@ -1,0 +1,79 @@
+defaults:
+  - /base
+  - /model/teacher@experiment.teacher1: resnet152
+  - /model/teacher@experiment.teacher2: convnext_s
+  - /model/student@experiment.model.student: mobilenet_v2_scratch
+  - /anchor@experiment.anchor: fair_baseline
+  - _self_
+
+# strict-safe: ensure method_name exists at root for runtime sync
+method_name: null
+
+experiment:
+  exp_id: sota_generic
+  results_dir: experiments/sota/generic/results
+  dataset: { name: cifar100, batch_size: 128, num_workers: 4, data_aug: 1 }
+  small_input: true
+
+  num_stages: 1
+  student_epochs_per_stage: [240]
+  # Main SOTA: 교사 파인튜닝/A-Step은 메소드 파일 설정 사용 (루트 고정값 제거)
+  compute_teacher_eval: true
+
+  use_amp: false
+  amp_dtype: bfloat16
+
+  teacher1_ckpt: checkpoints/teachers/resnet152_cifar100.pth
+  teacher2_ckpt: checkpoints/teachers/convnext_s_cifar100.pth
+
+  # 학생 scratch 고정 (공정성)
+  model:
+    student:
+      pretrained: false
+
+  # 메소드 기본값은 base의 defaults(method@experiment.method: asib)로만 구성
+
+  # 교사 파인튜닝/PPF/BN 정책은 메소드 파일이 결정 (루트 강제 OFF 제거)
+  use_teacher_finetuning: false
+  train_distill_adapter_only: false
+  teacher1_freeze_bn: true
+  teacher2_freeze_bn: true
+  # (교사는 항상 고정; BN은 eval)
+  # 공정성: SOTA 비교 시 PPF OFF 기본값
+  force_ppf_off: true
+
+  # KD (single-teacher 기본) – kd_target은 메소드 파일이 결정
+  # kd_target: teacher           # teacher | avg | synergy
+  kd_teacher_index: 0          # teacher 모드일 때 0=teacher1, 1=teacher2
+  kd_warmup_epochs: 3
+  kd_max_ratio: 1.25
+
+  # Optimizer defaults (CIFAR-100 recommended)
+  optimizer: sgd
+  student_lr: 0.1
+  student_weight_decay: 0.0005
+  b_step_momentum: 0.9
+  b_step_nesterov: true
+  grad_clip_norm: 0
+
+  # IB/CCCP 설정은 메소드 파일이 결정 (루트 OFF 제거)
+  # 안전 기본치: 강한 압축을 피하기 위해 ib_beta 낮게 설정 (메소드에서 덮어씀)
+  ib_beta: 1.0e-4
+
+  # Adapter (작은 학생이면 256이 안전)
+  use_distillation_adapter: true
+  distill_out_dim: 256
+  feat_kd_key: distill_feat
+  # Align IB_MBM out dim with adapter distill dim for feature-KD/IB compatibility
+  ib_mbm_out_dim: 256
+  # 공정 비교: smoothing/tau 통일
+  ce_label_smoothing: 0.0
+  # Disable heavy augmentations for stability baseline
+  mixup_alpha: 0.0
+  cutmix_alpha_distill: 0.0
+
+  # Scheduler baseline
+  schedule:
+    type: cosine
+    lr_warmup_epochs: 5
+    min_lr: 1e-5

@@ -1,0 +1,7 @@
+name: crd
+ce_alpha: 0.65
+kd_alpha: 0.35
+crd_feat_dim: 256
+crd_nce_k: 8192
+crd_nce_t: 0.07
+crd_momentum: 0.5

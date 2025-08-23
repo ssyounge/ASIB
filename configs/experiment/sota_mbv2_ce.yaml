@@ -1,0 +1,38 @@
+defaults:
+  - /base
+  - /model/teacher@experiment.teacher1: resnet152
+  - /model/teacher@experiment.teacher2: convnext_s
+  - /model/student@experiment.model.student: mobilenet_v2_scratch
+  - _self_
+
+experiment:
+  exp_id: sota_mbv2_ce
+  results_dir: experiments/sota/generic_mbv2_ce/results
+
+  dataset: { name: cifar100, batch_size: 128, num_workers: 4, data_aug: 1 }
+
+  num_stages: 1
+  student_epochs_per_stage: [240]
+  compute_teacher_eval: false
+
+  # Optim (MobileNetV2-friendly)
+  optimizer: sgd
+  student_lr: 0.05
+  student_weight_decay: 0.0005
+  b_step_momentum: 0.9
+  b_step_nesterov: true
+  schedule: { type: cosine, lr_warmup_epochs: 5, min_lr: 1.0e-5 }
+
+  # AMP/clip
+  use_amp: false
+  grad_clip_norm: 0
+
+  # Loss
+  ce_alpha: 1.0
+  kd_alpha: 0.0
+  ce_label_smoothing: 0.0
+
+  # KD/Adapter fully disabled for CE-only baseline
+  use_distillation_adapter: false
+  feat_kd_key: feat_2d
+

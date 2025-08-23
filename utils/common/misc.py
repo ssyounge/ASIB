@@ -87,7 +87,7 @@ def load_checkpoint(model, optimizer, load_path, cfg=None):
     start_epoch = ckpt["epoch"]
     return start_epoch
 
-def cutmix_data(inputs, targets, alpha=1.0):
+def cutmix_data(inputs, targets, alpha=1.0, return_index: bool = False):
     """Apply CutMix augmentation.
 
     ``inputs`` and ``targets`` are NCHW tensors, i.e. ``[N, C, H, W]`` for
@@ -126,10 +126,12 @@ def cutmix_data(inputs, targets, alpha=1.0):
     lam = 1.0 - ((x2 - x1) * (y2 - y1) / (W * H))
     target_a = targets
     target_b = targets[indices]
+    if return_index:
+        return inputs_clone, target_a, target_b, lam, indices
     return inputs_clone, target_a, target_b, lam
 
 
-def mixup_data(inputs, targets, alpha=1.0):
+def mixup_data(inputs, targets, alpha=1.0, return_index: bool = False):
     """Apply MixUp augmentation.
 
     Parameters
@@ -157,6 +159,8 @@ def mixup_data(inputs, targets, alpha=1.0):
     mixed_inputs = lam * inputs + (1.0 - lam) * inputs[index]
     targets_a = targets
     targets_b = targets[index]
+    if return_index:
+        return mixed_inputs, targets_a, targets_b, lam, index
     return mixed_inputs, targets_a, targets_b, lam
 
 
@@ -165,36 +169,25 @@ def mixup_criterion(criterion, pred, y_a, y_b, lam):
     return lam * criterion(pred, y_a) + (1.0 - lam) * criterion(pred, y_b)
 
 def get_amp_components(cfg):
-    """Return autocast context and GradScaler based on config."""
+    """Return autocast context and GradScaler based on config.
+
+    Does not mutate cfg. Respects cfg['use_amp'] defaulting to False.
+    """
     use_amp = bool(cfg.get("use_amp", False))
     device = cfg.get("device", "cuda")
-    if not use_amp:
+    if not use_amp or device != "cuda" or not torch.cuda.is_available():
         from contextlib import nullcontext
         return nullcontext(), None
-    if device != "cuda" or not torch.cuda.is_available():
-        from contextlib import nullcontext
-        return nullcontext(), None
-    amp_dtype = cfg.get("amp_dtype", "float16")
+
+    amp_dtype = str(cfg.get("amp_dtype", "float16")).lower()
     dtype = torch.float16 if amp_dtype == "float16" else torch.bfloat16
 
-    # Older PyTorch versions exposed autocast and GradScaler under
-    # ``torch.cuda.amp``.  When running on such versions we fall back to that
-    # namespace for compatibility.
-    if hasattr(torch, "autocast"):
-        autocast = torch.autocast
-    else:
-        autocast = torch.cuda.amp.autocast
-
+    autocast = torch.autocast if hasattr(torch, "autocast") else torch.cuda.amp.autocast
     autocast_ctx = autocast("cuda", dtype=dtype)
 
-    if hasattr(torch, "amp") and hasattr(torch.amp, "GradScaler"):
-        GradScaler = torch.amp.GradScaler
-    else:
-        GradScaler = torch.cuda.amp.GradScaler
-
+    GradScaler = torch.amp.GradScaler if hasattr(torch, "amp") and hasattr(torch.amp, "GradScaler") else torch.cuda.amp.GradScaler
     try:
-        scaler = GradScaler(device="cuda",
-                           init_scale=int(cfg.get("grad_scaler_init_scale", 1024)))
+        scaler = GradScaler(device="cuda", init_scale=int(cfg.get("grad_scaler_init_scale", 1024)))
     except TypeError:
         scaler = GradScaler(init_scale=int(cfg.get("grad_scaler_init_scale", 1024)))
     return autocast_ctx, scaler

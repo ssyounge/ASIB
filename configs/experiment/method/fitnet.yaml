@@ -1,0 +1,6 @@
+name: fitnet
+ce_alpha: 0.65
+kd_alpha: 0.35
+# Use aligned adapter feature key to avoid shape/key mismatches
+hint_layer: distill_feat
+hint_beta: 50.0

@@ -15,24 +15,27 @@ experiment:
 
   num_stages: 4
   student_epochs_per_stage: [20, 20, 20, 20]
-  teacher_adapt_epochs: 6
+  teacher_adapt_epochs: 4
   compute_teacher_eval: true
 
   use_amp: true
   amp_dtype: bfloat16
 
-  # KD (synergy target with gating/mix)
-  kd_target: synergy
-  teacher_adapt_kd_warmup: 6
-  kd_ens_alpha: 0.5
-  enable_kd_after_syn_acc: 0.8
+  # KD (auto_min + two_view + centering)
+  kd_target: auto_min
+  kd_auto_policy: label_ce
+  kd_target_mode: two_view
+  kd_center_teacher: true
+  teacher_adapt_kd_warmup: 0
+  kd_ens_alpha: 0.0
+  enable_kd_after_syn_acc: 0.65
   ce_alpha: 0.65
   kd_alpha: 0.35
-  tau_schedule: [3.5, 5.0]
+  tau: 4.0
   kd_warmup_epochs: 3
   kd_max_ratio: 1.25
-  ce_label_smoothing: 0.0
-  feat_kd_alpha: 0.25
+  ce_label_smoothing: 0.05
+  feat_kd_alpha: 0.0
   max_cw: 1.5
   min_cw: 0.5
 
@@ -62,7 +65,8 @@ experiment:
   teacher_weight_decay: 1e-4
 
   # A‑Step 안정화
-  synergy_only_epochs: 8
+  synergy_only_epochs: 2
+  disable_loss_clamp_in_a: true
   synergy_ce_alpha: 1.0
 
   use_distillation_adapter: true

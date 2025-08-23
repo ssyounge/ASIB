@@ -1,0 +1,6 @@
+name: vanilla_kd
+ce_alpha: 0.5
+kd_alpha: 0.5
+# Use constant tau or mild schedule for stability
+tau: 4.0
+kd_warmup_epochs: 5

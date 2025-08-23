@@ -1,0 +1,64 @@
+name: asib
+
+# KD losses
+ce_alpha: 0.65
+kd_alpha: 0.35
+kd_ens_alpha: 0.0
+tau: 4.0
+
+# KD target policy (ASIB++)
+kd_target: auto_min
+kd_auto_policy: label_ce
+kd_target_mode: two_view
+kd_target_view: clean
+synergy_view: clean
+kd_center_teacher: true
+
+# ASIB core
+use_ib: true
+ib_beta: 5.0e-05
+ib_beta_warmup_epochs: 5
+use_mu_for_kd: true
+
+# Synergy calibration
+synergy_temp_learnable: true
+synergy_temp_reg: 1.0e-4
+synergy_logit_scale: 1.0
+tau_syn: 4.0
+
+# A-Step (teacher adaptation) and gating
+teacher_adapt_epochs: 4
+synergy_only_epochs: 2
+enable_kd_after_syn_acc: 0.65
+teacher_adapt_kd_warmup: 0
+kd_warmup_epochs: 10
+
+# EMA teacher (KD ensemble)
+use_ema_teacher: true
+ema_decay: 0.999
+ema_update_every: 1
+
+# Uncertainty weighting for KD
+kd_uncertainty_weight: 0.5
+kd_uncertainty_min: 0.2
+
+# Synergy probing
+synergy_probe_every: 100
+
+# Partial freeze policy (light stabilization)
+use_partial_freeze: true
+student_freeze_level: 1
+student_freeze_bn: true
+
+# Optimizer suggestion for CIFAR-100 scale
+optimizer: sgd
+student_lr: 0.1
+student_weight_decay: 0.0005
+
+# Misc method params
+feat_kd_alpha: 0.05
+teacher_weights: [0.7, 0.3]
+use_distillation_adapter: true
+min_cw: 0.5
+max_cw: 1.5
+kd_max_ratio: 1.25

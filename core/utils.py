@@ -45,10 +45,11 @@ def setup_partial_freeze_schedule_with_cfg(cfg: Dict[str, Any], num_stages: int)
     plan = target.get("student_freeze_schedule")
     if plan is None:
         plan = [max(-1, fl - s) for s in range(num_stages)]
+    # Normalize by pad/truncate instead of raising, to avoid unintended hard failure
     if len(plan) < num_stages:
-        raise ValueError(
-            f"student_freeze_schedule 길이({len(plan)}) < num_stages({num_stages})"
-        )
+        plan = plan + [plan[-1] if plan else -1] * (num_stages - len(plan))
+    elif len(plan) > num_stages:
+        plan = plan[:num_stages]
     target["student_freeze_schedule"] = plan
 
     # Auto-set student_pretrained based on freeze schedule
@@ -76,10 +77,24 @@ def setup_safety_switches_with_cfg(cfg: Dict[str, Any], num_stages: int):
     """Setup safety switches for partial freeze (supports nested cfg['experiment'])."""
     target = cfg.get("experiment") if isinstance(cfg.get("experiment"), dict) else cfg
     if not target.get("use_partial_freeze", False):
-        target["student_freeze_level"] = -1
-        target["teacher1_freeze_level"] = -1
-        target["teacher2_freeze_level"] = -1
-        target["student_freeze_schedule"] = [-1] * num_stages
+        # Respect user/anchor values; only fill defaults if missing
+        if "student_freeze_level" not in target:
+            target["student_freeze_level"] = -1
+        if "teacher1_freeze_level" not in target:
+            target["teacher1_freeze_level"] = -1
+        if "teacher2_freeze_level" not in target:
+            target["teacher2_freeze_level"] = -1
+        if "student_freeze_schedule" not in target:
+            target["student_freeze_schedule"] = [-1] * num_stages
+    else:
+        # If schedule exists but has mismatched length, normalize by pad/truncate
+        plan = target.get("student_freeze_schedule")
+        if isinstance(plan, list) and len(plan) != num_stages:
+            if len(plan) < num_stages:
+                plan = plan + [-1] * (num_stages - len(plan))
+            else:
+                plan = plan[:num_stages]
+            target["student_freeze_schedule"] = plan
 
 
 def auto_set_ib_mbm_query_dim(cfg: Dict[str, Any]):

@@ -15,7 +15,12 @@ set -euo pipefail
 
 # Python 환경 설정
 echo "🔧 Setting up Python environment..."
-export PATH="$HOME/anaconda3/envs/tlqkf/bin:$PATH"
+set +u
+if [ -f "$HOME/anaconda3/etc/profile.d/conda.sh" ]; then
+  source "$HOME/anaconda3/etc/profile.d/conda.sh"
+fi
+conda activate tlqkf || export PATH="$HOME/anaconda3/envs/tlqkf/bin:$PATH"
+set -u
 echo "✅ Python environment setup completed"
 echo ""
 
@@ -48,7 +53,7 @@ export CUDA_LAUNCH_BLOCKING=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # PyTorch CUDA 12.4 라이브러리 사용
-export LD_LIBRARY_PATH="$HOME/anaconda3/envs/tlqkf/lib/python3.12/site-packages/torch/lib:$LD_LIBRARY_PATH"
+unset LD_LIBRARY_PATH || true
 export CUDA_HOME="$HOME/anaconda3/envs/tlqkf/lib/python3.12/site-packages/torch/lib"
 
 # PyTorch CUDA 설정
@@ -76,14 +81,48 @@ TEACHERS=(
     #"resnet152_imagenet32"     # ResNet152 (ImageNet-32)
 )
 
-# 5) 각 teacher 순차적으로 finetune
-for teacher in "${TEACHERS[@]}"; do
+# 5) 각 teacher 순차적으로 finetune (배열 크기에 맞게 자동 확장 지원)
+RUNS=("${TEACHERS[@]}")
+N_RUNS=${#RUNS[@]}
+echo "🧮 Planned runs: ${N_RUNS}"
+
+if [[ -n "${SLURM_ARRAY_TASK_COUNT:-}" ]]; then
+  TARGET=${SLURM_ARRAY_TASK_COUNT}
+  if (( N_RUNS < TARGET && N_RUNS > 0 )); then
+    NEW_RUNS=()
+    for (( i=0; i<TARGET; i++ )); do
+      base_idx=$(( i % N_RUNS ))
+      NEW_RUNS+=("${RUNS[$base_idx]}")
+    done
+    RUNS=("${NEW_RUNS[@]}")
+    N_RUNS=${#RUNS[@]}
+    echo "🧩 Auto-expanded RUNS to match array: ${N_RUNS}"
+  fi
+fi
+
+if [[ -n "${SLURM_ARRAY_TASK_ID:-}" ]]; then
+  idx="${SLURM_ARRAY_TASK_ID}"
+  if (( idx >= N_RUNS )); then
+    echo "ℹ️  Array index ${idx} >= N_RUNS ${N_RUNS} → nothing to do."; exit 0
+  fi
+  RUNS=("${RUNS[$idx]}")
+  N_RUNS=1
+fi
+
+for teacher in "${RUNS[@]}"; do
     echo "🚀 Starting finetune for: $teacher"
     echo "=================================================="
     
     # finetune 실행
+    # Hydra-safe 인자만 전달
+    PASSTHRU_ARGS=()
+    for a in "$@"; do
+      if [[ "$a" == -* || "$a" == *=* || "$a" == +*=* ]]; then
+        PASSTHRU_ARGS+=("$a")
+      fi
+    done
     python scripts/training/fine_tuning.py -cn="finetune/$teacher" \
-        "$@"
+        "${PASSTHRU_ARGS[@]}"
     
     echo "✅ Finished finetune for: $teacher"
     echo "=================================================="

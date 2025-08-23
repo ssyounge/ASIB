@@ -15,23 +15,26 @@ experiment:
 
   num_stages: 4
   student_epochs_per_stage: [20, 20, 20, 20]
-  teacher_adapt_epochs: 6
+  teacher_adapt_epochs: 4
   compute_teacher_eval: true
 
   use_amp: true
   amp_dtype: bfloat16
 
-  # KD (synergy target with gating/mix)
-  kd_target: synergy
-  teacher_adapt_kd_warmup: 6
-  kd_ens_alpha: 0.5
-  enable_kd_after_syn_acc: 0.8
+  # KD (auto_min + two_view + centering)
+  kd_target: auto_min
+  kd_auto_policy: label_ce
+  kd_target_mode: two_view
+  kd_center_teacher: true
+  teacher_adapt_kd_warmup: 0
+  kd_ens_alpha: 0.0
+  enable_kd_after_syn_acc: 0.65
   ce_alpha: 0.65
   kd_alpha: 0.35
-  tau_schedule: [3.5, 5.0]
+  tau: 4.0
   kd_warmup_epochs: 3
   kd_max_ratio: 1.25
-  ce_label_smoothing: 0.0
+  ce_label_smoothing: 0.05
   feat_kd_alpha: 0.25
   min_cw: 0.5
   max_cw: 1.5
@@ -71,8 +74,9 @@ experiment:
   teacher2_freeze_bn: true
 
   # A‑Step 안정화
-  synergy_only_epochs: 8
+  synergy_only_epochs: 2
   synergy_ce_alpha: 1.0
+  disable_loss_clamp_in_a: true
 
   use_distillation_adapter: true
   distill_out_dim: 512
@@ -91,5 +95,20 @@ experiment:
   schedule: { type: cosine, lr_warmup_epochs: 5, min_lr: 1e-6 }
   mixup_alpha: 0.2
   cutmix_alpha_distill: 1.0
+
+  # Full spec extras (EMA, uncertainty, cooldown, teacher2 decay)
+  use_ema_teacher: true
+  ema_decay: 0.999
+  ema_update_every: 1
+  kd_uncertainty_weight: 0.5
+  kd_uncertainty_min: 0.2
+  kd_correct_min: 0.2
+  kd_cooldown_epochs: 10
+  teacher2_weight_decay_start_epoch: 30
+  teacher2_weight_decay_len: 10
+  synergy_temp_learnable: true
+  synergy_logit_scale: 1.0
+  tau_syn: 4.0
+  synergy_probe_every: 10
 
 

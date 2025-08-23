@@ -8,11 +8,70 @@ ASIB 프레임워크의 전반 구조, 메소드(IB, CCCP, PPF/FFP), 핵심 모�
   - 스테이지/스케줄: `num_stages: 4`, `student_epochs_per_stage: [20, 20, 20, 20]`, `schedule: { type: cosine, lr_warmup_epochs: 5, min_lr: 1e-6 }`
   - 증강: `mixup_alpha: 0.2`, `cutmix_alpha_distill: 1.0`
   - Adapter/Feature: `use_distillation_adapter: true`, `distill_out_dim: 512`, `feat_kd_alpha: 0.0`, `feat_kd_key: distill_feat`
-- IB 가드(IB 사용하는 설정에만 적용): `ib_mbm_out_dim: 512`, `ib_mbm_logvar_clip: 4`, `ib_mbm_min_std: 0.01`, `ib_mbm_lr_factor: 2`, `ib_beta: 0.0001(또는 0.00005)`, `ib_beta_warmup_epochs: 4~6`, `synergy_only_epochs: 8`, `enable_kd_after_syn_acc: 0.8`
+- IB 가드(IB 사용하는 설정에만 적용): `ib_mbm_out_dim: 512`, `ib_mbm_logvar_clip: 4`, `ib_mbm_min_std: 0.01`, `ib_mbm_lr_factor: 2`, `ib_beta: 0.0001(또는 0.00005)`, `ib_beta_warmup_epochs: 4~6`, `synergy_only_epochs: 2`, `enable_kd_after_syn_acc: 0.8`, `disable_loss_clamp_in_a: true`
 - PPF/BN: `L4_full`/`side_cccp_ppf`에서 `student_freeze_bn: true` 권장
-- A‑Step 안정화(코드 반영): 초기 `synergy_only_epochs` 동안 CE‑only(IB‑KL=0, KD=0, cw=1.0), logvar 클리핑. 에폭 종료 시 `last_synergy_acc`를 cfg와 logger에 저장.
+- A‑Step 안정화: asib_stage.yaml에 `label_smoothing=0.05`, `synergy_head_dropout=0.05`, `teacher_eval_every=2`, `synergy_ema_alpha=0.8` 반영. 초기 `synergy_only_epochs` 동안 CE‑only(IB‑KL=0, KD=0, cw=1.0)로 안정화. 에폭 종료 시 `last_synergy_acc`를 EMA로 갱신.
 - B‑Step 시너지 게이트(코드 반영): `_synergy_gate_ok`로 `last_synergy_acc ≥ enable_kd_after_syn_acc`일 때만 IB_MBM/zsyn/μ‑KD 활성. 임계 미만이면 avg‑KD만 사용. KD 벡터는 `nan_to_num`으로 안전 처리, μ‑KD는 Huber/clip 옵션(`feat_kd_clip`, `feat_kd_huber_beta`).
 - 실행/구성: `-cn="experiment/<CFG>"` + 루트 오버라이드(`+seed=`). normalize 이후 `method.*` 서브트리 제거, `[CFG] kd_target/ce/kd/ib_beta` 한 줄 로그 출력.
+
+### 2025-08 추가 반영 (코드→문서 동기화)
+- IB_MBM 내부 안정화: q/kv에 `LayerNorm`(pre‑norm) 적용, MHA 출력에 q residual 후 `LayerNorm`(`out_norm`). SynergyHead는 `LayerNorm+GELU+Dropout+Linear`로 교체(로짓 안정화), 선택적으로 learnable temperature(`synergy_temp_learnable`, `synergy_temp_init`) 지원.
+- μ‑KD 기본화: B‑Step에서 `use_mu_for_kd: true`일 때 `synergy_head(mu)`를 KD 타깃으로 사용(노이즈 억제). 기본값 on.
+- KD 클램프 스케줄: `kd_max_ratio`는 `kd_warmup_epochs` 이후에만 적용(초기 과도 제약 방지).
+- 시너지 평가/게이팅 안정화: `teacher_eval_every`(기본 2ep 간격)로 평가 빈도 조절, `synergy_ema_alpha`(기본 0.8)로 `last_synergy_acc` EMA 반영.
+  - EMA 업데이트 가드: 평가를 건너뛴 에폭에서는 EMA를 업데이트하지 않음(음수/무효 값 유입 방지)
+  - eval_synergy 진입 시 teachers/IB_MBM/SynergyHead를 eval()로 강제 후 기존 모드 복원
+- 작은 학생 자동 차원 정렬: `mobilenet_v2`/`efficientnet_b0`/`shufflenet_v2`는 `distill_out_dim=256` 권장, `ib_mbm_out_dim`을 동일 값으로 자동 정렬. MobileNetV2는 분류 경로 1280ch 유지(어댑터 분기 분리), CIFAR stem(stride=1) 적용.
+- 교사 quick_eval 가속: GPU+AMP+bfloat16로 빠르게 평가(`teacher_eval_on_gpu`, `teacher_eval_amp`, `teacher_eval_batch_size`, `teacher_eval_max_batches`), safe‑mode에서도 평가 구간에 한해 `teacher_eval_force_cudnn=true`로 cuDNN/TF32 일시 활성화.
+  - zero_grad 최적화: A‑Step에서 `optimizer.zero_grad(set_to_none=True)` 사용
+  - 스냅샷 메모리 최적화: A‑Step `best_state`/`backup_state`를 CPU(state_dict)로 저장해 VRAM 파편화 방지
+  - 첫 스텝 요약 로그: ep=1/step=1에 KD 게이트/가중치, cw 통계, raw KLD, ib_beta를 한 줄로 출력해 튜닝 가속
+
+주의: CLI 최소 오버라이드 규칙(Strict 모드 호환)
+- 허용(권장): `+experiment/method=<name>`, `+results_dir=...`, `+exp_id=...`, `+seed=...`
+- 대안: `experiment/method@experiment.experiment.method=<name>` (defaults 항목 교체)
+- 금지(CLI로 덮지 말 것): `optimizer`, `dataset.*`, `kd_target`, `kd_alpha/ce_alpha`, `teacher*_ckpt`, `compute_teacher_eval`, `method_name` 등 모든 leaf 키. 이 값들은 반드시 설정 파일(YAML)에서 정의하세요.
+
+메소드 우선 규칙: `normalize_exp`가 `experiment.method` 값을 최상위로 승격. 메소드별 가드는 코드에서 강제하지 않고 YAML/CLI를 신뢰(asib_stage는 YAML에서 구성).
+
+### 구성 락/해시 정책
+- 실행 전 효과적 구성은 해시로 잠금되며 `before_run`/`before_safe_retry`/`after_run` 시점에 검증합니다.
+- 해시에서 제외되는 런타임 변동 키(허용된 변이): `config_sha256`, `locked`, `use_amp`, `teacher1_ckpt`, `teacher2_ckpt`, `ib_mbm_out_dim`, `ib_mbm_query_dim`, `auto_align_ib_out_dim`, `_locked_config`, `csv_filename`, `total_time_sec`, `final_student_acc`, `last_synergy_acc`, `last_synergy_acc_pct`, `kd_gate_on`, `optimizer`, `hydra_method`, `cur_stage`, `effective_teacher_lr`, `effective_teacher_wd`, `num_classes`, 그리고 접두어 `student_ep*`/`teacher_ep*`/`epoch*`/`csv_*` 로 시작하는 모든 메트릭.
+- SAFE‑RETRY 중 `use_amp`가 `false`로 강제될 수 있으나, 이는 해시 제외 키이므로 락 위반이 아닙니다.
+- 작은 학생 자동 정렬로 `distill_out_dim` 기준 `ib_mbm_out_dim`/`ib_mbm_query_dim`이 조정될 수 있으며, 이 역시 해시 제외 대상입니다.
+ - finalize_config에서 `teacher_lr`/`teacher_weight_decay`를 `a_step_*`에서 사전 확정하여 락 이후 변이를 방지합니다.
+
+### KD 타깃 정책(요약)
+- weighted_conf: 교사별 최고 확률(confidence)을 per‑sample 가중치로 사용해 로짓을 가중합.
+- auto: 게이트 통과 시 synergy 사용, 실패 시 weighted_conf로 폴백. 내부적으로 `min(KL_syn, KL_avg)`를 사용하고 승률(`student_epN_auto_syn_win_ratio`)을 로깅해 분석합니다.
+- 단일교사: `kd_teacher_index`로 선택.
+
+### 시너지 평가/안정화
+- eval 시 IB_MBM은 z 대신 μ를 사용(sample=False)해 노이즈를 줄입니다.
+- A‑Step에서만 `last_synergy_acc` EMA를 갱신(update_logger=True); B‑Step은 모니터링 전용.
+
+### W&B 로깅(옵션)
+- 에폭별 `gate_ratio`, `kd_syn_ratio`, `kd_clamp_ratio`, `kd_scale_mean`, `kd_tgt_mode`, `kd_alpha_eff` 등을 함께 로깅해 튜닝 피드백을 가속합니다.
+
+## 런타임 안정화 업데이트 (2025-08)
+- safe‑mode에서 cuDNN 완전 비활성: `torch.backends.cudnn.enabled = False` (TF32/benchmark도 OFF)
+- 멀티프로세싱 start_method 강제 해제: `set_start_method("spawn", ...)` 제거
+- DataLoader 정책 통일: `pin_memory = (num_workers > 0)`, `persistent_workers = (num_workers > 0)`, `prefetch_factor = (... if num_workers > 0 else None)` — `imagenet32.py`, `cifar100_overlap.py` 반영
+- 러너 환경 정리: `unset LD_LIBRARY_PATH`; NCCL 완전 비활성 `NCCL_P2P_DISABLE=1 NCCL_IB_DISABLE=1 NCCL_SHM_DISABLE=1 NCCL_ASYNC_ERROR_HANDLING=1 NCCL_DEBUG=WARN`
+- 스모크 권장(10~20ep): CE‑only, workers=0, AMP off, channels_last off
+
+```bash
+env -i PATH="$PATH" HOME="$HOME" USER="$USER" PYTHONPATH="$PYTHONPATH" \
+CUDA_LAUNCH_BLOCKING=1 NVIDIA_TF32_OVERRIDE=0 PYTORCH_NVFUSER_DISABLE=1 \
+TORCH_USE_CUDA_DSA=1 CUDA_MODULE_LOADING=LAZY NCCL_P2P_DISABLE=1 \
+NCCL_IB_DISABLE=1 NCCL_SHM_DISABLE=1 NCCL_ASYNC_ERROR_HANDLING=1 NCCL_DEBUG=WARN \
+$HOME/anaconda3/envs/tlqkf/bin/python -u main.py -cn=experiment/sota_generic \
++results_dir=experiments/smoke/ce_only_gpu +exp_id=ce_only_gpu_smoke +seed=42 \
++experiment.student_lr=0.05 +experiment.compute_teacher_eval=false \
++experiment.dataset.num_workers=0 +experiment.use_amp=false \
++experiment.use_safe_mode=true +experiment.use_channels_last=false \
+experiment/method@experiment.experiment.method=ce_only
+```
 
 ## 1) 아키텍처 개요
 - Teachers(교사 2개): `teacher1`, `teacher2` 고정 백본에서 특징 추출
@@ -55,16 +114,31 @@ ASIB 프레임워크의 전반 구조, 메소드(IB, CCCP, PPF/FFP), 핵심 모�
   - `model.student.name`, `pretrained`, `use_adapter`
   - `teacher1/2.name`, `pretrained`
 - 손실/KD
-  - `kd_target`('synergy'), `ce_alpha`, `kd_alpha`, `kd_ens_alpha`, `feat_kd_alpha`, `feat_kd_key`('distill_feat')
-  - `use_loss_clamp`, `loss_clamp_max`
+  - `kd_target` ('teacher' | 'avg' | 'synergy' | 'auto'), `ce_alpha`, `kd_alpha`, `kd_ens_alpha`, `feat_kd_alpha`, `feat_kd_key`('distill_feat')
+  - `synergy_logit_scale`(float), `tau_syn`(float)
+  - SynergyHead 옵션: `synergy_head_dropout`(float), `synergy_temp_learnable`(bool), `synergy_temp_init`(float)
+  - `use_loss_clamp`, `loss_clamp_max`, `kd_max_ratio`(워밍업 이후 적용)
+  - `use_mu_for_kd`(bool; B‑Step KD 타깃으로 μ 사용)
 - IB
   - `use_ib`, `ib_beta`, `ib_beta_warmup_epochs`, `ib_epochs_per_stage`, `ib_mbm_query_dim`(auto), `ib_mbm_out_dim`, `ib_mbm_n_head`, `ib_mbm_feature_norm`, `ib_mbm_reg_lambda`
 - CCCP
   - `use_cccp`, `cccp_alpha`, `tau`, `cccp_nt`, `cccp_ns`
 - PPF/Finetuning
   - `use_partial_freeze`, `student_freeze_level`, `teacher*_freeze_level`, `*freeze_bn`, `use_teacher_finetuning`, `train_distill_adapter_only`
+  
+- 시너지 평가/게이팅 안정화
+  - `teacher_eval_every`(int): A‑Step 시너지 평가 주기(기본 2)
+  - `synergy_ema_alpha`(float): `last_synergy_acc` EMA 계수(기본 0.8)
+
+- 교사 quick_eval(시작 지연 단축)
+  - `compute_teacher_eval`, `teacher_eval_on_gpu`, `teacher_eval_amp`, `teacher_eval_batch_size`, `teacher_eval_max_batches`, `teacher_eval_force_cudnn`
 - 최적화/스케줄/AMP
   - `optimizer`, `student_lr`, `student_weight_decay`, `schedule.type`, `lr_warmup_epochs`, `min_lr`, `use_amp`, `amp_dtype`('float16'|'bfloat16')
+
+주의(라벨 스무딩 키 구분)
+- A-Step(교사/IB 적응): `label_smoothing` 키 사용(teacher CE에 적용)
+- B-Step(학생 증류): `ce_label_smoothing` 키 사용(학생 CE에 적용)
+- 혼선을 피하려면 하나의 키로 통일 가능하지만, 현재 코드는 위처럼 단계별로 분리되어 있으니 설정 시 구분하여 사용하세요.
 
 ## 4) 최소 설정 템플릿(복붙용)
 ```yaml
@@ -245,8 +319,9 @@ def student_distillation_update(teacher_wrappers, ib_mbm, synergy_head, student_
         cur_tau = get_tau(cfg, epoch=global_ep + ep, total_epochs=scheduler.T_max if scheduler else cfg.get("total_epochs", 1))
         for step, (x, y) in enumerate(smart_tqdm(trainloader, desc=f"[StudentDistill ep={ep+1}]")):
             # student forward → s_logit, s_feat
-            # teacher forward (조건부) → t1_dict, t2_dict, f1_2d, f2_2d
-            # IB_MBM (조건부) → zsyn_ng, mu_ng, logvar_ng
+            # teacher forward (조건부, K개 일반화) → t_feats(list), t_logits(list)
+            # KD 타깃 모드: teacher(idx) | avg(가중) | synergy/auto(게이트)
+            # IB_MBM (조건부: use_ib ∧ gate ∧ K>1) → zsyn_ng, mu_ng, logvar_ng
             # CE, KD, (옵션)Feat-KD 계산 후 가중 합산 + (옵션)loss clamp
             # grad clip, scaler.step/update
         # validate, log, scheduler.step, best snapshot
@@ -362,6 +437,18 @@ def get_amp_components(cfg):
     except TypeError:
         scaler = GradScaler(init_scale=int(cfg.get("grad_scaler_init_scale", 1024)))
     return autocast_ctx, scaler
+
+### 10.2 Teacher quick_eval 가속 옵션
+```yaml
+# 빠른 시작을 위한 권장(예)
+experiment:
+  compute_teacher_eval: true
+  teacher_eval_on_gpu: true
+  teacher_eval_amp: true
+  teacher_eval_batch_size: 128     # OOM 시 64
+  teacher_eval_max_batches: 10     # 부분 평가
+  teacher_eval_force_cudnn: true   # safe‑mode에서도 평가만 빠르게
+```
 ```
 
 ## 11) 데이터 로더
@@ -480,6 +567,21 @@ def create_optimizers_and_schedulers(teachers, ib_mbm, synergy_head, student, cf
 - 로깅/실험ID 초기화, AMP/GradScaler 준비
 - `renorm_ce_kd(cfg)`로 가중치 정규화(필요 시)
 - `run_training_stages(...)` 실행 → 결과/메타 `ExperimentLogger` 저장(finalize)
+- 실행 예(Strict 모드, 최소 오버라이드):
+  - Vanilla KD
+    - `python -u main.py -cn=experiment/sota_generic \\
+       +experiment/method=vanilla_kd \\
+       +results_dir=experiments/sota/r152_mbv2/vanilla_kd/results \\
+       +exp_id=r152_mbv2_vanilla \\
+       +seed=42`
+  - DKD
+    - `python -u main.py -cn=experiment/sota_generic \\
+       +experiment/method=dkd \\
+       +results_dir=experiments/sota/cnexts_eb0/dkd/results \\
+       +exp_id=cnexts_eb0_dkd \\
+       +seed=42`
+
+참고: 교사/학생 선택, 체크포인트 경로, 데이터/옵티마/하이퍼(예: `kd_target`, `student_lr`) 등 모든 leaf 키는 YAML 설정(`experiment/sota_generic.yaml` 등)에서 정의하세요. CLI에서는 그룹 선택과 실행 메타(`results_dir`, `exp_id`, `seed`)만 추가합니다.
 - ablation: 대상 메소드 외 설정은 베이스라인과 동일 유지
 
 ## 16) 추가 참고(테스트/스크립트 근거)
@@ -570,53 +672,53 @@ class ExperimentLogger:
 ```python
 from models import build_ib_mbm_from_teachers as build_from_teachers
 
-ib_mbm, synergy_head = build_from_teachers([teacher1, teacher2], cfg, query_dim=cfg.get("ib_mbm_query_dim"))
-# 내부 검사: use_distillation_adapter가 꺼져 있으면 teacher feature dims 동일해야 함
-# q_dim 미지정 시 오류. out_dim/n_head/clip/min_std 등 cfg로 제어 가능
+ib_mbm, synergy_head = build_from_teachers(
+    [teacher1, teacher2], cfg, query_dim=cfg.get("ib_mbm_query_dim")
+)
+# 내부 검사: use_distillation_adapter=false면 teacher feature dims 동일해야 함
+# SynergyHead: dropout(`synergy_head_dropout`), temperature(`synergy_temp_*`) 옵션 지원
 ```
 
 ## 19) 설정 예시 모음(발췌)
 ```yaml
-# L2_cccp.yaml 중요 키만 발췌
+# SOTA generic (단일 파일 + CLI 오버라이드)
+defaults:
+  - /base
+  - /model/teacher@experiment.teacher1: resnet152
+  - /model/teacher@experiment.teacher2: convnext_s
+  - /model/student@experiment.model.student: mobilenet_v2_scratch
+  - _self_
+
 experiment:
-  results_dir: experiments/ablation/cccp/results
-  exp_id: L2_cccp
-  num_stages: 2
-  student_epochs_per_stage: [20, 20]
-  teacher_adapt_epochs: 12
+  exp_id: sota_generic
+  results_dir: experiments/sota/generic/results
+  dataset: { name: cifar100, batch_size: 128, num_workers: 4, data_aug: 1 }
+  num_stages: 1
+  student_epochs_per_stage: [240]
+  compute_teacher_eval: false
   use_amp: true
   amp_dtype: bfloat16
-  # IB
-  use_ib: true
-  ib_epochs_per_stage: 12
-  ib_beta: 0.00005
-  ib_beta_warmup_epochs: 8
-  # Adapter/IB_MBM
-  use_distillation_adapter: true
-  distill_out_dim: 512
-  ib_mbm_query_dim: 512
-  ib_mbm_out_dim: 512
-  ib_mbm_n_head: 4
-  # CCCP
-  use_cccp: true
-  cccp_alpha: 0.25
-  tau: 4.0
-  cccp_nt: 1
-  cccp_ns: 1
-  # Optim/Sched
-  optimizer: adamw
-  student_lr: 0.001
-  student_weight_decay: 0.0003
-  grad_clip_norm: 0.5
-  a_step_lr: 0.0001
-  # KD
+  teacher1_ckpt: null
+  teacher2_ckpt: null
+  # kd_target / use_ib / teacher_adapt_epochs / use_partial_freeze 는 메소드 파일이 결정
+  kd_teacher_index: 0
   ce_alpha: 0.65
   kd_alpha: 0.35
-  kd_ens_alpha: 0.0
-  kd_max_ratio: 2.0
-  tau_schedule: [2.0, 6.0]
-  teacher_adapt_kd_warmup: 0
-  use_loss_clamp: false
+  kd_warmup_epochs: 3
+  kd_max_ratio: 1.25
+  tau: 4.0
+  ce_label_smoothing: 0.0
+  use_distillation_adapter: true
+  distill_out_dim: 256
+  feat_kd_key: distill_feat
+  optimizer: sgd
+  student_lr: 0.1
+  student_weight_decay: 0.0005
+  b_step_momentum: 0.9
+  b_step_nesterov: true
+  schedule: { type: cosine, lr_warmup_epochs: 5, min_lr: 1e-5 }
+  mixup_alpha: 0.0
+  cutmix_alpha_distill: 0.0
 ```
 
 ## 20) 실행 스크립트 아웃라인(비교 실험)
@@ -1523,13 +1625,20 @@ def get_amp_components(cfg):
 
 ## 28) IB_MBM Builder (Full)
 ```python
-def build_ib_mbm_from_teachers(teachers: List[nn.Module], cfg: dict, query_dim: Optional[int] = None) -> Tuple[IB_MBM, SynergyHead]:
+def build_ib_mbm_from_teachers(
+    teachers: List[nn.Module], cfg: dict, query_dim: Optional[int] = None
+) -> Tuple[IB_MBM, SynergyHead]:
     use_da = bool(cfg.get("use_distillation_adapter", False))
-    feat_dims = [ (t.distill_dim if use_da and hasattr(t, "distill_dim") else t.get_feat_dim()) for t in teachers ]
+    feat_dims = [
+        (t.distill_dim if use_da and hasattr(t, "distill_dim") else t.get_feat_dim())
+        for t in teachers
+    ]
     if not use_da:
         unique_dims = set(int(d) for d in feat_dims)
         if len(unique_dims) > 1:
-            raise ValueError("Teacher feature dims differ. Enable use_distillation_adapter to align dimensions.")
+            raise ValueError(
+                "Teacher feature dims differ. Enable use_distillation_adapter to align dimensions."
+            )
     qdim = cfg.get("ib_mbm_query_dim") or query_dim
     if not qdim:
         raise ValueError("`ib_mbm_query_dim` must be specified for IB_MBM.")
@@ -1546,6 +1655,8 @@ def build_ib_mbm_from_teachers(teachers: List[nn.Module], cfg: dict, query_dim: 
         in_dim=cfg.get("ib_mbm_out_dim", 512),
         num_classes=cfg.get("num_classes", 100),
         p=cfg.get("synergy_head_dropout", cfg.get("ib_mbm_dropout", 0.0)),
+        learnable_temp=bool(cfg.get("synergy_temp_learnable", False)),
+        temp_init=float(cfg.get("synergy_temp_init", 0.0)),
     )
     return ib_mbm, head
 ```

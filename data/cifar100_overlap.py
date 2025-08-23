@@ -4,6 +4,7 @@
 
 import torch
 from torch.utils.data import Dataset, DataLoader, Subset
+from multiprocessing import get_context
 from data.cifar100 import get_cifar100_loaders
 import numpy as np
 from utils.data.overlap import make_pairs
@@ -32,7 +33,7 @@ class CIFAR100OverlapDataset(Dataset):
         x, y = self.dataset[i]
         return x, self._label_map[y]
 
-def get_overlap_loaders(pct_overlap, batch_size, num_workers=2, augment=True, seed=42):
+def get_overlap_loaders(pct_overlap, batch_size, num_workers=2, augment=True, seed=42, use_spawn_dl: bool = False):
     """Get CIFAR-100 loaders with class overlap"""
     
     # Get base CIFAR-100 loaders
@@ -56,12 +57,16 @@ def get_overlap_loaders(pct_overlap, batch_size, num_workers=2, augment=True, se
     t2_test_dataset = CIFAR100OverlapDataset(test_loader.dataset, t2_classes)
     
     # Create data loaders
+    pin = True if num_workers > 0 else False
+    mp_ctx = get_context("spawn") if (num_workers > 0 and bool(use_spawn_dl)) else None
     t1_train_loader = DataLoader(
         t1_train_dataset,
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers,
-        pin_memory=True
+        pin_memory=pin,
+        persistent_workers=pin,
+        multiprocessing_context=mp_ctx
     )
     
     t1_test_loader = DataLoader(
@@ -69,7 +74,9 @@ def get_overlap_loaders(pct_overlap, batch_size, num_workers=2, augment=True, se
         batch_size=batch_size,
         shuffle=False,
         num_workers=num_workers,
-        pin_memory=True
+        pin_memory=pin,
+        persistent_workers=pin,
+        multiprocessing_context=mp_ctx
     )
     
     t2_train_loader = DataLoader(
@@ -77,7 +84,9 @@ def get_overlap_loaders(pct_overlap, batch_size, num_workers=2, augment=True, se
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers,
-        pin_memory=True
+        pin_memory=pin,
+        persistent_workers=pin,
+        multiprocessing_context=mp_ctx
     )
     
     t2_test_loader = DataLoader(
@@ -85,7 +94,9 @@ def get_overlap_loaders(pct_overlap, batch_size, num_workers=2, augment=True, se
         batch_size=batch_size,
         shuffle=False,
         num_workers=num_workers,
-        pin_memory=True
+        pin_memory=pin,
+        persistent_workers=pin,
+        multiprocessing_context=mp_ctx
     )
     
     return (t1_train_loader, t1_test_loader), (t2_train_loader, t2_test_loader), pairs 

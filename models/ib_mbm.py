@@ -25,55 +25,80 @@ class IB_MBM(nn.Module):
         super().__init__()
         self.q_proj = nn.Linear(q_dim, d_emb)
         self.kv_proj = nn.Linear(kv_dim, d_emb)
+        self.q_norm = nn.LayerNorm(d_emb)
+        self.kv_norm = nn.LayerNorm(d_emb)
         self.attn = nn.MultiheadAttention(d_emb, n_head, batch_first=True)
+        self.out_norm = nn.LayerNorm(d_emb)
         self.mu = nn.Linear(d_emb, d_emb)
         self.logvar = nn.Linear(d_emb, d_emb)
         self.beta = beta
         self.logvar_clip = float(logvar_clip)
         self.min_std = float(min_std)
 
-    def forward(self, q_feat: torch.Tensor, kv_feats: torch.Tensor):
+    def forward(self, q_feat: torch.Tensor, kv_feats: torch.Tensor, sample: bool = True):
         if q_feat.dim() == 2:
-            q = self.q_proj(q_feat).unsqueeze(1)
+            q = self.q_norm(self.q_proj(q_feat)).unsqueeze(1)
         else:
-            q = self.q_proj(q_feat)
+            q = self.q_norm(self.q_proj(q_feat))
 
         if kv_feats.dim() == 4:
             batch_size = kv_feats.shape[0]
             kv_feats = kv_feats.view(batch_size, -1)
-            kv = self.kv_proj(kv_feats).unsqueeze(1)
+            kv = self.kv_norm(self.kv_proj(kv_feats)).unsqueeze(1)
         elif kv_feats.dim() == 3:
             # Support both per-token projection (in_features == feat_dim)
             # and flattened projection (in_features == tokens * feat_dim)
             bsz, tokens, feat_dim = kv_feats.shape
             in_features = self.kv_proj.in_features
             if in_features == feat_dim:
-                kv = self.kv_proj(kv_feats)  # (B, tokens, d_emb)
+                kv = self.kv_norm(self.kv_proj(kv_feats))  # (B, tokens, d_emb)
             elif in_features == tokens * feat_dim:
-                kv = self.kv_proj(kv_feats.reshape(bsz, tokens * feat_dim)).unsqueeze(1)
+                kv = self.kv_norm(self.kv_proj(kv_feats.reshape(bsz, tokens * feat_dim))).unsqueeze(1)
             else:
                 raise RuntimeError(
                     f"KV projection in_features={in_features} mismatches KV shape (tokens={tokens}, feat={feat_dim})."
                 )
         else:
-            kv = self.kv_proj(kv_feats).unsqueeze(1)
+            kv = self.kv_norm(self.kv_proj(kv_feats)).unsqueeze(1)
 
-        syn, _ = self.attn(q, kv, kv)
-        syn = syn.squeeze(1)
+        syn_raw, _ = self.attn(q, kv, kv)
+        # Residual connection with pre-normed q
+        syn = self.out_norm(syn_raw + q).squeeze(1)
         mu, logvar = self.mu(syn), torch.clamp(self.logvar(syn), -self.logvar_clip, self.logvar_clip)
         std = torch.exp(0.5 * logvar).clamp_min(self.min_std)
-        z = mu + std * torch.randn_like(std)
+        if self.training and sample:
+            z = mu + std * torch.randn_like(std)
+        else:
+            z = mu
         return z, mu, logvar
 
 
-class SynergyHead(nn.Sequential):
-    def __init__(self, in_dim: int, num_classes: int = 100, p: float = 0.0) -> None:
-        super().__init__(
-            nn.Linear(in_dim, in_dim),
-            nn.ReLU(inplace=True),
+class SynergyHead(nn.Module):
+    def __init__(
+        self,
+        in_dim: int,
+        num_classes: int = 100,
+        p: float = 0.0,
+        learnable_temp: bool = False,
+        temp_init: float = 0.0,
+    ) -> None:
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.LayerNorm(in_dim),
+            nn.GELU(),
             nn.Dropout(p),
             nn.Linear(in_dim, num_classes),
         )
+        self.learnable_temp = bool(learnable_temp)
+        if self.learnable_temp:
+            # log_temp=0 -> temperature=1.0
+            self.log_temp = nn.Parameter(torch.tensor(float(temp_init)))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        out = self.net(x)
+        if getattr(self, "learnable_temp", False):
+            out = out / torch.exp(self.log_temp).clamp_min(1e-4)
+        return out
 
 
 def build_ib_mbm_from_teachers(
@@ -111,6 +136,8 @@ def build_ib_mbm_from_teachers(
         in_dim=cfg.get("ib_mbm_out_dim", 512),
         num_classes=cfg.get("num_classes", 100),
         p=cfg.get("synergy_head_dropout", cfg.get("ib_mbm_dropout", 0.0)),
+        learnable_temp=bool(cfg.get("synergy_temp_learnable", False)),
+        temp_init=float(cfg.get("synergy_temp_init", 0.0)),
     )
     return ib_mbm, head
 

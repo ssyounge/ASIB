@@ -1,0 +1,13 @@
+name: kd_weighted_conf
+
+kd_target: weighted_conf
+
+ce_alpha: 0.5
+kd_alpha: 0.5
+
+tau: 4.0
+kd_warmup_epochs: 5
+ce_label_smoothing: 0.0
+
+use_distillation_adapter: true
+

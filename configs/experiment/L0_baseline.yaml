@@ -24,13 +24,15 @@ experiment:
 
   # KD (teacher avg)
   kd_target: avg
+  kd_target_mode: clean
+  kd_center_teacher: false
   ce_alpha: 0.65
   kd_alpha: 0.35
-  tau_schedule: [3.5, 5.0]
+  tau: 4.0
   kd_warmup_epochs: 3
   kd_ens_alpha: 0.0
   kd_max_ratio: 1.25
-  ce_label_smoothing: 0.0
+  ce_label_smoothing: 0.05
   min_cw: 0.1
   feat_kd_alpha: 0.0
 

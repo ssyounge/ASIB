@@ -49,6 +49,15 @@ def create_student_by_name(
 ) -> nn.Module:
     """Create student from :data:`MODEL_REGISTRY`."""
 
+    # Friendly aliases: allow base names to map to scratch registry keys
+    NAME_ALIASES: Dict[str, str] = {
+        "resnet50": "resnet50_scratch",
+        "mobilenet_v2": "mobilenet_v2_scratch",
+        "efficientnet_b0": "efficientnet_b0_scratch",
+        "shufflenet_v2": "shufflenet_v2_scratch",
+    }
+    student_name = NAME_ALIASES.get(student_name, student_name)
+
     try:
         return build_model(
             student_name,

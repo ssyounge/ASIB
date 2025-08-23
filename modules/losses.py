@@ -4,6 +4,47 @@ import torch
 import torch.nn.functional as F
 from typing import Optional
 
+# ---------- Safe loss helpers (AMP-friendly) ----------
+_EPS = 1e-6  # for log/softmax flooring
+
+def _smooth_one_hot(target: torch.Tensor, num_classes: int, eps: float) -> torch.Tensor:
+    """Return label-smoothed one-hot distribution."""
+    smooth = torch.full((target.size(0), num_classes), eps / (num_classes - 1), device=target.device)
+    smooth.scatter_(1, target.unsqueeze(1), 1.0 - eps)
+    return smooth
+
+def ce_safe(logits: torch.Tensor, target: torch.Tensor, ls_eps: float = 0.0) -> torch.Tensor:
+    """Cross-entropy in float32 under autocast-off region with optional label smoothing.
+
+    - Prevents fp16 underflow by computing in float32
+    - Floors probabilities to avoid log(0)
+    """
+    with torch.autocast('cuda', enabled=False):
+        logits = logits.float()
+        if ls_eps and ls_eps > 0.0:
+            tgt_prob = _smooth_one_hot(target, logits.size(1), float(ls_eps))
+            log_prob = torch.log_softmax(logits, dim=1)
+            return -(tgt_prob * log_prob).sum(dim=1).mean()
+        prob = torch.softmax(logits, dim=1).clamp(min=_EPS)
+        return F.nll_loss(prob.log(), target, reduction="mean")
+
+def kl_safe(p_logits: torch.Tensor, q_logits: torch.Tensor, tau: float = 1.0) -> torch.Tensor:
+    """Numerically stable KL(p||q) with temperature and float32 math."""
+    with torch.autocast('cuda', enabled=False):
+        p = torch.softmax(p_logits.float() / tau, dim=1).clamp(_EPS, 1.0)
+        q = torch.softmax(q_logits.float() / tau, dim=1).clamp(_EPS, 1.0)
+        return F.kl_div(p.log(), q, reduction="batchmean") * (tau * tau)
+
+def safe_kl_loss(student_logits: torch.Tensor, teacher_logits: torch.Tensor, temperature: float = 4.0) -> torch.Tensor:
+    """Safe KL divergence loss wrapper (kept for backward compatibility)."""
+    # Note: preserves original argument order used in tests
+    return kl_safe(teacher_logits, student_logits, tau=temperature)
+
+def safe_mse_loss(student_feat: torch.Tensor, teacher_feat: torch.Tensor) -> torch.Tensor:
+    """Safe MSE loss between features in float32 under autocast-off region."""
+    with torch.autocast('cuda', enabled=False):
+        return F.mse_loss(student_feat.float(), teacher_feat.float(), reduction="mean")
+
 def soft_clip_loss(loss: torch.Tensor, max_val: float) -> torch.Tensor:
     """Softly scale the loss to not exceed max_val while preserving gradients.
 
@@ -65,6 +106,18 @@ def kd_loss_fn(student_logits, teacher_logits, T=4.0, reduction="batchmean"):
     # KL-div * T^2
     kl_div = F.kl_div(s_log_probs, t_probs, reduction=reduction) * (T * T)
     return kl_div
+
+def kl_safe_vec_probs(p_logits: torch.Tensor, q_probs: torch.Tensor, tau: float = 1.0) -> torch.Tensor:
+    """Return per-sample KL(student||teacher) where teacher is given as probabilities.
+
+    Computes KL over classes for each sample and scales by tau^2, using float32 math
+    inside an autocast-disabled region for numerical stability.
+    """
+    with torch.autocast('cuda', enabled=False):
+        p_log = F.log_softmax(p_logits.float() / tau, dim=1)
+        q = q_probs.float()
+        kl = F.kl_div(p_log, q, reduction="none")  # [B, C]
+        return kl.sum(dim=1) * (tau * tau)
 
 def hybrid_kd_loss_fn(student_logits, teacher_logits, labels, alpha=0.5, T=4.0):
     """

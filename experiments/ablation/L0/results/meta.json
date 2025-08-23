@@ -1,10 +1,10 @@
 {
   "exp_id": "L0_baseline",
-  "seed": 42,
+  "seed": 44,
   "dataset": {
-    "name": "cifar100",
-    "batch_size": 64,
-    "num_workers": 8,
+    "name": null,
+    "batch_size": null,
+    "num_workers": 4,
     "data_aug": 1
   },
   "teachers": [
@@ -16,7 +16,7 @@
     {
       "name": "resnet152",
       "ckpt": "checkpoints/teachers/resnet152_cifar100.pth",
-      "test_acc": 79.29
+      "test_acc": 79.28
     }
   ],
   "student": {

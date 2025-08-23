@@ -5,6 +5,7 @@ import torch.nn as nn
 import copy
 import logging
 from torch.nn import functional as F
+from contextlib import nullcontext
 from utils.common import smart_tqdm, get_amp_components
 from utils.training import get_tau, get_beta
 from models import IB_MBM
@@ -13,8 +14,6 @@ from modules.losses import (
     kd_loss_fn,
     ce_loss_fn,
     ib_loss,
-    certainty_weights,
-    feat_mse_loss,
 )
 
 
@@ -140,15 +139,40 @@ def eval_synergy(
     device="cuda",
     cfg=None,
     student_model=None,
+    update_logger: bool = False,
+    logger=None,
 ):
-    """Evaluate synergy accuracy.
+    """Evaluate synergy accuracy (AMP off, float32).
 
+    If ``update_logger`` is False, this function will not touch logger/cfg.
     When the IB_MBM operates in query mode, ``student_model`` must be provided so
     that the student features can be used as the attention query.
     """
 
-    autocast_ctx, _ = get_amp_components(cfg or {})
+    # Guard: need at least two teachers for synergy
+    try:
+        if teacher_wrappers is None or len(teacher_wrappers) < 2:
+            return -1.0
+    except Exception:
+        return -1.0
+    # Force AMP off for numerically stable evaluation
+    autocast_ctx = nullcontext()
     correct, total = 0, 0
+    first = True
+    # Temporarily set eval() for teachers, IB_MBM and synergy_head
+    prev_teach_modes = []
+    try:
+        for tw in teacher_wrappers:
+            prev_teach_modes.append(getattr(tw, 'training', False))
+            tw.eval()
+    except Exception:
+        prev_teach_modes = []
+    prev_ib_mode = getattr(ib_mbm, 'training', False)
+    prev_syn_mode = getattr(synergy_head, 'training', False)
+    try:
+        ib_mbm.eval(); synergy_head.eval()
+    except Exception:
+        pass
     for x, y in loader:
         x, y = x.to(device), y.to(device)
         with autocast_ctx:
@@ -164,19 +188,52 @@ def eval_synergy(
                 if (cfg or {}).get("use_distillation_adapter", False)
                 else "feat_2d"
             )
-            t1_feat = t1_dict[key]
-            t2_feat = t2_dict[key]
+            t1_feat = t1_dict[key].float()
+            t2_feat = t2_dict[key].float()
 
             assert student_model is not None, "student_model required for IB_MBM"
-            s_feat = student_model(x)[0][cfg.get("feat_kd_key", "feat_2d")]
-            fsyn, _, _ = ib_mbm(s_feat, torch.stack([t1_feat, t2_feat], dim=1))
-            zsyn = synergy_head(fsyn)
+            s_feat = student_model(x)[0][(cfg or {}).get("feat_kd_key", "feat_2d")].float()
+            # eval 안정화: z = mu 모드 사용(sample=False)
+            # Evaluate synergy using μ (mean) to avoid sample noise
+            fsyn, mu, _ = ib_mbm(s_feat, torch.stack([t1_feat, t2_feat], dim=1), sample=False)
+            zsyn = synergy_head(mu).float()
+            if first:
+                logging.info(
+                    "[eval_synergy] t1=%s t2=%s s=%s z=%s mean=%.4f std=%.4f min=%.4f max=%.4f",
+                    tuple(t1_feat.shape), tuple(t2_feat.shape), tuple(s_feat.shape), tuple(zsyn.shape),
+                    zsyn.mean().item(), zsyn.std().item(), zsyn.min().item(), zsyn.max().item(),
+                )
+                first = False
 
         pred = zsyn.argmax(dim=1)
         correct += (pred == y).sum().item()
         total += y.size(0)
 
     acc = 100.0 * correct / total if total > 0 else 0
+    # restore modes
+    try:
+        if prev_teach_modes:
+            for tw, m in zip(teacher_wrappers, prev_teach_modes):
+                tw.train(m)
+        ib_mbm.train(prev_ib_mode)
+        synergy_head.train(prev_syn_mode)
+    except Exception:
+        pass
+    # 선택적으로 EMA 업데이트 (A-Step에서만)
+    if update_logger and logger is not None:
+        try:
+            ema_alpha = float((cfg or {}).get("synergy_ema_alpha", 0.8))
+        except Exception:
+            ema_alpha = 0.8
+        try:
+            prev = float(logger.get_metric("last_synergy_acc", (cfg or {}).get("last_synergy_acc", 0.0)) or 0.0)
+        except Exception:
+            prev = float((cfg or {}).get("last_synergy_acc", 0.0) or 0.0)
+        ema = ema_alpha * prev + (1.0 - ema_alpha) * (float(acc) / 100.0)
+        logger.update_metric("last_synergy_acc", float(ema))
+        logger.update_metric("last_synergy_acc_pct", float(ema * 100.0))
+        if cfg is not None:
+            cfg["last_synergy_acc"] = float(ema)
     return acc
 
 
@@ -227,6 +284,14 @@ def teacher_adaptive_update(
     syn_params = [p for p in synergy_head.parameters() if p.requires_grad]
 
     teacher_epochs = int(cfg.get("teacher_iters", cfg.get("teacher_adapt_epochs", 5)))
+    # Ensure synergy_only_epochs ≤ teacher_epochs
+    cfg_syn_only = int(cfg.get("synergy_only_epochs", 0))
+    syn_only_epochs = min(cfg_syn_only, teacher_epochs)
+    if cfg_syn_only > teacher_epochs:
+        logging.info(
+            "[A-Step] synergy_only_epochs=%d truncated to %d to fit teacher_adapt_epochs=%d",
+            cfg_syn_only, syn_only_epochs, teacher_epochs,
+        )
 
     best_synergy = -1
     best_state = {
@@ -280,7 +345,7 @@ def teacher_adaptive_update(
         # A-step CCCP 사용 여부(학생 정답 고정 참조는 기본 OFF)
         use_cccp_a = bool(cfg.get("use_cccp_in_a", cfg.get("use_cccp", False)))
         # 초반 CE-only 구간 (ep는 0-based)
-        synergy_only = (ep < int(cfg.get("synergy_only_epochs", 0)))
+        synergy_only = (ep < syn_only_epochs)
         # 교사 모델 모드 설정
         if use_tf:
             for tw in teacher_wrappers:
@@ -301,6 +366,10 @@ def teacher_adaptive_update(
             epoch=global_ep + ep,
             total_epochs=total_epochs,
         )
+        try:
+            logger.update_metric(f"teacher_ep{ep+1}_tau", float(cur_tau))
+        except Exception:
+            pass
         teacher_loss_sum = 0.0
         count = 0
 
@@ -378,7 +447,8 @@ def teacher_adaptive_update(
                                  getattr(ib_mbm.q_proj, "in_features", None))
 
                 kv = torch.stack([t1, t2], dim=1)
-                syn_feat, mu, logvar = ib_mbm(s_feat, kv)
+                # Use deterministic μ for A-Step to remove sampling noise
+                syn_feat, mu, logvar = ib_mbm(s_feat, kv, sample=False)
                 ib_loss_val = 0.0
                 if cfg.get("use_ib", False):
                     mu, logvar = mu.float(), logvar.float()
@@ -388,9 +458,18 @@ def teacher_adaptive_update(
                         logvar = logvar.clamp(-clip_lv, clip_lv)
                     except Exception:
                         pass
+                    # raw KL (per-batch mean) for monitoring
+                    raw_kld = (-0.5 * (1 + logvar - mu.pow(2) - logvar.exp()).sum(dim=1)).mean()
                     ib_beta = get_beta(cfg, global_ep + ep)
                     ib_loss_val = ib_loss(mu, logvar, beta=ib_beta)
-                fsyn = syn_feat
+                    if step == 0:
+                        try:
+                            logger.update_metric(f"teacher_ep{ep+1}_ib_beta", float(ib_beta))
+                            logger.update_metric(f"teacher_ep{ep+1}_ib_kld", float(raw_kld.item()))
+                        except Exception:
+                            pass
+                # Feed μ to synergy head for stable logits
+                fsyn = mu
                 zsyn = synergy_head(fsyn)
 
                 # (D) compute loss (KL + synergyCE)
@@ -401,9 +480,8 @@ def teacher_adaptive_update(
                         label_smoothing=cfg.get("label_smoothing", 0.0),
                         reduction="none",
                     )
-                    kd_vec = kd_loss_fn(zsyn, s_logit, T=cur_tau, reduction="none").sum(
-                        dim=1
-                    )
+                    kd_raw = kd_loss_fn(zsyn, s_logit, T=cur_tau, reduction="none")
+                    kd_vec = kd_raw.sum(dim=1) if kd_raw.dim() == 2 else kd_raw
 
                     # ---- DEBUG: 첫 batch 모양 확인 ----
                     if ep == 0 and step == 0 and cfg.get("debug_verbose", False):
@@ -414,7 +492,7 @@ def teacher_adaptive_update(
                             tuple(zsyn.shape),
                         )
                     cw = torch.exp(-logvar).detach().mean(dim=1).to(zsyn.dtype)
-                    # Clamp certainty weights to prevent vanishing sample weights
+                    # A-Step: 증폭 금지(상한 1.0), 하한은 cfg.min_cw 적용
                     try:
                         cw_min = float(cfg.get("min_cw", 0.1))
                     except Exception:
@@ -432,7 +510,7 @@ def teacher_adaptive_update(
                     loss_ce = (cw * ce_vec).mean()
                     loss_kd = (cw * kd_vec).mean()
                     # CE-only 구간: cw 비활성화 및 IB-KL/KD OFF
-                    if ep < int(cfg.get("synergy_only_epochs", 0)):
+                    if synergy_only:
                         loss_ce = ce_vec.mean()
                         loss_kd = torch.zeros((), device=zsyn.device)
                         ib_loss_val = 0.0
@@ -440,6 +518,8 @@ def teacher_adaptive_update(
                         # 시너지 정확도 임계치 기반 KD 게이팅 (안정성 강화)
                         try:
                             thr = float(cfg.get("enable_kd_after_syn_acc", 0.0))
+                            if thr > 1.5:
+                                thr /= 100.0
                             last_syn = 0.0
                             if hasattr(logger, "get_metric"):
                                 last_syn = float(logger.get_metric("last_synergy_acc", cfg.get("last_synergy_acc", 0.0)) or 0.0)
@@ -457,12 +537,14 @@ def teacher_adaptive_update(
                         label_smoothing=cfg.get("label_smoothing", 0.0),
                     )
                     # CE-only 구간: KD OFF, IB는 사용 안 하므로 영향 없음
-                    if ep < int(cfg.get("synergy_only_epochs", 0)):
+                    if synergy_only:
                         loss_kd = torch.zeros((), device=zsyn.device)
                     else:
                         # 시너지 정확도 임계치 기반 KD 게이팅
                         try:
                             thr = float(cfg.get("enable_kd_after_syn_acc", 0.0))
+                            if thr > 1.5:
+                                thr /= 100.0
                             last_syn = 0.0
                             if hasattr(logger, "get_metric"):
                                 last_syn = float(logger.get_metric("last_synergy_acc", cfg.get("last_synergy_acc", 0.0)) or 0.0)
@@ -542,6 +624,8 @@ def teacher_adaptive_update(
                 # 시너지 품질 임계치 미만이면 KD/CCCP 비활성화 (다음 loop부터 반영되지만 안전)
                 try:
                     syn_gate = float(cfg.get("enable_kd_after_syn_acc", 0.0))
+                    if syn_gate > 1.5:
+                        syn_gate /= 100.0
                     last_syn = float(cfg.get("last_synergy_acc", 0.0))
                     if last_syn < syn_gate:
                         loss_kd = torch.zeros((), device=zsyn.device)
@@ -571,10 +655,44 @@ def teacher_adaptive_update(
                     + float(cfg.get("ib_mbm_reg_lambda", 0.0)) * ib_mbm_reg_loss
                     + kd_cccp  # CCCP surrogate 추가
                 )
+
+                # Optional: regularize learnable temperature (if enabled)
+                try:
+                    st_reg = float(cfg.get("synergy_temp_reg", 0.0))
+                except Exception:
+                    st_reg = 0.0
+                if st_reg > 0 and hasattr(synergy_head, "log_temp"):
+                    total_loss_step = total_loss_step + st_reg * (synergy_head.log_temp ** 2)
+
+                # ep==1 첫 스텝에 튠용 요약 로그 한 줄 남기기
+                if ep == 0 and step == 0:
+                    try:
+                        thr = float(cfg.get("enable_kd_after_syn_acc", 0.0))
+                        if thr > 1.5:
+                            thr /= 100.0
+                        last_syn = float(logger.get_metric("last_synergy_acc", cfg.get("last_synergy_acc", 0.0)) or 0.0) if hasattr(logger, "get_metric") else float(cfg.get("last_synergy_acc", 0.0))
+                        kd_gate_on = int(thr <= 0.0 or last_syn >= thr)
+                        raw_kld_val = None
+                        if cfg.get("use_ib", False):
+                            raw_kld_val = (-0.5 * (1 + logvar - mu.pow(2) - logvar.exp()).sum(dim=1)).mean().item()
+                        logging.info(
+                            "[A-Step ep=1/step=1] kd_gate_on=%d kd_weight=%.3f synergy_ce_alpha=%.3f cw_mean=%.4f cw_std=%.4f raw_kld=%s ib_beta=%.6f",
+                            kd_gate_on,
+                            float(kd_weight),
+                            float(synergy_weight),
+                            float(cw.mean().item()) if 'cw' in locals() else float('nan'),
+                            float(cw.std().item()) if 'cw' in locals() else float('nan'),
+                            f"{raw_kld_val:.4f}" if raw_kld_val is not None else "NA",
+                            float(get_beta(cfg, global_ep + ep)) if cfg.get("use_ib", False) else 0.0,
+                        )
+                    except Exception:
+                        pass
                 
                 # 추가 안전장치: loss가 너무 크면 clipping
                 # Loss 클리핑 완화 (A-Step 안정화를 위해)
-            if cfg.get("use_loss_clamp", False):
+            # A-step loss clamp (disabled by default; enable by setting disable_loss_clamp_in_a=false)
+            disable_in_a = bool(cfg.get("disable_loss_clamp_in_a", True))
+            if cfg.get("use_loss_clamp", False) and not disable_in_a:
                 max_v = float(cfg.get("loss_clamp_max", 1000.0))
                 mode = str(cfg.get("loss_clamp_mode", "soft"))
                 lc_warm = int(cfg.get("loss_clamp_warmup_epochs", 0))
@@ -591,7 +709,7 @@ def teacher_adaptive_update(
                 pass
 
             # ---- (2) per-batch Optim ----
-            optimizer.zero_grad()
+            optimizer.zero_grad(set_to_none=True)
             if scaler is not None:
                 scaler.scale(total_loss_step).backward()
                 if cfg.get("grad_clip_norm", 0) > 0:
@@ -618,72 +736,75 @@ def teacher_adaptive_update(
             teacher_loss_sum += total_loss_step.item() * x.size(0)
             count += x.size(0)
 
-    ep_loss = teacher_loss_sum / count
+        # ==== epoch end ====
+        ep_loss = teacher_loss_sum / max(1, count)
 
-    # synergy_eval
-    if testloader is not None:
-        synergy_test_acc = eval_synergy(
-            teacher_wrappers,
-            ib_mbm,
-            synergy_head,
-            loader=testloader,
-            device=cfg["device"],
-            cfg=cfg,
-            student_model=student_model,
+        # synergy_eval: 비용 절감을 위해 2ep 간격 평가 지원
+        do_eval = (testloader is not None) and (((ep + 1) % int(cfg.get("teacher_eval_every", 2))) == 0)
+        if do_eval:
+            synergy_test_acc = eval_synergy(
+                teacher_wrappers,
+                ib_mbm,
+                synergy_head,
+                loader=testloader,
+                device=cfg["device"],
+                cfg=cfg,
+                student_model=student_model,
+                update_logger=True,
+                logger=logger,
+            )
+        else:
+            synergy_test_acc = logger.get_metric("last_synergy_acc_pct", -1) or -1
+
+        logger.info(
+            f"[TeacherAdaptive ep={ep+1}] loss={ep_loss:.4f}, synergy={synergy_test_acc:.2f}"
         )
-    else:
-        synergy_test_acc = -1
 
-    logger.info(
-        f"[TeacherAdaptive ep={ep+1}] loss={ep_loss:.4f}, synergy={synergy_test_acc:.2f}"
-    )
+        # eval_synergy(update_logger=True)에서 EMA 갱신을 이미 처리함.
+        # 여기서는 측정값 로깅만 수행
+        try:
+            if synergy_test_acc is not None and float(synergy_test_acc) >= 0:
+                logger.update_metric(f"teacher_ep{ep+1}_syn_acc", float(synergy_test_acc))
+        except Exception:
+            pass
 
-    # 다음 단계 게이팅을 위한 시너지 품질 공유(0~1 스케일)
-    try:
-        cfg["last_synergy_acc"] = float(synergy_test_acc) / 100.0
-    except Exception:
-        pass
-    # 로거에도 저장하여 게이팅 시 참조 가능하게 함
-    try:
-        logger.update_metric("last_synergy_acc", float(synergy_test_acc) / 100.0)
-    except Exception:
-        pass
+        # ── NEW: per-epoch logging ───────────────────────────────
+        logger.update_metric(f"teacher_ep{ep+1}_loss", ep_loss)
+        logger.update_metric(f"teacher_ep{ep+1}_syn_acc", synergy_test_acc)
+        logger.update_metric(f"epoch{global_ep+ep+1}_tau", cur_tau)
 
-    # ── NEW: per-epoch logging ───────────────────────────────
-    logger.update_metric(f"teacher_ep{ep+1}_loss", ep_loss)
-    logger.update_metric(f"teacher_ep{ep+1}_synAcc", synergy_test_acc)
-    logger.update_metric(f"epoch{global_ep+ep+1}_tau", cur_tau)
+        # per-epoch scheduler step
+        if scheduler is not None:
+            scheduler.step()
 
-    if scheduler is not None:
-        scheduler.step()
+        # best snapshot 업데이트
+        if synergy_test_acc > best_synergy:
+            best_synergy = synergy_test_acc
+            # Save best snapshot to CPU to avoid VRAM fragmentation during long A‑Step
+            best_state["teacher_wraps"] = [
+                _cpu_state_dict(tw) for tw in teacher_wrappers
+            ]
+            best_state["ib_mbm"] = _cpu_state_dict(ib_mbm)
+            best_state["syn_head"] = _cpu_state_dict(synergy_head)
 
-    # best snapshot
-    if synergy_test_acc > best_synergy:
-        best_synergy = synergy_test_acc
-        best_state["teacher_wraps"] = [
-            copy.deepcopy(tw.state_dict()) for tw in teacher_wrappers
-        ]
-        best_state["ib_mbm"] = copy.deepcopy(ib_mbm.state_dict())
-        best_state["syn_head"] = copy.deepcopy(synergy_head.state_dict())
-
-    # 추가 검증 로직: loss가 증가하면 learning rate 조정 및 상태 복원
-    if ep_loss > prev_obj:
-        logger.warning(f"[TeacherAdaptive] Loss increased from {prev_obj:.4f} to {ep_loss:.4f}, reducing LR and restoring state")
-        for g in optimizer.param_groups:
-            g['lr'] *= 0.5
-        # 이전 상태로 복원
-        for i, tw in enumerate(teacher_wrappers):
-            tw.load_state_dict(backup_state["teacher_wraps"][i])
-        ib_mbm.load_state_dict(backup_state["ib_mbm"])
-        synergy_head.load_state_dict(backup_state["syn_head"])
-    else:
-        prev_obj = ep_loss
-        # 현재 상태를 backup으로 저장
-        backup_state["teacher_wraps"] = [
-            copy.deepcopy(tw.state_dict()) for tw in teacher_wrappers
-        ]
-        backup_state["ib_mbm"] = copy.deepcopy(ib_mbm.state_dict())
-        backup_state["syn_head"] = copy.deepcopy(synergy_head.state_dict())
+        # 추가 검증 로직: loss가 증가하면 learning rate 조정 및 상태 복원
+        if ep_loss > prev_obj:
+            logger.warning(f"[TeacherAdaptive] Loss increased from {prev_obj:.4f} to {ep_loss:.4f}, reducing LR and restoring state")
+            for g in optimizer.param_groups:
+                g['lr'] *= 0.5
+            # 이전 상태로 복원
+            for i, tw in enumerate(teacher_wrappers):
+                tw.load_state_dict(backup_state["teacher_wraps"][i])
+            ib_mbm.load_state_dict(backup_state["ib_mbm"])
+            synergy_head.load_state_dict(backup_state["syn_head"])
+        else:
+            prev_obj = ep_loss
+            # 현재 상태를 backup으로 저장 (CPU로 저장하여 VRAM 파편화 방지)
+            backup_state["teacher_wraps"] = [
+                _cpu_state_dict(tw) for tw in teacher_wrappers
+            ]
+            backup_state["ib_mbm"] = _cpu_state_dict(ib_mbm)
+            backup_state["syn_head"] = _cpu_state_dict(synergy_head)
 
     # restore best
     for i, tw in enumerate(teacher_wrappers):

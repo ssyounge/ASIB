@@ -48,7 +48,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 # PyTorch CUDA 12.4 라이브러리 사용 (경로가 존재할 때만 추가)
 PYTORCH_CUDA_LIB_DIR="$HOME/anaconda3/envs/tlqkf/lib/python3.12/site-packages/torch/lib"
 if [ -d "$PYTORCH_CUDA_LIB_DIR" ]; then
-    export LD_LIBRARY_PATH="$PYTORCH_CUDA_LIB_DIR:$LD_LIBRARY_PATH"
+    unset LD_LIBRARY_PATH || true
     export CUDA_HOME="$PYTORCH_CUDA_LIB_DIR"
     export CUDA_PATH="$PYTORCH_CUDA_LIB_DIR"
     export CUDA_ROOT="$PYTORCH_CUDA_LIB_DIR"

@@ -5,98 +5,185 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
 #SBATCH --time=72:00:00
-#SBATCH --output=experiments/logs/class_overlap_%j.log
-#SBATCH --error=experiments/logs/class_overlap_%j.err
+#SBATCH --array=0-0%1                      # 제출 시 --array=0-(N-1)%K 로 덮어쓰기
+#SBATCH --output=experiments/logs/class_overlap_%A_%a.log
+#SBATCH --error=experiments/logs/class_overlap_%A_%a.err
 # ---------------------------------------------------------
-# ASIB Class Overlap Analysis 실험
-# 100% Class Overlap 상황에서의 ASIB 성능 분석
+# ASIB Class Overlap Analysis (Job Array + mod-sharding, no srun)
 # ---------------------------------------------------------
 set -euo pipefail
 trap 'echo "❌ Job failed at $(date)"; exit 1' ERR
 
-# Python 환경 설정
+# Python env
 echo "🔧 Setting up Python environment..."
-export PATH="$HOME/anaconda3/envs/tlqkf/bin:$PATH"
+set +u
+if [ -f "$HOME/anaconda3/etc/profile.d/conda.sh" ]; then
+  source "$HOME/anaconda3/etc/profile.d/conda.sh"
+fi
+conda activate tlqkf || export PATH="$HOME/anaconda3/envs/tlqkf/bin:$PATH"
+set -u
 export HYDRA_FULL_ERROR=1
-export OMP_NUM_THREADS=${OMP_NUM_THREADS:-4}
-export MKL_NUM_THREADS=${MKL_NUM_THREADS:-4}
-echo "✅ Python environment setup completed"
-echo ""
 
-# 1) 리포 최상위로 이동
+# Repo root
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
-
-# 2) PYTHONPATH 추가
-export PYTHONPATH="${ROOT}:${PYTHONPATH:-}"
-
-# Ensure log directory exists
 mkdir -p "$ROOT/experiments/logs" || true
-
-# 3) GPU 할당 확인 및 설정
-echo "🔍 Checking GPU allocation..."
-if [ -n "$SLURM_GPUS_ON_NODE" ]; then
-    # GPU 인덱스를 0부터 시작하도록 조정
-    if [ "$SLURM_GPUS_ON_NODE" = "1" ]; then
-        export CUDA_VISIBLE_DEVICES=0
-        echo "✅ CUDA_VISIBLE_DEVICES set to: 0 (mapped from SLURM_GPUS_ON_NODE=1)"
-    else
-        export CUDA_VISIBLE_DEVICES=0
-        echo "✅ CUDA_VISIBLE_DEVICES set to: 0 (default for any GPU allocation)"
-    fi
-else
-    echo "⚠️  SLURM_GPUS_ON_NODE not set, using default GPU 0"
-    export CUDA_VISIBLE_DEVICES=0
-fi
-
-# CUDA 컨텍스트 초기화 (segmentation fault 방지)
-export CUDA_LAUNCH_BLOCKING=${CUDA_LAUNCH_BLOCKING:-0}
+export PYTHONPATH="${ROOT}:${PYTHONPATH:-}"
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-# PyTorch CUDA 라이브러리 경로 가드
+# Slurm GPU 바인딩 안내 (수동 고정 안 함)
+echo "🔍 Slurm will set CUDA_VISIBLE_DEVICES per array task."
+
+# Torch libs guard (노드별 차이 대응)
 TORCH_LIB_DIR="$HOME/anaconda3/envs/tlqkf/lib/python3.12/site-packages/torch/lib"
 if [ -d "$TORCH_LIB_DIR" ]; then
-  export LD_LIBRARY_PATH="$TORCH_LIB_DIR:$LD_LIBRARY_PATH"
-  export CUDA_HOME="$TORCH_LIB_DIR"
+  unset LD_LIBRARY_PATH || true
+  export CUDA_HOME="${CUDA_HOME:-$TORCH_LIB_DIR}"
 fi
 
-# PyTorch CUDA 설정
-export TORCH_CUDA_ARCH_LIST="8.6"
+# num_workers 자동 스케일: SLURM_CPUS_PER_TASK와 상한(PYTORCH_WORKERS_MAX, 기본 4)
+calc_workers() {
+  local cpus="${SLURM_CPUS_PER_TASK:-4}"
+  local maxw="${PYTORCH_WORKERS_MAX:-4}"
+  (( cpus < 1 )) && cpus=1
+  if (( maxw < cpus )); then echo "$maxw"; else echo "$cpus"; fi
+}
+WORKERS="$(calc_workers)"
+export OMP_NUM_THREADS="${OMP_NUM_THREADS:-$WORKERS}"
+export MKL_NUM_THREADS="${MKL_NUM_THREADS:-$WORKERS}"
+echo "🧵 num_workers(auto)=${WORKERS}, OMP=${OMP_NUM_THREADS}, MKL=${MKL_NUM_THREADS}"
 
-# CUDA 환경변수 (PyTorch 내장 CUDA 사용)
-export CUDA_PATH="${CUDA_HOME:-${CUDA_PATH:-}}"
-export CUDA_ROOT="${CUDA_HOME:-${CUDA_ROOT:-}}"
+# GPU info (optional)
+nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv,noheader,nounits || true
 
-# GPU 정보 출력
-echo "🔍 GPU Information:"
-nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv,noheader,nounits
+# ========================== 설정 ==========================
+# 여러 실험/시드를 Job Array로 나눠서 돌릴 수 있도록 RUNS 구성
+# EXPS: 공백 구분 실험 이름 리스트 (기본: overlap_100)
+# SEEDS: 공백 구분 시드 리스트 (기본: 42)
+EXPS_STR="${EXPS:-overlap_100}"
+SEEDS_STR="${SEEDS:-42}"
+EXTRA_OVR="${EXTRA:-}"
+DRY_RUN="${DRY_RUN:-0}"
 
+# Slurm Array → 샤딩 변수
+if [[ -n "${SLURM_ARRAY_TASK_ID:-}" ]]; then SHARD_IDX="${SLURM_ARRAY_TASK_ID}"; fi
+if [[ -n "${SLURM_ARRAY_TASK_COUNT:-}" ]]; then
+  SHARD_N="${SLURM_ARRAY_TASK_COUNT}"
+elif [[ -n "${SLURM_ARRAY_TASK_MAX:-}" && -n "${SLURM_ARRAY_TASK_MIN:-}" ]]; then
+  SHARD_N="$(( SLURM_ARRAY_TASK_MAX - SLURM_ARRAY_TASK_MIN + 1 ))"
+fi
+SHARD_N="${SHARD_N:-1}"
+SHARD_IDX="${SHARD_IDX:-0}"
+echo "🔀 Sharding: SHARD_IDX=${SHARD_IDX} / SHARD_N=${SHARD_N}"
 
-
-# 4) ASIB Class Overlap Analysis 실험들
-EXPERIMENTS=(
-    "overlap_100"           # 100% Class Overlap Analysis
-)
-
-# 5) 각 실험 순차적으로 실행
-for exp in "${EXPERIMENTS[@]}"; do
-    echo "🚀 Starting ASIB Class Overlap Analysis experiment: $exp"
-    echo "=================================================="
-    echo "Time: $(date)"
-    echo "Experiment: $exp"
-    echo "ASIB Class Overlap Analysis"
-    echo "=================================================="
-    
-    # 실험 실행
-    python -u main.py -cn="experiment/$exp" \
-        "$@"
-    
-    echo "✅ Finished ASIB Class Overlap Analysis experiment: $exp"
-    echo "=================================================="
-    echo "Time: $(date)"
-    echo ""
+# RUNS = (exp | seed) 조합
+RUNS=()
+for exp in ${EXPS_STR}; do
+  for s in ${SEEDS_STR}; do
+    RUNS+=("${exp}|${s}")
+  done
 done
+N_RUNS=${#RUNS[@]}
+echo "🧮 Planned runs: ${N_RUNS}"
 
+# 배열 크기에 맞게 RUNS 자동 확장 (seed 증가로 유니크 보장)
+if [[ -n "${SLURM_ARRAY_TASK_COUNT:-}" ]]; then
+  TARGET=${SLURM_ARRAY_TASK_COUNT}
+  if (( N_RUNS < TARGET && N_RUNS > 0 )); then
+    NEW_RUNS=()
+    for (( i=0; i<TARGET; i++ )); do
+      base_idx=$(( i % N_RUNS ))
+      IFS='|' read -r EXP_B SEED_B <<< "${RUNS[$base_idx]}"
+      NEW_SEED=$(( SEED_B + i ))
+      NEW_RUNS+=("${EXP_B}|${NEW_SEED}")
+    done
+    RUNS=("${NEW_RUNS[@]}")
+    N_RUNS=${#RUNS[@]}
+    echo "🧩 Auto-expanded RUNS to match array: ${N_RUNS}"
+  fi
+fi
+
+if (( DRY_RUN > 0 )); then
+  echo "📋 This shard will run:"
+  for i in $(seq 0 $((N_RUNS-1))); do
+    if (( SHARD_N > 1 )); then
+      if (( (i % SHARD_N) != SHARD_IDX )); then continue; fi
+    fi
+    echo "  - [$i] ${RUNS[$i]}"
+  done
+  echo "🔎 Tip: sbatch --array=0-$((SHARD_N-1))%$SHARD_N run/run_asib_class_overlap.sh EXPS=\"${EXPS_STR}\" SEEDS=\"${SEEDS_STR}\""
+  exit 0
+fi
+
+# ========================== 실행 ==========================
+if [[ -n "${SLURM_ARRAY_TASK_ID:-}" ]]; then
+  idx="${SLURM_ARRAY_TASK_ID}"
+  if (( idx >= N_RUNS )); then
+    echo "ℹ️  Array index ${idx} >= N_RUNS ${N_RUNS} → nothing to do."; exit 0
+  fi
+  IFS='|' read -r EXP_NAME SEED_VAL <<< "${RUNS[$idx]}"
+  echo ""
+  echo "🚀 Starting: ${EXP_NAME} | seed=${SEED_VAL}"
+  echo "Time: $(date)"
+  echo "OVERRIDES: ${EXTRA_OVR}"
+
+  HAS_NW_OVR=0
+  if [[ " ${EXTRA_OVR} " == *"experiment.dataset.num_workers="* || " ${EXTRA_OVR} " == *"dataset.num_workers="* ]]; then
+    HAS_NW_OVR=1
+  fi
+  for arg in "$@"; do
+    if [[ "$arg" == experiment.dataset.num_workers=* || "$arg" == dataset.num_workers=* ]]; then
+      HAS_NW_OVR=1
+    fi
+  done
+  NW_OVR=()
+  if [[ $HAS_NW_OVR -eq 0 ]]; then
+    NW_OVR=(+experiment.dataset.num_workers="${WORKERS}")
+  fi
+
+  PASSTHRU_ARGS=()
+  for a in "$@"; do
+    if [[ "$a" == -* || "$a" == *=* || "$a" == +*=* ]]; then
+      PASSTHRU_ARGS+=("$a")
+    fi
+  done
+  python -u main.py -cn="experiment/${EXP_NAME}" +seed="${SEED_VAL}" ${EXTRA_OVR} "${NW_OVR[@]}" "${PASSTHRU_ARGS[@]}"
+
+  echo "✅ Finished: ${EXP_NAME} | seed=${SEED_VAL} | Time: $(date)"
+else
+  for rs in "${RUNS[@]}"; do
+    IFS='|' read -r EXP_NAME SEED_VAL <<< "$rs"
+    echo ""
+    echo "🚀 Starting: ${EXP_NAME} | seed=${SEED_VAL}"
+    echo "Time: $(date)"
+    echo "OVERRIDES: ${EXTRA_OVR}"
+
+    HAS_NW_OVR=0
+    if [[ " ${EXTRA_OVR} " == *"experiment.dataset.num_workers="* || " ${EXTRA_OVR} " == *"dataset.num_workers="* ]]; then
+      HAS_NW_OVR=1
+    fi
+    for arg in "$@"; do
+      if [[ "$arg" == experiment.dataset.num_workers=* || "$arg" == dataset.num_workers=* ]]; then
+        HAS_NW_OVR=1
+      fi
+    done
+    NW_OVR=()
+    if [[ $HAS_NW_OVR -eq 0 ]]; then
+      NW_OVR=(+experiment.dataset.num_workers="${WORKERS}")
+    fi
+
+    PASSTHRU_ARGS=()
+    for a in "$@"; do
+      if [[ "$a" == -* || "$a" == *=* || "$a" == +*=* ]]; then
+        PASSTHRU_ARGS+=("$a")
+      fi
+    done
+    python -u main.py -cn="experiment/${EXP_NAME}" +seed="${SEED_VAL}" ${EXTRA_OVR} "${NW_OVR[@]}" "${PASSTHRU_ARGS[@]}"
+
+    echo "✅ Finished: ${EXP_NAME} | seed=${SEED_VAL} | Time: $(date)"
+  done
+fi
+
+echo ""
 echo "🎉 ASIB Class Overlap Analysis completed!"
-echo "📁 Results saved in: experiments/overlap/results/"
-echo "📊 All ASIB experiments completed! Ready for analysis" 
+echo "📁 Results in: experiments/overlap/results/"

@@ -4,28 +4,43 @@ from typing import Optional
 
 
 def get_tau(cfg: dict, epoch: int, total_epochs: Optional[int] = None) -> float:
-    """Polynomial temperature decay.
+    """Return temperature τ for KD.
 
-    The schedule is defined as::
+    Priority:
+      1) If ``cfg['tau']`` is set, return it as a fixed temperature.
+      2) Else, if ``cfg['tau_schedule']`` is present, interpret it as
+         ``[tau_start, tau_end]`` and use polynomial decay with
+         ``cfg['tau_decay_power']`` (default 1.0).
+      3) Else, fall back to legacy keys ``tau_start``/``tau_end`` with the same
+         polynomial form. If only ``tau_start`` is provided, temperature stays fixed.
 
+    The polynomial schedule is:
         τ(e) = τ_end + (τ_start - τ_end) · (1 - e/E)^p
-
-    Parameters
-    ----------
-    cfg : dict
-        Must provide ``tau_start``. If ``tau_end`` or ``tau_decay_power`` are
-        missing the temperature remains fixed.
-    epoch : int
-        Current epoch index (0-based).
-    total_epochs : int, optional
-        Length ``E`` of the schedule. If omitted, ``cfg['T_max']`` then
-        ``cfg['total_epochs']`` are consulted. If none are present ``E = 1`` and
-        decay is disabled.
+    where ``E`` is ``total_epochs``.
     """
 
-    tau_start = float(cfg.get("tau_start", 4.0))
-    tau_end = float(cfg.get("tau_end", tau_start))
-    power = float(cfg.get("tau_decay_power", 1.0))
+    # 1) Fixed tau if explicitly provided
+    if "tau" in cfg:
+        try:
+            return float(cfg["tau"])
+        except Exception:
+            pass
+
+    # 2) Schedule via two-value list [start, end]
+    if "tau_schedule" in cfg:
+        sched = cfg.get("tau_schedule")
+        if isinstance(sched, (list, tuple)) and len(sched) >= 2:
+            tau_start = float(sched[0])
+            tau_end = float(sched[1])
+            power = float(cfg.get("tau_decay_power", 1.0))
+        else:
+            # Fallback to fixed if malformed
+            return float(sched[0]) if isinstance(sched, (list, tuple)) and len(sched) >= 1 else float(cfg.get("tau_start", 4.0))
+    else:
+        # 3) Legacy keys
+        tau_start = float(cfg.get("tau_start", 4.0))
+        tau_end = float(cfg.get("tau_end", tau_start))
+        power = float(cfg.get("tau_decay_power", 1.0))
 
     if total_epochs is None:
         total_epochs = int(cfg.get("T_max", cfg.get("total_epochs", 1)))

@@ -2,7 +2,7 @@
 defaults:
   - dataset@experiment.dataset: cifar100
   - schedule@experiment.schedule: cosine
-  - method@experiment.method: asib
+  - experiment/method@experiment.method: asib
   - _self_
 
 experiment:
@@ -21,18 +21,14 @@ experiment:
   student_epochs_per_stage: [5]
   teacher_adapt_epochs: 0
   use_partial_freeze: false
+  use_channels_last: true
 
-  use_amp: true
+  use_amp: false
   amp_dtype: bfloat16  # bfloat16이 더 안정적이고 빠름 (A100/H100에서)
 
   use_ib: false
-  ib_epochs_per_stage: 0
   ib_beta: 0.0
   ib_beta_warmup_epochs: 0
-  use_vib_synergy_head: false
-  ib_mbm_query_dim: 2048
-  ib_mbm_out_dim: 512
-  ib_mbm_n_head: 1
   ib_mbm_feature_norm: l2
   ib_mbm_reg_lambda: 0.0
 
@@ -42,16 +38,13 @@ experiment:
   b_step_weight_decay: 3.0e-4
   b_step_momentum: 0.9
   b_step_nesterov: true
-  grad_clip_norm: 1.0
+  grad_clip_norm: 0
 
   ce_alpha: 0.3
   kd_ens_alpha: 0.0
-  hybrid_beta: 0.05
 
   use_cccp: false
   tau: 4.0
-  cccp_nt: 1
-  cccp_ns: 1
 
   # Teacher evaluation (초반 평가 스킵으로 속도 향상)
   compute_teacher_eval: false
@@ -74,3 +67,5 @@ experiment:
   teacher_adapt_kd_warmup: 0
   use_loss_clamp: false
   loss_clamp_max: 100.0
+  # Single-teacher SOTA default index (used only when kd_target: teacher)
+  kd_teacher_index: 0

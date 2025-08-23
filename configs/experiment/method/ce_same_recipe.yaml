@@ -1,0 +1,37 @@
+name: ce_same_recipe
+
+# CE-only, KD off but with the same recipe as KD/ASIB
+ce_alpha: 1.0
+kd_alpha: 0.0
+ce_label_smoothing: 0.05
+
+# Optimizer / schedule (match KD recipe)
+optimizer: sgd
+student_lr: 0.1
+student_weight_decay: 0.0005
+b_step_momentum: 0.9
+b_step_nesterov: true
+schedule:
+  type: cosine
+  lr_warmup_epochs: 5
+  min_lr: 1e-5
+
+# Augmentation and AMP (match KD recipe)
+mixup_alpha: 0.2
+cutmix_alpha_distill: 0.0
+use_amp: true
+amp_dtype: bfloat16
+compute_teacher_eval: false
+
+# CIFAR small input
+small_input: true
+
+# Adapters fixed (head alignment). KD is 0, so features/teachers unused.
+use_distillation_adapter: true
+distill_out_dim: 256
+feat_kd_key: distill_feat
+
+# Ensure no IB/KD pathways are triggered
+use_ib: false
+feat_kd_alpha: 0.0
+

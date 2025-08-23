@@ -10,7 +10,7 @@ from modules.losses import (
     kl_loss, mse_loss, ib_loss, ce_loss, 
     contrastive_loss, attention_loss, factor_transfer_loss
 )
-from modules.loss_safe import safe_kl_loss, safe_mse_loss
+from modules.losses import safe_kl_loss, safe_mse_loss
 from modules.disagreement import compute_disagreement_rate
 from modules.partial_freeze import (
     freeze_all, unfreeze_by_regex, apply_bn_ln_policy,

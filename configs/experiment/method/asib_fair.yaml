@@ -1,0 +1,49 @@
+name: asib_fair
+
+# 공정·안정 기본
+ce_alpha: 0.65
+kd_alpha: 0.35
+ce_label_smoothing: 0.05
+
+# KD 정책 (공정 비교선: 명시적 weighted_conf)
+kd_target: weighted_conf
+kd_ens_alpha: 0.0
+tau_syn: 4.0
+synergy_logit_scale: 1.0
+tau_gate: 2.0
+use_mu_for_kd: true
+kd_center_teacher: true
+kd_target_mode: two_view
+
+# IB 설정 (A-Step OFF 비교선에서는 IB도 OFF)
+use_ib: false
+ib_beta: 1.0e-4
+ib_beta_warmup_epochs: 5
+
+# 게이팅 / A-Step (공정 비교선: A-Step OFF)
+teacher_adapt_epochs: 0
+synergy_only_epochs: 0
+enable_kd_after_syn_acc: 0.65
+teacher_eval_every: 0
+synergy_ema_alpha: 0.8
+
+# 공정 비교: PPF/FT OFF
+use_partial_freeze: false
+
+# 작은 학생 정렬(어댑터 사용)
+use_distillation_adapter: true
+
+# 공정 smoothing 범위
+min_cw: 0.5
+max_cw: 1.5
+
+# Mix settings aligned with anchor fairness
+mixup_alpha: 0.2
+cutmix_alpha_distill: 0.0
+
+# KD view defaults
+kd_target_view: clean
+synergy_view: clean
+kd_warmup_epochs: 10
+kd_max_ratio: 1.25
+

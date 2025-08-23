@@ -72,8 +72,12 @@ def create_optimizers_and_schedulers(
             # 교사 백본은 추가하지 않음 (기본값)
             pass
     
-    ib_mbm_params = [p for p in ib_mbm.parameters() if p.requires_grad]
-    syn_params = [p for p in synergy_head.parameters() if p.requires_grad]
+    ib_mbm_params = [
+        p for p in (ib_mbm.parameters() if ib_mbm is not None else []) if p.requires_grad
+    ]
+    syn_params = [
+        p for p in (synergy_head.parameters() if synergy_head is not None else []) if p.requires_grad
+    ]
 
     # 3. 파라미터 그룹 확인 로그 (개수 + 총 파라미터 수)
     def _count_trainable(m):
@@ -109,6 +113,12 @@ def create_optimizers_and_schedulers(
                 cfg.get("adam_beta2", 0.999),
             ),
         )
+        # Sanity check: grad-clip 대상(teacher_params+ib_mbm_params+syn_params)과 옵티마 그룹 일치 여부 로그
+        total_group_params = sum(p.numel() for g in teacher_optimizer.param_groups for p in g["params"])
+        total_expected = sum(p.numel() for p in teacher_params + ib_mbm_params + syn_params)
+        if total_group_params != total_expected:
+            logging.warning("[Optim] Param-group vs expected mismatch: groups=%d expected=%d",
+                            total_group_params, total_expected)
 
     # Student optimizer (select by cfg.optimizer)
     if str(cfg.get("optimizer", "adamw")).lower() == "sgd":
@@ -155,7 +165,10 @@ def create_optimizers_and_schedulers(
     s_step = sch.get("step_size", cfg.get("student_step_size", 10))
     s_gamma = sch.get("gamma", cfg.get("student_gamma", 0.1))
 
-    if sched_type == "cosine":
+    if sched_type == "none":
+        teacher_scheduler = None if teacher_optimizer else None
+        student_scheduler = None
+    elif sched_type == "cosine":
         teacher_scheduler = CosineAnnealingLR(teacher_optimizer, T_max=max(1, teacher_total_epochs)) if teacher_optimizer else None
         student_scheduler = CosineAnnealingLR(student_optimizer, T_max=max(1, student_total_epochs))
     else:
@@ -241,10 +254,18 @@ def run_training_stages(
         logging.info(f"[PPF][Stage {stage}] s_freeze={s_freeze} t1_freeze={t1_freeze} t2_freeze={t2_freeze} | BN(s/t1/t2)={s_bn_freeze}/{t1_bn_freeze}/{t2_bn_freeze}")
 
         if cfg.get("use_partial_freeze", False):
-            from utils.training.freeze import apply_partial_freeze
+            from modules.partial_freeze import apply_partial_freeze
+            # Always allow student PPF when requested
             apply_partial_freeze(student_model, s_freeze, cfg.get("student_freeze_bn", False))
-            apply_partial_freeze(teacher_wrappers[0], t1_freeze, cfg.get("teacher1_freeze_bn", True))
-            apply_partial_freeze(teacher_wrappers[1], t2_freeze, cfg.get("teacher2_freeze_bn", True))
+            # Apply teacher PPF only when both teachers exist
+            try:
+                if len(teacher_wrappers) >= 2:
+                    apply_partial_freeze(teacher_wrappers[0], t1_freeze, cfg.get("teacher1_freeze_bn", True))
+                    apply_partial_freeze(teacher_wrappers[1], t2_freeze, cfg.get("teacher2_freeze_bn", True))
+                else:
+                    logging.info("[PPF] Skipping teacher partial_freeze (need 2 teachers, got %d)", len(teacher_wrappers) if teacher_wrappers is not None else 0)
+            except Exception:
+                logging.debug("[PPF] teacher_wrappers not available for partial_freeze; skipping")
         
         # Teacher adaptive update
         if (
@@ -253,7 +274,7 @@ def run_training_stages(
             or cfg.get("use_cccp", False)
             or cfg.get("use_teacher_finetuning", False)
         ):
-            te1_acc = teacher_adaptive_update(
+            best_syn = teacher_adaptive_update(
                 teacher_wrappers,
                 ib_mbm,
                 synergy_head,
@@ -266,6 +287,14 @@ def run_training_stages(
                 teacher_scheduler,
                 global_ep=global_ep,
             )
+            # Record synergy gate metric for B-Step immediately after A-Step
+            try:
+                if isinstance(best_syn, (int, float)) and float(best_syn) >= 0:
+                    exp_logger.update_metric("last_synergy_acc", float(best_syn) / 100.0)
+                    exp_logger.update_metric("last_synergy_acc_pct", float(best_syn))
+                    cfg["last_synergy_acc"] = float(best_syn) / 100.0
+            except Exception:
+                pass
             
             # A-Step이 student를 freeze했을 수 있으므로 반드시 복원
             for p in student_model.parameters():
@@ -300,15 +329,21 @@ def run_training_stages(
                 exp_logger.update_metric(f"stage{stage}_synergy_head_trainable", syn_train)
                 logging.info(f"[PPF][A-Step] SynergyHead: {syn_train}/{syn_total} ({100*syn_train/syn_total:.1f}%)")
             
-            # Log teacher disagreement (with sampling for speed)
-            disagree_rate = compute_disagreement_rate(
-                teacher_wrappers[0], teacher_wrappers[1], test_loader, cfg["device"],
-                cfg=cfg, 
-                max_samples=cfg.get("disagreement_max_samples", None),
-                max_batches=cfg.get("disagreement_max_batches", 10)  # 10 배치만으로 충분
-            )
-            logging.info(f"[Stage {stage}] Teacher disagreement= {disagree_rate:.2f}%")
-            exp_logger.update_metric(f"stage{stage}_teacher_disagree", disagree_rate)
+            # Log teacher disagreement (with sampling for speed) — only when 2 teachers exist
+            try:
+                if len(teacher_wrappers) >= 2:
+                    disagree_rate = compute_disagreement_rate(
+                        teacher_wrappers[0], teacher_wrappers[1], test_loader, cfg["device"],
+                        cfg=cfg,
+                        max_samples=cfg.get("disagreement_max_samples", None),
+                        max_batches=cfg.get("disagreement_max_batches", 10)
+                    )
+                    logging.info(f"[Stage {stage}] Teacher disagreement= {disagree_rate:.2f}%")
+                    exp_logger.update_metric(f"stage{stage}_teacher_disagree", disagree_rate)
+                else:
+                    logging.info("[Stage %d] Skip disagreement (need 2 teachers, got %d)", stage, len(teacher_wrappers) if teacher_wrappers is not None else 0)
+            except Exception:
+                logging.debug("[Stage %d] disagreement check skipped (teachers unavailable)", stage)
         
         # Student distillation
         student_acc = student_distillation_update(
@@ -325,15 +360,22 @@ def run_training_stages(
             global_ep=global_ep,
         )
         
-        # Update global epoch counter
-        teacher_epochs = cfg.get("teacher_adapt_epochs", 1)
-        student_epochs = cfg.get("student_epochs_schedule", [15])[stage - 1]
+        # Update global epoch counter (A-Step skipped → teacher_epochs defaults to 0)
+        teacher_epochs = int(cfg.get("teacher_adapt_epochs", 0))
+        # student epochs: per_stage > schedule > single key/iters
+        if "student_epochs_per_stage" in cfg and isinstance(cfg["student_epochs_per_stage"], (list, tuple)):
+            student_epochs = int(cfg["student_epochs_per_stage"][stage - 1])
+        elif "student_epochs_schedule" in cfg and isinstance(cfg["student_epochs_schedule"], (list, tuple)):
+            student_epochs = int(cfg["student_epochs_schedule"][stage - 1])
+        else:
+            student_epochs = int(cfg.get("student_epochs", cfg.get("student_iters", 1)))
         global_ep += teacher_epochs + student_epochs
         
         # Log stage results
         exp_logger.update_metric(f"stage{stage}_student_acc", student_acc)
         if cfg.get("use_partial_freeze", False):
-            exp_logger.update_metric(f"stage{stage}_teacher_acc", te1_acc)
+            if 'best_syn' in locals():
+                exp_logger.update_metric(f"stage{stage}_teacher_acc", best_syn)
         
         # Get stage metrics from exp_logger (if available)
         # For now, we'll use placeholder values and collect from logs later

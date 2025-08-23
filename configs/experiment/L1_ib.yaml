@@ -15,24 +15,27 @@ experiment:
 
   num_stages: 4
   student_epochs_per_stage: [20, 20, 20, 20]
-  teacher_adapt_epochs: 6           # IB_MBM 학습용 A‑Step
+  teacher_adapt_epochs: 4           # IB_MBM 학습용 A‑Step
   compute_teacher_eval: true
 
   use_amp: true
   amp_dtype: bfloat16
 
-  # KD (synergy target with gating/mix)
-  kd_target: synergy
-  teacher_adapt_kd_warmup: 6
-  kd_ens_alpha: 0.5
-  enable_kd_after_syn_acc: 0.8
+  # KD (auto_min with label_ce policy; no mix)
+  kd_target: auto_min
+  kd_auto_policy: label_ce
+  teacher_adapt_kd_warmup: 0
+  kd_ens_alpha: 0.0
+  enable_kd_after_syn_acc: 0.65
   ce_alpha: 0.65
   kd_alpha: 0.35
-  tau_schedule: [3.5, 5.0]
+  tau: 4.0
   kd_warmup_epochs: 3
   kd_max_ratio: 1.25
-  ce_label_smoothing: 0.0
-  feat_kd_alpha: 0.25
+  ce_label_smoothing: 0.05
+  feat_kd_alpha: 0.0
+  feat_kd_clip: 3.0
+  feat_kd_huber_beta: 1.0
   min_cw: 0.5
   max_cw: 1.5
 
@@ -50,7 +53,7 @@ experiment:
   ib_mbm_lr_factor: 2
 
   # A‑Step 안정화
-  synergy_only_epochs: 8
+  synergy_only_epochs: 2
   synergy_ce_alpha: 1.0
   use_cccp_in_a: false
 
@@ -62,13 +65,16 @@ experiment:
   optimizer: adamw
   student_lr: 0.001
   student_weight_decay: 0.0003
+  teacher_lr: 0.0001
+  teacher_weight_decay: 0.0001
   a_step_lr: 0.0001
   a_step_weight_decay: 0.0001
   grad_clip_norm: 0.5
   use_loss_clamp: true
   loss_clamp_mode: soft
   loss_clamp_max: 20.0
-  loss_clamp_warmup_epochs: 8
+  disable_loss_clamp_in_a: true
+  loss_clamp_warmup_epochs: 0
   schedule: { type: cosine, lr_warmup_epochs: 5, min_lr: 1e-6 }
   mixup_alpha: 0.2
   cutmix_alpha_distill: 1.0

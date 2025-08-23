@@ -44,6 +44,8 @@ class ReviewKDDistiller(nn.Module):
         """
         with torch.no_grad():
             t_out = self.teacher(x)
+            if isinstance(t_out, tuple):
+                t_out = t_out[0]
             t_logit = t_out["logit"]
             # Teacher multi-level features
             t_feats = {}
@@ -154,8 +156,12 @@ class ReviewKDDistiller(nn.Module):
         else:
             scheduler = None
 
-        self.train()
         for epoch in range(epochs):
+            # Student only training; teacher fixed
+            self.student.train()
+            self.teacher.eval()
+            for p in self.teacher.parameters():
+                p.requires_grad_(False)
             total_loss = 0.0
             correct = 0
             total = 0
@@ -165,7 +171,7 @@ class ReviewKDDistiller(nn.Module):
                 
                 optimizer.zero_grad()
                 
-                with autocast_ctx():
+                with autocast_ctx:
                     loss, logits = self.forward(data, target)
                 
                 if scaler is not None:

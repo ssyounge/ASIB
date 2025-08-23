@@ -1,6 +1,7 @@
 # utils/logger.py
 
 import os
+import copy
 import csv
 import json
 import time
@@ -55,11 +56,11 @@ class ExperimentLogger:
         :param args: namespace or dict of config
         :param exp_name: prefix for experiment id
         """
-        # Convert to dict if argparse.Namespace
+        # Convert to dict if argparse.Namespace, and DEEP‑COPY to avoid mutating caller's exp_dict
         if hasattr(args, "__dict__"):
-            self.config = vars(args)
+            self.config = copy.deepcopy(vars(args))
         elif isinstance(args, dict):
-            self.config = args
+            self.config = copy.deepcopy(args)
         else:
             raise ValueError("args must be Namespace or dict")
 
@@ -99,7 +100,14 @@ class ExperimentLogger:
         Save any metric (accuracy, loss, hyperparams, etc.) into self.config
         so it can be written out on finalize().
         """
-        self.config[key] = value
+        # Ensure we never mutate nested original references by keeping values JSON‑serializable copies
+        try:
+            if isinstance(value, (dict, list)):
+                self.config[key] = copy.deepcopy(value)
+            else:
+                self.config[key] = value
+        except Exception:
+            self.config[key] = str(value)
 
     def get_metric(self, key, default=None):
         """

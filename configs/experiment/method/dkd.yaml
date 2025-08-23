@@ -1,0 +1,9 @@
+name: dkd
+ce_alpha: 0.5
+kd_alpha: 0.5
+tau: 4.0
+kd_target: teacher
+feat_kd_alpha: 0.0
+dkd_alpha: 1.0
+dkd_beta: 2.0
+kd_warmup_epochs: 5

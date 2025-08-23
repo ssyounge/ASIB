@@ -8,6 +8,7 @@ import torchvision.transforms as T
 from torch.utils.data import Dataset
 import numpy as np
 from PIL import Image
+from multiprocessing import get_context
 
 
 class CustomToTensor:
@@ -51,6 +52,9 @@ class CIFAR100Dataset(Dataset):
             transform=transform
         )
         self.train = train
+        # main.py 호환을 위한 클래스 정보 노출 (길이만 사용)
+        self.num_classes = 100
+        self.classes = list(range(100))
         
     def __getitem__(self, index):
         """Get item by index."""
@@ -82,14 +86,21 @@ class CIFAR100NPZ(Dataset):
             for i in range(1, 11):  # train_data_batch_1.npz ~ train_data_batch_10.npz
                 file_path = os.path.join(self.root, f'cifar100_train_npz/train_data_batch_{i}.npz')
                 with np.load(file_path) as batch_data:
-                    batch_images = batch_data['data']  # (N, 32, 32, 3)
-                    batch_labels = batch_data['labels']
+                    batch_images = batch_data['data']  # 기대: (N, 32, 32, 3)
+                    batch_labels = batch_data['labels']  # 기대: (N,) or (N,1)
                     
                     self.data.append(batch_images)
-                    self.targets.extend(batch_labels)
+                    # 라벨은 배치 단위로 모아두었다가 최종적으로 concatenate
+                    self.targets.append(batch_labels)
             
-            # 모든 배치 데이터를 하나로 합치기
+            # 모든 배치 데이터를 하나로 합치고 라벨은 1D int64로 강제
             self.data = np.concatenate(self.data, axis=0)  # (50000, 32, 32, 3)
+            self.targets = (
+                np.concatenate(self.targets, axis=0)
+                .reshape(-1)
+                .astype(np.int64)
+                .tolist()
+            )
             
         else:
             # 테스트 데이터: 단일 파일 로드
@@ -97,78 +108,114 @@ class CIFAR100NPZ(Dataset):
             with np.load(file_path) as data:
                 self.data = data['data']  # (10000, 32, 32, 3)
                 self.targets = data['labels']
+            # 라벨 1D int64 강제
+            self.targets = (
+                np.array(self.targets)
+                .reshape(-1)
+                .astype(np.int64)
+                .tolist()
+            )
         
     def __getitem__(self, index):
         img = self.data[index]
-        target = self.targets[index]
+        target = int(self.targets[index])  # 보장: 0..99의 int
         
-        # numpy array를 PIL Image로 변환
+        # numpy array를 PIL Image로 변환 (안전 가드 포함)
         if img.dtype != np.uint8:
             img = img.astype(np.uint8)
-        img = Image.fromarray(img)
+        if img.ndim == 3 and img.shape[-1] == 3:
+            pil = Image.fromarray(img)
+        elif img.ndim == 3 and img.shape[0] == 3:
+            pil = Image.fromarray(np.transpose(img, (1, 2, 0)))
+        else:
+            raise ValueError(f"Unexpected image shape: {img.shape}")
         
         if self.transform is not None:
-            img = self.transform(img)
+            pil = self.transform(pil)
             
-        return img, target
+        return pil, target
     
     def __len__(self):
         return len(self.data)
 
 
-def get_cifar100_loaders(root="./data", batch_size=128, num_workers=2, augment=True):
+def get_cifar100_loaders(
+    root="./data",
+    batch_size=128,
+    num_workers=2,
+    augment=True,
+    use_spawn_dl: bool = False,
+    backend: str = "npz",
+    log_first_batch_stats: bool = False,
+):
     """
     CIFAR-100 size = (32x32) - NPZ 파일 사용 (ImageNet-32와 동일한 형식)
     Returns:
         train_loader, test_loader
     """
-    # 과대적합 방지를 위한 더 강한 증강
+    # 표준 CIFAR-100 증강(안정 수렴 우선): RandomCrop(32, pad=4) + Flip
     if augment:
         transform_train = T.Compose([
+            T.RandomCrop(32, padding=4, padding_mode='reflect'),
             T.RandomHorizontalFlip(p=0.5),
-            T.RandomRotation(degrees=20),  # 더 큰 회전
-            T.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.15),  # 더 강한 색상 변화
-            T.RandomResizedCrop(32, scale=(0.7, 1.0), ratio=(0.8, 1.2)),  # 더 큰 crop 변화
-            T.RandomGrayscale(p=0.1),  # 그레이스케일 변환 추가
             CustomToTensor(),
-            T.Normalize((0.5071,0.4865,0.4409),
-                        (0.2673,0.2564,0.2762))
+            T.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
         ])
     else:
         transform_train = T.Compose([
             CustomToTensor(),
-            T.Normalize((0.5071,0.4865,0.4409),
-                        (0.2673,0.2564,0.2762))
+            T.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
         ])
     
     transform_test = T.Compose([
         CustomToTensor(),
-        T.Normalize((0.5071,0.4865,0.4409),
-                    (0.2673,0.2564,0.2762))
+        T.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
     ])
 
     root = root or os.getenv("DATA_ROOT", "./data")
-    train_dataset = CIFAR100NPZ(root=root, train=True, transform=transform_train)
-    test_dataset = CIFAR100NPZ(root=root, train=False, transform=transform_test)
+    backend = str(backend or "npz").lower()
+    if backend == "torchvision":
+        train_dataset = CIFAR100Dataset(root=root, train=True, download=True, transform=transform_train)
+        test_dataset = CIFAR100Dataset(root=root, train=False, download=True, transform=transform_test)
+    else:
+        train_dataset = CIFAR100NPZ(root=root, train=True, transform=transform_train)
+        test_dataset = CIFAR100NPZ(root=root, train=False, transform=transform_test)
 
+    pin = bool(num_workers > 0)
+    mp_ctx = get_context("spawn") if (num_workers > 0 and bool(use_spawn_dl)) else None
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers,
-        pin_memory=True,  # GPU 전송 속도 향상
-        persistent_workers=True if num_workers > 0 else False,  # 워커 재사용으로 속도 향상
-        prefetch_factor=4 if num_workers > 0 else None  # 미리 로드할 배치 수
+        pin_memory=pin,
+        persistent_workers=pin,
+        prefetch_factor=(2 if pin else None),
+        multiprocessing_context=mp_ctx,
     )
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
         batch_size=batch_size,
         shuffle=False,
         num_workers=num_workers,
-        pin_memory=True,  # GPU 전송 속도 향상
-        persistent_workers=True if num_workers > 0 else False,  # 워커 재사용으로 속도 향상
-        prefetch_factor=4 if num_workers > 0 else None  # 미리 로드할 배치 수
+        pin_memory=pin,
+        persistent_workers=pin,
+        prefetch_factor=(2 if pin else None),
+        multiprocessing_context=mp_ctx,
     )
+
+    # Optional: one-time first-batch statistics for quick sanity
+    if log_first_batch_stats:
+        try:
+            xb, yb = next(iter(train_loader))
+            logging.info(
+                "x %s %s min=%.3f max=%.3f mean=%.3f std=%.3f | y %s [%d,%d]",
+                tuple(xb.shape), xb.dtype,
+                float(xb.min()), float(xb.max()), float(xb.mean()), float(xb.std()),
+                yb.dtype, int(yb.min()), int(yb.max()),
+            )
+        except Exception as _e:
+            logging.debug("first-batch stats logging skipped: %s", _e)
     return train_loader, test_loader
 
 # —— Quick sanity check (optional) ————————————

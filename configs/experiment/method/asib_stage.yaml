@@ -1,0 +1,79 @@
+name: asib_stage
+
+# Base CE/KD
+ce_alpha: 0.65
+kd_alpha: 0.35
+ce_label_smoothing: 0.05
+
+# KD policy
+kd_target: auto_min
+kd_auto_policy: label_ce
+kd_ens_alpha: 0.0
+kd_warmup_epochs: 10
+tau: 4.0
+tau_syn: 4.0
+synergy_logit_scale: 1.0
+use_mu_for_kd: true
+kd_max_ratio: 1.25
+kd_target_view: clean
+synergy_view: clean
+kd_center_teacher: true
+kd_target_mode: two_view
+synergy_temp_learnable: true
+synergy_temp_reg: 1.0e-4
+ib_mbm_logvar_clip: 4
+kd_cooldown_epochs: 40
+kd_correct_min: 0.2
+teacher2_weight_decay_start_epoch: 120
+teacher2_weight_decay_len: 80
+
+# IB + gating (A-Step on)
+use_ib: true
+ib_beta: 5.0e-5
+ib_beta_warmup_epochs: 4
+teacher_adapt_epochs: 4
+synergy_only_epochs: 2
+enable_kd_after_syn_acc: 0.65
+teacher_eval_every: 2
+synergy_ema_alpha: 0.8
+
+# Stability
+optimizer: sgd
+student_lr: 0.1
+student_weight_decay: 0.0005
+b_step_momentum: 0.9
+b_step_nesterov: true
+schedule:
+  type: cosine
+  lr_warmup_epochs: 5
+  min_lr: 1e-5
+mixup_alpha: 0.2
+cutmix_alpha_distill: 0.0
+use_channels_last: true
+use_amp: true
+amp_dtype: bfloat16
+min_cw: 0.5
+max_cw: 1.5
+kd_uncertainty_weight: 0.5
+kd_uncertainty_min: 0.2
+synergy_probe_every: 100
+
+# CIFAR small input
+small_input: true
+dataset:
+  backend: torchvision
+
+# Adapters for dim alignment
+use_distillation_adapter: true
+distill_out_dim: 256
+ib_mbm_out_dim: 256
+ib_mbm_query_dim: 256
+ib_mbm_n_head: 4
+feat_kd_key: distill_feat
+
+# A-Step stability
+label_smoothing: 0.05          # A-Step CE smoothing
+synergy_head_dropout: 0.05     # Dropout p in synergy head
+ib_mbm_lr_factor: 2            # Faster adaptation for IB_MBM/Head
+
+

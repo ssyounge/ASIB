@@ -34,6 +34,11 @@ def at_loss_dict(teacher_dict, student_dict, layer_key="feat_4d_layer3", p=2):
     teacher_dict["feat_4d_layer3"], student_dict["feat_4d_layer3"] 사용
     => single_layer_at_loss 계산
     """
+    if layer_key not in teacher_dict or layer_key not in student_dict:
+        raise KeyError(
+            f"AT layer_key='{layer_key}' not in dict. "
+            f"avail_t={list(teacher_dict.keys())[:5]} avail_s={list(student_dict.keys())[:5]}"
+        )
     f_t = teacher_dict[layer_key]  # 4D
     f_s = student_dict[layer_key]  # 4D
     return single_layer_at_loss(f_s, f_t, p=p)
