@@ -7,6 +7,47 @@
 - 따라서 SAFE‑RETRY에서 `use_amp` 토글, 교사 ckpt 경로 주입, IB/쿼리/아웃 차원 자동 정렬, 에폭별 로깅/메트릭 추가는 락 위반이 아닙니다.
 - 디버그를 위해 잠금 시점의 sanitize된 구성을 `_locked_config`로 보관합니다(해시 제외).
 
+### 2025-08-25 업데이트(핵심 수정 요약)
+- SAFE-RETRY: 락 이후 `use_channels_last`를 변경하지 않도록 고정(해시 충돌 방지). SAFE-RETRY에서는 AMP만 off.
+- IB_MBM 생성 조건: `kd_target in {"synergy","auto","auto_min"}`일 때 생성하도록 확장(main.py).
+- KD 샘플 게이팅 dtype/인덱싱 고정(modules/trainer_student.py):
+  - subset scatter에서 `s_logit.new_zeros(...)` 대신 `torch.zeros(..., dtype=kd_vec_sel.dtype)` 사용으로 bf16/float 충돌 제거.
+  - `kd_uncertainty_weight` subset 분기에서 `auto_min(choose_syn)` 경로 시 선택된 타깃 로짓으로 `q_sel` 구성(인덱스/shape 정합).
+- 러너 개선(run/run_asib_sota_comparison.sh):
+  - EPOCHS 환경훅 추가(예: EPOCHS=1 시 +student_epochs=1, ASIB 계열은 +teacher_adapt_epochs=1).
+  - Hydra 오버라이드 정규화: `+method@experiment.method=<name>` 사용, 모델 그룹은 `model/teacher@experiment.teacher{1,2}` 및 `model/student@experiment.model.student`(선행 슬래시 금지).
+  - DRY_RUN 인덱스 매핑/Slurm 배열 가드/로그 파일 경로 안전화 반영.
+  - `dkd`의 ce/kd를 0.65/0.35로 통일.
+  - reviewkd/crd의 배치 축소 오버라이드 제거(앵커 락 충돌 방지).
+- A‑Step 가드 갱신: `auto_min` 포함, `use_cccp_in_a=true`면 IB 여부와 무관하게 A‑Step 실행.
+- eval_synergy EMA 초기화: `last_synergy_acc`가 미측정(prev<0)이면 현재 측정값으로 즉시 초기화 후 EMA 진행.
+- B‑Step 시너지 경로 활성: `need_ibm` 판정이 `allow_syn`(게이트) 결과를 그대로 재사용하여 `auto_min`에서도 IB 경로가 실제 실행.
+- kd_ens_alpha 혼합: 시너지 게이트 통과 후(`allow_syn=true`)에만 워밍업 혼합 허용.
+- A‑Step 직후 로깅 안전 가드: 단일 교사 구성에서도 파라미터 카운트 로깅이 안전하게 동작.
+- 메소드 YAML 반영:
+  - `asib_stage.yaml`(최신): `kd_target: auto`, `tau_syn: 4.0`, `synergy_logit_scale: 0.80`, `kd_cooldown_epochs: 60`, `kd_uncertainty_weight: 0.5`, `kd_two_view_start_epoch: 20`, `kd_two_view_stop_epoch: 80`, `kd_sample_gate: true`, `kd_sample_thr: 0.85`, `kd_sample_max_ratio: 0.50`, `teacher_weights: [0.7, 0.3]`, `synergy_only_epochs: 8`, `synergy_ce_alpha: 1.0`, `optimizer: adamw`, `student_lr: 0.001`, `student_weight_decay: 0.0003`, `schedule.min_lr: 1e-6`, `cutmix_alpha_distill: 1.0`, `distill_out_dim/ib_mbm_query_dim/ib_mbm_out_dim: 512`, `ib_mbm_lr_factor: 1`, `synergy_temp_learnable: false`.
+  - `asib_fair.yaml`: `use_amp: true`, `use_channels_last: true`, `kd_two_view_stop_epoch: 80`, `kd_cooldown_epochs: 60`, `kd_sample_thr: 0.90`, `kd_sample_max_ratio: 0.50`.
+
+### 2025-08-25 추가 업데이트(프레임워크 기본 강화)
+- IB_MBM/Synergy 빌드 정책: `need_synergy = (kd_target ∈ {synergy, auto, auto_min}) or use_ib`로 일원화. IB‑KL은 `use_ib`로만 on/off.
+- 교사 생성 가드: `kd_target ∈ {synergy, auto, auto_min}`이면 `need_teachers=True`로 승격(설령 `kd_alpha=0,use_ib=false,compute_teacher_eval=false`여도 안전).
+- 프로필 기본치(권장):
+  - stable: `kd_two_view_start_epoch=20`, `kd_uncertainty_weight=0.3`, `kd_ens_alpha=0.0`, `tau_syn=tau`, `auto_tune_target_ratio=0.35`.
+  - balanced/aggressive: 동일 키를 10/1, 0.4/0.5, 0.40/0.45로 조정. 실험 의도에 따라 선택.
+  - ASIB 계열(asib/asib_stage) 공통 보수 기본(권장): `synergy_logit_scale=0.8`, `kd_two_view_start_epoch=20`, `kd_uncertainty_weight=0.3`, 프로필 미지정 시 `profile=stable` 권장.
+  - 참고: 코드 차원의 setdefault는 보류되었습니다. YAML/실험 템플릿에서 위 값을 기본으로 사용하세요.
+- 해시 제외 키 보강: `_profile_applied`, `kd_two_view_start_epoch`, `kd_sample_thr`, `auto_tune_target_ratio`, `lr_log_every`를 해시 제외로 추가.
+- 로그 배너: 실행 시 `[AUTO] profile=... tv_start=... tau_syn=... kd_unc_w=...` 한 줄 출력.
+- channels_last 가드: `need_teachers`일 때만 교사에 적용(학생은 항상 적용)으로 안전화.
+
+### 추가 보완(코드 반영됨)
+- A‑Step 항상 실행: `teacher_adapt_epochs > 0`이면 A‑Step을 무조건 수행(이전 IB/kd_target 조건 가드 제거).
+- 시너지 게이트 안전화: `last_synergy_acc <= 0`이면 게이트를 강제로 닫음(초기 미학습 시너지 혼입 방지).
+- B‑Step 전 초기화: A‑Step 이후에도 `last_synergy_acc<0`이면 `eval_synergy` 1회로 초기값 측정 후 게이트 기준 설정.
+- eval_synergy K>2 지원: 기본 2개 사용. 전부 사용하려면 `synergy_eval_use_all_teachers: true`, 특정만 사용하려면 `synergy_eval_teacher_indices: [0,1,...]`.
+- CE‑only 권장치: `synergy_only_epochs` 동안 `synergy_ce_alpha: 1.0` 권장(로그로 경고 안내 추가).
+- auto_min 운용 팁: `kd_ens_alpha: 0.0` 권장(혼합은 `synergy` 모드에서만 의미 있음).
+
 ## 1) models/ib_mbm.py — IB_MBM / SynergyHead 핵심 블록
 
 ```1:142:models/ib_mbm.py
@@ -310,6 +351,23 @@ def teacher_adaptive_update(...):
 - B-Step: `ce_label_smoothing` (학생 CE에 사용)
 설정 파일에서 두 키를 구분해 사용하세요(통일하려면 한 키로 리팩토링 가능).
 
+### 2025-08-26 업데이트(ablations/runners 동기화)
+- Ablation 공통 안정화(모든 L0/L1/L2/L3/L4/side):
+  - DataLoader workers: `dataset.num_workers=8`
+  - Clamp(A‑Step): `use_loss_clamp=true`, `loss_clamp_mode=soft`, `disable_loss_clamp_in_a=false`, `loss_clamp_warmup_epochs=0`
+  - Adapter: `use_distillation_adapter=true`, `distill_out_dim=512`, `feat_kd_key=distill_feat`
+  - Optim/Schedule: `optimizer=adamw`, `student_lr=0.001`, `student_weight_decay=0.0003`, `schedule: {type: cosine, lr_warmup_epochs: 5, min_lr: 1e-6}`
+  - KD 합치기: `ce_alpha: 0.70`, `kd_alpha: 0.30`
+  - 시너지 예열: `synergy_only_epochs: 8`
+  - Rung A‑Step 길이: `teacher_adapt_epochs: 8`
+- 사다리(rung)별 차이(대표):
+  - L1: `synergy_logit_scale=0.85`, `a_step_lr=5e-5`, `ib_mbm_lr_factor=1`, `loss_clamp_max=30.0`
+  - L2: `+CCCP(in_a=true)`, `a_step_lr=1e-4`, `ib_mbm_lr_factor=2`, `loss_clamp_max=35.0`
+  - L3: `+two_view(start=20, stop=80)`, `adapter_only`, `a_step_lr=1e-4`, `ib_mbm_lr_factor=2`, `loss_clamp_max=40.0`
+  - L4: `+EMA/uncertainty/featKD/PPF`, `two_view start=30/stop=80`, `a_step_lr=5e-5`, `loss_clamp_max=50.0`, `synergy_logit_scale=0.80`
+  - side_asib_cccp: `ASIB+CCCP`, `ib_epochs_per_stage=4`, `PPF OFF`, `loss_clamp_max=35.0`
+- Runner(ablation): Slurm 배열/DRY_RUN/샤딩 동일. DataLoader workers는 YAML로 4로 통일(경고 제거). 배열 제출 전 DRY_RUN으로 매핑 확인 권장.
+
 ## 4) configs/experiment/method/asib.yaml — ASIB 주요 하이퍼
 
 ```1:48:configs/experiment/method/asib.yaml
@@ -460,6 +518,29 @@ def get_kd_target(...):
     """Select KD target with synergy gating and warmup mixing."""
     ...
 ```
+
+### 6.x B‑Step 성능 최적화(A–D) — 최신 반영
+
+- A) KD/Synergy clean‑view 재사용: `kd_view == syn_view`인 경우 교사 clean‑view를 한 번만 추론하고, 시너지용은 실제 교사 2개 분량만 재사용(EMA 제외). 중복 추론 제거.
+- B) two_view B‑view 비용 절감: B‑view에서 EMA 제외 기본값. `kd_two_view_include_ema_in_b: false`(기본). 필요 시 true로 토글.
+- C) 쿨다운 완전 스킵: 에폭 단위 `kd_alpha_eff_epoch`를 계산해 0이면 KD/IB 전체 경로를 스킵. `student_ep{N}_kd_alpha_eff_epoch` 로깅.
+- D) two_view 구간 제한: `kd_two_view_stop_epoch` 이후에는 clean 모드로 고정(전반부만 two_view 사용).
+
+### 6.y B‑Step 추가 최적화(T7) — 샘플 게이팅 및 재가중(2025‑08)
+
+- 샘플 게이팅(`kd_sample_gate`): 학생 확신이 높은 샘플은 KD에서 제외하고, 선택된 부분집합에 대해서만 교사/IB 경로 수행.
+  - 선택 비율/임계치: `kd_sample_thr`, `kd_sample_max_ratio`, `kd_sample_min_ratio`
+  - 두‑뷰 호환: subset에서 A‑view는 재사용, B‑view는 파트너 인덱스만 추가 추론 → `kd_vec_sel`을 full로 scatter
+  - 가중치/손실 정합: disagreement, IB‑certainty(cw), KD 불확실도(`kd_uncertainty_weight`), μ‑MSE 모두 subset→full 확장 처리
+  - KD 재가중 평균: `kd_sample_reweight: true`면 선택 샘플 평균으로 KD 손실을 산출해 스케일 보존
+- 쿨다운 연동: `kd_cooldown_epochs`로 말기 KD 스킵(need_teachers=False)
+- 운영 스위치(요약): `kd_sample_gate`, `kd_sample_thr`, `kd_sample_max_ratio`, `kd_sample_min_ratio`, `kd_sample_reweight`, `kd_two_view_stop_epoch`, `kd_cooldown_epochs`, `ema_update_every`
+
+부가 업데이트(학습 신호 품질)
+- auto_min 라벨‑CE 라우팅: `kd_auto_policy: label_ce`일 때 mixup‑aware 라벨 CE로 승자(target) 선택 후, 선택된 타깃에 대한 KL을 최적화.
+- DKD 하이브리드 바인딩: `use_dkd_with_synergy: true`일 때 auto_min에서 per‑sample 선택 로짓을 `kd_tgt`로 바인딩해 DKD 적용.
+- 라벨 정확도 가드: `kd_correct_min`을 통해 teacher 타깃의 라벨 확률 `p_y`로 KD 가중을 하한 보정(mixup‑aware 집계 지원).
+- kdSyn 일원화: per‑sample 선택률(`syn_chosen_samples/total_kd_samples`)로 에폭 요약 및 W&B 모두 통일.
 
 ```270:866:modules/trainer_student.py
 def student_distillation_update(...):

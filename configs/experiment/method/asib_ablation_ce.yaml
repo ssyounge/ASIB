@@ -1,0 +1,30 @@
+name: asib_ablation_ce
+
+# CE-only
+ce_alpha: 1.0
+kd_alpha: 0.0
+kd_warmup_epochs: 0
+enable_kd_after_syn_acc: 0.0
+
+# IB/CCCP OFF
+use_ib: false
+ib_epochs_per_stage: 0
+use_cccp: false
+use_cccp_in_a: false
+
+# 공정 CE-only 앵커(ResNet152 기준)
+optimizer: sgd
+student_lr: 0.1
+student_weight_decay: 0.0005
+momentum: 0.9
+ce_label_smoothing: 0.05
+mixup_alpha: 0.2
+cutmix_alpha_distill: 1.0
+
+# 어댑터는 손실엔 미사용이지만 헤드 정합을 위해 유지 (성공샷 정합)
+use_distillation_adapter: true
+
+# AMP
+use_amp: true
+amp_dtype: bfloat16
+

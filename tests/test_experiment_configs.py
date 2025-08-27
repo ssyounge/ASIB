@@ -26,9 +26,8 @@ class TestExperimentConfigs:
             "L0_baseline",
             "L1_ib",
             "L2_cccp", 
-            "L3_ib_cccp_tadapt",
+            "L3_asib_cccp",
             "L4_full",
-            "side_cccp_ppf",
             "overlap_100",
             "sota_scenario_a"
         ]

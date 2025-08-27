@@ -50,10 +50,8 @@ class TestExperimentExecution:
             "configs/experiment/L0_baseline.yaml",
             "configs/experiment/L1_ib.yaml",
             "configs/experiment/L2_cccp.yaml",
-            "configs/experiment/L3_ib_cccp_tadapt.yaml",
+            "configs/experiment/L3_asib_cccp.yaml",
             "configs/experiment/L4_full.yaml",
-            "configs/experiment/side_cccp_ppf.yaml",
-            "configs/experiment/sota_scenario_a.yaml",
             "configs/experiment/overlap_100.yaml"
         ]
         

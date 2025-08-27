@@ -25,6 +25,16 @@ class ShuffleNetV2Student(BaseKDModel):
         backbone = shufflenet_v2_x1_0(
             weights=ShuffleNet_V2_X1_0_Weights.IMAGENET1K_V1 if pretrained else None
         )
+
+        # CIFAR/small-input: conv1 stride=1, maxpool 제거로 과다운샘플 방지
+        if small_input:
+            try:
+                if isinstance(backbone.conv1[0], nn.Conv2d):
+                    backbone.conv1[0].stride = (1, 1)
+                    backbone.conv1[0].padding = (1, 1)
+                backbone.maxpool = nn.Identity()
+            except Exception:
+                pass
         
         super().__init__(backbone, num_classes, role="student", cfg=cfg or {})
 

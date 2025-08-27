@@ -13,6 +13,7 @@ kd_target_mode: two_view
 kd_target_view: clean
 synergy_view: clean
 kd_center_teacher: true
+kd_two_view_stop_epoch: 160
 
 # ASIB core
 use_ib: true
@@ -41,6 +42,12 @@ ema_update_every: 1
 # Uncertainty weighting for KD
 kd_uncertainty_weight: 0.5
 kd_uncertainty_min: 0.2
+kd_sample_gate: true
+kd_sample_thr: 0.85
+kd_sample_max_ratio: 0.60
+kd_sample_min_ratio: 0.10
+kd_sample_reweight: true
+kd_cooldown_epochs: 40
 
 # Synergy probing
 synergy_probe_every: 100
@@ -54,6 +61,11 @@ student_freeze_bn: true
 optimizer: sgd
 student_lr: 0.1
 student_weight_decay: 0.0005
+
+# Runtime perf
+use_channels_last: true
+use_amp: true
+amp_dtype: bfloat16
 
 # Misc method params
 feat_kd_alpha: 0.05

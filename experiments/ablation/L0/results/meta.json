@@ -1,58 +1,61 @@
 {
   "exp_id": "L0_baseline",
-  "seed": 44,
+  "seed": 42,
   "dataset": {
-    "name": null,
-    "batch_size": null,
+    "name": "cifar100",
+    "batch_size": 128,
     "num_workers": 4,
     "data_aug": 1
   },
   "teachers": [
     {
-      "name": "convnext_l",
-      "ckpt": "checkpoints/teachers/convnext_l_cifar100.pth",
-      "test_acc": 89.68
-    },
-    {
       "name": "resnet152",
       "ckpt": "checkpoints/teachers/resnet152_cifar100.pth",
-      "test_acc": 79.28
+      "test_acc": 0.0
+    },
+    {
+      "name": "convnext_s",
+      "ckpt": "checkpoints/teachers/convnext_s_cifar100.pth",
+      "test_acc": 0.0
     }
   ],
   "student": {
-    "name": "resnet101_scratch",
+    "name": "mobilenet_v2_scratch",
     "pretrained": false,
     "use_adapter": true
   },
   "kd": {
-    "method": "asib",
-    "ce_alpha": 0.65,
-    "kd_alpha": 0.35,
+    "method": "asib_ablation_ce",
+    "ce_alpha": 1.0,
+    "kd_alpha": 0.0,
     "kd_ens_alpha": 0.0,
-    "teacher_adapt_kd_warmup": 0
+    "kd_warmup_epochs": 0
   },
   "ib": {
     "use_ib": false,
-    "ib_beta": 0.0001,
+    "ib_beta": 0.0,
     "ib_epochs_per_stage": 0,
-    "ib_mbm_out_dim": 512,
-    "ib_mbm_n_head": 4
+    "ib_mbm_out_dim": 256,
+    "ib_mbm_n_head": null
   },
   "cccp": {
     "use_cccp": false
   },
   "optim": {
-    "optimizer": "adamw",
-    "student_lr": 0.001,
-    "student_weight_decay": 0.0003,
-    "grad_clip_norm": 0.5
+    "optimizer": "sgd",
+    "student_lr": 0.1,
+    "student_weight_decay": 0.0005,
+    "grad_clip_norm": 0
   },
   "schedule": {
     "type": "cosine",
     "lr_warmup_epochs": 5,
-    "min_lr": 1e-06,
+    "min_lr": 1e-05,
     "step_size": null,
     "gamma": null
+  },
+  "ema": {
+    "use_ema_teacher": false
   },
   "cl": {
     "cl_mode": false,
@@ -71,5 +74,6 @@
     "student_freeze_bn": false,
     "teacher1_freeze_bn": true,
     "teacher2_freeze_bn": true
-  }
+  },
+  "tadapt": false
 }

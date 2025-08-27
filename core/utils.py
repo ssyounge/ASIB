@@ -105,26 +105,111 @@ def auto_set_ib_mbm_query_dim(cfg: Dict[str, Any]):
     return cfg
 
 def auto_set_ib_mbm_query_dim_with_model(student_model, cfg: Dict[str, Any]):
-    """Auto-set ib_mbm_query_dim based on student model (legacy keys removed)."""
+    """학생 모델/설정으로부터 ib_mbm_query_dim을 안전하게 결정.
+
+    - 중첩 cfg(experiment, experiment.method) 조회 지원
+    - student_model.get_feat_dim() 폴백 지원
+    - distill_feat/feat_2d 미노출 시 distill_out_dim 또는 512로 폴백
+    - device 자동 선택 및 출력 형태(tuple/dict) 유연 처리
+    """
     key = "ib_mbm_query_dim"
-    
-    # distill_feat(어댑터 512)를 쿼리로 쓰는 경우 우선
-    if cfg.get("feat_kd_key", "feat_2d") == "distill_feat" and cfg.get("use_distillation_adapter", False):
-        qdim = int(cfg.get("distill_out_dim", 0))
-        if qdim > 0:
-            cfg[key] = qdim
-            logging.info(f"[auto_set_ib] q_dim set to distill_out_dim={qdim}")
-            return
-    
-    # 이하 기존 로직 유지(학생 feat 기반 추정)
-    if cfg.get(key, 0) in (0, None):
-        with torch.no_grad(), torch.autocast(device_type="cuda", enabled=False):
-            dummy = torch.randn(1, 3, 32, 32, device=cfg["device"])
-            feat_dict, _, _ = student_model(dummy)
-            qdim = feat_dict.get("distill_feat", feat_dict.get("feat_2d")).shape[-1]
-            cfg[key] = int(qdim)
-            if cfg.get("debug_verbose"):
-                logging.debug("[Auto-cfg] %s ← %d", key, qdim)
+
+    def _get(k: str, default=None):
+        if k in cfg:
+            return cfg[k]
+        exp = cfg.get("experiment", {}) if isinstance(cfg.get("experiment"), dict) else {}
+        if k in exp:
+            return exp[k]
+        meth = exp.get("method", {}) if isinstance(exp.get("method"), dict) else {}
+        return meth.get(k, default)
+
+    def _set_key(v: int):
+        vv = int(v)
+        cfg[key] = vv
+        exp = cfg.get("experiment")
+        if isinstance(exp, dict):
+            exp[key] = vv
+            meth = exp.get("method")
+            if isinstance(meth, dict):
+                meth[key] = vv
+
+    # 0) 사전 지정값이 있으면 그대로 사용
+    preset = int(_get(key, 0) or 0)
+    if preset > 0:
+        _set_key(preset)
+        return
+
+    # 0.5) 모델 API 폴백(get_feat_dim)
+    if hasattr(student_model, "get_feat_dim"):
+        try:
+            d = int(student_model.get_feat_dim())
+            if d > 0:
+                _set_key(d)
+                logging.info("[auto_set_ib] q_dim set via student.get_feat_dim()=%d", d)
+                return
+        except Exception:
+            pass
+
+    # 1) 어댑터가 설정되어 있으면 distill_out_dim을 우선
+    use_da = bool(_get("use_distillation_adapter", False))
+    feat_key = str(_get("feat_kd_key", "feat_2d"))
+    distill_dim = int(_get("distill_out_dim", 0) or 0)
+    if use_da and feat_key == "distill_feat" and distill_dim > 0:
+        _set_key(distill_dim)
+        logging.info("[auto_set_ib] q_dim set to distill_out_dim=%d", distill_dim)
+        return
+
+    # 2) 모델에서 직접 추정 시도 (모델 파라미터 디바이스 우선)
+    dev_from_model = None
+    try:
+        p = next(student_model.parameters(), None)
+        if p is not None:
+            dev_from_model = p.device.type
+    except Exception:
+        pass
+    device = dev_from_model or _get("device") or ("cuda" if torch.cuda.is_available() else "cpu")
+    try:
+        with torch.no_grad():
+            # BN 안전: 현재 모드 저장 후 eval로 전환
+            prev_train = getattr(student_model, "training", True)
+            student_model.eval()
+            try:
+                # 입력 크기 결정: cfg.image_size 우선, 없으면 small_input→32, 아니면 224
+                img_size = int(_get("image_size", 0) or 0)
+                if img_size <= 0:
+                    img_size = 32 if bool(_get("small_input", True)) else 224
+                dummy = torch.randn(1, 3, img_size, img_size, device=device)
+                out = student_model(dummy)
+            finally:
+                # 원래 모드로 복원
+                try:
+                    student_model.train(prev_train)
+                except Exception:
+                    pass
+            feat_dict = None
+            if isinstance(out, tuple) and len(out) > 0:
+                feat_dict = out[0]
+            elif isinstance(out, list) and len(out) > 0 and isinstance(out[0], dict):
+                feat_dict = out[0]
+            elif isinstance(out, dict):
+                feat_dict = out
+
+            cand = None
+            if isinstance(feat_dict, dict):
+                cand = feat_dict.get(feat_key) or feat_dict.get("distill_feat") or feat_dict.get("feat_2d")
+            if cand is not None and hasattr(cand, "shape") and getattr(cand, "shape", None) and cand.shape[-1] > 0:
+                _set_key(int(cand.shape[-1]))
+                if _get("debug_verbose"):
+                    logging.debug("[auto_set_ib] %s ← %d (from model features)", key, int(cand.shape[-1]))
+                return
+    except Exception as e:
+        if _get("debug_verbose"):
+            logging.debug("[auto_set_ib] model-based qdim inference failed: %s", e)
+
+    # 3) 최종 폴백: distill_out_dim > 0 아니면 512
+    qdim_fb = distill_dim if distill_dim > 0 else 512
+    _set_key(qdim_fb)
+    logging.info("[auto_set_ib] q_dim fallback set to %d", qdim_fb)
 
 
 def cast_numeric_configs(cfg: Dict[str, Any]):

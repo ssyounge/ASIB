@@ -42,8 +42,9 @@ class IB_MBM(nn.Module):
             q = self.q_norm(self.q_proj(q_feat))
 
         if kv_feats.dim() == 4:
+            # Explicit flatten for clarity: (B, T, H, W) → (B, T*H*W)
             batch_size = kv_feats.shape[0]
-            kv_feats = kv_feats.view(batch_size, -1)
+            kv_feats = kv_feats.flatten(1)
             kv = self.kv_norm(self.kv_proj(kv_feats)).unsqueeze(1)
         elif kv_feats.dim() == 3:
             # Support both per-token projection (in_features == feat_dim)

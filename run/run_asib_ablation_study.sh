@@ -5,7 +5,7 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
 #SBATCH --time=72:00:00
-#SBATCH --array=0-5%6            # sbatch 시 --array=0-(N-1)%K 로 덮어써서 사용
+#SBATCH --array=0-4%5            # sbatch 시 --array=0-(N-1)%K 로 덮어써서 사용
 #SBATCH --output=experiments/ablation/logs/ablation_%A_%a.log
 #SBATCH --error=experiments/ablation/logs/ablation_%A_%a.err
 
@@ -64,10 +64,10 @@ nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv,noheader,nouni
 
 # 실행 설정
 # ABLATION_CFG: 단일 실험 키 또는 'ladder'
-#   유효 키: L0_baseline, L1_ib, L2_cccp, L3_ib_cccp_tadapt, L4_full, side_cccp_ppf (또는 구형 ablation_* 동의어)
+#   유효 키: L0_baseline, L1_ib, L2_cccp, L3_asib_cccp, L4_full (또는 구형 ablation_* 동의어)
 # SEEDS: 공백 구분 다중 seed (예: "42 87 1337") 없으면 42 한 번
 # EXTRA: 추가 Hydra 오버라이드 (예: 'experiment.schedule.type=cosine')
-CFG_NAME="${ABLATION_CFG:-L0_baseline}"
+CFG_NAME="${ABLATION_CFG:-ladder}"
 DRY_RUN="${DRY_RUN:-0}"
 SEEDS_STR="${SEEDS:-42}"
 EXTRA_OVR="${EXTRA:-}"
@@ -75,7 +75,7 @@ EXTRA_OVR="${EXTRA:-}"
 CFG_DIR="$ROOT/configs/experiment"
 
 # Ladder 모드 구성 (정규화된 키)
-LADDER_LIST=("L0_baseline" "L1_ib" "L2_cccp" "L3_ib_cccp_tadapt" "L4_full")
+LADDER_LIST=("L0_baseline" "L1_ib" "L2_cccp" "L3_asib_cccp" "L4_full")
 
 # 구형 키 → 정규화된 키 매핑
 map_cfg() {
@@ -83,9 +83,8 @@ map_cfg() {
     ablation_baseline) echo "L0_baseline";;
     ablation_ib) echo "L1_ib";;
     ablation_cccp) echo "L2_cccp";;
-    ablation_ib_cccp_tadapt) echo "L3_ib_cccp_tadapt";;
+    ablation_ib_cccp_tadapt) echo "L3_asib_cccp";;
     ablation_full) echo "L4_full";;
-    ablation_cccp_ppf) echo "side_cccp_ppf";;
     *) echo "$1";;
   esac
 }
@@ -101,9 +100,8 @@ if [ "$CANON_NAME" != "ladder" ]; then
     echo "   - L0_baseline (ablation_baseline)"
     echo "   - L1_ib (ablation_ib)"
     echo "   - L2_cccp (ablation_cccp)"
-    echo "   - L3_ib_cccp_tadapt (ablation_ib_cccp_tadapt)"
+    echo "   - L3_asib_cccp (ablation_ib_cccp_tadapt)"
     echo "   - L4_full (ablation_full)"
-    echo "   - side_cccp_ppf (ablation_cccp_ppf)"
     echo "   - ladder (runs full ladder set)"
     exit 1
   fi
@@ -141,7 +139,8 @@ run_one() {
     fi
   done
   if [[ $has_nw -eq 0 ]]; then
-    workers_override="+dataset.num_workers=${WORKERS}"
+    # Strict struct: append under experiment.dataset
+    workers_override="+experiment.dataset.num_workers=${WORKERS}"
   fi
   echo ""
   echo "🚀 Starting ASIB ablation experiment: ${cfg} | seed=${seed}"

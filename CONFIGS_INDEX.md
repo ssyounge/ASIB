@@ -10,6 +10,8 @@ All YAML configs under `configs/` with their paths and full contents.
 - finalize_config: 락 전에 파생/자동 키를 확정합니다(스케줄/PPF/세이프티, 작은 학생 `distill_out_dim=256` 및 `ib_mbm_out_dim` 정렬, 교사 ckpt 주입, 숫자 캐스팅, `teacher_lr`/`teacher_weight_decay`를 `a_step_*`에서 사전 확정).
 - AMP: `get_amp_components(cfg)`는 cfg를 수정하지 않으며, 기본은 `use_amp=false`를 존중합니다(안정화 후 bfloat16 권장).
 - KD 타깃 가이드: `weighted_conf`는 교사별 최대 확률을 per‑sample 가중치로 사용, `auto`는 게이트 통과 시 synergy, 실패 시 weighted_conf로 폴백합니다.
+ - 게이트 안전화/초기화: `_synergy_gate_ok`는 `last_synergy_acc <= 0`이면 게이트를 닫습니다. A‑Step 이후에도 음수면 B‑Step 직전에 `eval_synergy` 1회로 초기화합니다.
+- 프로필/오토 권장 기본치: ASIB 계열은 미지정 시 `profile=stable`, `synergy_logit_scale=0.8`, `kd_two_view_start_epoch=20`, `kd_uncertainty_weight=0.3`를 권장합니다(코드 setdefault 아님).
 
 ## Files
 - configs/base.yaml
@@ -18,22 +20,29 @@ All YAML configs under `configs/` with their paths and full contents.
 - configs/experiment/L0_baseline.yaml
 - configs/experiment/L1_ib.yaml
 - configs/experiment/L2_cccp.yaml
-- configs/experiment/L3_ib_cccp_tadapt.yaml
+- configs/experiment/L3_asib_cccp.yaml
 - configs/experiment/L4_full.yaml
 - configs/experiment/method/ab.yaml
 - configs/experiment/method/asib.yaml
+- configs/experiment/method/asib_ablation_ce.yaml
+- configs/experiment/method/asib_ablation_stage.yaml
 - configs/experiment/method/at.yaml
+- configs/experiment/method/ce_only.yaml
+- configs/experiment/method/ce_same_recipe.yaml
+- configs/experiment/method/ce_sgd_sanity.yaml
 - configs/experiment/method/crd.yaml
 - configs/experiment/method/dkd.yaml
 - configs/experiment/method/fitnet.yaml
 - configs/experiment/method/ft.yaml
+- configs/experiment/method/kd_single_teacher.yaml
+- configs/experiment/method/kd_weighted_conf.yaml
 - configs/experiment/method/reviewkd.yaml
 - configs/experiment/method/simkd.yaml
 - configs/experiment/method/sskd.yaml
 - configs/experiment/method/vanilla_kd.yaml
 - configs/experiment/overlap_100.yaml
-- configs/experiment/side_cccp_ppf.yaml
 - configs/experiment/sota_generic.yaml
+- configs/experiment/sota_mbv2_ce.yaml
 - configs/finetune/convnext_l_cifar100.yaml
 - configs/finetune/convnext_l_imagenet32.yaml
 - configs/finetune/convnext_s_cifar100.yaml
@@ -72,6 +81,7 @@ All YAML configs under `configs/` with their paths and full contents.
 - configs/schedule/step.yaml
 - configs/anchor/fair_baseline.yaml
 - configs/experiment/method/asib_stage.yaml
+ - configs/experiment/method/asib_fair.yaml
 
 ---
 
@@ -95,7 +105,7 @@ defaults: - /base - /model/teacher@experiment.teacher1: convnext_l - /model/teac
 ### configs/experiment/L2_cccp.yaml
 defaults: - /base - /model/teacher@experiment.teacher1: convnext_l - /model/teacher@experiment.teacher2: resnet152 - /model/student@experiment.model.student: resnet101_scratch - _self_ experiment: exp_id: L2_cccp results_dir: experiments/ablation/L2/results teacher1_ckpt: checkpoints/teachers/convnext_l_cifar100.pth teacher2_ckpt: checkpoints/teachers/resnet152_cifar100.pth dataset: { batch_size: 64, num_workers: 8, data_aug: 1, pin_memory: true, persistent_workers: true, prefetch_factor: 2 } num_stages: 4 student_epochs_per_stage: [20, 20, 20, 20] teacher_adapt_epochs: 6 compute_teacher_eval: true use_amp: true amp_dtype: bfloat16 # KD (teacher avg) kd_target: avg ce_alpha: 0.65 kd_alpha: 0.35 tau_schedule: [3.5, 5.0] kd_warmup_epochs: 3 kd_ens_alpha: 0.0 kd_max_ratio: 1.25 ce_label_smoothing: 0.0 feat_kd_alpha: 0.0 min_cw: 0.1 # IB use_ib: false ib_epochs_per_stage: 6 ib_beta: 0.0001 ib_beta_warmup_epochs: 4 ib_mbm_query_dim: 512 ib_mbm_out_dim: 512 ib_mbm_n_head: 4 ib_mbm_feature_norm: l2 ib_mbm_logvar_clip: 4 ib_mbm_min_std: 0.01 ib_mbm_lr_factor: 10 # CCCP ON (A‑Step에서만 적용되는 코드 경로) use_cccp: true use_cccp_in_a: true cccp_alpha: 0.20 tau: 4.0 # A‑Step 안정화 synergy_only_epochs: 6 synergy_ce_alpha: 1.0 # enable_kd_after_syn_acc: 0.6 # avg KD에서는 B-Step 게이팅에 무의미 (A-Step CCCP 의도 아니면 비활성 권장) use_distillation_adapter: true distill_out_dim: 512 feat_kd_key: distill_feat optimizer: adamw student_lr: 0.001 student_weight_decay: 0.0003 a_step_lr: 0.0001 a_step_weight_decay: 0.0001 grad_clip_norm: 0.5 use_loss_clamp: true loss_clamp_mode: soft loss_clamp_max: 20.0 loss_clamp_warmup_epochs: 8 schedule: { type: cosine, lr_warmup_epochs: 5, min_lr: 1e-6 } mixup_alpha: 0.2 cutmix_alpha_distill: 1.0
 
-### configs/experiment/L3_ib_cccp_tadapt.yaml
+### configs/experiment/L3_asib_cccp.yaml
 defaults: - /base - /model/teacher@experiment.teacher1: convnext_l - /model/teacher@experiment.teacher2: resnet152 - /model/student@experiment.model.student: resnet101_scratch - _self_ experiment: exp_id: L3_ib_cccp_tadapt results_dir: experiments/ablation/L3/results teacher1_ckpt: checkpoints/teachers/convnext_l_cifar100.pth teacher2_ckpt: checkpoints/teachers/resnet152_cifar100.pth dataset: { batch_size: 64, num_workers: 8, data_aug: 1, pin_memory: true, persistent_workers: true, prefetch_factor: 2 } num_stages: 4 student_epochs_per_stage: [20, 20, 20, 20] teacher_adapt_epochs: 6 compute_teacher_eval: true use_amp: true amp_dtype: bfloat16 # KD (synergy target with gating/mix) kd_target: synergy teacher_adapt_kd_warmup: 6 kd_ens_alpha: 0.5 enable_kd_after_syn_acc: 0.8 ce_alpha: 0.65 kd_alpha: 0.35 tau_schedule: [3.5, 5.0] kd_warmup_epochs: 3 kd_max_ratio: 1.25 ce_label_smoothing: 0.0 feat_kd_alpha: 0.25 max_cw: 1.5 min_cw: 0.5 # IB(동일) use_ib: true ib_epochs_per_stage: 6 ib_beta: 5e-05 ib_beta_warmup_epochs: 4 ib_mbm_query_dim: 512 ib_mbm_out_dim: 512 ib_mbm_n_head: 4 ib_mbm_feature_norm: l2 ib_mbm_logvar_clip: 4 ib_mbm_min_std: 0.01 ib_mbm_lr_factor: 2 # CCCP (A‑Step) use_cccp: true use_cccp_in_a: true cccp_alpha: 0.20 tau: 4.0 # Teacher Adapt(어댑터만) use_teacher_finetuning: false train_distill_adapter_only: true teacher_lr: 3e-06 teacher_weight_decay: 1e-4 # A‑Step 안정화 synergy_only_epochs: 2 disable_loss_clamp_in_a: true synergy_ce_alpha: 1.0 use_distillation_adapter: true distill_out_dim: 512 feat_kd_key: distill_feat optimizer: adamw student_lr: 0.001 student_weight_decay: 0.0003 a_step_lr: 0.0001 a_step_weight_decay: 0.0001 grad_clip_norm: 0.5 use_loss_clamp: true loss_clamp_mode: soft loss_clamp_max: 20.0 loss_clamp_warmup_epochs: 8 schedule: { type: cosine, lr_warmup_epochs: 5, min_lr: 1e-6 } mixup_alpha: 0.2 cutmix_alpha_distill: 1.0
 
 ### configs/experiment/L4_full.yaml
@@ -137,8 +147,6 @@ name: vanilla_kd ce_alpha: 0.5 kd_alpha: 0.5 tau_start: 4.0 tau_end: 1.5
 ### configs/experiment/overlap_100.yaml
 # configs/experiment/overlap_100.yaml # Phase 3: 100% Overlap (완전 중복) # T1과 T2 모두 0-99 클래스 전체를 학습 defaults: - /base - /model/teacher@experiment.teacher1: convnext_s - /model/teacher@experiment.teacher2: resnet152 - /model/student@experiment.model.student: resnet101_scratch - _self_ experiment: results_dir: experiments/overlap/100/results exp_id: overlap_100 teacher1_ckpt: checkpoints/teachers/convnext_s_cifar100.pth teacher2_ckpt: checkpoints/teachers/resnet152_cifar100.pth dataset: batch_size: 128 num_workers: 4 num_stages: 2 student_epochs_per_stage: [15, 15] teacher_adapt_epochs: 0 use_partial_freeze: false compute_teacher_eval: true use_amp: true amp_dtype: bfloat16 use_ib: true ib_epochs_per_stage: 5 ib_beta: 0.005 ib_beta_warmup_epochs: 3 use_vib_synergy_head: false # Align heterogeneous teacher feature dims via adapter use_distillation_adapter: true distill_out_dim: 512 ib_mbm_query_dim: 2048 ib_mbm_out_dim: 512 ib_mbm_n_head: 4 ib_mbm_feature_norm: l2 overlap_pct: 100 use_overlap_sampling: true a_step_lr: 0.001 a_step_weight_decay: 0.0001 b_step_lr: 0.05 b_step_weight_decay: 0.0003 b_step_momentum: 0.9 b_step_nesterov: true grad_clip_norm: 1.0 ce_alpha: 0.3 kd_ens_alpha: 0.0 hybrid_beta: 0.0
 
-### configs/experiment/side_cccp_ppf.yaml
-defaults: - /base - /model/teacher@experiment.teacher1: convnext_l - /model/teacher@experiment.teacher2: resnet152 - /model/student@experiment.model.student: resnet101_scratch - _self_ experiment: results_dir: experiments/ablation/cccp_ppf/results exp_id: side_cccp_ppf teacher1_ckpt: checkpoints/teachers/convnext_l_cifar100.pth teacher2_ckpt: checkpoints/teachers/resnet152_cifar100.pth dataset: batch_size: 64 num_workers: 8 data_aug: 1 pin_memory: true persistent_workers: true prefetch_factor: 2 # 4-stage(총 40ep) - 안정 수렴 num_stages: 4 student_epochs_per_stage: [20, 20, 20, 20] teacher_adapt_epochs: 6 ib_epochs_per_stage: 6 # KD(안정 세팅: teacher avg) kd_target: avg ce_alpha: 0.65 kd_alpha: 0.35 tau_schedule: [3.5, 5.0] kd_warmup_epochs: 3 kd_max_ratio: 1.25 ce_label_smoothing: 0.0 min_cw: 0.1 feat_kd_alpha: 0.0 use_ib: false ib_beta: 0.00005 ib_beta_warmup_epochs: 4 synergy_only_epochs: 6 synergy_ce_alpha: 1.0 use_vib_synergy_head: false use_cccp: true use_cccp_in_a: true cccp_alpha: 0.20 cccp_nt: 1 cccp_ns: 1 tau: 4.0 # IB‑MBM 용량(시너지 표현력↑) ib_mbm_query_dim: 512 ib_mbm_out_dim: 512 ib_mbm_n_head: 4 ib_mbm_feature_norm: l2 ib_mbm_lr_factor: 10 ib_mbm_min_std: 0.01 ib_mbm_logvar_clip: 4 # Optimizers optimizer: adamw student_lr: 0.001 student_weight_decay: 0.0003 a_step_lr: 0.0001 a_step_weight_decay: 0.0001 grad_clip_norm: 0.5 use_loss_clamp: true loss_clamp_mode: soft loss_clamp_max: 20.0 loss_clamp_warmup_epochs: 8 # Schedule schedule: type: cosine lr_warmup_epochs: 5 min_lr: 1e-6 mixup_alpha: 0.2 cutmix_alpha_distill: 1.0 # AMP use_amp: true amp_dtype: bfloat16 # Distillation/Adapter use_distillation_adapter: true distill_out_dim: 512 feat_kd_key: distill_feat # PPF ON (T‑Adapt 없음) use_partial_freeze: true student_freeze_level: 1 teacher1_freeze_level: 1 teacher2_freeze_level: 1 student_freeze_bn: true teacher1_freeze_bn: true teacher2_freeze_bn: true # 교사 백본 고정 use_teacher_finetuning: false train_distill_adapter_only: false teacher_lr: 0.0 teacher_weight_decay: 0.0 # 안전장치 compute_teacher_eval: true
 
 ### configs/experiment/sota_generic.yaml
 defaults: - /base - /model/teacher@experiment.teacher1: resnet152 - /model/teacher@experiment.teacher2: convnext_s - /model/student@experiment.model.student: mobilenet_v2_scratch - _self_ # strict-safe: ensure method_name exists at root for runtime sync method_name: null experiment: exp_id: sota_generic results_dir: experiments/sota/generic/results dataset: { name: cifar100, batch_size: 128, num_workers: 4, data_aug: 1 } num_stages: 1 student_epochs_per_stage: [240] # Main SOTA: 교사 파인튜닝/A-Step은 메소드 파일 설정 사용 (루트 고정값 제거) compute_teacher_eval: true use_amp: false amp_dtype: bfloat16 teacher1_ckpt: null teacher2_ckpt: null # 학생 scratch 고정 (공정성) model: student: pretrained: false # 메소드 기본값은 base의 defaults(method@experiment.method: asib)로만 구성 # 교사 파인튜닝/PPF/BN 정책은 메소드 파일이 결정 (루트 강제 OFF 제거) use_teacher_finetuning: false train_distill_adapter_only: false teacher1_freeze_bn: true teacher2_freeze_bn: true # (교사는 항상 고정; BN은 eval) # 공정성: SOTA 비교 시 PPF OFF 기본값 force_ppf_off: true # KD (single-teacher 기본) – kd_target은 메소드 파일이 결정 # kd_target: teacher # teacher | avg | synergy kd_teacher_index: 0 # teacher 모드일 때 0=teacher1, 1=teacher2 ce_alpha: 0.65 kd_alpha: 0.35 kd_warmup_epochs: 3 kd_max_ratio: 1.25 # Global tau schedule as default; methods may override via tau_schedule tau_schedule: [4.0, 4.0] mixup_alpha: 0.2 cutmix_alpha_distill: 1.0 ce_label_smoothing: 0.1 # Optimizer defaults (CIFAR-100 recommended) optimizer: sgd student_lr: 0.1 student_weight_decay: 0.0005 b_step_momentum: 0.9 b_step_nesterov: true # IB/CCCP 설정은 메소드 파일이 결정 (루트 OFF 제거) # 안전 기본치: 강한 압축을 피하기 위해 ib_beta 낮게 설정 (메소드에서 덮어씀) ib_beta: 1.0e-4 # Adapter (작은 학생이면 256 권장; finalize_config에서 정렬) use_distillation_adapter: true distill_out_dim: 256 feat_kd_key: distill_feat
@@ -273,20 +281,319 @@ anchor:
 ### configs/experiment/method/asib_stage.yaml (핵심 필드)
 name: asib_stage
 use_ib: true
-teacher_adapt_epochs: 10
-synergy_only_epochs: 6
-enable_kd_after_syn_acc: 0.65
+teacher_adapt_epochs: 8
+synergy_only_epochs: 8
+enable_kd_after_syn_acc: 0.70
 kd_target: auto
-kd_alpha: 0.35
-kd_warmup_epochs: 5
+ce_alpha: 0.70
+kd_alpha: 0.30
+kd_warmup_epochs: 10
 tau: 4.0
-tau_syn: 5.0
+tau_syn: 4.0
 use_mu_for_kd: true
+synergy_logit_scale: 0.80
+kd_cooldown_epochs: 60
+kd_two_view_start_epoch: 20
+kd_two_view_stop_epoch: 80
+kd_sample_gate: true
+kd_sample_thr: 0.85
+kd_sample_max_ratio: 0.50
+kd_sample_min_ratio: 0.10
+kd_sample_reweight: true
+teacher_weights: [0.7, 0.3]
 mixup_alpha: 0.2
 cutmix_alpha_distill: 1.0
 use_channels_last: true
+use_amp: true
 dataset:
   backend: torchvision
 ib_mbm_lr_factor: 2
 label_smoothing: 0.05
 synergy_head_dropout: 0.05
+synergy_ce_alpha: 1.0
+
+### configs/experiment/method/asib_fair.yaml (최신 토글)
+경량/공정 KD 기준선. AMP/channels_last on, 두‑뷰 조기 종료 및 KD 게이팅/쿨다운 강화.
+
+핵심 키(최신):
+- use_amp: true, use_channels_last: true
+- kd_two_view_stop_epoch: 80
+- kd_cooldown_epochs: 60
+- kd_sample_gate: true, kd_sample_thr: 0.90, kd_sample_max_ratio: 0.50, kd_sample_min_ratio: 0.10, kd_sample_reweight: true
+- kd_two_view_include_ema_in_b: false, ema_update_every: 2
+
+추가 플래그(선택):
+- synergy_eval_use_all_teachers: true  # eval_synergy에서 K>2 교사 모두 사용
+- synergy_eval_teacher_indices: [0,1]  # 특정 교사만 선택
+
+비고:
+- 루트 `sota_generic.yaml`에는 기본값을 최소화하고, 실험별 토글은 메소드 YAML에 배치하세요(다른 실험 영향 최소화).
+
+### configs/experiment/method/asib_ablation_ce.yaml
+name: asib_ablation_ce
+
+# CE-only
+ce_alpha: 1.0
+kd_alpha: 0.0
+kd_warmup_epochs: 0
+enable_kd_after_syn_acc: 0.0
+
+# IB/CCCP OFF
+use_ib: false
+ib_epochs_per_stage: 0
+use_cccp: false
+use_cccp_in_a: false
+
+# 작은 학생 안정
+student_lr: 0.003
+ce_label_smoothing: 0.10
+mixup_alpha: 0.0
+cutmix_alpha_distill: 0.0
+
+# 어댑터/차원(무해) — 기본 OFF; rung에서 필요 시 켬
+use_distillation_adapter: false
+distill_out_dim: 256
+ib_mbm_query_dim: 256
+ib_mbm_out_dim: 256
+
+# AMP (optional FP32 stability)
+use_amp: false
+
+### configs/experiment/method/asib_ablation_stage.yaml
+name: asib_ablation_stage
+
+# Common ablation defaults shared by L0~L4 and side configs
+
+# KD and CE
+ce_alpha: 0.65
+kd_alpha: 0.35
+kd_ens_alpha: 0.0
+tau: 4.0
+kd_warmup_epochs: 3
+kd_max_ratio: 1.25
+ce_label_smoothing: 0.05
+
+# KD target policy (clean or two_view set per rung)
+kd_target: auto_min
+kd_auto_policy: label_ce
+kd_target_mode: clean
+kd_center_teacher: false
+enable_kd_after_syn_acc: 0.60
+synergy_logit_scale: 0.80
+synergy_only_epochs: 2
+synergy_ce_alpha: 1.0
+
+# IB defaults (enable per rung)
+use_ib: true
+ib_epochs_per_stage: 6
+ib_beta: 5.0e-05
+ib_beta_warmup_epochs: 4
+ib_mbm_query_dim: 256
+ib_mbm_out_dim: 256
+ib_mbm_n_head: 4
+ib_mbm_feature_norm: l2
+ib_mbm_logvar_clip: 4
+ib_mbm_min_std: 0.01
+ib_mbm_lr_factor: 1
+
+# CCCP defaults (enable per rung)
+use_cccp: false
+use_cccp_in_a: false
+cccp_alpha: 0.15
+cccp_ramp_epochs: 2
+cccp_loss_max: 0.0
+
+# Optim/Schedule
+optimizer: adamw
+student_lr: 0.001
+student_weight_decay: 0.0003
+a_step_lr: 1.0e-4
+a_step_weight_decay: 1.0e-4
+grad_clip_norm: 0.5
+loss_clamp_mode: soft
+use_loss_clamp: true
+disable_loss_clamp_in_a: false
+loss_clamp_max: 35.0
+loss_clamp_warmup_epochs: 0
+schedule:
+  type: cosine
+  lr_warmup_epochs: 5
+  min_lr: 1e-6
+
+# Data/AMP
+use_amp: true
+amp_dtype: bfloat16
+
+# Adapter
+use_distillation_adapter: true
+distill_out_dim: 256
+feat_kd_key: distill_feat
+feat_kd_alpha: 0.0
+feat_kd_alpha_in_a: 0.0
+
+# Misc
+a_step_amp_enabled: true
+teacher_adapt_kd_warmup: 0
+kd_two_view_start_epoch: 20
+kd_two_view_stop_epoch: 80
+mixup_alpha: 0.2
+cutmix_alpha_distill: 1.0
+min_cw: 0.5
+max_cw: 1.5
+use_mu_for_kd: true
+tau_syn: 4.0
+teacher_weights: [0.7, 0.3]
+
+### configs/experiment/method/ce_only.yaml
+name: ce_only
+
+# Cross-entropy only baseline (no KD)
+ce_alpha: 1.0
+kd_alpha: 0.0
+
+# Stabilization for MobileNetV2 on CIFAR-100
+ce_label_smoothing: 0.0
+
+# Ensure KD/feature adapters are off for loss, but keep adapter ON to align teacher features
+feat_kd_alpha: 0.0
+use_distillation_adapter: true
+feat_kd_key: distill_feat
+
+### configs/experiment/method/ce_same_recipe.yaml
+name: ce_same_recipe
+
+# CE-only, KD off but with the same recipe as KD/ASIB
+ce_alpha: 1.0
+kd_alpha: 0.0
+ce_label_smoothing: 0.05
+
+# Optimizer / schedule (match KD recipe)
+optimizer: sgd
+student_lr: 0.1
+student_weight_decay: 0.0005
+b_step_momentum: 0.9
+b_step_nesterov: true
+schedule:
+  type: cosine
+  lr_warmup_epochs: 5
+  min_lr: 1e-5
+
+# Augmentation and AMP (match KD recipe)
+mixup_alpha: 0.2
+cutmix_alpha_distill: 0.0
+use_amp: true
+amp_dtype: bfloat16
+compute_teacher_eval: false
+
+# CIFAR small input
+small_input: true
+
+# Adapters fixed (head alignment). KD is 0, so features/teachers unused.
+use_distillation_adapter: true
+distill_out_dim: 256
+feat_kd_key: distill_feat
+
+# Ensure no IB/KD pathways are triggered
+use_ib: false
+feat_kd_alpha: 0.0
+
+### configs/experiment/method/ce_sgd_sanity.yaml
+name: ce_sgd_sanity
+
+# CE-only stabilized baseline for CIFAR-100
+ce_alpha: 1.0
+kd_alpha: 0.0
+ce_label_smoothing: 0.0
+
+# Optimizer and scheduler (overrides root if needed)
+optimizer: sgd
+student_lr: 0.1
+student_weight_decay: 0.0005
+b_step_momentum: 0.9
+b_step_nesterov: true
+
+schedule:
+  type: cosine
+  lr_warmup_epochs: 5
+  min_lr: 1e-5
+
+# Aug/AMP
+mixup_alpha: 0.0
+cutmix_alpha_distill: 0.0
+use_amp: false
+
+# CIFAR small input
+small_input: true
+
+# Adapter stays on for consistent heads, but no KD/feat loss used
+use_distillation_adapter: true
+distill_out_dim: 256
+feat_kd_key: distill_feat
+
+### configs/experiment/method/kd_single_teacher.yaml
+name: kd_single_teacher
+
+kd_target: teacher
+kd_teacher_index: 0  # 0: teacher1 (resnet152), 1: teacher2
+
+ce_alpha: 0.5
+kd_alpha: 0.5
+
+tau: 4.0
+kd_warmup_epochs: 5
+ce_label_smoothing: 0.0
+
+use_distillation_adapter: true
+
+### configs/experiment/method/kd_weighted_conf.yaml
+name: kd_weighted_conf
+
+kd_target: weighted_conf
+
+ce_alpha: 0.5
+kd_alpha: 0.5
+
+tau: 4.0
+kd_warmup_epochs: 5
+ce_label_smoothing: 0.0
+
+use_distillation_adapter: true
+
+### configs/experiment/sota_mbv2_ce.yaml
+defaults:
+  - /base
+  - /model/teacher@experiment.teacher1: resnet152
+  - /model/teacher@experiment.teacher2: convnext_s
+  - /model/student@experiment.model.student: mobilenet_v2_scratch
+  - _self_
+
+experiment:
+  exp_id: sota_mbv2_ce
+  results_dir: experiments/sota/generic_mbv2_ce/results
+
+  dataset: { name: cifar100, batch_size: 128, num_workers: 4, data_aug: 1 }
+
+  num_stages: 1
+  student_epochs_per_stage: [240]
+  compute_teacher_eval: false
+
+  # Optim (MobileNetV2-friendly)
+  optimizer: sgd
+  student_lr: 0.05
+  student_weight_decay: 0.0005
+  b_step_momentum: 0.9
+  b_step_nesterov: true
+  schedule: { type: cosine, lr_warmup_epochs: 5, min_lr: 1.0e-5 }
+
+  # AMP/clip
+  use_amp: false
+  grad_clip_norm: 0
+
+  # Loss
+  ce_alpha: 1.0
+  kd_alpha: 0.0
+  ce_label_smoothing: 0.0
+
+  # KD/Adapter fully disabled for CE-only baseline
+  use_distillation_adapter: false
+  feat_kd_key: feat_2d

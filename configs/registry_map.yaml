@@ -7,6 +7,7 @@ teachers:
   resnet152:       models.teachers.resnet152_teacher.create_resnet152
 
 students:
+  resnet152_scratch: models.students.resnet152_student.create_resnet152_student
   resnet152_pretrain: models.students.resnet152_student.create_resnet152_student
   resnet101_pretrain: models.students.resnet101_student.create_resnet101_student
   resnet101_scratch:   models.students.resnet101_student.create_resnet101_scratch_student

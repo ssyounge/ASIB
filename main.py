@@ -90,7 +90,7 @@ def _apply_env_shortcuts(exp_dict: dict):
         name = stu if stu.endswith("_scratch") else f"{stu}_scratch"
         exp_dict["model"]["student"]["name"] = name
         exp_dict["model"]["student"]["pretrained"] = False
-        exp_dict["model"]["student"]["use_adapter"] = exp_dict["model"]["student"].get("use_adapter", True)
+        # Do not force use_adapter; preserve config value if present
         logging.info("[ENV] STUDENT override applied: %s", stu)
     m = _os.environ.get("METHOD")
     if m:
@@ -167,6 +167,42 @@ def finalize_config(exp: dict) -> None:
             exp["num_stages"] = 1
 
     ns = int(exp.get("num_stages", 1))
+
+    # 0) Method profile → set sane defaults (exposed knobs reduction)
+    try:
+        # Allow both top-level and nested method.profile
+        profile = (
+            str((exp.get("profile") or
+                 ((exp.get("method") or {}).get("profile")) or "").strip().lower())
+        )
+        if profile:
+            # Defaults per profile (only fill if absent)
+            if profile == "stable":
+                exp.setdefault("kd_two_view_start_epoch", 20)
+                exp.setdefault("kd_uncertainty_weight", 0.3)
+                exp.setdefault("kd_ens_alpha", 0.0)
+                # Keep tau_syn conservative (same as tau) unless explicitly set
+                exp.setdefault("tau_syn", float(exp.get("tau", 4.0)))
+                exp.setdefault("auto_tune_target_ratio", 0.35)
+            elif profile == "balanced":
+                exp.setdefault("kd_two_view_start_epoch", 10)
+                exp.setdefault("kd_uncertainty_weight", 0.4)
+                exp.setdefault("kd_ens_alpha", 0.0)
+                exp.setdefault("tau_syn", float(exp.get("tau", 4.0)))
+                exp.setdefault("auto_tune_target_ratio", 0.40)
+            elif profile == "aggressive":
+                exp.setdefault("kd_two_view_start_epoch", 1)
+                exp.setdefault("kd_uncertainty_weight", 0.5)
+                # Allow non-zero only if user intentionally overrides later
+                exp.setdefault("kd_ens_alpha", 0.0)
+                exp.setdefault("tau_syn", float(exp.get("tau", 4.0)))
+                exp.setdefault("auto_tune_target_ratio", 0.45)
+            # Optional LR log interval reasonable default
+            exp.setdefault("lr_log_every", 10)
+            # Record applied profile (for meta/debug)
+            exp["_profile_applied"] = profile
+    except Exception:
+        pass
 
     # Partial freeze / safety switches (should respect existing values)
     try:
@@ -264,9 +300,9 @@ def _apply_method_policy(exp_dict: dict, strict_baseline: bool = True) -> None:
     """
     mn = str(exp_dict.get("method_name", "asib")).lower()
 
-    if mn in ("asib", "asib_stage"):
-        # Do not enforce hyperparameters in code for ASIB methods; rely on YAML/CLI.
-        pass
+    # Treat all ASIB-family methods equivalently; rely on YAML/CLI (no hardcoding).
+    if mn in ("asib", "asib_stage", "asib_ablation_stage", "asib_ablation_ce"):
+        return
     elif mn in ("avg_kd", "avg", "ensemble_kd"):
         # Fairness defaults live in anchor; do not force here
         exp_dict["use_ib"] = False
@@ -388,27 +424,53 @@ def normalize_exp(exp: dict):
             if isinstance(student, dict) and "student" in student and isinstance(student["student"], dict):
                 model["student"] = student["student"]
         
-        # method 값을 최상위로 반영(이름 제외) – 항상 덮어쓰기
-        # 1) 루트 experiment.method 먼저 반영
+        # method 값을 최상위로 반영(이름 제외)
+        # 정책: 메소드 값은 기본값만 채운다(fill-only). 실험(YAML)에서 명시된 값이 우선.
         if isinstance(exp.get("method"), dict):
-            for mk, mv in exp["method"].items():
-                if mk != "name":
+            method_dict = exp["method"]
+            for mk, mv in method_dict.items():
+                if mk != "name" and mk not in exp:
                     exp[mk] = mv
-        # 2) 중첩 experiment.experiment.method 값을 나중에 반영하여 덮어쓰기 우선권 제공
+            # Certain trainer-critical knobs should override base defaults.
+            # Experiment/rung YAML will still override after this step.
+            for mk in (
+                "ce_alpha", "kd_alpha",
+                "ib_beta", "ib_beta_warmup_epochs", "ib_epochs_per_stage",
+                "ib_mbm_query_dim", "ib_mbm_out_dim", "ib_mbm_n_head",
+                "ib_mbm_feature_norm", "ib_mbm_logvar_clip", "ib_mbm_min_std",
+                "ib_mbm_lr_factor",
+                # optimization/data knobs commonly defined in method
+                "student_lr", "student_weight_decay",
+                "mixup_alpha", "cutmix_alpha_distill", "ce_label_smoothing",
+            ):
+                if mk in method_dict:
+                    exp[mk] = method_dict[mk]
+        # 중첩 experiment.experiment.method 역시 기본값만 채우도록 처리
         try:
             nested_exp = exp.get("experiment")
             if isinstance(nested_exp, dict):
                 nested_method = nested_exp.get("method")
                 if isinstance(nested_method, dict):
                     for mk, mv in nested_method.items():
-                        if mk != "name":
+                        if mk != "name" and mk not in exp:
                             exp[mk] = mv
-                # Promote other experiment.* leaves to top-level if missing, to avoid nested conflicts
+                    for mk in (
+                        "ce_alpha", "kd_alpha",
+                        "student_lr", "student_weight_decay",
+                        "mixup_alpha", "cutmix_alpha_distill", "ce_label_smoothing",
+                        "ib_beta", "ib_beta_warmup_epochs", "ib_epochs_per_stage",
+                        "ib_mbm_query_dim", "ib_mbm_out_dim", "ib_mbm_n_head",
+                        "ib_mbm_feature_norm", "ib_mbm_logvar_clip", "ib_mbm_min_std",
+                        "ib_mbm_lr_factor",
+                    ):
+                        if mk in nested_method:
+                            exp[mk] = nested_method[mk]
+                # Promote other experiment.* leaves to top-level with override semantics
+                # Explicit rung/experiment YAML must take precedence over method/base
                 for nk, nv in nested_exp.items():
                     if nk == "method":
                         continue
-                    if nk not in exp:
-                        exp[nk] = nv
+                    exp[nk] = nv
         except Exception:
             pass
     
@@ -445,6 +507,12 @@ def _sanitize_config_for_hash(cfg: dict) -> dict:
         "cur_stage",
         "effective_teacher_lr",
         "effective_teacher_wd",
+        # Runtime/auto-tuned or meta keys (ignored to prevent lock violations)
+        "kd_sample_thr",
+        "kd_two_view_start_epoch",
+        "_profile_applied",
+        "auto_tune_target_ratio",
+        "lr_log_every",
     }
     for k in IGNORE_TOP_LEVEL_KEYS:
         _cfg.pop(k, None)
@@ -518,6 +586,9 @@ def _log_and_save_meta(logger, exp_logger: ExperimentLogger, exp: dict,
             "step_size": schedule.get("step_size"),
             "gamma": schedule.get("gamma"),
         },
+        "ema": {
+            "use_ema_teacher": exp.get("use_ema_teacher", False),
+        },
         "cl": {
             "cl_mode": exp.get("cl_mode", False),
             "cl_method": (exp.get("cl_method", "asib_cl") if exp.get("cl_mode", False) else None),
@@ -538,15 +609,49 @@ def _log_and_save_meta(logger, exp_logger: ExperimentLogger, exp: dict,
         },
     }
 
+    # Derived flags for readability
+    try:
+        tadapt = (int(exp.get("teacher_adapt_epochs", 0)) > 0) and bool(exp.get("train_distill_adapter_only", False))
+    except Exception:
+        tadapt = False
+    meta["tadapt"] = bool(tadapt)
+    # KD policy flags
+    try:
+        kd_mode = str(exp.get("kd_target_mode", "")).strip().lower()
+    except Exception:
+        kd_mode = ""
+    two_view = (kd_mode == "two_view")
+    center_teacher = bool(exp.get("kd_center_teacher", False))
+    kd_adapter = bool(exp.get("use_distillation_adapter", False))
+    kd_target = str(exp.get("kd_target", "avg")).lower()
+    need_syn = (kd_target in ("synergy", "auto", "auto_min")) or bool(exp.get("use_ib", False))
+    # display용 need_teachers: 실제 교사 로드 여부 기준
+    disp_need_teachers = (
+        float(exp.get("kd_alpha", 0.0) or 0.0) > 0.0
+        or bool(exp.get("use_ib", False))
+        or bool(exp.get("compute_teacher_eval", False))
+        or (kd_target in ("synergy", "auto", "auto_min"))
+    )
+
+    # Teacher acc/ckpt display (handle compute_teacher_eval=false)
+    _eval_on = bool(exp.get("compute_teacher_eval", True))
+    t1_acc_str = ("n/a" if not _eval_on else f"{meta['teachers'][0]['test_acc']:.2f}%")
+    t2_acc_str = ("n/a" if not _eval_on else f"{meta['teachers'][1]['test_acc']:.2f}%")
+    t1_ckpt_str = (exp.get("teacher1_ckpt") if disp_need_teachers else "n/a")
+    t2_ckpt_str = (exp.get("teacher2_ckpt") if disp_need_teachers else "n/a")
+
     banner = [
         "================= EXPERIMENT META =================",
         f"ExpID          : {meta['exp_id']}",
         f"Dataset        : {meta['dataset']['name']} | BS={meta['dataset']['batch_size']} | Aug={meta['dataset']['data_aug']}",
-        f"Teacher1       : {t1_name} | ckpt={exp.get('teacher1_ckpt')} | acc={meta['teachers'][0]['test_acc']:.2f}%",
-        f"Teacher2       : {t2_name} | ckpt={exp.get('teacher2_ckpt')} | acc={meta['teachers'][1]['test_acc']:.2f}%",
-        f"Student        : {s_name} | pretrained={meta['student']['pretrained']} | adapter={meta['student']['use_adapter']}",
-        f"KD             : {meta['kd']['method']} | ce={meta['kd']['ce_alpha']} kd={meta['kd']['kd_alpha']} ens={meta['kd']['kd_ens_alpha']} warmup={meta['kd']['kd_warmup_epochs']}",
-        f"IB/CCCP        : use_ib={meta['ib']['use_ib']} β={meta['ib']['ib_beta']} ib_ep={meta['ib']['ib_epochs_per_stage']} (out={meta['ib']['ib_mbm_out_dim']} n_head={meta['ib']['ib_mbm_n_head']}) | use_cccp={meta['cccp']['use_cccp']}",
+        f"Teacher1       : {t1_name} | ckpt={t1_ckpt_str} | acc={t1_acc_str}",
+        f"Teacher2       : {t2_name} | ckpt={t2_ckpt_str} | acc={t2_acc_str}",
+        f"Student        : {s_name} | pretrained={meta['student']['pretrained']} | student_adapter={meta['student']['use_adapter']}",
+        f"KD-Policy      : target={kd_target} two_view={two_view} center_teacher={center_teacher} kd_adapter={kd_adapter} need_syn={need_syn}",
+        f"T-Adapt/EMA    : tadapt={meta['tadapt']} ema={meta['ema']['use_ema_teacher']}",
+        f"KD             : {meta['kd']['method']} | ce={meta['kd']['ce_alpha']} kd={meta['kd']['kd_alpha']} ens={meta['kd']['kd_ens_alpha']} warmup={meta['kd']['kd_warmup_epochs']} | smoothing={exp.get('ce_label_smoothing', 'n/a')}",
+        f"Aug            : mixup={exp.get('mixup_alpha', 'n/a')} cutmix={exp.get('cutmix_alpha_distill', 'n/a')}",
+        f"IB/CCCP        : use_ib={meta['ib']['use_ib']} β={meta['ib']['ib_beta']} ib_ep={meta['ib']['ib_epochs_per_stage']} (eff={min(int(exp.get('teacher_adapt_epochs', 0)), int(exp.get('ib_epochs_per_stage', 0) or 0))}) (out={meta['ib']['ib_mbm_out_dim']} n_head={meta['ib']['ib_mbm_n_head']}) | use_cccp={meta['cccp']['use_cccp']}",
         f"PPF            : partial_freeze={meta['ppf']['use_partial_freeze']} t_finetune={meta['ppf']['use_teacher_finetuning']} | s_freeze={meta['ppf']['student_freeze_level']} t1_freeze={meta['ppf']['teacher1_freeze_level']} t2_freeze={meta['ppf']['teacher2_freeze_level']} | bn(s/t1/t2)={meta['ppf']['student_freeze_bn']}/{meta['ppf']['teacher1_freeze_bn']}/{meta['ppf']['teacher2_freeze_bn']}",
         f"Optim/Sched    : {meta['optim']['optimizer']} lr={meta['optim']['student_lr']} wd={meta['optim']['student_weight_decay']} | sch={meta['schedule']['type']}",
         f"AMP            : use_amp={meta['amp']['use_amp']} dtype={meta['amp']['amp_dtype']}",
@@ -566,6 +671,12 @@ def _log_and_save_meta(logger, exp_logger: ExperimentLogger, exp: dict,
     exp_logger.update_metric("csv_student_weight_decay", meta["optim"]["student_weight_decay"])
     exp_logger.update_metric("csv_kd_alpha", meta["kd"]["kd_alpha"])
     exp_logger.update_metric("csv_ce_alpha", meta["kd"]["ce_alpha"])
+    try:
+        exp_logger.update_metric("csv_kd_target", kd_target)
+        exp_logger.update_metric("csv_need_synergy", int(bool(need_syn)))
+        exp_logger.update_metric("csv_need_teachers", int(bool(disp_need_teachers)))
+    except Exception:
+        pass
     exp_logger.update_metric("csv_use_ib", int(bool(meta["ib"]["use_ib"])) )
     exp_logger.update_metric("csv_ib_beta", meta["ib"]["ib_beta"]) 
     exp_logger.update_metric("csv_ib_epochs_per_stage", meta["ib"]["ib_epochs_per_stage"]) 
@@ -582,6 +693,12 @@ def _log_and_save_meta(logger, exp_logger: ExperimentLogger, exp: dict,
     exp_logger.update_metric("csv_student_freeze_level", meta["ppf"]["student_freeze_level"])
     exp_logger.update_metric("csv_teacher1_freeze_level", meta["ppf"]["teacher1_freeze_level"])
     exp_logger.update_metric("csv_teacher2_freeze_level", meta["ppf"]["teacher2_freeze_level"])
+    # Adapter flags to CSV
+    try:
+        exp_logger.update_metric("csv_kd_adapter", int(bool(exp.get("use_distillation_adapter", False))))
+        exp_logger.update_metric("csv_student_adapter", int(bool(meta["student"]["use_adapter"])))
+    except Exception:
+        pass
 
 
 @torch.inference_mode()
@@ -820,6 +937,16 @@ def main(cfg: DictConfig):
     # 3) 로거
     exp_dir = exp_dict.get("results_dir", ".")
     logger = get_logger(exp_dir, level=exp_dict.get("log_level", "INFO"))
+    # Profile/auto defaults banner for quick diagnostics
+    try:
+        prof = exp_dict.get("_profile_applied") or exp_dict.get("profile")
+        if prof:
+            tvs = int(exp_dict.get("kd_two_view_start_epoch", -1))
+            taus = float(exp_dict.get("tau_syn", exp_dict.get("tau", 4.0)))
+            kuw = float(exp_dict.get("kd_uncertainty_weight", -1))
+            logger.info("[AUTO] profile=%s tv_start=%s tau_syn=%.2f kd_unc_w=%.2f", str(prof), str(tvs), float(taus), float(kuw))
+    except Exception:
+        pass
 
     # 3-a) 최종 구성 검증 및 락(해시 저장)
     try:
@@ -1100,6 +1227,13 @@ def main(cfg: DictConfig):
         or bool(exp_dict.get("use_ib", False))
         or bool(exp_dict.get("compute_teacher_eval", False))
     )
+    # Edge case: kd_target requires synergy routing even when kd_alpha/use_ib/eval are off
+    try:
+        kd_tgt_for_build = str(exp_dict.get("kd_target", "avg")).lower()
+        if kd_tgt_for_build in ("synergy", "auto", "auto_min"):
+            need_teachers = True
+    except Exception:
+        pass
     # teacher1
     t1 = exp_dict.get("teacher1", {})
     t1_name = t1.get("name")
@@ -1277,10 +1411,13 @@ def main(cfg: DictConfig):
     # - IB enabled (A-step/IB weighting)
     # - or KD target requires synergy routing (synergy/auto)
     kd_tgt = str(exp_dict.get("kd_target", "avg")).lower()
-    need_kd_build = bool(exp_dict.get("use_ib", False)) or (kd_tgt in ("synergy", "auto"))
+    use_ib_flag = bool(exp_dict.get("use_ib", False))
+    # Build path whenever kd_target requires synergy routing, or IB is enabled for KL
+    # Even when use_ib is False, we still need synergy logits for kd_target in {synergy, auto, auto_min}
+    need_synergy = (kd_tgt in ("synergy", "auto", "auto_min")) or use_ib_flag
     ib_mbm = None
     synergy_head = None
-    if need_kd_build:
+    if need_synergy:
         ib_mbm, synergy_head = build_from_teachers([teacher1, teacher2], exp_dict)
         ib_mbm = ib_mbm.to(device)
         synergy_head = synergy_head.to(device)
@@ -1290,8 +1427,10 @@ def main(cfg: DictConfig):
         # ConvNet 계열 모델들을 채널-라스트 포맷으로 변환 (변수에 재대입)
         if bool(exp_dict.get("use_channels_last", True)):
             try:
-                teacher1 = teacher1.to(memory_format=torch.channels_last)
-                teacher2 = teacher2.to(memory_format=torch.channels_last)
+                if need_teachers and (teacher1 is not None):
+                    teacher1 = teacher1.to(memory_format=torch.channels_last)
+                if need_teachers and (teacher2 is not None):
+                    teacher2 = teacher2.to(memory_format=torch.channels_last)
                 student  = student.to(memory_format=torch.channels_last)
                 logger.info("teachers/students converted to channels_last")
             except Exception as e:
@@ -1392,6 +1531,7 @@ def main(cfg: DictConfig):
             try:
                 import torch as _torch
                 exp_dict["use_amp"] = False
+                # Do not mutate channels_last after lock; leave it as-is to avoid hash mismatch
                 _assert_config_hash("before_safe_retry")
                 train_loader = _torch.utils.data.DataLoader(train_loader.dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=False, persistent_workers=False)
                 test_loader  = _torch.utils.data.DataLoader(test_loader.dataset,  batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=False, persistent_workers=False)

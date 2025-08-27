@@ -4,6 +4,7 @@ student_keys:
   - resnet50_scratch
   - resnet101_scratch
   - resnet101_pretrain
+  - resnet152_scratch
   - resnet152_pretrain
   - shufflenet_v2_scratch
   - mobilenet_v2_scratch

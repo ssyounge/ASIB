@@ -1,77 +1,43 @@
+# configs/experiment/L0_baseline.yaml
+
 defaults:
   - /base
-  - /model/teacher@experiment.teacher1: convnext_l
-  - /model/teacher@experiment.teacher2: resnet152
-  - /model/student@experiment.model.student: resnet101_scratch
+  - /model/teacher@experiment.teacher1: resnet152
+  - /model/teacher@experiment.teacher2: convnext_s
+  - /model/student@experiment.model.student: mobilenet_v2_scratch
+  - override method@experiment.method: asib_ablation_ce
   - _self_
 
 experiment:
+  method_name: asib_ablation_ce
   exp_id: L0_baseline
   results_dir: experiments/ablation/L0/results
-  teacher1_ckpt: checkpoints/teachers/convnext_l_cifar100.pth
-  teacher2_ckpt: checkpoints/teachers/resnet152_cifar100.pth
+  teacher1_ckpt: checkpoints/teachers/resnet152_cifar100.pth
+  teacher2_ckpt: checkpoints/teachers/convnext_s_cifar100.pth
 
-  dataset: { batch_size: 64, num_workers: 8, data_aug: 1, pin_memory: true, persistent_workers: true, prefetch_factor: 2 }
+  dataset: { batch_size: 128, num_workers: 4, data_aug: 1, pin_memory: true, persistent_workers: true, prefetch_factor: 2 }
 
-  # 4-stage(총 40ep)
-  num_stages: 4
-  student_epochs_per_stage: [20, 20, 20, 20]
+  # 1-stage(총 240ep)
+  num_stages: 1
+  student_epochs_per_stage: [240]
   teacher_adapt_epochs: 0
-  compute_teacher_eval: true
-
+  compute_teacher_eval: false
   use_amp: true
   amp_dtype: bfloat16
 
-  # KD (teacher avg)
-  kd_target: avg
-  kd_target_mode: clean
-  kd_center_teacher: false
-  ce_alpha: 0.65
-  kd_alpha: 0.35
-  tau: 4.0
-  kd_warmup_epochs: 3
-  kd_ens_alpha: 0.0
-  kd_max_ratio: 1.25
-  ce_label_smoothing: 0.05
-  min_cw: 0.1
-  feat_kd_alpha: 0.0
+  small_input: true
 
-  # 어댑터로 피처 정렬
-  use_distillation_adapter: true
-  distill_out_dim: 512
-  feat_kd_key: distill_feat
+  # KD (CE-only method handles CE/KD)
 
-  # IB config (uniform keys; baseline에서는 OFF)
-  use_ib: false
-  ib_epochs_per_stage: 0
-  ib_beta: 0.0001
-  ib_beta_warmup_epochs: 0
-  ib_mbm_query_dim: 512
-  ib_mbm_out_dim: 512
-  ib_mbm_n_head: 4
-  ib_mbm_feature_norm: l2
-  ib_mbm_logvar_clip: 4
-  ib_mbm_min_std: 0.01
-  ib_mbm_reg_lambda: 0.0
-  ib_mbm_lr_factor: 10
+  # IB handled by method (off)
 
-  # CCCP (baseline에서는 OFF; 키만 보유)
-  use_cccp: false
-  use_cccp_in_a: false
-  cccp_alpha: 0.20
-  tau: 4.0
+  # CCCP (inherited default: OFF)
 
-  # Optim/Schedule
-  optimizer: adamw
-  student_lr: 0.001
-  student_weight_decay: 0.0003
-  grad_clip_norm: 0.5
-  use_loss_clamp: true
-  loss_clamp_mode: soft
-  loss_clamp_max: 20.0
-  loss_clamp_warmup_epochs: 8
-  schedule: { type: cosine, lr_warmup_epochs: 5, min_lr: 1e-6 }
-  mixup_alpha: 0.2
-  cutmix_alpha_distill: 1.0
+  # Optim/Schedule/aug are managed by CE-only method; no overrides here
+  # Adapter/A-step keys omitted (teacher_adapt_epochs=0)
+
+  # Synergy gate (inherited defaults)
+
+  # PPF (inherited; base default OFF)
 
  

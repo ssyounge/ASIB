@@ -1,22 +1,22 @@
 {
-  "exp_id": "L4_full",
-  "seed": 42,
+  "exp_id": "overlap_100",
+  "seed": 49,
   "dataset": {
     "name": "cifar100",
-    "batch_size": 64,
+    "batch_size": 128,
     "num_workers": 4,
     "data_aug": 1
   },
   "teachers": [
     {
-      "name": "convnext_l",
-      "ckpt": "checkpoints/teachers/convnext_l_cifar100.pth",
-      "test_acc": 89.68
+      "name": "convnext_s",
+      "ckpt": "checkpoints/teachers/convnext_s_cifar100.pth",
+      "test_acc": 68.65
     },
     {
       "name": "resnet152",
       "ckpt": "checkpoints/teachers/resnet152_cifar100.pth",
-      "test_acc": 79.29
+      "test_acc": 79.27
     }
   ],
   "student": {
@@ -26,26 +26,26 @@
   },
   "kd": {
     "method": "asib",
-    "ce_alpha": 0.7,
-    "kd_alpha": 0.3,
+    "ce_alpha": 0.65,
+    "kd_alpha": 0.35,
     "kd_ens_alpha": 0.0,
-    "teacher_adapt_kd_warmup": 0
+    "kd_warmup_epochs": 10
   },
   "ib": {
     "use_ib": true,
-    "ib_beta": 0.0001,
-    "ib_epochs_per_stage": 12,
-    "ib_mbm_out_dim": 768,
+    "ib_beta": 5e-05,
+    "ib_epochs_per_stage": 5,
+    "ib_mbm_out_dim": 512,
     "ib_mbm_n_head": 4
   },
   "cccp": {
-    "use_cccp": true
+    "use_cccp": false
   },
   "optim": {
-    "optimizer": "adamw",
-    "student_lr": 0.001,
-    "student_weight_decay": 0.0003,
-    "grad_clip_norm": 0.5
+    "optimizer": "sgd",
+    "student_lr": 0.1,
+    "student_weight_decay": 0.0005,
+    "grad_clip_norm": 1.0
   },
   "schedule": {
     "type": "cosine",
@@ -65,9 +65,9 @@
   "ppf": {
     "use_partial_freeze": true,
     "use_teacher_finetuning": false,
-    "student_freeze_level": 2,
-    "teacher1_freeze_level": 2,
-    "teacher2_freeze_level": 2,
+    "student_freeze_level": 1,
+    "teacher1_freeze_level": -1,
+    "teacher2_freeze_level": -1,
     "student_freeze_bn": true,
     "teacher1_freeze_bn": true,
     "teacher2_freeze_bn": true

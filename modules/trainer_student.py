@@ -6,6 +6,33 @@ import copy
 import logging
 from utils.common import smart_tqdm
 from utils.common.misc import mixup_data, cutmix_data, get_amp_components
+
+def _do_mix(x: torch.Tensor, y: torch.Tensor, mode: str, cfg: dict):
+    """Safe mix wrapper that always returns (x_mixed, y_a, y_b, lam, idx)."""
+    B = x.size(0)
+    if mode == "cutmix" and cfg.get("cutmix_alpha_distill", 0.0) > 0.0:
+        alpha = float(cfg.get("cutmix_alpha_distill", 0.0))
+        try:
+            out = cutmix_data(x, y, alpha=alpha, return_index=True)
+        except TypeError:
+            out = cutmix_data(x, y, alpha=alpha)
+        if isinstance(out, (tuple, list)) and len(out) == 5:
+            return out
+        x_mixed, y_a, y_b, lam = out
+        idx = torch.randperm(B, device=x.device)
+        return x_mixed, y_a, y_b, lam, idx
+    if mode == "mixup" and cfg.get("mixup_alpha", 0.0) > 0.0:
+        alpha = float(cfg.get("mixup_alpha", 0.0))
+        try:
+            out = mixup_data(x, y, alpha=alpha, return_index=True)
+        except TypeError:
+            out = mixup_data(x, y, alpha=alpha)
+        if isinstance(out, (tuple, list)) and len(out) == 5:
+            return out
+        x_mixed, y_a, y_b, lam = out
+        idx = torch.randperm(B, device=x.device)
+        return x_mixed, y_a, y_b, lam, idx
+    return x, y, y, 1.0, torch.arange(B, device=x.device)
 from utils.training import get_tau, get_beta, StageMeter
 
 from modules.losses import (
@@ -14,6 +41,31 @@ from modules.losses import (
 )
 from modules.disagreement import sample_weights_from_disagreement
 from torch.amp import autocast
+from utils.amp import autocast_off_like
+# --- helpers ---------------------------------------------------------------
+def _parse_teacher_out(out, feat_key: str):
+    """Parse teacher wrapper output into (feature, logit).
+
+    Supports:
+    - tuple(dict, logit, ...)
+    - dict with keys {feat_key, 'logit' | 'output'}
+    - tensor logits only (feature returned as None)
+    """
+    feat_dict, logit = None, None
+    if isinstance(out, tuple):
+        if len(out) >= 2:
+            feat_dict, logit = out[0], out[1]
+        elif len(out) == 1:
+            logit = out[0]
+    elif isinstance(out, dict):
+        feat_dict = out
+        logit = out.get("logit", out.get("output", None))
+    else:
+        logit = out
+    feat = None
+    if isinstance(feat_dict, dict) and (feat_key in feat_dict):
+        feat = feat_dict[feat_key]
+    return feat, logit
 from utils.ema import EMATeacher
 
 
@@ -155,7 +207,7 @@ def ce_safe_vec(logits: torch.Tensor, target: torch.Tensor, ls_eps: float = 0.0)
 
     The output shape is [batch]. Autocast is disabled inside to avoid fp16 underflow.
     """
-    with autocast('cuda', enabled=False):
+    with autocast_off_like(logits):
         logits = logits.float()
         # Use PyTorch's native label_smoothing implementation for stability
         return torch.nn.functional.cross_entropy(
@@ -171,7 +223,7 @@ def kl_safe_vec(p_logits: torch.Tensor, q_logits: torch.Tensor, tau: float = 1.0
 
     Uses float32 math under autocast-disabled region for stability.
     """
-    with autocast('cuda', enabled=False):
+    with autocast_off_like(p_logits):
         p_log = torch.log_softmax(p_logits.float() / tau, dim=1)
         q = torch.softmax(q_logits.float() / tau, dim=1)
         kl = torch.nn.functional.kl_div(p_log, q, reduction="none")  # [B, C]
@@ -222,6 +274,9 @@ def _synergy_gate_ok(cfg, logger) -> bool:
         thr /= 100.0
     if last > 1.5:
         last /= 100.0
+    # last가 미정/0 이하이면 게이트 닫음 (초기 시너지 혼입 방지)
+    if last <= 0.0:
+        return False
     return last >= thr
 def student_distillation_update(
     teacher_wrappers,
@@ -320,12 +375,13 @@ def student_distillation_update(
     # no attention weights returned in simplified IB_MBM
     ema_step = 0
     for ep in range(student_epochs):
-        # per-epoch LR logging (optimizer param groups)
+        # per-epoch LR logging (optimizer param groups) – reduce console spam
         try:
             if optimizer is not None and hasattr(optimizer, "param_groups"):
-                for i, pg in enumerate(optimizer.param_groups):
-                    lr_val = pg.get("lr", 0.0)
-                    logging.info(f"[LR] epoch={global_ep+ep+1} group{i} lr={lr_val:.6f}")
+                if (ep == 0) or (((ep + 1) % int(cfg.get("lr_log_every", 10))) == 0):
+                    for i, pg in enumerate(optimizer.param_groups):
+                        lr_val = pg.get("lr", 0.0)
+                        logging.info(f"[LR] epoch={global_ep+ep+1} group{i} lr={lr_val:.6f}")
         except Exception:
             pass
         if scheduler is not None and hasattr(scheduler, "T_max"):
@@ -342,6 +398,23 @@ def student_distillation_update(
         cur_tau = _interp_tau(cfg, ep, total_ep)
         try:
             logger.update_metric(f"student_ep{ep+1}_tau", float(cur_tau))
+        except Exception:
+            pass
+        # Epoch-level effective KD alpha (warmup + cooldown). Used for compute gating.
+        kd_alpha_base = float(cfg.get("kd_alpha", 0.0))
+        kw = int(cfg.get("kd_warmup_epochs", 0))
+        kd_cool = int(cfg.get("kd_cooldown_epochs", 0))
+        def _kd_alpha_eff_for(ep_idx: int, total_ep_: int) -> float:
+            alpha = kd_alpha_base
+            if kw > 0:
+                alpha = kd_alpha_base * min(1.0, float(ep_idx + 1) / float(kw))
+            remain = int(total_ep_) - (ep_idx + 1)
+            if kd_cool > 0 and remain < kd_cool:
+                alpha = kd_alpha_base * float(remain / max(1, kd_cool))
+            return max(0.0, alpha)
+        kd_alpha_eff_epoch = _kd_alpha_eff_for(ep, total_ep)
+        try:
+            logger.update_metric(f"student_ep{ep+1}_kd_alpha_eff_epoch", float(kd_alpha_eff_epoch))
         except Exception:
             pass
         distill_loss_sum = 0.0
@@ -395,24 +468,15 @@ def student_distillation_update(
             if cfg.get("use_channels_last", True) and x.dim() == 4:
                 x = x.to(memory_format=torch.channels_last)
 
-            if mix_mode == "cutmix":
-                x_mixed, y_a, y_b, lam, idx = cutmix_data(
-                    x, y, alpha=cfg["cutmix_alpha_distill"], return_index=True
-                )
-            elif mix_mode == "mixup":
-                x_mixed, y_a, y_b, lam, idx = mixup_data(x, y, alpha=cfg["mixup_alpha"], return_index=True)
-            else:
-                x_mixed, y_a, y_b, lam = x, y, y, 1.0
+            x_mixed, y_a, y_b, lam, idx = _do_mix(x, y, mix_mode, cfg)
 
             with autocast_ctx:
                 # (A) Student forward (query)
                 # Student sees mixed inputs for CE
                 feat_dict, s_logit, _ = student_model(x_mixed)
 
-                # 교사 모델이 필요한지 확인 (KD, Feature KD, IB 중 하나라도 사용하는 경우)
-                need_teachers = (cfg.get("kd_alpha", 0.0) > 0.0) or \
-                               (cfg.get("feat_kd_alpha", 0.0) > 0.0) or \
-                               bool(cfg.get("use_ib", False))
+                # Need teachers only when KD/FeatKD actually contribute this epoch
+                need_teachers = ((kd_alpha_eff_epoch > 0.0) or (cfg.get("feat_kd_alpha", 0.0) > 0.0))
 
                 # ------------------------------------------------------------------
                 # View selection for KD targets and Synergy (default: clean)
@@ -423,13 +487,54 @@ def student_distillation_update(
                 syn_view = str(cfg.get("synergy_view", "clean")).lower()
                 kd_x = x if kd_view == "clean" else x_mixed
                 syn_x = x if syn_view == "clean" else x_mixed
+                # Optionally stop two_view after a certain epoch index
+                two_view_mode = (str(cfg.get("kd_target_mode", "clean")).lower() == "two_view")
+                stop_ep = int(cfg.get("kd_two_view_stop_epoch", -1))
+                if two_view_mode and stop_ep > 0 and (global_ep + ep + 1) >= stop_ep:
+                    kd_view = "clean"
+                    syn_view = "clean"
+                    kd_x = x
+                    syn_x = x
+
+                # (Optional) KD sample gating: choose subset of samples to run teacher/IB on
+                kd_subset_idx = None
+                if need_teachers and bool(cfg.get("kd_sample_gate", False)):
+                    with torch.no_grad():
+                        ps = torch.softmax(s_logit.float(), dim=1)
+                        if mix_mode in ("mixup", "cutmix") and ('y_a' in locals()) and ('y_b' in locals()):
+                            pa = ps.gather(1, y_a.view(-1, 1)).squeeze(1)
+                            pb = ps.gather(1, y_b.view(-1, 1)).squeeze(1)
+                            p = lam * pa + (1.0 - lam) * pb
+                        else:
+                            p = ps.gather(1, y.view(-1, 1)).squeeze(1)
+                        thr = float(cfg.get("kd_sample_thr", 0.85))
+                        mask = (p < thr)
+                        ratio = float(mask.float().mean().item())
+                        max_r = float(cfg.get("kd_sample_max_ratio", 0.60))
+                        min_r = float(cfg.get("kd_sample_min_ratio", 0.10))
+                        if ratio > max_r:
+                            q = torch.quantile(p, max_r)
+                            mask = (p <= q)
+                        elif ratio < min_r:
+                            q = torch.quantile(p, min_r)
+                            mask = (p <= q)
+                        kd_subset_idx = mask.nonzero(as_tuple=True)[0]
+                    if kd_subset_idx is not None and kd_subset_idx.numel() == 0:
+                        kd_subset_idx = None
+                    # log selection ratio for monitoring
+                    try:
+                        if logger is not None:
+                            logger.update_metric(f"student_ep{ep+1}_kd_sample_ratio", float(ratio if 'ratio' in locals() else 0.0))
+                    except Exception:
+                        pass
 
                 # Student query features for synergy (clean by default)
                 feat_kd_key = cfg.get("feat_kd_key", "feat_2d")
                 use_grad_for_q = bool(cfg.get("feat_kd_alpha", 0.0) > 0.0)
                 if need_teachers:
                     with torch.set_grad_enabled(use_grad_for_q):
-                        q_feat_dict, _, _ = student_model(syn_x)
+                        q_in = syn_x if (kd_subset_idx is None) else syn_x.index_select(0, kd_subset_idx)
+                        q_feat_dict, _, _ = student_model(q_in)
                     s_feat_q = q_feat_dict[feat_kd_key]
                 else:
                     s_feat_q = None
@@ -439,21 +544,36 @@ def student_distillation_update(
                     feat_key = "distill_feat" if cfg.get("use_distillation_adapter", False) else "feat_2d"
                     t_feats_kd, t_logits_kd = [], []
                     t_feats_syn, t_logits_syn = [], []
-                    teachers_for_kd = list(teacher_wrappers)
-                    if ema_teacher is not None:
-                        teachers_for_kd.append(ema_teacher)
-                    teachers_for_syn = list(teacher_wrappers)
-                    with torch.no_grad():
+                    # Optional single-teacher pruning (when kd_target is explicitly 'teacher')
+                    _mode_cfg = str(cfg.get("kd_target", "teacher")).lower()
+                    if _mode_cfg == "teacher" and len(teacher_wrappers) >= 1:
+                        _sel = int(cfg.get("kd_teacher_index", 0))
+                        _sel = max(0, min(_sel, len(teacher_wrappers) - 1))
+                        teachers_for_kd = [teacher_wrappers[_sel]] + ([ema_teacher] if ema_teacher is not None else [])
+                        teachers_for_syn = [teacher_wrappers[_sel]]
+                    else:
+                        teachers_for_kd = list(teacher_wrappers) + ([ema_teacher] if ema_teacher is not None else [])
+                        teachers_for_syn = list(teacher_wrappers)
+                    with torch.inference_mode():
+                        # First, run KD view once (includes EMA if present)
                         for tw in teachers_for_kd:
-                            out = tw(kd_x)
-                            t_dict = out[0] if isinstance(out, tuple) else out
-                            t_feats_kd.append(t_dict[feat_key])
-                            t_logits_kd.append(t_dict["logit"])
-                        for tw in teachers_for_syn:
-                            out = tw(syn_x)
-                            t_dict = out[0] if isinstance(out, tuple) else out
-                            t_feats_syn.append(t_dict[feat_key])
-                            t_logits_syn.append(t_dict["logit"])
+                            kd_in = kd_x if (kd_subset_idx is None) else kd_x.index_select(0, kd_subset_idx)
+                            out = tw(kd_in)
+                            _feat, _logit = _parse_teacher_out(out, feat_key)
+                            if _feat is not None:
+                                t_feats_kd.append(_feat)
+                            t_logits_kd.append(_logit)
+                        # If synergy view equals KD view, reuse features from real teachers only
+                        if kd_view == syn_view:
+                            k = len(teacher_wrappers)
+                            t_feats_syn = t_feats_kd[:k]
+                            # t_logits_syn not needed for synergy path; skip for perf
+                        else:
+                            for tw in teachers_for_syn:
+                                syn_in = syn_x if (kd_subset_idx is None) else syn_x.index_select(0, kd_subset_idx)
+                                out = tw(syn_in)
+                                _feat, _ = _parse_teacher_out(out, feat_key)
+                                t_feats_syn.append(_feat)
                 else:
                     # 교사 모델 forward를 스킵하는 경우 빈 리스트로 설정
                     t_feats_kd, t_logits_kd = [], []
@@ -472,14 +592,28 @@ def student_distillation_update(
                 allow_syn = False
                 # Pre-compute weighted teacher average for auto mode if needed
                 avg_t_simple = None
-                t_logits = t_logits_kd
+                # Use only real teachers for teacher averages/weights to avoid EMA-length mismatch
+                _k_real = len(teacher_wrappers)
+                t_logits = t_logits_kd[:_k_real]
                 teacher_w_current = None
                 if len(t_logits) >= 1:
                     try:
                         # Base weights (equal or from config)
                         if cfg.get("teacher_weights"):
-                            w = torch.tensor(cfg["teacher_weights"], device=t_logits[0].device, dtype=t_logits[0].dtype)
-                            w = w[: len(t_logits)]
+                            tw_cfg = cfg["teacher_weights"]
+                            w = torch.tensor(tw_cfg, device=t_logits[0].device, dtype=t_logits[0].dtype)
+                            if len(w) != len(t_logits):
+                                logging.warning(
+                                    "[B-Step] teacher_weights length (%d) != num_teachers (%d). Truncating/expanding as needed.",
+                                    len(w), len(t_logits)
+                                )
+                            # Align length by truncation or simple repeat to match teachers count
+                            if len(w) >= len(t_logits):
+                                w = w[: len(t_logits)]
+                            else:
+                                # repeat last weight to match length
+                                pad = torch.full((len(t_logits) - len(w),), float(w[-1].item()), device=w.device, dtype=w.dtype)
+                                w = torch.cat([w, pad], dim=0)
                         else:
                             w = torch.ones(len(t_logits), device=t_logits[0].device, dtype=t_logits[0].dtype)
                         # Optional teacher2 decay schedule
@@ -507,8 +641,18 @@ def student_distillation_update(
                 elif mode == "avg" and len(t_logits) >= 1:
                     if cfg.get("teacher_weights"):
                         try:
-                            w = torch.tensor(cfg["teacher_weights"], device=t_logits[0].device, dtype=t_logits[0].dtype)
-                            w = w[: len(t_logits)]
+                            tw_cfg = cfg["teacher_weights"]
+                            w = torch.tensor(tw_cfg, device=t_logits[0].device, dtype=t_logits[0].dtype)
+                            if len(w) != len(t_logits):
+                                logging.warning(
+                                    "[B-Step] teacher_weights length (%d) != num_teachers (%d). Truncating/expanding as needed.",
+                                    len(w), len(t_logits)
+                                )
+                            if len(w) >= len(t_logits):
+                                w = w[: len(t_logits)]
+                            else:
+                                pad = torch.full((len(t_logits) - len(w),), float(w[-1].item()), device=w.device, dtype=w.dtype)
+                                w = torch.cat([w, pad], dim=0)
                             # Normalize once, then sum
                             w = w / (w.sum() + 1e-8)
                             stack = torch.stack(t_logits, dim=0)
@@ -546,12 +690,17 @@ def student_distillation_update(
                         kd_tgt = (W * stack).sum(dim=0)
                     kd_tgt_mode_this = "weighted_conf"
                 else:
-                    # synergy/auto path
-                    if mode == "auto_min":
-                        # always allow synergy path; per-sample gating via KL-min later
-                        allow_syn = True
+                    # synergy/auto path (auto_min 포함) → 시너지 게이트 공통 적용
+                    if mode in ("synergy", "auto", "auto_min"):
+                        allow_syn = _synergy_gate_ok(cfg, logger)
+                        # 모니터링을 위해 게이트 상태 기록(에폭/배치 레벨 혼용 허용)
+                        try:
+                            if logger is not None and hasattr(logger, "update_metric"):
+                                logger.update_metric("kd_gate_on", float(1.0 if allow_syn else 0.0))
+                        except Exception:
+                            pass
                     else:
-                        allow_syn = _synergy_gate_ok(cfg, logger) if mode in ("synergy", "auto") else False
+                        allow_syn = False
                     if not allow_syn and len(t_logits) >= 1:
                         # fallback: per-sample confidence-weighted ensemble (better than plain avg in imbalanced teachers)
                         tau_w = float(cfg.get("tau_gate", 1.0))
@@ -595,8 +744,21 @@ def student_distillation_update(
                     skip_syn = (disagree < float(cfg.get("skip_syn_disagree_thr", 0.15))) and (syn_win_prev < float(cfg.get("skip_syn_win_thr", 0.05)))
                 else:
                     skip_syn = False
-                # IB/KD 타깃이 필요할 때만 IB_MBM 실행 (synergy 게이트 통과 + multi-teacher + not skipped)
-                need_ibm = bool(cfg.get("use_ib", False)) and allow_syn and (len(t_feats_syn) > 1) and (not skip_syn)
+                # Decide IB_MBM necessity strictly by cfg and gating
+                kd_target_mode_cfg = str(cfg.get("kd_target", "avg")).lower()
+                use_ib_flag = bool(cfg.get("use_ib", False))
+                # 이미 위에서 계산한 allow_syn(= 게이트 판정) 재사용
+                gate_ok = allow_syn
+                # include 'auto_min' and guard against None IB components
+                need_ibm = (
+                    use_ib_flag
+                    and (kd_target_mode_cfg in ("synergy", "auto", "auto_min"))
+                    and gate_ok
+                    and (len(t_feats_syn) > 1)
+                    and (not skip_syn)
+                    and (ib_mbm is not None)
+                    and (synergy_head is not None)
+                )
                 # Light probing: occasionally evaluate synergy even when skip_syn is true to keep syn_win_ratio fresh
                 probe_every = int(cfg.get("synergy_probe_every", 0))
                 if allow_syn and (not need_ibm) and skip_syn and probe_every > 0:
@@ -613,11 +775,13 @@ def student_distillation_update(
                         raise RuntimeError("KV dim mismatch")
                     with torch.no_grad():
                         kv = torch.stack(t_feats_syn, dim=1)  # [B, K, D]
-                        # Use μ for synergy evaluation/targets by default
-                        # Query uses clean view features by default
+                        # Deterministic forward for stability
                         syn_feat_ng, mu_ng, logvar_ng = ib_mbm(s_feat_q, kv, sample=False)
-                        use_mu_for_kd = True  # force μ-targets by default
-                        zsyn_ng = synergy_head(mu_ng)
+                        # KD logits source: μ(default) or z based on config
+                        use_mu_for_kd = bool(cfg.get("use_mu_for_kd", True))
+                        logits_z = synergy_head(syn_feat_ng)
+                        logits_mu = synergy_head(mu_ng)
+                        zsyn_ng = (logits_mu if use_mu_for_kd else logits_z)
                         # Optional synergy logit scaling to counter over-flat logits
                         try:
                             syn_scale = float(cfg.get("synergy_logit_scale", 1.0))
@@ -669,88 +833,134 @@ def student_distillation_update(
                             pass
 
                     # two_view KD: mixup-aware probability mixing from two clean views
-                    if mix_mode in ("mixup", "cutmix") and str(cfg.get("kd_target_mode", "clean")).lower() == "two_view":
+                    # Optional start/stop epochs for two_view to keep early epochs clean
+                    two_view_cfg = str(cfg.get("kd_target_mode", "clean")).lower() == "two_view"
+                    start_tv = int(cfg.get("kd_two_view_start_epoch", 1))
+                    stop_tv = int(cfg.get("kd_two_view_stop_epoch", 1 << 30))
+                    use_two_view = two_view_cfg and ((ep + 1) >= start_tv) and ((ep + 1) < stop_tv)
+                    if mix_mode in ("mixup", "cutmix") and use_two_view:
                         with torch.no_grad():
-                            # ensure KD view is clean
-                            base_x = x
-                            if len(teacher_wrappers) >= 1:
-                                # Reuse already computed clean-view teacher logits for view-A
+                            k = len(teacher_wrappers)  # exclude EMA
+                            tau_w = float(cfg.get("tau_gate", 2.0))
+                            from modules.losses import kl_safe_vec_probs as _kl_probs
+                            if ('kd_subset_idx' in locals()) and (kd_subset_idx is not None):
+                                # Subset path: compute A on subset (already done), B on subset partners
+                                s_logit_sel = s_logit.index_select(0, kd_subset_idx)
+                                partner_idx_full = idx.index_select(0, kd_subset_idx)
+                                logits_a_sel = []
+                                logits_b_sel = []
+                                for t_i in range(k):
+                                    la = t_logits_kd[t_i].float()  # [sel_B, C]
+                                    if cfg.get("kd_center_teacher", False):
+                                        la = la - la.mean(dim=1, keepdim=True)
+                                    out_b = teacher_wrappers[t_i](kd_x.index_select(0, partner_idx_full))
+                                    lb = (out_b[0] if isinstance(out_b, tuple) else out_b)["logit"].float()
+                                    if cfg.get("kd_center_teacher", False):
+                                        lb = lb - lb.mean(dim=1, keepdim=True)
+                                    logits_a_sel.append(la)
+                                    logits_b_sel.append(lb)
+                                Wa = torch.stack([torch.softmax(la / tau_w, dim=1).amax(dim=1) for la in logits_a_sel], dim=0)
+                                Wb = torch.stack([torch.softmax(lb / tau_w, dim=1).amax(dim=1) for lb in logits_b_sel], dim=0)
+                                Wa = (Wa / (Wa.sum(dim=0, keepdim=True) + 1e-8)).unsqueeze(-1)
+                                Wb = (Wb / (Wb.sum(dim=0, keepdim=True) + 1e-8)).unsqueeze(-1)
+                                la_bar = (torch.stack(logits_a_sel, dim=0) * Wa).sum(dim=0)
+                                lb_bar = (torch.stack(logits_b_sel, dim=0) * Wb).sum(dim=0)
+                                q1 = torch.softmax(la_bar / cur_tau, dim=1)
+                                q2 = torch.softmax(lb_bar / cur_tau, dim=1)
+                                q_mix_sel = lam * q1 + (1.0 - lam) * q2
+                                kd_vec_sel = _kl_probs(s_logit_sel, q_mix_sel, tau=cur_tau)
+                                # dtype-safe scatter: keep source dtype (float32) to avoid bf16 mismatch
+                                kd_vec_full = torch.zeros(y.size(0), device=s_logit.device, dtype=kd_vec_sel.dtype)
+                                kd_vec_full.index_copy_(0, kd_subset_idx, kd_vec_sel)
+                                kd_vec = kd_vec_full
+                            else:
+                                # Full-batch path: reuse A-view logits; B via reindexing
                                 logits_a = []
-                                for la in t_logits_kd:
+                                for la in t_logits_kd[:k]:
                                     la = la.float()
                                     if cfg.get("kd_center_teacher", False):
                                         la = la - la.mean(dim=1, keepdim=True)
                                     logits_a.append(la)
-                                # Compute permuted clean-view teacher logits for view-B only once
-                                logits_b = []
-                                for tw in teachers_for_kd:
-                                    out_b = tw(base_x[idx])
-                                    lb = (out_b[0] if isinstance(out_b, tuple) else out_b)["logit"].float()
-                                    if cfg.get("kd_center_teacher", False):
-                                        lb = lb - lb.mean(dim=1, keepdim=True)
-                                    logits_b.append(lb)
-                                # Confidence-based weights (softer via tau_gate)
-                                tau_w = float(cfg.get("tau_gate", 2.0))
-                                Wa = []
-                                Wb = []
-                                for la in logits_a:
-                                    Wa.append(torch.softmax(la / tau_w, dim=1).amax(dim=1))  # [B]
-                                for lb in logits_b:
-                                    Wb.append(torch.softmax(lb / tau_w, dim=1).amax(dim=1))  # [B]
-                                Wa = torch.stack(Wa, dim=0)
-                                Wb = torch.stack(Wb, dim=0)
-                                Wa = (Wa / (Wa.sum(dim=0, keepdim=True) + 1e-8)).unsqueeze(-1)  # [K,B,1]
-                                Wb = (Wb / (Wb.sum(dim=0, keepdim=True) + 1e-8)).unsqueeze(-1)  # [K,B,1]
-                                la = (torch.stack(logits_a, dim=0) * Wa).sum(dim=0)  # [B,C]
-                                lb = (torch.stack(logits_b, dim=0) * Wb).sum(dim=0)  # [B,C]
-                                q1 = torch.softmax(la / cur_tau, dim=1)
-                                q2 = torch.softmax(lb / cur_tau, dim=1)
+                                logits_b = [la[idx] for la in logits_a]
+                                Wa = torch.stack([torch.softmax(la / tau_w, dim=1).amax(dim=1) for la in logits_a], dim=0)
+                                Wb = torch.stack([torch.softmax(lb / tau_w, dim=1) .amax(dim=1) for lb in logits_b], dim=0)
+                                Wa = (Wa / (Wa.sum(dim=0, keepdim=True) + 1e-8)).unsqueeze(-1)
+                                Wb = (Wb / (Wb.sum(dim=0, keepdim=True) + 1e-8)).unsqueeze(-1)
+                                la_bar = (torch.stack(logits_a, dim=0) * Wa).sum(dim=0)
+                                lb_bar = (torch.stack(logits_b, dim=0) * Wb).sum(dim=0)
+                                q1 = torch.softmax(la_bar / cur_tau, dim=1)
+                                q2 = torch.softmax(lb_bar / cur_tau, dim=1)
                                 q_mix = lam * q1 + (1.0 - lam) * q2
-                                from modules.losses import kl_safe_vec_probs as _kl_probs
                                 kd_vec = _kl_probs(s_logit, q_mix, tau=cur_tau)
-                                kd_tgt_mode_this = "two_view"
+                            kd_tgt_mode_this = "two_view"
 
-                    # KD 타겟 선택: teacher/avg 우선, synergy/auto는 게이트 통과 시 zsyn, 워밍업 혼합 지원
+                    # KD 타겟 선택: teacher/avg 우선, synergy/auto는 게이트 통과 시 zsyn, 워밍업 혼합 지원(ens는 게이트 후 허용)
                     if kd_tgt is None and (zsyn_ng is not None) and allow_syn and mode in ("synergy", "auto", "auto_min"):
                         ens = float(cfg.get("kd_ens_alpha", 0.0))
                         warm = int(cfg.get("teacher_adapt_kd_warmup", 0))
-                        # 단순 평균을 기본으로 사용
                         avg_t = avg_t_simple
-                        if ep < warm and avg_t is not None and ens > 0.0 and mode != "auto":
+                        # Warmup mixing is allowed ONLY in pure synergy mode
+                        if allow_syn and (mode == "synergy") and (ep < warm) and (avg_t is not None) and (ens > 0.0):
                             kd_tgt = (1.0 - ens) * zsyn_ng + ens * avg_t
                             kd_tgt_mode_this = "synergy"
                         else:
-                            # auto/auto_min 모드: per-sample로 더 나은 타겟 선택 (policy: student_kl | label_ce)
+                            # auto/auto_min: per-sample 선택(기본 label_ce), subset-aware
                             if mode in ("auto", "auto_min") and (avg_t is not None):
-                                auto_policy = str(cfg.get("kd_auto_policy", "student_kl")).lower()
+                                auto_policy = str(cfg.get("kd_auto_policy", "label_ce")).lower()
                                 tau_use = float(cur_tau)
-                                if auto_policy == "label_ce":
-                                    # label-based CE comparison (mixup-aware)
-                                    if mix_mode in ("mixup", "cutmix"):
-                                        ce_syn_a = F.cross_entropy(zsyn_ng.float(), y_a, reduction="none")
-                                        ce_syn_b = F.cross_entropy(zsyn_ng.float(), y_b, reduction="none")
-                                        ce_avg_a = F.cross_entropy(avg_t.float(),  y_a, reduction="none")
-                                        ce_avg_b = F.cross_entropy(avg_t.float(),  y_b, reduction="none")
-                                        ce_syn = lam * ce_syn_a + (1.0 - lam) * ce_syn_b
-                                        ce_avg = lam * ce_avg_a + (1.0 - lam) * ce_avg_b
+                                if ('kd_subset_idx' in locals()) and (kd_subset_idx is not None):
+                                    s_logit_sel = s_logit.index_select(0, kd_subset_idx)
+                                    if auto_policy == "label_ce":
+                                        if mix_mode in ("mixup", "cutmix"):
+                                            y_a_sel = y_a.index_select(0, kd_subset_idx)
+                                            y_b_sel = y_b.index_select(0, kd_subset_idx)
+                                            ce_syn = lam * F.cross_entropy(zsyn_ng.float(), y_a_sel, reduction="none") \
+                                                   + (1.0 - lam) * F.cross_entropy(zsyn_ng.float(), y_b_sel, reduction="none")
+                                            ce_avg = lam * F.cross_entropy(avg_t.float(),  y_a_sel, reduction="none") \
+                                                   + (1.0 - lam) * F.cross_entropy(avg_t.float(),  y_b_sel, reduction="none")
+                                        else:
+                                            y_sel = y.index_select(0, kd_subset_idx)
+                                            ce_syn = F.cross_entropy(zsyn_ng.float(), y_sel, reduction="none")
+                                            ce_avg = F.cross_entropy(avg_t.float(),   y_sel, reduction="none")
+                                        choose_syn = (ce_syn <= ce_avg)
+                                        kd_vec_syn = kl_safe_vec(s_logit_sel, zsyn_ng.detach(), tau=tau_use)
+                                        kd_vec_avg = kl_safe_vec(s_logit_sel,   avg_t.detach(), tau=tau_use)
+                                        kd_vec_sel = torch.where(choose_syn, kd_vec_syn, kd_vec_avg)
+                                        kd_full = torch.zeros(y.size(0), device=s_logit.device, dtype=kd_vec_sel.dtype)
+                                        kd_full.index_copy_(0, kd_subset_idx, kd_vec_sel)
+                                        kd_vec = kd_full
                                     else:
-                                        ce_syn = F.cross_entropy(zsyn_ng.float(), y, reduction="none")
-                                        ce_avg = F.cross_entropy(avg_t.float(),   y, reduction="none")
-                                    choose_syn = (ce_syn < ce_avg)
-                                    # KL to chosen target for optimization
-                                    kd_vec_syn = kl_safe_vec(s_logit, zsyn_ng.detach(), tau=tau_use)
-                                    kd_vec_avg = kl_safe_vec(s_logit,   avg_t.detach(), tau=tau_use)
-                                    kd_vec = torch.where(choose_syn, kd_vec_syn, kd_vec_avg)
+                                        kd_vec_syn = kl_safe_vec(s_logit_sel, zsyn_ng.detach(), tau=tau_use)
+                                        kd_vec_avg = kl_safe_vec(s_logit_sel,   avg_t.detach(), tau=tau_use)
+                                        choose_syn = (kd_vec_syn <= kd_vec_avg)
+                                        kd_vec_sel = torch.where(choose_syn, kd_vec_syn, kd_vec_avg)
+                                        kd_full = torch.zeros(y.size(0), device=s_logit.device, dtype=kd_vec_sel.dtype)
+                                        kd_full.index_copy_(0, kd_subset_idx, kd_vec_sel)
+                                        kd_vec = kd_full
                                 else:
-                                    # default: student-KL comparison
-                                    kd_vec_syn = kl_safe_vec(s_logit, zsyn_ng.detach(), tau=tau_use)
-                                    kd_vec_avg = kl_safe_vec(s_logit,   avg_t.detach(), tau=tau_use)
-                                    choose_syn = (kd_vec_syn < kd_vec_avg)
-                                    kd_vec = torch.where(choose_syn, kd_vec_syn, kd_vec_avg)
+                                    if auto_policy == "label_ce":
+                                        if mix_mode in ("mixup", "cutmix"):
+                                            ce_syn_a = F.cross_entropy(zsyn_ng.float(), y_a, reduction="none")
+                                            ce_syn_b = F.cross_entropy(zsyn_ng.float(), y_b, reduction="none")
+                                            ce_avg_a = F.cross_entropy(avg_t.float(),  y_a, reduction="none")
+                                            ce_avg_b = F.cross_entropy(avg_t.float(),  y_b, reduction="none")
+                                            ce_syn = lam * ce_syn_a + (1.0 - lam) * ce_syn_b
+                                            ce_avg = lam * ce_avg_a + (1.0 - lam) * ce_avg_b
+                                        else:
+                                            ce_syn = F.cross_entropy(zsyn_ng.float(), y, reduction="none")
+                                            ce_avg = F.cross_entropy(avg_t.float(),   y, reduction="none")
+                                        choose_syn = (ce_syn <= ce_avg)
+                                        kd_vec_syn = kl_safe_vec(s_logit, zsyn_ng.detach(), tau=tau_use)
+                                        kd_vec_avg = kl_safe_vec(s_logit,   avg_t.detach(), tau=tau_use)
+                                        kd_vec = torch.where(choose_syn, kd_vec_syn, kd_vec_avg)
+                                    else:
+                                        kd_vec_syn = kl_safe_vec(s_logit, zsyn_ng.detach(), tau=tau_use)
+                                        kd_vec_avg = kl_safe_vec(s_logit,   avg_t.detach(), tau=tau_use)
+                                        choose_syn = (kd_vec_syn <= kd_vec_avg)
+                                        kd_vec = torch.where(choose_syn, kd_vec_syn, kd_vec_avg)
 
                                 kd_tgt_mode_this = mode
                                 kd_loss_val = None
-                                # Bind DKD target to per-sample selected logits for hybrid DKD
                                 if cfg.get("use_dkd_with_synergy", False):
                                     kd_tgt = torch.where(choose_syn.unsqueeze(1), zsyn_ng.detach(), avg_t.detach())
                                 with torch.no_grad():
@@ -801,12 +1011,20 @@ def student_distillation_update(
                         kd_tgt_wconf_cnt += 1
 
                     if kd_tgt is not None and kd_vec is None:
-                        # KL with temperature schedule (synergy 전용 tau_syn 지원)
-                        if kd_tgt_mode_this == "synergy":
-                            tau_syn = float(cfg.get("tau", cur_tau))
-                            kd_vec = kl_safe_vec(s_logit, kd_tgt.detach(), tau=tau_syn)
+                        # KL with temperature schedule (synergy 전용 tau_syn 지원), support subset scatter
+                        if ('kd_subset_idx' in locals()) and (kd_subset_idx is not None):
+                            tau_eff = float(cfg.get("tau_syn", cur_tau)) if kd_tgt_mode_this == "synergy" else float(cur_tau)
+                            s_sel = s_logit.index_select(0, kd_subset_idx)
+                            kl_sel = kl_safe_vec(s_sel, kd_tgt.detach(), tau=tau_eff)
+                            kd_full = torch.zeros(y.size(0), device=s_logit.device, dtype=kl_sel.dtype)
+                            kd_full.index_copy_(0, kd_subset_idx, kl_sel)
+                            kd_vec = kd_full
                         else:
-                            kd_vec = kl_safe_vec(s_logit, kd_tgt.detach(), tau=cur_tau)
+                            if kd_tgt_mode_this == "synergy":
+                                tau_syn = float(cfg.get("tau_syn", cur_tau))
+                                kd_vec = kl_safe_vec(s_logit, kd_tgt.detach(), tau=tau_syn)
+                            else:
+                                kd_vec = kl_safe_vec(s_logit, kd_tgt.detach(), tau=cur_tau)
                         kd_loss_val = None  # set below after cw
                     elif kd_vec is None:
                         kd_loss_val = torch.tensor(0.0, device=s_logit.device)
@@ -826,21 +1044,33 @@ def student_distillation_update(
                         tuple(zsyn_ng.shape) if 'zsyn_ng' in locals() and zsyn_ng is not None else None,
                     )
 
-            # ── (B1) sample-weights (always same dtype as losses) ───────────
+            # ── (B1) KD-only weights (always same dtype as losses) ─────────
             if cfg.get("use_disagree_weight", False) and need_teachers and len(t_logits) >= 2:
-                weights = sample_weights_from_disagreement(
-                    t_logits[0],
-                    t_logits[1],
-                    y,
-                    mode=cfg.get("disagree_mode", "pred"),
-                    lambda_high=cfg.get("disagree_lambda_high", 1.0),
-                    lambda_low=cfg.get("disagree_lambda_low", 1.0),
-                )
+                if ('kd_subset_idx' in locals()) and (kd_subset_idx is not None):
+                    w_sel = sample_weights_from_disagreement(
+                        t_logits[0],
+                        t_logits[1],
+                        y.index_select(0, kd_subset_idx),
+                        mode=cfg.get("disagree_mode", "pred"),
+                        lambda_high=cfg.get("disagree_lambda_high", 1.0),
+                        lambda_low=cfg.get("disagree_lambda_low", 1.0),
+                    )
+                    kd_weights = torch.ones_like(y, dtype=s_logit.dtype, device=y.device)
+                    kd_weights.index_copy_(0, kd_subset_idx, w_sel.to(s_logit.dtype))
+                else:
+                    kd_weights = sample_weights_from_disagreement(
+                        t_logits[0],
+                        t_logits[1],
+                        y,
+                        mode=cfg.get("disagree_mode", "pred"),
+                        lambda_high=cfg.get("disagree_lambda_high", 1.0),
+                        lambda_low=cfg.get("disagree_lambda_low", 1.0),
+                    )
             else:
-                weights = torch.ones_like(y, dtype=s_logit.dtype, device=y.device)
+                kd_weights = torch.ones_like(y, dtype=s_logit.dtype, device=y.device)
 
             # AMP / float16 환경에서도 안전
-            weights = weights.to(s_logit.dtype)
+            kd_weights = kd_weights.to(s_logit.dtype)
             # Monitor dynamic teacher weights (if available)
             try:
                 if teacher_w_current is not None:
@@ -854,13 +1084,21 @@ def student_distillation_update(
             cw = torch.ones(y.size(0), device=s_logit.device, dtype=s_logit.dtype)
 
             if cfg.get("use_ib", False) and logvar_ng is not None:
-                cw = torch.exp(-logvar_ng).mean(dim=1).to(s_logit.dtype)
-                # 정규화: 평균을 1.0 부근으로 맞추고 가드 범위로 제한
-                cw_mean = (cw.mean() + 1e-8)
-                min_cw = float(cfg.get("min_cw", 0.1))
-                max_cw = float(cfg.get("max_cw", 1.5))
-                cw = (cw / cw_mean).clamp(min_cw, max_cw)
-                weights = weights * cw
+                if ('kd_subset_idx' in locals()) and (kd_subset_idx is not None):
+                    cw_sel = torch.exp(-logvar_ng).mean(dim=1).to(s_logit.dtype)
+                    cw_sel = (cw_sel / (cw_sel.mean() + 1e-8)).clamp(float(cfg.get("min_cw", 0.1)), float(cfg.get("max_cw", 1.5)))
+                    cw_full = torch.ones_like(y, dtype=s_logit.dtype, device=y.device)
+                    cw_full.index_copy_(0, kd_subset_idx, cw_sel)
+                    kd_weights = kd_weights * cw_full
+                    cw = cw_full
+                else:
+                    cw = torch.exp(-logvar_ng).mean(dim=1).to(s_logit.dtype)
+                    # 정규화: 평균을 1.0 부근으로 맞추고 가드 범위로 제한
+                    cw_mean = (cw.mean() + 1e-8)
+                    min_cw = float(cfg.get("min_cw", 0.1))
+                    max_cw = float(cfg.get("max_cw", 1.5))
+                    cw = (cw / cw_mean).clamp(min_cw, max_cw)
+                    kd_weights = kd_weights * cw
                 # (선택) cw 통계 로깅
                 try:
                     logger.update_metric(f"student_ep{ep+1}_cw_mean", float(cw.mean().item()))
@@ -869,45 +1107,69 @@ def student_distillation_update(
 
             # KD uncertainty weighting (entropy-based)
             if cfg.get("kd_uncertainty_weight", 0.0) > 0 and (kd_vec is not None):
-                with torch.no_grad():
-                    q_used = None
+                beta_u = float(cfg.get("kd_uncertainty_weight", 0.5))
+                min_u = float(cfg.get("kd_uncertainty_min", 0.2))
+                tau_eff = float(cur_tau)
+                # Subset-aware branch: handle both kd_tgt and chosen_logits (auto_min) on selected indices
+                if ('kd_subset_idx' in locals()) and (kd_subset_idx is not None) and ((kd_tgt is not None) or (choose_syn is not None)):
+                    with torch.no_grad():
+                        if (choose_syn is not None) and (zsyn_ng is not None) and ('avg_t' in locals()) and (avg_t is not None):
+                            # Build chosen logits on subset only
+                            z_syn_sel = zsyn_ng
+                            avg_t_sel = avg_t
+                            # Both tensors were computed on subset in gating path
+                            chosen_sel = torch.where(choose_syn.unsqueeze(1), z_syn_sel, avg_t_sel)
+                            q_sel = F.softmax(chosen_sel / max(1e-6, tau_eff), dim=1)
+                        else:
+                            q_sel = F.softmax(kd_tgt.detach() / max(1e-6, tau_eff), dim=1)
+                        H_sel = -(q_sel * (q_sel + 1e-8).log()).sum(dim=1)
+                        w_unc_sel = (1.0 / (1.0 + beta_u * H_sel)).clamp_(min_u, 1.0).to(s_logit.dtype)
+                        kd_correct_min = float(cfg.get("kd_correct_min", 0.0))
+                        if kd_correct_min > 0.0:
+                            if mix_mode in ("mixup", "cutmix"):
+                                y_a_sel = y_a.index_select(0, kd_subset_idx)
+                                y_b_sel = y_b.index_select(0, kd_subset_idx)
+                                p_y_sel = lam * q_sel.gather(1, y_a_sel.view(-1, 1)).squeeze(1) \
+                                        + (1.0 - lam) * q_sel.gather(1, y_b_sel.view(-1, 1)).squeeze(1)
+                            else:
+                                y_sel = y.index_select(0, kd_subset_idx)
+                                p_y_sel = q_sel.gather(1, y_sel.view(-1, 1)).squeeze(1)
+                            w_unc_sel = w_unc_sel * p_y_sel.clamp_min(kd_correct_min).to(s_logit.dtype)
+                        w_unc_full = torch.ones(y.size(0), device=s_logit.device, dtype=s_logit.dtype)
+                        w_unc_full.index_copy_(0, kd_subset_idx, w_unc_sel)
+                    kd_weights = kd_weights * w_unc_full
                     try:
+                        logger.update_metric(f"student_ep{ep+1}_kd_unc_w_mean", float(w_unc_sel.mean().item()))
+                    except Exception:
+                        pass
+                else:
+                    with torch.no_grad():
+                        q_used = None
                         if (choose_syn is not None) and (zsyn_ng is not None) and ('avg_t' in locals()) and (avg_t is not None):
                             chosen_logits = torch.where(choose_syn.unsqueeze(1), zsyn_ng, avg_t)
-                            q_used = F.softmax(chosen_logits / max(1e-6, float(cur_tau)), dim=1)
+                            q_used = F.softmax(chosen_logits / max(1e-6, tau_eff), dim=1)
                         elif kd_tgt is not None:
-                            q_used = F.softmax(kd_tgt.detach() / max(1e-6, float(cur_tau)), dim=1)
-                    except Exception:
-                        q_used = None
-                    if q_used is not None:
-                        H = -(q_used * (q_used + 1e-8).log()).sum(dim=1)
-                        beta_u = float(cfg.get("kd_uncertainty_weight", 0.5))
-                        w_unc = (1.0 / (1.0 + beta_u * H)).clamp_(float(cfg.get("kd_uncertainty_min", 0.2)), 1.0).to(s_logit.dtype)
-                        # Label-correctness guard: upweight KD where teacher target matches label with high prob
-                        try:
+                            q_used = F.softmax(kd_tgt.detach() / max(1e-6, tau_eff), dim=1)
+                        if q_used is not None:
+                            H = -(q_used * (q_used + 1e-8).log()).sum(dim=1)
+                            w_unc = (1.0 / (1.0 + beta_u * H)).clamp_(min_u, 1.0).to(s_logit.dtype)
                             kd_correct_min = float(cfg.get("kd_correct_min", 0.0))
-                        except Exception:
-                            kd_correct_min = 0.0
-                        if kd_correct_min > 0.0:
-                            try:
+                            if kd_correct_min > 0.0:
                                 if mix_mode in ("mixup", "cutmix"):
                                     p_y = lam * q_used.gather(1, y_a.view(-1, 1)).squeeze(1) \
                                         + (1.0 - lam) * q_used.gather(1, y_b.view(-1, 1)).squeeze(1)
                                 else:
                                     p_y = q_used.gather(1, y.view(-1, 1)).squeeze(1)
-                                w_lab = p_y.clamp_min(kd_correct_min).to(s_logit.dtype)
-                                w_unc = w_unc * w_lab
+                                w_unc = w_unc * p_y.clamp_min(kd_correct_min).to(s_logit.dtype)
+                            kd_weights = kd_weights * w_unc
+                            try:
+                                logger.update_metric(f"student_ep{ep+1}_kd_unc_w_mean", float(w_unc.mean().item()))
                             except Exception:
                                 pass
-                        weights = weights * w_unc
-                        try:
-                            logger.update_metric(f"student_ep{ep+1}_kd_unc_w_mean", float(w_unc.mean().item()))
-                        except Exception:
-                            pass
 
-            # apply cw to CE and KD (with optional DKD over synergy/avg target)
+            # CE unweighted mean; KD uses kd_weights (with optional DKD)
             if ce_vec is not None:
-                ce_loss_val = (weights * ce_vec).mean()
+                ce_loss_val = ce_vec.mean()
             if kd_vec is not None:
                 # Optional DKD hybrid over selected kd_tgt
                 if cfg.get("use_dkd_with_synergy", False) and (kd_tgt is not None):
@@ -920,27 +1182,39 @@ def student_distillation_update(
                         temperature=float(cur_tau),
                     )
                 else:
-                    kd_loss_val = (weights * kd_vec).mean()
+                    if cfg.get("kd_sample_gate", False) and cfg.get("kd_sample_reweight", True) and ('kd_subset_idx' in locals()) and (kd_subset_idx is not None):
+                        kd_loss_val = (kd_weights.index_select(0, kd_subset_idx) * kd_vec.index_select(0, kd_subset_idx)).mean()
+                    else:
+                        kd_loss_val = (kd_weights * kd_vec).mean()
 
             # --- μ‑MSE with certainty weight (normalized) ---------------------
             feat_kd_val = None
             if cfg.get("feat_kd_alpha", 0.0) > 0 and need_teachers and mu_ng is not None:
-                # 차원 불일치 안전장치
-                if s_feat.shape[1] == mu_ng.shape[1]:
-                    diff = (s_feat - mu_ng).pow(2).sum(dim=1)  # s_feat에서 grad 흐름
-                    cw_feat = torch.exp(-logvar_ng).mean(dim=1).detach()
-                    # 정규화: 평균 1.0 부근으로 맞추고 과도한 다운/업웨이팅 방지
-                    cw_feat = (cw_feat / (cw_feat.mean() + 1e-8)).clamp(0.5, 1.5).to(s_feat.dtype)
-                    feat_kd_val = (cw_feat * diff).mean()
+                if ('kd_subset_idx' in locals()) and (kd_subset_idx is not None):
+                    s_feat_sel = s_feat.index_select(0, kd_subset_idx)
+                    if s_feat_sel.shape[1] == mu_ng.shape[1]:
+                        diff = (s_feat_sel - mu_ng).pow(2).sum(dim=1)  # s_feat에서 grad 흐름
+                        cw_feat = torch.exp(-logvar_ng).mean(dim=1).detach()
+                        # 정규화: 평균 1.0 부근으로 맞추고 과도한 다운/업웨이팅 방지
+                        cw_feat = (cw_feat / (cw_feat.mean() + 1e-8)).clamp(0.5, 1.5).to(s_feat_sel.dtype)
+                        feat_kd_val = (kd_weights.index_select(0, kd_subset_idx) * cw_feat * diff).mean()
                 else:
-                    # 첫 배치에서만 경고 출력 (로그 과다 방지)
-                    if ep == 0 and step == 0:
-                        logging.warning(
-                            "[B-Step] Feat-KD skipped (dim mismatch): s=%s, mu=%s",
-                            tuple(s_feat.shape),
-                            tuple(mu_ng.shape),
-                        )
-                    feat_kd_val = None
+                    # 차원 불일치 안전장치
+                    if s_feat.shape[1] == mu_ng.shape[1]:
+                        diff = (s_feat - mu_ng).pow(2).sum(dim=1)  # s_feat에서 grad 흐름
+                        cw_feat = torch.exp(-logvar_ng).mean(dim=1).detach()
+                        # 정규화: 평균 1.0 부근으로 맞추고 과도한 다운/업웨이팅 방지
+                        cw_feat = (cw_feat / (cw_feat.mean() + 1e-8)).clamp(0.5, 1.5).to(s_feat.dtype)
+                        feat_kd_val = (kd_weights * cw_feat * diff).mean()
+                    else:
+                        # 첫 배치에서만 경고 출력 (로그 과다 방지)
+                        if ep == 0 and step == 0:
+                            logging.warning(
+                                "[B-Step] Feat-KD skipped (dim mismatch): s=%s, mu=%s",
+                                tuple(s_feat.shape),
+                                tuple(mu_ng.shape),
+                            )
+                        feat_kd_val = None
 
             # IB KL은 B-Step에서 제외 (A-Step에서만 최적화)
             ib_loss_val = None
@@ -1162,7 +1436,7 @@ def student_distillation_update(
             pass
 
         # Periodic synergy re-evaluation to refresh gating (every 10 epochs)
-        if (ep + 1) % 10 == 0 and ib_mbm is not None and synergy_head is not None:
+        if (ep + 1) % 10 == 0 and cfg.get("use_ib", False) and ib_mbm is not None and synergy_head is not None:
             try:
                 from modules.trainer_teacher import eval_synergy as _eval_syn
                 syn_acc = _eval_syn(
@@ -1234,7 +1508,14 @@ def eval_student(model, loader, device, cfg=None):
     for x, y in loader:
         x, y = x.to(device), y.to(device)
         with autocast_ctx:
-            feat_dict, s_logit, _ = model(x)
+            out = model(x)
+            if isinstance(out, tuple):
+                # (feat_dict, logit, aux)
+                s_logit = out[1]
+            elif isinstance(out, dict):
+                s_logit = out.get("logit", out.get("output", out))
+            else:
+                s_logit = out
         pred = s_logit.argmax(dim=1)
         correct += (pred==y).sum().item()
         total += y.size(0)

@@ -14,6 +14,7 @@ from modules.losses import (
     kd_loss_fn,
     ce_loss_fn,
     ib_loss,
+    soft_clip_loss,
 )
 
 
@@ -149,17 +150,20 @@ def eval_synergy(
     that the student features can be used as the attention query.
     """
 
-    # Guard: need at least two teachers for synergy
+    # Guard: need at least one teacher (K>=1). If K==1, build KV with a single teacher.
     try:
-        if teacher_wrappers is None or len(teacher_wrappers) < 2:
+        if teacher_wrappers is None or len(teacher_wrappers) < 1:
             return -1.0
     except Exception:
         return -1.0
-    # Force AMP off for numerically stable evaluation
-    autocast_ctx = nullcontext()
+    # Force AMP off for numerically stable evaluation (explicit autocast disabled)
+    try:
+        autocast_ctx = torch.autocast(device_type="cuda", enabled=False)
+    except Exception:
+        autocast_ctx = nullcontext()
     correct, total = 0, 0
     first = True
-    # Temporarily set eval() for teachers, IB_MBM and synergy_head
+    # Temporarily set eval() for teachers, IB_MBM, synergy_head, and student
     prev_teach_modes = []
     try:
         for tw in teacher_wrappers:
@@ -169,40 +173,79 @@ def eval_synergy(
         prev_teach_modes = []
     prev_ib_mode = getattr(ib_mbm, 'training', False)
     prev_syn_mode = getattr(synergy_head, 'training', False)
+    prev_student_mode = getattr(student_model, 'training', False) if student_model is not None else False
     try:
         ib_mbm.eval(); synergy_head.eval()
+        if student_model is not None:
+            student_model.eval()
     except Exception:
         pass
     for x, y in loader:
         x, y = x.to(device), y.to(device)
         with autocast_ctx:
-            # ``BaseKDModel`` may return a tuple ``(feat_dict, logit, aux)``
-            # for backward compatibility, extract the first element when needed.
-            t1_out = teacher_wrappers[0](x)
-            t2_out = teacher_wrappers[1](x)
-            t1_dict = t1_out[0] if isinstance(t1_out, tuple) else t1_out
-            t2_dict = t2_out[0] if isinstance(t2_out, tuple) else t2_out
-
+            # Collect teacher features (support K=1 or K>=2)
+            feats = []
             key = (
                 "distill_feat"
                 if (cfg or {}).get("use_distillation_adapter", False)
                 else "feat_2d"
             )
-            t1_feat = t1_dict[key].float()
-            t2_feat = t2_dict[key].float()
+            for tw in teacher_wrappers:
+                out = tw(x)
+                t_dict = out[0] if isinstance(out, tuple) else out
+                feats.append(t_dict[key].float())
 
             assert student_model is not None, "student_model required for IB_MBM"
             s_feat = student_model(x)[0][(cfg or {}).get("feat_kd_key", "feat_2d")].float()
             # eval 안정화: z = mu 모드 사용(sample=False)
             # Evaluate synergy using μ (mean) to avoid sample noise
-            fsyn, mu, _ = ib_mbm(s_feat, torch.stack([t1_feat, t2_feat], dim=1), sample=False)
+            if len(feats) == 1:
+                kv = torch.stack([feats[0]], dim=1)
+            else:
+                # Optional K>2 handling: use all teachers or select specific indices
+                use_all = bool((cfg or {}).get("synergy_eval_use_all_teachers", False))
+                idx_list = (cfg or {}).get("synergy_eval_teacher_indices", None)
+                if isinstance(idx_list, (list, tuple)) and len(idx_list) > 0:
+                    picked = []
+                    for i in idx_list:
+                        try:
+                            if 0 <= int(i) < len(feats):
+                                picked.append(feats[int(i)])
+                        except Exception:
+                            continue
+                    if len(picked) == 0:
+                        # Fallback to first two if indices invalid
+                        if len(feats) >= 2:
+                            picked = [feats[0], feats[1]]
+                        else:
+                            picked = [feats[0]]
+                    kv = torch.stack(picked, dim=1)
+                elif use_all and len(feats) > 2:
+                    kv = torch.stack(feats, dim=1)
+                else:
+                    # Default: use first two
+                    if len(feats) > 2 and first:
+                        logging.info(
+                            "[eval_synergy] K=%d teachers detected. Using first 2. Set synergy_eval_use_all_teachers=true or provide synergy_eval_teacher_indices to override.",
+                            len(feats),
+                        )
+                    kv = torch.stack([feats[0], feats[1]], dim=1)
+            # Deterministic evaluation: sample=False and float32 path
+            fsyn, mu, _ = ib_mbm(s_feat, kv, sample=False)
             zsyn = synergy_head(mu).float()
             if first:
-                logging.info(
-                    "[eval_synergy] t1=%s t2=%s s=%s z=%s mean=%.4f std=%.4f min=%.4f max=%.4f",
-                    tuple(t1_feat.shape), tuple(t2_feat.shape), tuple(s_feat.shape), tuple(zsyn.shape),
-                    zsyn.mean().item(), zsyn.std().item(), zsyn.min().item(), zsyn.max().item(),
-                )
+                if len(feats) >= 2:
+                    logging.info(
+                        "[eval_synergy] t1=%s t2=%s s=%s z=%s mean=%.4f std=%.4f min=%.4f max=%.4f",
+                        tuple(feats[0].shape), tuple(feats[1].shape), tuple(s_feat.shape), tuple(zsyn.shape),
+                        zsyn.mean().item(), zsyn.std().item(), zsyn.min().item(), zsyn.max().item(),
+                    )
+                else:
+                    logging.info(
+                        "[eval_synergy] t1=%s s=%s z=%s mean=%.4f std=%.4f min=%.4f max=%.4f",
+                        tuple(feats[0].shape), tuple(s_feat.shape), tuple(zsyn.shape),
+                        zsyn.mean().item(), zsyn.std().item(), zsyn.min().item(), zsyn.max().item(),
+                    )
                 first = False
 
         pred = zsyn.argmax(dim=1)
@@ -217,6 +260,8 @@ def eval_synergy(
                 tw.train(m)
         ib_mbm.train(prev_ib_mode)
         synergy_head.train(prev_syn_mode)
+        if student_model is not None:
+            student_model.train(prev_student_mode)
     except Exception:
         pass
     # 선택적으로 EMA 업데이트 (A-Step에서만)
@@ -225,11 +270,23 @@ def eval_synergy(
             ema_alpha = float((cfg or {}).get("synergy_ema_alpha", 0.8))
         except Exception:
             ema_alpha = 0.8
+        # 존재하지 않으면 음수(-1.0)로 간주하여 게이트가 자동으로 열리지 않도록 함
+        prev = -1.0
         try:
-            prev = float(logger.get_metric("last_synergy_acc", (cfg or {}).get("last_synergy_acc", 0.0)) or 0.0)
+            v = None
+            if hasattr(logger, "get_metric"):
+                v = logger.get_metric("last_synergy_acc", (cfg or {}).get("last_synergy_acc", None))
+            elif cfg is not None:
+                v = (cfg or {}).get("last_synergy_acc", None)
+            if v is not None:
+                prev = float(v)
         except Exception:
-            prev = float((cfg or {}).get("last_synergy_acc", 0.0) or 0.0)
-        ema = ema_alpha * prev + (1.0 - ema_alpha) * (float(acc) / 100.0)
+            prev = -1.0
+        # prev가 음수(미측정)면 현재 측정값으로 초기화
+        if prev < 0.0:
+            ema = float(acc) / 100.0
+        else:
+            ema = ema_alpha * prev + (1.0 - ema_alpha) * (float(acc) / 100.0)
         logger.update_metric("last_synergy_acc", float(ema))
         logger.update_metric("last_synergy_acc_pct", float(ema * 100.0))
         if cfg is not None:
@@ -259,7 +316,19 @@ def teacher_adaptive_update(
     # 교사 백본 freeze 보장 (미세조정 OFF일 때)
     use_tf = bool(cfg.get("use_teacher_finetuning", False))
     only_da = cfg.get("train_distill_adapter_only", False)
-    
+    # A-Step은 teacher_adapt_epochs>0이면 항상 실행
+    if int(cfg.get("teacher_adapt_epochs", 0)) <= 0:
+        logger.info("[A-Step] Skipped: teacher_adapt_epochs=0")
+        return 0.0
+    # 디버깅용 가드 상태 로그(참고용)
+    try:
+        use_ib = bool(cfg.get("use_ib", False))
+        kd_mode = str((cfg or {}).get("kd_target", "avg")).lower()
+        use_cccp_a = bool(cfg.get("use_cccp_in_a", cfg.get("use_cccp", False)))
+        logging.info(f"[A-Step guard] use_ib={use_ib} kd_mode={kd_mode} use_cccp_in_a={use_cccp_a}")
+    except Exception:
+        pass
+
     teacher_params = []
     for tw in teacher_wrappers:
         if not use_tf:
@@ -336,6 +405,10 @@ def teacher_adaptive_update(
     synergy_head.train()
 
     autocast_ctx, scaler = get_amp_components(cfg)
+    # Optional: allow turning off AMP specifically for A‑Step via config
+    if not bool(cfg.get("a_step_amp_enabled", True)):
+        autocast_ctx = nullcontext()
+        scaler = None
     
     # teacher_epochs=0인 경우를 위한 기본값 설정
     teacher_loss_sum = 0.0
@@ -379,14 +452,27 @@ def teacher_adaptive_update(
             x, y = batch
             x, y = x.to(cfg["device"], non_blocking=True), y.to(cfg["device"], non_blocking=True)
             
+            # CE-only window advisory (synergy_only_epochs): recommend synergy_ce_alpha=1.0
+            if step == 0 and synergy_only:
+                try:
+                    _syn_alpha = float(cfg.get("synergy_ce_alpha", 0.6))
+                    if _syn_alpha < 1.0:
+                        logging.warning(
+                            "[A-Step ep=%d] synergy_only_epochs active but synergy_ce_alpha=%.2f < 1.00. For CE-only warmup, consider setting synergy_ce_alpha=1.0 in YAML.",
+                            ep + 1,
+                            _syn_alpha,
+                        )
+                except Exception:
+                    pass
+
             # 채널-라스트 포맷 적용 (Conv 연산 가속)
             if cfg.get("use_channels_last", True) and x.dim() == 4:
                 x = x.to(memory_format=torch.channels_last)
 
             with autocast_ctx:
-                # (A) Student features and logits (kept fixed)
+                # (A) Student features and logits (kept fixed) – cache s_out for CCCP
                 with torch.no_grad():
-                    feat_dict, s_logit, _ = student_model(x)
+                    feat_dict, s_logit, s_out = student_model(x)
                     key = cfg.get("feat_kd_key", "feat_2d")
                     s_feat = feat_dict[key]
 
@@ -480,9 +566,7 @@ def teacher_adaptive_update(
                         label_smoothing=cfg.get("label_smoothing", 0.0),
                         reduction="none",
                     )
-                    kd_raw = kd_loss_fn(zsyn, s_logit, T=cur_tau, reduction="none")
-                    kd_vec = kd_raw.sum(dim=1) if kd_raw.dim() == 2 else kd_raw
-
+                    # certainty weights from IB logvar
                     # ---- DEBUG: 첫 batch 모양 확인 ----
                     if ep == 0 and step == 0 and cfg.get("debug_verbose", False):
                         logging.debug(
@@ -508,29 +592,43 @@ def teacher_adaptive_update(
                         except Exception:
                             pass
                     loss_ce = (cw * ce_vec).mean()
-                    loss_kd = (cw * kd_vec).mean()
+                    # KD gate (pre-compute to skip KD work when closed)
+                    thr = float(cfg.get("enable_kd_after_syn_acc", 0.0))
+                    if thr > 1.5:
+                        thr /= 100.0
+                    try:
+                        last_syn = float(logger.get_metric("last_synergy_acc", cfg.get("last_synergy_acc", 0.0)) or 0.0) if hasattr(logger, "get_metric") else float(cfg.get("last_synergy_acc", 0.0))
+                    except Exception:
+                        last_syn = float(cfg.get("last_synergy_acc", 0.0))
+                    kd_weight_eff = float(cfg.get("teacher_adapt_alpha_kd", cfg.get("kd_alpha", 1.0)))
+                    kd_gate_open = (not synergy_only) and (kd_weight_eff > 0.0) and (thr <= 0.0 or last_syn >= thr)
+                    if kd_gate_open:
+                        kd_raw = kd_loss_fn(zsyn, s_logit, T=cur_tau, reduction="none")
+                        kd_vec = kd_raw.sum(dim=1) if kd_raw.dim() == 2 else kd_raw
+                        loss_kd = (cw * kd_vec).mean()
+                    else:
+                        loss_kd = torch.zeros((), device=zsyn.device)
                     # CE-only 구간: cw 비활성화 및 IB-KL/KD OFF
                     if synergy_only:
                         loss_ce = ce_vec.mean()
                         loss_kd = torch.zeros((), device=zsyn.device)
                         ib_loss_val = 0.0
-                    else:
-                        # 시너지 정확도 임계치 기반 KD 게이팅 (안정성 강화)
-                        try:
-                            thr = float(cfg.get("enable_kd_after_syn_acc", 0.0))
-                            if thr > 1.5:
-                                thr /= 100.0
-                            last_syn = 0.0
-                            if hasattr(logger, "get_metric"):
-                                last_syn = float(logger.get_metric("last_synergy_acc", cfg.get("last_synergy_acc", 0.0)) or 0.0)
-                            else:
-                                last_syn = float(cfg.get("last_synergy_acc", 0.0))
-                            if thr > 0.0 and last_syn < thr:
-                                loss_kd = torch.zeros((), device=zsyn.device)
-                        except Exception:
-                            pass
                 else:
-                    loss_kd = kd_loss_fn(zsyn, s_logit, T=cur_tau)
+                    # No-IB path
+                    # KD gate (pre-compute to skip KD work when closed)
+                    thr = float(cfg.get("enable_kd_after_syn_acc", 0.0))
+                    if thr > 1.5:
+                        thr /= 100.0
+                    try:
+                        last_syn = float(logger.get_metric("last_synergy_acc", cfg.get("last_synergy_acc", 0.0)) or 0.0) if hasattr(logger, "get_metric") else float(cfg.get("last_synergy_acc", 0.0))
+                    except Exception:
+                        last_syn = float(cfg.get("last_synergy_acc", 0.0))
+                    kd_weight_eff = float(cfg.get("teacher_adapt_alpha_kd", cfg.get("kd_alpha", 1.0)))
+                    kd_gate_open = (not synergy_only) and (kd_weight_eff > 0.0) and (thr <= 0.0 or last_syn >= thr)
+                    if kd_gate_open:
+                        loss_kd = kd_loss_fn(zsyn, s_logit, T=cur_tau)
+                    else:
+                        loss_kd = torch.zeros((), device=zsyn.device)
                     loss_ce = ce_loss_fn(
                         zsyn,
                         y,
@@ -539,24 +637,10 @@ def teacher_adaptive_update(
                     # CE-only 구간: KD OFF, IB는 사용 안 하므로 영향 없음
                     if synergy_only:
                         loss_kd = torch.zeros((), device=zsyn.device)
-                    else:
-                        # 시너지 정확도 임계치 기반 KD 게이팅
-                        try:
-                            thr = float(cfg.get("enable_kd_after_syn_acc", 0.0))
-                            if thr > 1.5:
-                                thr /= 100.0
-                            last_syn = 0.0
-                            if hasattr(logger, "get_metric"):
-                                last_syn = float(logger.get_metric("last_synergy_acc", cfg.get("last_synergy_acc", 0.0)) or 0.0)
-                            else:
-                                last_syn = float(cfg.get("last_synergy_acc", 0.0))
-                            if thr > 0.0 and last_syn < thr:
-                                loss_kd = torch.zeros((), device=zsyn.device)
-                        except Exception:
-                            pass
 
-                # ① 누락 시 기본값 0.6
-                synergy_weight = cfg.get("synergy_ce_alpha", 0.6)
+                # ① CE weight: force 1.0 during CE-only window
+                synergy_weight_cfg = float(cfg.get("synergy_ce_alpha", 0.6))
+                synergy_weight = 1.0 if synergy_only else synergy_weight_cfg
                 synergy_ce_loss = synergy_weight * loss_ce
 
                 # -----------------------------------------------
@@ -565,7 +649,8 @@ def teacher_adaptive_update(
                 #  - (선택) enable_kd_after_syn_acc 임계치 충족 시에만 ON
                 # -----------------------------------------------
                 kd_cccp = 0.0
-                if use_cccp_a:
+                cccp_scale = 1.0
+                if use_cccp_a and (not synergy_only) and (float(cfg.get("teacher_adapt_alpha_kd", cfg.get("kd_alpha", 1.0))) > 0.0):
                     syn_warm = int(cfg.get("synergy_only_epochs", 0))
                     if ep >= syn_warm:
                         thr = float(cfg.get("enable_kd_after_syn_acc", 0.0))
@@ -579,25 +664,50 @@ def teacher_adaptive_update(
                         except Exception:
                             last_syn = float(cfg.get("last_synergy_acc", 0.0))
                         if thr <= 0.0 or last_syn >= thr:
-                            with torch.no_grad():
-                                s_out = student_model(x)[1] if isinstance(student_model(x), tuple) else student_model(x)
+                            # Use cached s_out computed above
                             tau  = float(cfg.get("tau", 4.0))
                             kd_w = float(cfg.get("cccp_alpha", 0.0))
-                            kd_cccp = (
+                            kd_cccp_raw = (
                                 kd_w * tau * tau *
                                 F.kl_div(
                                     F.log_softmax(zsyn / tau, dim=1),
-                                    F.softmax(s_out.detach() / tau, dim=1),
+                                    F.softmax((s_out if isinstance(s_out, torch.Tensor) else s_logit).detach() / tau, dim=1),
                                     reduction="batchmean",
                                 )
                             )
+                            # CCCP ramp-up after synergy_only window
+                            try:
+                                ramp = int(cfg.get("cccp_ramp_epochs", 2))
+                            except Exception:
+                                ramp = 2
+                            t_lin = max(0, ep - syn_warm + 1) / max(1, ramp)
+                            cccp_scale = float(min(1.0, t_lin))
+                            kd_cccp = kd_cccp_raw * cccp_scale
+                            # Optional CCCP loss soft clip
+                            max_cccp = float(cfg.get("cccp_loss_max", 0.0))
+                            if max_cccp and max_cccp > 0.0:
+                                kd_cccp = soft_clip_loss(kd_cccp, max_cccp)
+                            if ep == 0 and step == 0:
+                                try:
+                                    logging.info(
+                                        "[A-Step ep=1/step=1][cccp] raw=%.4f scale=%.3f post=%.4f",
+                                        float(kd_cccp_raw.detach().item()),
+                                        float(cccp_scale),
+                                        float(kd_cccp.detach().item()),
+                                    )
+                                except Exception:
+                                    pass
 
                 feat_kd_loss = torch.tensor(0.0, device=cfg["device"])
-                if cfg.get("feat_kd_alpha", 0) > 0:
+                feat_kd_on = (
+                    float(cfg.get("feat_kd_alpha", 0.0)) > 0.0
+                    or float(cfg.get("feat_kd_alpha_in_a", 0.0)) > 0.0
+                )
+                if feat_kd_on:
                     dims_match = s_feat.shape[1] == mu.shape[1]
                     first_batch = (ep == 0 and step == 0)
                     if dims_match:
-                        diff = (s_feat - mu).pow(2).sum(dim=1)
+                        diff = (s_feat - mu).pow(2).mean(dim=1)
                         cw = torch.exp(-logvar).detach().mean(dim=1).to(s_feat.dtype)
                         try:
                             cw_min = float(cfg.get("min_cw", 0.1))
@@ -613,25 +723,8 @@ def teacher_adaptive_update(
                                 tuple(mu.shape),
                             )
 
-                # ---- (1) 전체 손실 구성 (KD/CCCP 게이팅) ----
+                # ---- (1) 전체 손실 구성 ----
                 kd_weight = cfg.get("teacher_adapt_alpha_kd", cfg.get("kd_alpha", 1.0))
-
-                # A-step 초반(ep<synergy_only_epochs) 또는 KD 가중치 0이면 KD/CCCP 비활성화
-                if synergy_only or float(kd_weight) == 0.0:
-                    loss_kd = torch.zeros((), device=zsyn.device)
-                    kd_cccp = 0.0
-
-                # 시너지 품질 임계치 미만이면 KD/CCCP 비활성화 (다음 loop부터 반영되지만 안전)
-                try:
-                    syn_gate = float(cfg.get("enable_kd_after_syn_acc", 0.0))
-                    if syn_gate > 1.5:
-                        syn_gate /= 100.0
-                    last_syn = float(cfg.get("last_synergy_acc", 0.0))
-                    if last_syn < syn_gate:
-                        loss_kd = torch.zeros((), device=zsyn.device)
-                        kd_cccp = 0.0
-                except Exception:
-                    pass
 
                 # 정규화 항은 batch-별로 포함
                 reg_loss = (
@@ -646,15 +739,22 @@ def teacher_adaptive_update(
                     else torch.tensor(0.0, device=cfg["device"])
                 )
 
+                feat_kd_alpha_a = float(cfg.get("feat_kd_alpha_in_a", 0.0))
                 total_loss_step = (
                     kd_weight * loss_kd
                     + synergy_ce_loss
-                    + cfg.get("feat_kd_alpha", 0) * feat_kd_loss
+                    + feat_kd_alpha_a * feat_kd_loss
                     + ib_loss_val
                     + float(cfg.get("reg_lambda", 0.0)) * reg_loss
                     + float(cfg.get("ib_mbm_reg_lambda", 0.0)) * ib_mbm_reg_loss
                     + kd_cccp  # CCCP surrogate 추가
                 )
+                total_loss_step_pre = None
+                if ep == 0 and step == 0:
+                    try:
+                        total_loss_step_pre = float(total_loss_step.detach().item())
+                    except Exception:
+                        total_loss_step_pre = None
 
                 # Optional: regularize learnable temperature (if enabled)
                 try:
@@ -664,7 +764,7 @@ def teacher_adaptive_update(
                 if st_reg > 0 and hasattr(synergy_head, "log_temp"):
                     total_loss_step = total_loss_step + st_reg * (synergy_head.log_temp ** 2)
 
-                # ep==1 첫 스텝에 튠용 요약 로그 한 줄 남기기
+                # ep==1 첫 스텝에 튠용 요약 로그 한 줄 남기기 (KD 가중치는 실효값으로 표기)
                 if ep == 0 and step == 0:
                     try:
                         thr = float(cfg.get("enable_kd_after_syn_acc", 0.0))
@@ -672,13 +772,16 @@ def teacher_adaptive_update(
                             thr /= 100.0
                         last_syn = float(logger.get_metric("last_synergy_acc", cfg.get("last_synergy_acc", 0.0)) or 0.0) if hasattr(logger, "get_metric") else float(cfg.get("last_synergy_acc", 0.0))
                         kd_gate_on = int(thr <= 0.0 or last_syn >= thr)
+                        kd_weight_eff = float(kd_weight)
+                        if synergy_only or kd_weight_eff == 0.0 or (thr > 0.0 and last_syn < thr):
+                            kd_weight_eff = 0.0
                         raw_kld_val = None
                         if cfg.get("use_ib", False):
                             raw_kld_val = (-0.5 * (1 + logvar - mu.pow(2) - logvar.exp()).sum(dim=1)).mean().item()
                         logging.info(
                             "[A-Step ep=1/step=1] kd_gate_on=%d kd_weight=%.3f synergy_ce_alpha=%.3f cw_mean=%.4f cw_std=%.4f raw_kld=%s ib_beta=%.6f",
                             kd_gate_on,
-                            float(kd_weight),
+                            float(kd_weight_eff),
                             float(synergy_weight),
                             float(cw.mean().item()) if 'cw' in locals() else float('nan'),
                             float(cw.std().item()) if 'cw' in locals() else float('nan'),
@@ -707,6 +810,17 @@ def teacher_adaptive_update(
             else:
                 # 기본적으로는 클리핑 해제
                 pass
+
+            if ep == 0 and step == 0:
+                try:
+                    post_v = float(total_loss_step.detach().item())
+                    pre_v = float(total_loss_step_pre) if total_loss_step_pre is not None else float("nan")
+                    logging.info(
+                        "[A-Step ep=1/step=1][loss] pre=%.4f post=%.4f cccp_scale=%.3f",
+                        pre_v, post_v, float(cccp_scale)
+                    )
+                except Exception:
+                    pass
 
             # ---- (2) per-batch Optim ----
             optimizer.zero_grad(set_to_none=True)

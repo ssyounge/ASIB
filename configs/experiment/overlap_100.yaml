@@ -37,11 +37,21 @@ experiment:
   # Align heterogeneous teacher feature dims via adapter
   use_distillation_adapter: true
   distill_out_dim: 512
+  feat_kd_key: distill_feat
 
-  ib_mbm_query_dim: 2048
+  ib_mbm_query_dim: 512
   ib_mbm_out_dim: 512
   ib_mbm_n_head: 4
   ib_mbm_feature_norm: l2
+
+  # A-Step stabilization (ASIB defaults guard)
+  synergy_only_epochs: 2
+  synergy_ce_alpha: 1.0
+  synergy_logit_scale: 0.85
+  use_loss_clamp: true
+  disable_loss_clamp_in_a: false
+  loss_clamp_mode: soft
+  loss_clamp_max: 20.0
 
   overlap_pct: 100
   use_overlap_sampling: true

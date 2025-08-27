@@ -25,6 +25,28 @@ class EfficientNetB0Student(BaseKDModel):
         backbone = efficientnet_b0(
             weights=EfficientNet_B0_Weights.IMAGENET1K_V1 if pretrained else None
         )
+
+        # CIFAR/small-input: stem stride를 1로 낮춰 과도한 다운샘플 방지
+        if small_input:
+            try:
+                # EfficientNet stem: features[0] is Conv2dNormActivation; [0] is Conv2d
+                stem_conv = backbone.features[0][0]
+                if isinstance(stem_conv, nn.Conv2d):
+                    stem_conv.stride = (1, 1)
+                    # 유지되는 receptive field를 위해 padding 보정
+                    if isinstance(stem_conv.kernel_size, tuple):
+                        k = stem_conv.kernel_size[0]
+                    else:
+                        k = int(stem_conv.kernel_size)
+                    pad = max((k - 1) // 2, 0)
+                    stem_conv.padding = (pad, pad)
+            except Exception:
+                pass
+            # 작은 입력에서 과한 정규화를 피하기 위해 classifier dropout 제거
+            try:
+                backbone.classifier[0] = nn.Dropout(p=0.0)
+            except Exception:
+                pass
         
         super().__init__(backbone, num_classes, role="student", cfg=cfg or {})
 

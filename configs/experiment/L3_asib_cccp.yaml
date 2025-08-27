@@ -1,4 +1,4 @@
-# configs/experiment/L4_full.yaml
+# configs/experiment/L3_asib_cccp.yaml
 
 defaults:
   - /base
@@ -10,66 +10,64 @@ defaults:
 
 experiment:
   method_name: asib_ablation_stage
-  exp_id: L4_full
-  results_dir: experiments/ablation/L4/results
+  exp_id: L3_asib_cccp
+  results_dir: experiments/ablation/L3/results
   teacher1_ckpt: checkpoints/teachers/resnet152_cifar100.pth
   teacher2_ckpt: checkpoints/teachers/convnext_s_cifar100.pth
 
-  dataset: { batch_size: 128, num_workers: 4, data_aug: 1, pin_memory: true, persistent_workers: true, prefetch_factor: 2 }
+  dataset:
+    batch_size: 128
+    num_workers: 4
+    data_aug: 1
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 2
 
+  # 1-stage(총 240ep)
   num_stages: 1
   student_epochs_per_stage: [240]
   teacher_adapt_epochs: 8
+  ib_epochs_per_stage: 6
   compute_teacher_eval: true
 
-  
+  # AMP (inherit)
 
   # KD — inherit from method (two_view)
   kd_center_teacher: false
-  enable_kd_after_syn_acc: 0.65
-  # two_view OFF for success-shot setting
-  
-  
 
-  # IB
+  # IB ON (A‑Step)
   use_ib: true
 
   # CCCP OFF per success-shot
   use_cccp: false
   use_cccp_in_a: false
+  
 
   # Adapter — inherit from method (distill_out_dim=256)
   use_distillation_adapter: true
 
-  # Teacher Adapt(어댑터만)
-  use_teacher_finetuning: false
-  train_distill_adapter_only: true
+  # A‑Step stabilization (ASIB)
+  synergy_only_epochs: 2
+  synergy_ce_alpha: 1.0
+  synergy_logit_scale: 0.80
+  enable_kd_after_syn_acc: 0.65
+  a_step_amp_enabled: true
+  feat_kd_alpha_in_a: 0.0
 
-  # PPF OFF for success-shot setting
+  # PPF OFF (부담 줄이기)
   use_partial_freeze: false
   use_amp: true
   amp_dtype: bfloat16
 
-  # A‑Step 안정화
-  synergy_only_epochs: 2
-  synergy_ce_alpha: 1.0
-  
-  loss_clamp_mode: soft
-  loss_clamp_max: 35.0
-  loss_clamp_warmup_epochs: 0
-  feat_kd_alpha_in_a: 0.0
+  # Optimizers — handled by method; add EMA and adapter-only tuning
+  use_teacher_finetuning: false
+  train_distill_adapter_only: true
+  teacher_eval_every: 2
 
-  
-
-  # Optim handled by method; keep extras below
-
-  # Minimal extras per success-shot
+  # EMA
   use_ema_teacher: true
   ema_decay: 0.999
   ema_update_every: 1
-  synergy_logit_scale: 0.80
-  tau_syn: 4.0
-  a_step_amp_enabled: true
-  teacher_eval_every: 2
 
+  # Schedule/aug inherit
 

@@ -5,7 +5,7 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
 #SBATCH --time=72:00:00
-#SBATCH --array=0-0%1                      # 제출 시 --array=0-(N-1)%K 로 덮어쓰기
+#SBATCH --array=0-10%1                      # 제출 시 --array=0-(N-1)%K 로 덮어쓰기
 #SBATCH --output=experiments/logs/class_overlap_%A_%a.log
 #SBATCH --error=experiments/logs/class_overlap_%A_%a.err
 # ---------------------------------------------------------

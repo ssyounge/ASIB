@@ -1,0 +1,98 @@
+name: asib_ablation_stage
+
+# Common ablation defaults shared by L0~L4 and side configs
+
+# KD and CE
+ce_alpha: 0.70
+kd_alpha: 0.30
+kd_ens_alpha: 0.0
+tau: 4.0
+kd_warmup_epochs: 10
+kd_max_ratio: 1.25
+ce_label_smoothing: 0.05
+
+# KD target policy (clean or two_view set per rung)
+kd_target: auto
+kd_auto_policy: label_ce
+kd_target_mode: two_view
+kd_center_teacher: false
+enable_kd_after_syn_acc: 0.70
+synergy_logit_scale: 0.80
+synergy_only_epochs: 8
+synergy_ce_alpha: 1.0
+
+# IB defaults (enable per rung)
+use_ib: true
+ib_epochs_per_stage: 6
+ib_beta: 5.0e-05
+ib_beta_warmup_epochs: 4
+ib_mbm_query_dim: 256
+ib_mbm_out_dim: 256
+ib_mbm_n_head: 4
+ib_mbm_feature_norm: l2
+ib_mbm_logvar_clip: 4
+ib_mbm_min_std: 0.01
+ib_mbm_lr_factor: 2
+
+# CCCP defaults (enable per rung)
+use_cccp: false
+use_cccp_in_a: false
+cccp_alpha: 0.15
+cccp_ramp_epochs: 2
+cccp_loss_max: 0.0
+
+# Optim/Schedule — ResNet152 defaults
+optimizer: sgd
+student_lr: 0.1
+student_weight_decay: 0.0005
+momentum: 0.9
+a_step_lr: 1.0e-4
+a_step_weight_decay: 1.0e-4
+grad_clip_norm: 0.5
+loss_clamp_mode: soft
+use_loss_clamp: true
+disable_loss_clamp_in_a: false
+loss_clamp_max: 35.0
+loss_clamp_warmup_epochs: 0
+schedule:
+  type: cosine
+  lr_warmup_epochs: 5
+  min_lr: 1e-6
+
+# Data/AMP
+use_amp: true
+amp_dtype: bfloat16
+
+# Adapter
+use_distillation_adapter: true
+distill_out_dim: 256
+feat_kd_key: distill_feat
+feat_kd_alpha: 0.0
+feat_kd_alpha_in_a: 0.0
+
+# Misc
+a_step_amp_enabled: true
+teacher_adapt_kd_warmup: 0
+teacher_eval_every: 2
+use_teacher_finetuning: false
+train_distill_adapter_only: true
+teacher_lr: 1.0e-5
+teacher_weight_decay: 1.0e-4
+kd_two_view_start_epoch: 20
+kd_two_view_stop_epoch: 80
+kd_two_view_include_ema_in_b: false
+mixup_alpha: 0.2
+cutmix_alpha_distill: 1.0 # 원복
+kd_sample_gate: true
+kd_sample_thr: 0.85
+kd_sample_max_ratio: 0.50 # 원복
+kd_sample_min_ratio: 0.10
+kd_cooldown_epochs: 60
+kd_uncertainty_weight: 0.5
+min_cw: 0.5
+max_cw: 1.5
+use_mu_for_kd: true
+tau_syn: 4.0
+teacher_weights: [0.7, 0.3]
+use_partial_freeze: false
+

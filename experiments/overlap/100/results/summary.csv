@@ -1,0 +1,9 @@
+exp_id,csv_filename,total_time_sec,final_student_acc,num_classes,batch_size,ce_alpha,kd_alpha,use_ib,ib_beta,ib_epochs_per_stage,use_cccp,optimizer,student_lr,student_weight_decay,student_epochs_per_stage,student_epochs_schedule,teacher_ep1_tau
+overlap_100,summary.csv,13.26,0.00,100,,0.65,0.35,True,0.00,5,False,sgd,0.10,0.00,"[15, 15]","[15, 15]",4.00
+overlap_100,summary.csv,12.45,0.00,100,,0.65,0.35,True,0.00,5,False,sgd,0.10,0.00,"[15, 15]","[15, 15]",4.00
+overlap_100,summary.csv,12.44,0.00,100,,0.65,0.35,True,0.00,5,False,sgd,0.10,0.00,"[15, 15]","[15, 15]",4.00
+overlap_100,summary.csv,12.32,0.00,100,,0.65,0.35,True,0.00,5,False,sgd,0.10,0.00,"[15, 15]","[15, 15]",4.00
+overlap_100,summary.csv,12.20,0.00,100,,0.65,0.35,True,0.00,5,False,sgd,0.10,0.00,"[15, 15]","[15, 15]",4.00
+overlap_100,summary.csv,12.23,0.00,100,,0.65,0.35,True,0.00,5,False,sgd,0.10,0.00,"[15, 15]","[15, 15]",4.00
+overlap_100,summary.csv,12.04,0.00,100,,0.65,0.35,True,0.00,5,False,sgd,0.10,0.00,"[15, 15]","[15, 15]",4.00
+overlap_100,summary.csv,12.12,0.00,100,,0.65,0.35,True,0.00,5,False,sgd,0.10,0.00,"[15, 15]","[15, 15]",4.00

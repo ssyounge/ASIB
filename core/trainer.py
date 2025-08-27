@@ -98,16 +98,27 @@ def create_optimizers_and_schedulers(
     # Teacher/IB/Head optimizer (A-step) – use teacher_lr (alias 적용됨)
     # 빈 파라미터 그룹 체크: IB off, teacher_adapt_epochs=0, distill adapter 없으면 None
     if len(teacher_params) + len(ib_mbm_params) + len(syn_params) == 0:
+        # Fallback: IB_MBM/Head를 강제로 학습 가능하게 전환하여 최소 학습 보장
+        if ib_mbm is not None:
+            for p in ib_mbm.parameters():
+                p.requires_grad_(True)
+            ib_mbm_params = [p for p in ib_mbm.parameters() if p.requires_grad]
+        if synergy_head is not None:
+            for p in synergy_head.parameters():
+                p.requires_grad_(True)
+            syn_params = [p for p in synergy_head.parameters() if p.requires_grad]
+
+    if len(teacher_params) + len(ib_mbm_params) + len(syn_params) == 0:
         teacher_optimizer = None
         logging.info("[Optim] No trainable teacher/IB/Head parameters → teacher_optimizer=None")
     else:
-        teacher_optimizer = optim.Adam(
+        teacher_optimizer = optim.AdamW(
             [
-                {"params": teacher_params, "lr": cfg["teacher_lr"]},
-                {"params": ib_mbm_params, "lr": cfg["teacher_lr"] * cfg.get("ib_mbm_lr_factor", 1.0)},
-                {"params": syn_params, "lr": cfg["teacher_lr"] * cfg.get("ib_mbm_lr_factor", 1.0)},
+                {"params": teacher_params, "lr": float(cfg["teacher_lr"])},
+                {"params": ib_mbm_params, "lr": float(cfg["teacher_lr"]) * float(cfg.get("ib_mbm_lr_factor", 1.0))},
+                {"params": syn_params, "lr": float(cfg["teacher_lr"])},
             ],
-            weight_decay=cfg["teacher_weight_decay"],
+            weight_decay=float(cfg["teacher_weight_decay"]),
             betas=(
                 cfg.get("adam_beta1", 0.9),
                 cfg.get("adam_beta2", 0.999),
@@ -301,13 +312,19 @@ def run_training_stages(
                 p.requires_grad = True
             student_model.train()
             
-            # A-Step 후 trainable 파라미터 수 기록
+            # A-Step 후 trainable 파라미터 수 기록(단일 교사 대비 안전 가드)
             s_train = sum(p.requires_grad for p in student_model.parameters())
             s_total = sum(1 for p in student_model.parameters())
-            t1_train = sum(p.requires_grad for p in teacher_wrappers[0].parameters())
-            t1_total = sum(1 for p in teacher_wrappers[0].parameters())
-            t2_train = sum(p.requires_grad for p in teacher_wrappers[1].parameters())
-            t2_total = sum(1 for p in teacher_wrappers[1].parameters())
+            if teacher_wrappers is not None and len(teacher_wrappers) >= 1:
+                t1_train = sum(p.requires_grad for p in teacher_wrappers[0].parameters())
+                t1_total = sum(1 for _ in teacher_wrappers[0].parameters())
+            else:
+                t1_train = 0; t1_total = 0
+            if teacher_wrappers is not None and len(teacher_wrappers) >= 2:
+                t2_train = sum(p.requires_grad for p in teacher_wrappers[1].parameters())
+                t2_total = sum(1 for _ in teacher_wrappers[1].parameters())
+            else:
+                t2_train = 0; t2_total = 0
             
             logging.info(f"[PPF][A-Step] student: {s_train}/{s_total} ({100*s_train/s_total:.1f}%) | t1: {t1_train}/{t1_total} ({100*t1_train/t1_total:.1f}%) | t2: {t2_train}/{t2_total} ({100*t2_train/t2_total:.1f}%)")
             
@@ -345,6 +362,32 @@ def run_training_stages(
             except Exception:
                 logging.debug("[Stage %d] disagreement check skipped (teachers unavailable)", stage)
         
+        # Student distillation (A-Step 이후 게이트 초기화 보강)
+        try:
+            need_init = float(exp_logger.get_metric("last_synergy_acc", -1.0) or -1.0) < 0.0
+        except Exception:
+            need_init = True
+        if need_init and cfg.get("use_ib", False) and (ib_mbm is not None) and (synergy_head is not None):
+            try:
+                from modules.trainer_teacher import eval_synergy as _eval_syn
+                syn_acc = _eval_syn(
+                    teacher_wrappers,
+                    ib_mbm,
+                    synergy_head,
+                    test_loader,
+                    device=cfg["device"],
+                    cfg=cfg,
+                    student_model=student_model,
+                    update_logger=True,
+                    logger=exp_logger,
+                )
+                exp_logger.update_metric("last_synergy_acc", float(syn_acc) / 100.0)
+                exp_logger.update_metric("last_synergy_acc_pct", float(syn_acc))
+                cfg["last_synergy_acc"] = float(syn_acc) / 100.0
+                logging.info("[GateInit] last_synergy_acc initialized: %.2f%%", float(syn_acc))
+            except Exception:
+                logging.debug("[GateInit] eval_synergy initialization skipped")
+
         # Student distillation
         student_acc = student_distillation_update(
             teacher_wrappers,

@@ -174,14 +174,13 @@ for method in "${METHODS[@]}"; do
     mkdir -p "$HYDRA_DIR"
     CMD+=(hydra.run.dir="$HYDRA_DIR" hydra.output_subdir=null)
     # Safe/Perf mode flags
-    SAFE_MODE=${SAFE_MODE:-1}
+    SAFE_MODE=${SAFE_MODE:-0}
     if [[ "$SAFE_MODE" == "1" ]]; then
-      # Reduce crash probability
-      CMD+=(+experiment.use_safe_mode=true +experiment.use_channels_last=false)
+      # Reduce crash probability (rely on YAML for AMP/channels_last)
+      CMD+=(+experiment.use_safe_mode=true)
     else
-      # Performance mode: enable cuDNN/TF32, channels_last, AMP bf16, multi-workers
-      CMD+=(+experiment.use_safe_mode=false +experiment.use_channels_last=true)
-      CMD+=(+experiment.use_amp=true +experiment.amp_dtype=bfloat16)
+      # Performance mode: rely on YAML for AMP/channels_last; only set workers here
+      CMD+=(+experiment.use_safe_mode=false)
       # Ensure multi-worker if not overridden elsewhere
       CMD+=(+experiment.dataset.num_workers=${WORKERS})
     fi
@@ -234,7 +233,7 @@ PY
       # MobileNetV2 scratch에서 안정 수렴을 위해 LR 0.05로 시작
       CMD+=(+experiment.student_lr=0.05)
     fi
-    # Optional safe mode (default ON): reduce runtime crashes by using single-worker and disabling AMP
+    # Optional safe mode (default ON): reduce runtime crashes by using single-worker
     if [[ "$SAFE_MODE" == "1" ]]; then
       # Add dataset workers flag safely; do NOT override AMP by default
       CMD+=("+experiment.dataset.num_workers=0")
@@ -243,6 +242,7 @@ PY
         CMD+=(+experiment.use_amp=false)
       fi
     fi
+    # Rely on method YAMLs for AMP/channels_last/two_view stop/KD gating/cooldown
 
     # CKPT/평가 오버라이드는 CLI에서 제거 (strict struct 충돌 방지)
 

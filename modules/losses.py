@@ -3,6 +3,7 @@
 import torch
 import torch.nn.functional as F
 from typing import Optional
+from utils.amp import autocast_off_like
 
 # ---------- Safe loss helpers (AMP-friendly) ----------
 _EPS = 1e-6  # for log/softmax flooring
@@ -19,7 +20,7 @@ def ce_safe(logits: torch.Tensor, target: torch.Tensor, ls_eps: float = 0.0) -> 
     - Prevents fp16 underflow by computing in float32
     - Floors probabilities to avoid log(0)
     """
-    with torch.autocast('cuda', enabled=False):
+    with autocast_off_like(logits):
         logits = logits.float()
         if ls_eps and ls_eps > 0.0:
             tgt_prob = _smooth_one_hot(target, logits.size(1), float(ls_eps))
@@ -30,7 +31,7 @@ def ce_safe(logits: torch.Tensor, target: torch.Tensor, ls_eps: float = 0.0) -> 
 
 def kl_safe(p_logits: torch.Tensor, q_logits: torch.Tensor, tau: float = 1.0) -> torch.Tensor:
     """Numerically stable KL(p||q) with temperature and float32 math."""
-    with torch.autocast('cuda', enabled=False):
+    with autocast_off_like(p_logits):
         p = torch.softmax(p_logits.float() / tau, dim=1).clamp(_EPS, 1.0)
         q = torch.softmax(q_logits.float() / tau, dim=1).clamp(_EPS, 1.0)
         return F.kl_div(p.log(), q, reduction="batchmean") * (tau * tau)
@@ -42,7 +43,7 @@ def safe_kl_loss(student_logits: torch.Tensor, teacher_logits: torch.Tensor, tem
 
 def safe_mse_loss(student_feat: torch.Tensor, teacher_feat: torch.Tensor) -> torch.Tensor:
     """Safe MSE loss between features in float32 under autocast-off region."""
-    with torch.autocast('cuda', enabled=False):
+    with autocast_off_like(student_feat):
         return F.mse_loss(student_feat.float(), teacher_feat.float(), reduction="mean")
 
 def soft_clip_loss(loss: torch.Tensor, max_val: float) -> torch.Tensor:
@@ -113,7 +114,7 @@ def kl_safe_vec_probs(p_logits: torch.Tensor, q_probs: torch.Tensor, tau: float 
     Computes KL over classes for each sample and scales by tau^2, using float32 math
     inside an autocast-disabled region for numerical stability.
     """
-    with torch.autocast('cuda', enabled=False):
+    with autocast_off_like(p_logits):
         p_log = F.log_softmax(p_logits.float() / tau, dim=1)
         q = q_probs.float()
         kl = F.kl_div(p_log, q, reduction="none")  # [B, C]
@@ -145,21 +146,39 @@ def feat_mse_loss(s_feat, t_feat, norm: str = "none", reduction="mean"):
 
 
 # ---------- Information Bottleneck ----------
-def ib_loss(mu, logvar, beta: float = 1e-3):
+def ib_loss(mu, logvar, beta: float = 1e-3, reduction: str = "mean", normalize_by_dim: bool = False):
     r"""Return β · KL\big(N(μ,σ²) \| N(0, 1)\big).
 
-    fp16 under-/overflow 방지를 위해 float32 캐스팅 후 clipping을 적용한다."""  # <- r-string 로 SyntaxWarning 제거
+    Options:
+    - reduction: 'mean' | 'sum' — aggregate over batch (and features if not per-sample)
+    - normalize_by_dim: divide KL by feature dimension to compare across different d_emb
+
+    Uses float32 math and clipping for numerical stability.
+    """
 
     mu = mu.float()
     logvar = torch.clamp(logvar.float(), -10.0, 10.0)
 
+    # per-feature KL
     kl_elem = -0.5 * (1 + logvar - mu.pow(2) - logvar.exp())
-    
-    # 추가 안전장치: loss가 너무 크면 clipping
+    # Optional normalization by feature dimension
+    if normalize_by_dim and kl_elem.dim() >= 2:
+        dim = kl_elem.shape[1]
+        if dim > 0:
+            kl_elem = kl_elem / float(dim)
+    # Stability clip
     kl_elem = torch.clamp(kl_elem, -100.0, 100.0)
-    
-    loss = beta * kl_elem.mean()
-    
+
+    # Reduce over features, then over batch
+    if kl_elem.dim() >= 2:
+        kl_per_sample = kl_elem.sum(dim=1)
+    else:
+        kl_per_sample = kl_elem
+
+    if reduction == "sum":
+        loss = beta * kl_per_sample.sum()
+    else:
+        loss = beta * kl_per_sample.mean()
     return loss
 
 

@@ -1,107 +1,87 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=asib_sota_comparison
+#SBATCH -D /home/suyoung425/ASIB
 #SBATCH --partition=base_suma_rtx3090
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
-#SBATCH --time=72:00:00
-#SBATCH --array=0-7%8          # 4개 샤드, 동시 3개만 실행 (원하는 병렬도로 % 값 조절)
-#SBATCH --output=experiments/sota/logs/sota_comparison_%A_%a.log
+#SBATCH --time=24:00:00
+#SBATCH --array=0-10%6
+#SBATCH --output=experiments/sota/logs/sota_comparison_%A_%a.out
 #SBATCH --error=experiments/sota/logs/sota_comparison_%A_%a.err
-# ---------------------------------------------------------
-# ASIB SOTA Comparison 실험
-# ASIB vs State-of-the-Art Methods 비교
-# ---------------------------------------------------------
+
+# Local SOTA comparison runner (separate from run_asib_methods_sanity.sh)
+# - Keeps teacher/student fixed sets and sweeps methods
+# - Designed for quick local loops; use the Slurm file for array jobs
+
 set -euo pipefail
 trap 'echo "❌ Job failed at $(date)"; exit 1' ERR
 
-# Python 환경 설정 (ablation과 동일 스타일)
 echo "🔧 Setting up Python environment..."
-set +u
-if [ -f "$HOME/anaconda3/etc/profile.d/conda.sh" ]; then
-  # shellcheck disable=SC1091
-  source "$HOME/anaconda3/etc/profile.d/conda.sh"
+PYTHON_BIN="$HOME/anaconda3/envs/tlqkf/bin/python"
+if [ ! -x "$PYTHON_BIN" ]; then
+  PYTHON_BIN="python"
 fi
-conda activate tlqkf || {
-  export PATH="$HOME/anaconda3/envs/tlqkf/bin:$PATH"
-}
-set -u
 export HYDRA_FULL_ERROR=1
+export CONDA_SOLVER=${CONDA_SOLVER:-classic}
+export PYTHONDONTWRITEBYTECODE=1
+unset LD_PRELOAD || true
+unset CONDA_EXE CONDA_PYTHON_EXE CONDA_SHLVL || true
+export CUDA_LAUNCH_BLOCKING=1
+export NVIDIA_TF32_OVERRIDE=0
+export PYTORCH_NVFUSER_DISABLE=1
+export TORCH_USE_CUDA_DSA=0
+export CUDA_MODULE_LOADING=LAZY
+LIB_MODE=${LIB_MODE:-unset}
+if [[ "$LIB_MODE" == "conda" ]]; then
+  export LD_LIBRARY_PATH="$HOME/anaconda3/envs/tlqkf/lib"
+else
+  unset LD_LIBRARY_PATH || true
+fi
+export MALLOC_ARENA_MAX=${MALLOC_ARENA_MAX:-1}
+export PYTORCH_CUDA_ALLOC_CONF=${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}
 echo "✅ Python environment setup completed"
 echo ""
 
-# 1) 리포 최상위로 이동
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
-
-# 2) PYTHONPATH 추가
 export PYTHONPATH="${ROOT}:${PYTHONPATH:-}"
+echo "[INFO] SLURM_JOB_ID=${SLURM_JOB_ID:-none} ARRAY_ID=${SLURM_ARRAY_TASK_ID:-none}"
 
-# DataLoader workers 자동 스케일
 calc_workers() {
-  local cpus="${SLURM_CPUS_PER_TASK:-4}"
-  local maxw="${PYTORCH_WORKERS_MAX:-4}"
-  (( cpus < 1 )) && cpus=1
-  if (( maxw < cpus )); then echo "$maxw"; else echo "$cpus"; fi
+  local cpus="${SLURM_CPUS_PER_TASK:-4}"; local maxw="${PYTORCH_WORKERS_MAX:-4}"
+  (( cpus < 1 )) && cpus=1; if (( maxw < cpus )); then echo "$maxw"; else echo "$cpus"; fi
 }
 WORKERS="$(calc_workers)"
 export OMP_NUM_THREADS="${OMP_NUM_THREADS:-$WORKERS}"
 export MKL_NUM_THREADS="${MKL_NUM_THREADS:-$WORKERS}"
 echo "🧵 num_workers(auto)=${WORKERS}, OMP=${OMP_NUM_THREADS}, MKL=${MKL_NUM_THREADS}"
 
-# Array → 샤딩 자동 매핑
-if [[ -n "${SLURM_ARRAY_TASK_ID:-}" ]]; then
-  SHARD_IDX="${SLURM_ARRAY_TASK_ID}"
-fi
-if [[ -n "${SLURM_ARRAY_TASK_COUNT:-}" ]]; then
-  SHARD_N="${SLURM_ARRAY_TASK_COUNT}"
-elif [[ -n "${SLURM_ARRAY_TASK_MAX:-}" && -n "${SLURM_ARRAY_TASK_MIN:-}" ]]; then
-  SHARD_N="$(( SLURM_ARRAY_TASK_MAX - SLURM_ARRAY_TASK_MIN + 1 ))"
-fi
-SHARD_N="${SHARD_N:-1}"
-SHARD_IDX="${SHARD_IDX:-0}"
-run_idx=0
+PY=${PY:-"$PYTHON_BIN"}
+CFG=${CFG:-experiment/sota_generic}
+RESULTS_ROOT=${RESULTS_ROOT:-$ROOT/experiments/sota/results}
 
-# Ensure log directory exists
-mkdir -p "$ROOT/experiments/sota/logs" || true
+# Optional filters
+ONLY_METHODS=${ONLY_METHODS:-}
+ONLY_STUDENTS=${ONLY_STUDENTS:-}
+ONLY_PAIRS=${ONLY_PAIRS:-}
+SEEDS_STR=${SEEDS_STR:-42}
 
-# 3) GPU 할당 확인 (Slurm Job Array에서는 자동 바인딩)
-echo "🔍 Slurm is expected to set CUDA_VISIBLE_DEVICES automatically for each array task."
+# Common overrides respected across methods
+BASE_OVR=(
+  +experiment.use_amp=true
+  +experiment.amp_dtype=bfloat16
+  +experiment.use_distillation_adapter=true
+  +experiment.compute_teacher_eval=false
+)
 
-# CUDA 컨텍스트 초기화 (segmentation fault 방지)
-export CUDA_LAUNCH_BLOCKING=${CUDA_LAUNCH_BLOCKING:-0}
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-
-# PyTorch CUDA 라이브러리 경로 가드
-TORCH_LIB_DIR="$HOME/anaconda3/envs/tlqkf/lib/python3.12/site-packages/torch/lib"
-if [ -d "$TORCH_LIB_DIR" ]; then
-  unset LD_LIBRARY_PATH || true
-  export CUDA_HOME="$TORCH_LIB_DIR"
-fi
-
-# PyTorch CUDA 설정
-export TORCH_CUDA_ARCH_LIST="8.6"
-
-# CUDA 환경변수 (PyTorch 내장 CUDA 사용)
-export CUDA_PATH="${CUDA_HOME:-${CUDA_PATH:-}}"
-export CUDA_ROOT="${CUDA_HOME:-${CUDA_ROOT:-}}"
-
-# GPU 정보 출력
-echo "🔍 GPU Information:"
-nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv,noheader,nounits
-
-
-
-# 4) SOTA 그리드 실행 블록 ----------------------------------------------------
-
-# 교사 페어 조합
+# Teacher pairs and students
 TEACHER_PAIRS=(
   "resnet152,convnext_s"
   "convnext_l,efficientnet_l2"
   "resnet152,resnet152"
 )
 
-# 교사 체크포인트 경로 매핑 (환경에 맞게 수정)
 declare -A CKPT=(
   [resnet152]="checkpoints/teachers/resnet152_cifar100.pth"
   [convnext_s]="checkpoints/teachers/convnext_s_cifar100.pth"
@@ -109,203 +89,239 @@ declare -A CKPT=(
   [efficientnet_l2]="checkpoints/teachers/efficientnet_l2_cifar100.pth"
 )
 
-# 학생/메소드/시드 (학생은 일반 이름 사용; scratch는 override로 제어)
-STUDENTS=(resnet50 mobilenet_v2 efficientnet_b0 shufflenet_v2)
-METHODS=(avg_kd vanilla_kd ab at dkd fitnet ft reviewkd crd simkd sskd asib)
-SEEDS=(42)
+STUDENTS=(mobilenet_v2 resnet50 efficientnet_b0 efficientnet_b2 shufflenet_v2 resnet101)
 
-# 서브셋 필터(환경변수로 지정 가능)
-ONLY_METHODS="${ONLY_METHODS:-}"
-ONLY_STUDENTS="${ONLY_STUDENTS:-}"
-ONLY_PAIRS="${ONLY_PAIRS:-}"
-ONLY_SEEDS="${ONLY_SEEDS:-}"
+METHODS=(
+  asib_stage
+  asib_fair
+  vanilla_kd
+  avg_kd
+  dkd
+  ab
+  at
+  fitnet
+  ft
+  reviewkd
+  crd
+  simkd
+  sskd
+)
 
-# 샤딩(선택): 위에서 Array → 샤딩 자동 매핑으로 설정됨
+IFS=',' read -r -a SEEDS <<< "$SEEDS_STR"
 
-# 메소드별 Hydra override 빌더
+contains() { local x="$1"; shift; for a in "$@"; do [[ "$a" == "$x" ]] && return 0; done; return 1; }
+
+filter_ok() {
+  local item="$1" list="$2"; [[ -z "$list" ]] && return 0; IFS=',' read -r -a arr <<< "$list"; contains "$item" "${arr[@]}"
+}
+
 method_overrides() {
-  local method="$1"; local student="$2"
-  # 공통: scratch, 공정성(교사 FT/PPF/CCCP OFF)
-  local base=" +experiment.kd_warmup_epochs=3 +experiment.kd_max_ratio=1.25 +experiment.tau=4.0 +experiment.mixup_alpha=0.0 +experiment.cutmix_alpha_distill=0.0 +experiment.use_distillation_adapter=true +experiment.model.student.pretrained=false +experiment.use_teacher_finetuning=false +experiment.train_distill_adapter_only=false +experiment.use_partial_freeze=false +experiment.student_freeze_bn=false +experiment.compute_teacher_eval=true +experiment.optimizer=sgd +experiment.student_lr=0.1 +experiment.student_weight_decay=0.0005 +experiment.b_step_momentum=0.9 +experiment.b_step_nesterov=true "
-  # 작은 학생 모델은 어댑터 차원을 256으로 축소
-  if [[ "$student" == "mobilenet_v2" || "$student" == "efficientnet_b0" || "$student" == "shufflenet_v2" ]]; then
-    base+=" +experiment.distill_out_dim=256 "
-  else
-    base+=" +experiment.distill_out_dim=512 "
-  fi
-  if [[ "$student" == "mobilenet_v2" || "$student" == "efficientnet_b0" || "$student" == "shufflenet_v2" ]]; then
-    base+=" +experiment.distill_out_dim=256 "
-  else
-    base+=" +experiment.distill_out_dim=512 "
-  fi
-  case "$method" in
-    avg_kd)
-      echo "experiment/method@experiment.experiment.method=vanilla_kd +method_name=avg_kd $base +experiment.kd_target=avg +experiment.ce_alpha=0.65 +experiment.kd_alpha=0.35 +experiment.use_ib=false +experiment.use_cccp=false +experiment.feat_kd_alpha=0.0";;
+  local m="$1"; case "$m" in
+    asib_stage)
+      echo "experiment/method@experiment.method=asib_stage" ;;
+    asib_fair)
+      echo "experiment/method@experiment.method=asib_fair" ;;
     vanilla_kd)
-      echo "experiment/method@experiment.experiment.method=vanilla_kd +method_name=vanilla_kd $base +experiment.kd_target=teacher +experiment.kd_teacher_index=0 +experiment.ce_alpha=0.65 +experiment.kd_alpha=0.35 +experiment.use_ib=false +experiment.use_cccp=false +experiment.feat_kd_alpha=0.0";;
-    ab)
-      echo "experiment/method@experiment.experiment.method=ab +method_name=ab $base +experiment.kd_target=teacher +experiment.kd_teacher_index=0 +experiment.ce_alpha=0.65 +experiment.kd_alpha=0.35 +experiment.use_ib=false +experiment.use_cccp=false +experiment.feat_kd_alpha=0.0";;
-    at)
-      echo "experiment/method@experiment.experiment.method=at +method_name=at $base +experiment.kd_target=teacher +experiment.kd_teacher_index=0 +experiment.ce_alpha=0.65 +experiment.kd_alpha=0.35 +experiment.use_ib=false +experiment.use_cccp=false +experiment.feat_kd_alpha=0.0";;
+      echo "experiment/method@experiment.method=vanilla_kd \
+        +experiment.kd_target=teacher \
+        +experiment.ce_alpha=0.65 +experiment.kd_alpha=0.35" ;;
+    avg_kd)
+      echo "experiment/method@experiment.method=vanilla_kd \
+        +experiment.kd_target=avg \
+        +experiment.ce_alpha=0.65 +experiment.kd_alpha=0.35" ;;
     dkd)
-      echo "experiment/method@experiment.experiment.method=dkd +method_name=dkd $base +experiment.kd_target=teacher +experiment.kd_teacher_index=0 +experiment.ce_alpha=0.65 +experiment.kd_alpha=0.35 +experiment.use_ib=false +experiment.use_cccp=false +experiment.feat_kd_alpha=0.0";;
+      echo "experiment/method@experiment.method=dkd \
+        +experiment.ce_alpha=0.65 +experiment.kd_alpha=0.35" ;;
+    ab)
+      echo "experiment/method@experiment.method=ab" ;;
+    at)
+      echo "experiment/method@experiment.method=at" ;;
     fitnet)
-      echo "experiment/method@experiment.experiment.method=fitnet +method_name=fitnet $base +experiment.kd_target=teacher +experiment.kd_teacher_index=0 +experiment.ce_alpha=0.65 +experiment.kd_alpha=0.35 +experiment.use_ib=false +experiment.use_cccp=false +experiment.feat_kd_alpha=0.0";;
+      echo "experiment/method@experiment.method=fitnet" ;;
     ft)
-      echo "experiment/method@experiment.experiment.method=ft +method_name=ft $base +experiment.kd_target=teacher +experiment.kd_teacher_index=0 +experiment.ce_alpha=0.65 +experiment.kd_alpha=0.35 +experiment.use_ib=false +experiment.use_cccp=false +experiment.feat_kd_alpha=0.0";;
+      echo "experiment/method@experiment.method=ft" ;;
     reviewkd)
-      echo "experiment/method@experiment.experiment.method=reviewkd +method_name=reviewkd $base +experiment.kd_target=teacher +experiment.kd_teacher_index=0 +experiment.ce_alpha=0.65 +experiment.kd_alpha=0.35 +experiment.use_ib=false +experiment.use_cccp=false +experiment.feat_kd_alpha=0.0 +experiment.dataset.batch_size=96";;
+      echo "experiment/method@experiment.method=reviewkd" ;;
     crd)
-      echo "experiment/method@experiment.experiment.method=crd +method_name=crd $base +experiment.kd_target=teacher +experiment.kd_teacher_index=0 +experiment.ce_alpha=0.65 +experiment.kd_alpha=0.35 +experiment.use_ib=false +experiment.use_cccp=false +experiment.feat_kd_alpha=0.0 +experiment.dataset.batch_size=96";;
+      echo "experiment/method@experiment.method=crd" ;;
     simkd)
-      echo "experiment/method@experiment.experiment.method=simkd +method_name=simkd $base +experiment.kd_target=teacher +experiment.kd_teacher_index=0 +experiment.ce_alpha=0.65 +experiment.kd_alpha=0.35 +experiment.use_ib=false +experiment.use_cccp=false +experiment.feat_kd_alpha=0.0";;
+      echo "experiment/method@experiment.method=simkd" ;;
     sskd)
-      echo "experiment/method@experiment.experiment.method=sskd +method_name=sskd $base +experiment.kd_target=teacher +experiment.kd_teacher_index=0 +experiment.ce_alpha=0.65 +experiment.kd_alpha=0.35 +experiment.use_ib=false +experiment.use_cccp=false +experiment.feat_kd_alpha=0.0";;
-    asib)
-      echo "experiment/method@experiment.experiment.method=asib +method_name=asib $base +experiment.kd_target=synergy +experiment.ce_alpha=0.65 +experiment.kd_alpha=0.35 +experiment.use_ib=true +experiment.use_cccp=false +experiment.teacher_adapt_epochs=6 +experiment.ib_beta=0.0001 +experiment.ib_beta_warmup_epochs=5";;
-    *) echo ""; return 1;;
+      echo "experiment/method@experiment.method=sskd" ;;
+    *) echo ""; return 1 ;;
   esac
 }
 
+# Map CLI student name to Hydra group key (configs/model/student/*)
+student_key_from() {
+  case "$1" in
+    mobilenet_v2|resnet50|resnet101|efficientnet_b0|efficientnet_b2|shufflenet_v2) echo "${1}_scratch" ;;
+    *) echo "$1" ;;
+  esac
+}
+
+# Choose distillation adapter dim per student
+distill_dim_for_student() {
+  case "$1" in
+    mobilenet_v2_scratch|efficientnet_b0_scratch|efficientnet_b2_scratch|shufflenet_v2_scratch) echo 256 ;;
+    *) echo 512 ;;
+  esac
+}
+
+# Pair/method specific overrides: kd_teacher_index or teacher_weights
+pair_overrides() {
+  local T1="$1"; local T2="$2"; local method="$3"; local ovr="";
+  # Single-teacher family → pick the stronger teacher (index 0 by our pair ordering)
+  if [[ "$method" =~ ^(vanilla_kd|dkd)$ ]]; then
+    if [[ "$T1" == "resnet152" && "$T2" == "convnext_s" ]]; then
+      ovr+=" +experiment.kd_teacher_index=0"
+    elif [[ "$T1" == "convnext_l" && "$T2" == "efficientnet_l2" ]]; then
+      ovr+=" +experiment.kd_teacher_index=0"
+    fi
+  fi
+  # Avg/ASIB family → teacher weights
+  if [[ "$method" =~ ^(avg_kd|asib_stage|asib_fair)$ ]]; then
+    if [[ "$T1" == "resnet152" && "$T2" == "convnext_s" ]]; then
+      ovr+=" +experiment.teacher_weights=[0.7,0.3]"
+    elif [[ "$T1" == "convnext_l" && "$T2" == "efficientnet_l2" ]]; then
+      ovr+=" +experiment.teacher_weights=[0.6,0.4]"
+    elif [[ "$T1" == "resnet152" && "$T2" == "resnet152" ]]; then
+      ovr+=" +experiment.teacher_weights=[0.5,0.5]"
+    fi
+  fi
+  echo "$ovr"
+}
+
+mkdir -p "$RESULTS_ROOT"
+
+# Optional: enable a single teacher-eval smoke run (env toggle)
+TEACHER_EVAL_SMOKE=${TEACHER_EVAL_SMOKE:-0}
+TEACHER_EVAL_MAX_BATCHES=${TEACHER_EVAL_MAX_BATCHES:-10}
+did_eval_smoke=0
+
 RUNS=()
 for pair in "${TEACHER_PAIRS[@]}"; do
-  IFS=',' read -r T1 T2 <<< "$pair"
-  if [[ -n "$ONLY_PAIRS" && "$ONLY_PAIRS" != *"$pair"* ]]; then continue; fi
+  filter_ok "$pair" "$ONLY_PAIRS" || continue
   for student in "${STUDENTS[@]}"; do
-    if [[ -n "$ONLY_STUDENTS" && "$ONLY_STUDENTS" != *"$student"* ]]; then continue; fi
+    filter_ok "$student" "$ONLY_STUDENTS" || continue
     for method in "${METHODS[@]}"; do
-      if [[ -n "$ONLY_METHODS" && "$ONLY_METHODS" != *"$method"* ]]; then continue; fi
+      filter_ok "$method" "$ONLY_METHODS" || continue
       for seed in "${SEEDS[@]}"; do
-        if [[ -n "$ONLY_SEEDS" && "$ONLY_SEEDS" != *"$seed"* ]]; then continue; fi
-        RUNS+=("${T1},${T2}|${student}|${method}|${seed}")
+        RUNS+=("${pair}|${student}|${method}|${seed}")
       done
     done
   done
 done
 
-N_RUNS=${#RUNS[@]}
-echo "🧮 Planned runs: ${N_RUNS}"
+echo "Planned runs: ${#RUNS[@]}"
 
-# 배열 크기에 맞게 RUNS 자동 확장 (seed 증가로 유니크 보장)
-if [[ -n "${SLURM_ARRAY_TASK_COUNT:-}" ]]; then
-  TARGET=${SLURM_ARRAY_TASK_COUNT}
-  if (( N_RUNS < TARGET && N_RUNS > 0 )); then
-    NEW_RUNS=()
-    for (( i=0; i<TARGET; i++ )); do
-      base_idx=$(( i % N_RUNS ))
-      IFS='|' read -r pair_b student_b method_b seed_b <<< "${RUNS[$base_idx]}"
-      NEW_SEED=$(( seed_b + i ))
-      NEW_RUNS+=("${pair_b}|${student_b}|${method_b}|${NEW_SEED}")
-    done
-    RUNS=("${NEW_RUNS[@]}")
-    N_RUNS=${#RUNS[@]}
-    echo "🧩 Auto-expanded RUNS to match array: ${N_RUNS}"
-  fi
+# Optional dry-run (index→spec mapping only)
+if [[ "${DRY_RUN:-0}" == "1" ]]; then
+  echo "Planned runs: ${#RUNS[@]}"
+  for i in "${!RUNS[@]}"; do
+    echo "IDX=$i | ${RUNS[$i]}"
+  done
+  exit 0
 fi
 
+# Slurm array mode: run only the indexed item
 if [[ -n "${SLURM_ARRAY_TASK_ID:-}" ]]; then
-  idx="${SLURM_ARRAY_TASK_ID}"
-  if (( idx >= N_RUNS )); then
-    echo "ℹ️  Array index ${idx} >= N_RUNS ${N_RUNS} → nothing to do."; exit 0
+  IDX="${SLURM_ARRAY_TASK_ID}"
+  TOTAL="${#RUNS[@]}"
+  echo "[INFO] Array index ${IDX} / ${TOTAL}"
+  if (( IDX < 0 || IDX >= TOTAL )); then
+    echo "[INFO] Index out of range. Nothing to do. Exit 0."
+    exit 0
   fi
-  IFS='|' read -r pair student method seed <<< "${RUNS[$idx]}"
-  IFS=',' read -r T1 T2 <<< "$pair"
-  RUNS=("${T1},${T2}|${student}|${method}|${seed}")
+  RUNS=( "${RUNS[$IDX]}" )
 fi
 
-for entry in "${RUNS[@]}"; do
-  IFS='|' read -r pair student method seed <<< "$entry"
+for spec in "${RUNS[@]}"; do
+  IFS='|' read -r pair student method seed <<< "$spec"
   IFS=',' read -r T1 T2 <<< "$pair"
-  RESULTS_DIR="experiments/sota/results/${T1}-${T2}/${student}/${method}/seed${seed}"
-  mkdir -p "$RESULTS_DIR"
-  LATEST="$RESULTS_DIR/latest.json"
-  if [[ -f "$LATEST" ]]; then
-    echo "⏭️  Skip(existing): $LATEST"; continue
+
+  OVRS="$(method_overrides "$method")"
+  if [[ -z "$OVRS" ]]; then echo "Skip unknown method: $method"; continue; fi
+  read -r -a OV_ARR <<< "$OVRS"
+
+  # Resolve student Hydra key and adapter dim
+  STU_KEY="$(student_key_from "$student")"
+  D_DIM="$(distill_dim_for_student "$STU_KEY")"
+
+  # Check teacher checkpoints exist; skip run if missing
+  for tk in "$T1" "$T2"; do
+    ck="${CKPT[$tk]:-}"
+    if [[ -z "$ck" || ! -f "$ck" ]]; then
+      echo "Missing CKPT: $tk → $ck (skipping)"
+      continue 2
+    fi
+  done
+
+  OUT_DIR="$RESULTS_ROOT/${T1}-${T2}/${student}/${method}/seed${seed}"
+  mkdir -p "$OUT_DIR"
+
+  CMD=("$PY" -u main.py -cn="$CFG"
+    model/teacher@experiment.teacher1="$T1"
+    model/teacher@experiment.teacher2="$T2"
+    model/student@experiment.model.student="$STU_KEY"
+    +experiment.teacher1.pretrained=true
+    +experiment.teacher2.pretrained=true
+    +experiment.teacher1_ckpt="${CKPT[$T1]:-null}"
+    +experiment.teacher2_ckpt="${CKPT[$T2]:-null}"
+    +experiment.results_dir="$OUT_DIR"
+    +experiment.exp_id="sota__${method}__${T1}-${T2}__${student}__s${seed}"
+    +seed="$seed"
+    +experiment.distill_out_dim="$D_DIM"
+  )
+
+  CMD+=("${BASE_OVR[@]}")
+  CMD+=("${OV_ARR[@]}")
+  # Pair overrides appended last
+  PAIR_OVR="$(pair_overrides "$T1" "$T2" "$method")"
+  if [[ -n "$PAIR_OVR" ]]; then
+    read -r -a PAIR_OVR_ARR <<< "$PAIR_OVR"
+    CMD+=("${PAIR_OVR_ARR[@]}")
   fi
 
-        OVRS="$(method_overrides "$method" "$student")"
-        if [[ -z "$OVRS" ]]; then echo "Unknown method: $method"; exit 1; fi
+  # Debug: show pair overrides for visibility
+  printf "[pair_overrides] %s,%s %s -> %s\n" "$T1" "$T2" "$method" "$PAIR_OVR"
 
-        # 체크포인트 존재 검증 (없으면 스킵)
-        for tk in "$T1" "$T2"; do
-          ck="${CKPT[$tk]:-}"
-          if [[ -z "$ck" || ! -f "$ck" ]]; then
-            echo "⚠️  Missing CKPT for $tk: '$ck' — skip run"
-            echo "{\"status\":\"skipped\",\"reason\":\"missing_ckpt\",\"teacher\":\"$tk\"}" > "$RESULTS_DIR/skipped.json"
-            continue 2
-          fi
-        done
+  # Optional DataLoader workers override via env
+  if [[ -n "${NUM_WORKERS:-}" ]]; then
+    CMD+=(+experiment.dataset.num_workers="${NUM_WORKERS}")
+  fi
 
-        # 공정성 가드: 메인 SOTA 표에서는 FT/PPF/CCCP 금지
-        if [[ "$OVRS" == *"use_teacher_finetuning=true"* || "$OVRS" == *"use_partial_freeze=true"* || "$OVRS" == *"use_cccp=true"* ]]; then
-          echo "⚠️  fairness guard: FT/PPF/CCCP detected in main SOTA — skip"
-          echo "{\"status\":\"skipped\",\"reason\":\"fairness_guard\"}" > "$RESULTS_DIR/skipped.json"
-          continue
-        fi
+  # One-time teacher-eval smoke if enabled
+  if [[ "$TEACHER_EVAL_SMOKE" == "1" && "$did_eval_smoke" == "0" ]]; then
+    CMD+=(
+      +experiment.compute_teacher_eval=true
+      +experiment.teacher_eval_max_batches="$TEACHER_EVAL_MAX_BATCHES"
+      +experiment.teacher_eval_on_gpu=true
+      +experiment.teacher_eval_amp=true
+      +experiment.teacher_eval_batch_size=128
+    )
+    did_eval_smoke=1
+  fi
 
-        # 메소드별 OOM 가드: CRD/ReviewKD면 배치 축소
-        BATCH_OVR=()
-        if [[ "$method" == "crd" || "$method" == "reviewkd" ]]; then
-          BATCH_OVR=(experiment.dataset.batch_size=96)
-        fi
+  # Optional: 1-epoch smoke via env EPOCHS
+  if [[ -n "${EPOCHS:-}" ]]; then
+    CMD+=(+experiment.student_epochs="${EPOCHS}")
+    if [[ "${EPOCHS}" == "1" && ( "$method" == "asib_stage" || "$method" == "asib" ) ]]; then
+      CMD+=(+experiment.teacher_adapt_epochs=1)
+    fi
+  fi
 
-        CMD=(python -u main.py -cn=experiment/sota_generic
-          +experiment.teacher1.name="$T1"
-          +experiment.teacher2.name="$T2"
-          +experiment.model.student.name="$student"
-          +experiment.teacher1.pretrained=true
-          +experiment.teacher2.pretrained=true
-          +experiment.teacher1_ckpt="${CKPT[$T1]:-null}"
-          +experiment.teacher2_ckpt="${CKPT[$T2]:-null}"
-          +experiment.results_dir="$RESULTS_DIR"
-          +experiment.exp_id="sota__${method}__${T1}-${T2}__${student}__s${seed}"
-          +seed="$seed"
-        )
-        read -r -a OV_ARR <<< "$OVRS"
-        # num_workers 자동 주입(이미 지정돼 있으면 생략)
-        HAS_NW_OVR=0
-        if [[ "$OVRS" == *"experiment.dataset.num_workers="* ]]; then HAS_NW_OVR=1; fi
-        for arg in "$@"; do
-          if [[ "$arg" == experiment.dataset.num_workers=* || "$arg" == dataset.num_workers=* ]]; then
-            HAS_NW_OVR=1
-          fi
-        done
-        WORKERS_OVR=()
-        if [[ $HAS_NW_OVR -eq 0 ]]; then
-          WORKERS_OVR=(+experiment.dataset.num_workers="${WORKERS}")
-        fi
-        CMD+=("${OV_ARR[@]}" "${BATCH_OVR[@]}" "${WORKERS_OVR[@]}")
-        # 추가 CLI 인자 패스스루: Hydra-safe만 전달
-        if [[ "$#" -gt 0 ]]; then
-          PASSTHRU_ARGS=()
-          for a in "$@"; do
-            case "$a" in
-              *method@*|*experiment.method=*|*experiment/method=*|*method=*)
-                continue;;
-              *)
-                if [[ "$a" == -* || "$a" == *=* || "$a" == +*=* ]]; then
-                  PASSTHRU_ARGS+=("$a")
-                fi
-                ;;
-            esac
-          done
-          CMD+=("${PASSTHRU_ARGS[@]}")
-        fi
-
-        echo "🚀 ${CMD[*]}"
-        set +e
-        "${CMD[@]}"
-        ret=$?
-        set -e
-        if [[ $ret -ne 0 ]]; then
-          echo "❌ Failed: $RESULTS_DIR (exit=$ret) — continue"
-          echo "{\"status\":\"failed\",\"code\":$ret}" > "$RESULTS_DIR/failed.json"
-          continue
-        fi
-        echo "✅ Done: $RESULTS_DIR"
-      done
-    done
-  done
+  printf "\n🚀 %s\n\n" "${CMD[*]}"
+  set +e
+  "${CMD[@]}"; ret=$?
+  set -e
+  if [[ $ret -ne 0 ]]; then
+    echo "❌ Failed: $OUT_DIR (exit=$ret) — continue"
+    echo "{\"status\":\"failed\",\"code\":$ret}" > "$OUT_DIR/failed.json"
+    continue
+  fi
 done
 
-echo "🎉 All runs finished. See experiments/sota/results/"
+printf "\n🎉 All runs finished. See %s/\n" "${RESULTS_ROOT}"
+
+
